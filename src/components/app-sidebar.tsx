@@ -46,8 +46,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useAuth } from "@/lib/auth-context";
 import { UpgradeCard } from "@/components/upgrade-card";
 
-import logoAsset from "@/assets/aa-creative-studio.png.asset.json";
-const LOGO_URL = logoAsset.url;
+const LOGO_URL = "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w512";
 
 type Item = { title: string; url: string; icon: LucideIcon; permKey?: string };
 type NavEntry =
@@ -163,7 +162,7 @@ function HoverFlyout({
     <div
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
-      className="fixed left-[20.25rem] z-50 min-w-[220px] rounded-2xl border border-sidebar-border bg-sidebar/95 backdrop-blur-xl p-2 shadow-2xl animate-in fade-in-0 slide-in-from-left-2 duration-150"
+      className="fixed left-[24.25rem] z-50 min-w-[220px] rounded-2xl border border-sidebar-border bg-sidebar/95 backdrop-blur-xl p-2 shadow-2xl animate-in fade-in-0 slide-in-from-left-2 duration-150"
       style={{ top: anchorTop }}
     >
       {/* invisible bridge to prevent gap-triggered close */}
@@ -392,46 +391,47 @@ export function AppSidebar({
 
   const outerClass = inline
     ? "flex flex-col w-full p-4 gap-1"
-    : "hidden md:flex flex-col w-[20rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
+    : "hidden md:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
 
 
   return (
     <aside className={outerClass}>
-      <div className="flex items-center gap-3.5 px-1 pt-1 pb-3">
-        <div className="relative shrink-0">
-          {/* smoke halo */}
+      <div className="flex items-center gap-3 px-1 pt-1 pb-3">
+        <div className="relative shrink-0 h-[100px] w-[100px]">
+          {/* thin smoke — outer drift */}
           <div
             aria-hidden
-            className="pointer-events-none absolute -inset-3 rounded-full blur-2xl opacity-70 animate-pulse"
+            className="pointer-events-none absolute -inset-[22px] rounded-full blur-2xl opacity-60 animate-[smoke-drift_7s_ease-in-out_infinite]"
             style={{
               background:
-                "radial-gradient(circle, rgba(190,120,255,0.45) 0%, rgba(80,180,255,0.28) 45%, rgba(0,0,0,0) 72%)",
+                "radial-gradient(circle, rgba(230,235,245,0.28) 0%, rgba(200,210,230,0.14) 45%, rgba(0,0,0,0) 72%)",
             }}
           />
+          {/* thin smoke — inner wisp */}
           <div
             aria-hidden
-            className="pointer-events-none absolute -inset-1.5 rounded-full blur-md opacity-80"
+            className="pointer-events-none absolute -inset-[11px] rounded-full blur-lg opacity-70 animate-[smoke-drift_5s_ease-in-out_infinite_reverse]"
             style={{
               background:
-                "radial-gradient(circle, rgba(255,180,230,0.35) 0%, rgba(120,80,220,0.25) 55%, rgba(0,0,0,0) 78%)",
+                "radial-gradient(circle, rgba(245,245,250,0.32) 0%, rgba(210,215,230,0.16) 55%, rgba(0,0,0,0) 78%)",
             }}
           />
           <img
             src={LOGO_URL}
-            alt="AA Creative Studio"
-            className="relative h-[68px] w-[68px] rounded-2xl object-cover shadow-[0_0_36px_-6px_rgba(160,100,240,0.75)] ring-1 ring-white/10"
+            alt="Creative Studio"
+            className="relative h-[100px] w-[100px] rounded-[25px] object-contain ring-1 ring-white/10"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
           />
         </div>
-        <div className="leading-[1.0] font-display font-black tracking-tight min-w-0" style={{ letterSpacing: "-0.025em" }}>
-          <div className="text-[24px] text-gradient truncate">AA Creative</div>
-          <div className="text-[24px] text-gradient truncate">Studio</div>
+        <div className="leading-[1.05] font-display font-black tracking-tight min-w-0" style={{ letterSpacing: "-0.025em" }}>
+          <div className="text-[44px] text-gradient">Creative</div>
+          <div className="text-[44px] text-gradient">Studio</div>
         </div>
       </div>
 
-      <nav className="flex flex-col gap-1.5 mt-[98px]">
+      <nav className="flex flex-col gap-1.5 mt-[52px]">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             {ordered.map((e) => (

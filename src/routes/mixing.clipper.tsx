@@ -339,8 +339,16 @@ function ClipperPage() {
       sttFd.append("filename", "audio.wav");
       const headers: Record<string, string> = {};
       const openaiKeys = readLsArray("aatools.brain.openaiKeys").filter((k) => k.startsWith("sk-"));
-      const elevenKeys = listProviders("stt").find((x) => x.id === "eleven")?.keys ?? [];
+      // ElevenLabs STT hanya dipakai kalau user butuh subtitle atau dubbing.
+      // Kalau cuma cari hook + cut/gabung via FFmpeg, cukup OpenAI STT (Whisper).
+      const needsEleven = settings.subtitle || settings.generateDub;
+      const elevenKeys = needsEleven
+        ? (listProviders("stt").find((x) => x.id === "eleven")?.keys ?? [])
+        : [];
       if (elevenKeys.length) headers["x-user-elevenlabs-keys"] = elevenKeys.join(",");
+      if (!needsEleven && openaiKeys.length === 0) {
+        throw new Error("Butuh OpenAI STT key (Whisper) untuk transkrip. Tambahkan di Token Manager, atau enable Subtitle/Dub untuk pakai ElevenLabs.");
+      }
 
       // Large audio (>8MB) bypasses worker proxy and goes browser→provider to avoid
       // gateway timeouts / body-size caps that surface as HTML error pages.
@@ -351,7 +359,9 @@ function ClipperPage() {
         retries: 1,
         run: async () => {
           if (useDirect) {
-            pushLog(clipperStore, "Direct upload to STT provider (bypass worker)");
+            pushLog(clipperStore, needsEleven
+              ? "Direct upload to STT provider (bypass worker)"
+              : "Direct upload to OpenAI Whisper (ElevenLabs dilewati, subtitle/dub off)");
             return await directStt(wav, openaiKeys, elevenKeys);
           }
           const r = await fetch("/api/router/stt", { method: "POST", headers, body: sttFd });

@@ -17,7 +17,7 @@ import { useAuth } from "@/lib/auth-context";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "AI Content OS — AATools" },
+      { title: "AA Creative Studio" },
       {
         name: "description",
         content:

@@ -291,7 +291,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             className="absolute inset-0 bg-background/70 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[20rem] bg-background border-r border-border shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200">
+          <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[24rem] bg-background border-r border-border shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-end p-2">
               <button
                 onClick={() => setDrawerOpen(false)}

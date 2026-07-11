@@ -386,7 +386,7 @@ function DubbingPage() {
         </div>
         <div>
           <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground">Mixing · AI Post Production</div>
-          <h1 className="text-2xl font-display font-bold text-gradient">AI Dubbing</h1>
+          <h1 className="text-2xl font-display font-bold text-gradient">AI Dubber</h1>
         </div>
         <div className="ml-auto flex gap-2">
           <button onClick={newProject} className="px-3 py-2 rounded-xl text-xs neumorph hover:text-primary">
@@ -482,7 +482,7 @@ function DubbingPage() {
           <section className="neumorph p-4">
             <div className="flex items-center gap-2 mb-3">
               <Mic className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">AI Dubbing Pipeline</h2>
+              <h2 className="font-semibold">AI Dubber Pipeline</h2>
               <div className="ml-auto flex gap-2">
                 <button
                   disabled={state.busy || !project?.sources?.length}
