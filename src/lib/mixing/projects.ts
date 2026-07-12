@@ -12,6 +12,7 @@ export type ProjectSummary = {
   id: string;
   name: string;
   kind: Kind;
+  createdAt: number;
   updatedAt: number;
   lastProgress?: MixingProgress;
 };
@@ -47,8 +48,17 @@ const memCache: Record<Kind, Map<string, unknown>> = {
 export function listProjects(kind: Kind): ProjectSummary[] {
   const all = readAll<ClipperProject | DubbingProject>(kind);
   return Object.values(all)
-    .map((p) => ({ id: p.id, name: p.name, kind, updatedAt: p.updatedAt, lastProgress: p.lastProgress }))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      kind,
+      createdAt: p.createdAt ?? p.updatedAt,
+      updatedAt: p.updatedAt,
+      lastProgress: p.lastProgress,
+    }))
+    // Stable queue order = creation order (oldest first). Clicking / auto-save
+    // must NOT reorder projects — user complained the dashboard jumped around.
+    .sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export function saveClipper(p: ClipperProject): void {

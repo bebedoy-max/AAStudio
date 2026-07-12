@@ -207,3 +207,8 @@
   animation: vvip-gold-shimmer 3.2s linear infinite;
   text-shadow: 0 0 6px rgba(247, 224, 122, 0.25);
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}

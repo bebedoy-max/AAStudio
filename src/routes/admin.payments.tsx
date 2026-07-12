@@ -81,10 +81,30 @@ function PricesSection() {
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
+  const DEFAULT_ROWS: { route_key: string; label: string; price_idr: number }[] = [
+    { route_key: "ai-influencer", label: "AI Influencer Studio", price_idr: 50000 },
+    { route_key: "mixing.clipper", label: "AI Clipper", price_idr: 50000 },
+    { route_key: "mixing.dubbing", label: "AI Dubber", price_idr: 50000 },
+  ];
+
   async function load() {
     setLoading(true);
     const { data } = await supabase.from("feature_prices").select("*").order("label");
-    setRows((data ?? []) as Price[]);
+    const existing = (data ?? []) as Price[];
+    const existingKeys = new Set(existing.map((r) => r.route_key));
+    const missing = DEFAULT_ROWS.filter((r) => !existingKeys.has(r.route_key));
+    if (missing.length > 0) {
+      const { error: insErr } = await supabase
+        .from("feature_prices")
+        .insert(missing.map((m) => ({ ...m, is_active: true })));
+      if (!insErr) {
+        const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
+        setRows((refetched ?? []) as Price[]);
+        setLoading(false);
+        return;
+      }
+    }
+    setRows(existing);
     setLoading(false);
   }
   useEffect(() => {

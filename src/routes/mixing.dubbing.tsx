@@ -485,8 +485,13 @@ function DubbingPage() {
       renderResult: entry,
       renderHistory: [...(project.renderHistory ?? []), entry],
     };
-    dubbingStore.patch({ project: updated });
+    // Persist to disk always; only patch the active view if user is still
+    // viewing this project (background jobs must not overwrite the dashboard).
     saveDubbing(updated);
+    const active = dubbingStore.get().project;
+    if (active && active.id === project.id) {
+      dubbingStore.patch({ project: updated });
+    }
   }
 
   function download(name: string, content: string, mime = "text/plain") {
@@ -767,15 +772,6 @@ function DubbingPage() {
               <div className="mt-3">
                 <div className="flex justify-between text-[11px] text-muted-foreground mb-1"><span>FFmpeg rendering…</span><span>{renderProgress}%</span></div>
                 <div className="h-1.5 rounded-full bg-black/40 overflow-hidden"><div className="h-full" style={{ width: `${renderProgress}%`, background: "var(--gradient-neon)" }} /></div>
-              </div>
-            )}
-            {renderOutUrl && (
-              <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
-                <video src={renderOutUrl} controls className="w-40 rounded-lg" />
-                <div className="flex-1 text-xs">
-                  <div className="font-medium text-emerald-300">✅ Render selesai</div>
-                  <a href={renderOutUrl} download={`dubbing-${Date.now()}.mp4`} className="text-primary underline">Download MP4</a>
-                </div>
               </div>
             )}
             {project?.renderHistory && project.renderHistory.length > 0 && (

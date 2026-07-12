@@ -15,16 +15,25 @@ export async function checkWavespeedBalance(apiKey: string): Promise<{ ok: boole
   }
 }
 
-export function getFirstWavespeedKey(): string | null {
-  if (typeof window === "undefined") return null;
+export function getAllWavespeedKeys(): string[] {
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(LS_WAVESPEED_KEYS);
-    if (!raw) return null;
+    if (!raw) return [];
     const list = JSON.parse(raw) as { key: string }[];
-    return list?.[0]?.key || null;
+    return list.map((x) => x?.key).filter((k): k is string => !!k);
   } catch {
-    return null;
+    return [];
   }
+}
+
+export function getFirstWavespeedKey(): string | null {
+  return getAllWavespeedKeys()[0] || null;
+}
+
+/** Detect if an error message looks like a credit / quota / auth failure that rotating keys can fix. */
+export function isWavespeedRotatableError(msg: string): boolean {
+  return /insufficient|credits?|quota|balance|402|401|403|not enough|cukup|unauthori[sz]ed|payment/i.test(msg);
 }
 
 /** Upload arbitrary media, returns public URL usable as image/video input. */

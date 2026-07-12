@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef } from "react";
-import { Rocket, Play, Search, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Rocket, Play, Search, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -133,8 +133,11 @@ function mapImgToWsEndpoint(modelKey: string): string {
   return "wavespeed-ai/flux-schnell";
 }
 
-type Material = { title: string; desc: string; body: string; hero?: string };
+type Material = { title: string; desc: string; body: string; hero?: string; images?: string[] };
 type Scene = { idx: number; prompt: string; videoPrompt: string; narration: string; imgUrl?: string; audioUrl?: string; videoUrl?: string; busy?: "img" | "vo" | "vid" | null };
+type BulkKind = "img" | "vo" | "vid" | "merge";
+type BulkBusy = Record<BulkKind, boolean>;
+const EMPTY_BUSY: BulkBusy = { img: false, vo: false, vid: false, merge: false };
 
 function NaratifPage() {
   const [url, setUrl] = useSticky<string>("naratif.url", "");
@@ -159,6 +162,10 @@ function NaratifPage() {
   const [mergeStatus, setMergeStatus] = useSticky<string>("naratif.mergeStatus", "");
   const [finalUrl, setFinalUrl] = useSticky<string | null>("naratif.finalUrl", null);
   const [testingVoice, setTestingVoice] = useSticky<boolean>("naratif.testingVoice", false);
+  const [bulkBusy, setBulkBusy] = useState<BulkBusy>(EMPTY_BUSY);
+  const anyBusy = bulkBusy.img || bulkBusy.vo || bulkBusy.vid || bulkBusy.merge;
+  const setBusy = (k: BulkKind, v: boolean) => setBulkBusy((prev) => ({ ...prev, [k]: v }));
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const bootstrappedRef = useRef(false);
 
   const imgModels = IMG_CATALOG[provider] || IMG_CATALOG.weavy;
@@ -232,6 +239,11 @@ function NaratifPage() {
   const scrapeRef = useRef<((overrideUrl?: string) => Promise<void>) | null>(null);
 
   const testVoice = async () => {
+    // Create Audio element inside user-gesture tick, then fill src after fetch.
+    // Some browsers (Safari/iOS/strict Chromium) block .play() if Audio is
+    // constructed after `await` — the gesture context is gone by then.
+    const audio = new Audio();
+    audioRef.current = audio;
     try {
       setTestingVoice(true);
       const eleven = JSON.parse(localStorage.getItem("aatools.eleven") || "{}");
@@ -248,7 +260,11 @@ function NaratifPage() {
       }
       const buf = await r.arrayBuffer();
       const audioUrl = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
-      new Audio(audioUrl).play();
+      audio.src = audioUrl;
+      audio.volume = 1;
+      await audio.play().catch((err) => {
+        throw new Error("Browser memblokir autoplay: " + err.message);
+      });
     } catch (e) {
       alert("Tes suara gagal: " + ((e as Error).message || String(e)));
     } finally {
@@ -265,12 +281,19 @@ function NaratifPage() {
       const r = await fetch("/api/public/scrape-article", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: target }),
       });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      setMaterial({ title: j.title || "", desc: j.description || "", body: j.body || "", hero: j.hero || undefined });
-      setScrapeStatus("✅ Materi terambil");
+      const images: string[] = Array.isArray(j.images) ? j.images : [];
+      setMaterial({
+        title: j.title || "",
+        desc: j.description || "",
+        body: j.body || "",
+        hero: images[0],
+        images,
+      });
+      setScrapeStatus(`✅ Materi terambil${images.length ? ` (${images.length} gambar)` : " (0 gambar — cek URL)"}`);
     } catch (e) {
       setScrapeStatus("❌ " + ((e as Error).message || String(e)));
     } finally {
@@ -360,7 +383,23 @@ function NaratifPage() {
       });
       if (!r.ok) throw new Error(`VO gagal (${r.status})`);
       const buf = await r.arrayBuffer();
-      const audioUrl = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+      if (buf.byteLength < 500) throw new Error(`VO kosong (${buf.byteLength}B) — cek ElevenLabs key/quota`);
+      // Prefer blob URL (paling reliable untuk playback native <audio>).
+      // Fallback ke data URL agar tetap survive reload (blob URL invalid setelah reload).
+      const blob = new Blob([buf], { type: "audio/mpeg" });
+      const blobUrl = URL.createObjectURL(blob);
+      let audioUrl = blobUrl;
+      try {
+        // Simpan juga sebagai data URL supaya persist di useSticky (localStorage).
+        // Encode chunked untuk hindari stack overflow di String.fromCharCode(...large).
+        const bytes = new Uint8Array(buf);
+        let bin = "";
+        const CHUNK = 0x8000;
+        for (let off = 0; off < bytes.length; off += CHUNK) {
+          bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(off, off + CHUNK)) as number[]);
+        }
+        audioUrl = `data:audio/mpeg;base64,${btoa(bin)}`;
+      } catch { /* fall back to blob URL */ }
       patchScene(i, { audioUrl, busy: null });
     } catch (e) {
       patchScene(i, { busy: null });
@@ -392,6 +431,8 @@ function NaratifPage() {
   };
 
   const genAllImages = async () => {
+    if (bulkBusy.img) return;
+    setBusy("img", true);
     setBrainStatus("🖼️ Generate semua gambar…");
     try {
       for (let i = 0; i < scenes.length; i++) {
@@ -401,10 +442,14 @@ function NaratifPage() {
       setBrainStatus("✅ Semua gambar selesai");
     } catch (e) {
       setBrainStatus("❌ " + ((e as Error).message || String(e)));
+    } finally {
+      setBusy("img", false);
     }
   };
 
   const genAllVO = async () => {
+    if (bulkBusy.vo) return;
+    setBusy("vo", true);
     setBrainStatus("🎙️ Generate semua voice-over…");
     try {
       for (let i = 0; i < scenes.length; i++) {
@@ -414,10 +459,14 @@ function NaratifPage() {
       setBrainStatus("✅ Semua VO selesai");
     } catch (e) {
       setBrainStatus("❌ " + ((e as Error).message || String(e)));
+    } finally {
+      setBusy("vo", false);
     }
   };
 
   const genAllVideos = async () => {
+    if (bulkBusy.vid) return;
+    setBusy("vid", true);
     setBrainStatus("🎬 Generate semua image→video…");
     try {
       for (let i = 0; i < scenes.length; i++) {
@@ -427,15 +476,25 @@ function NaratifPage() {
       setBrainStatus("✅ Semua video selesai");
     } catch (e) {
       setBrainStatus("❌ " + ((e as Error).message || String(e)));
+    } finally {
+      setBusy("vid", false);
     }
   };
 
-  const merge = () => {
-    setMergeStatus("ℹ️ Video final: gabung manual per-scene (client-side ffmpeg merge butuh koneksi cepat). Unduh semua video di atas & audio-nya, lalu gabung di editor. Auto-merge coming soon.");
-    setFinalUrl("#");
+  const merge = async () => {
+    if (bulkBusy.merge) return;
+    setBusy("merge", true);
+    try {
+      setMergeStatus("ℹ️ Video final: gabung manual per-scene (client-side ffmpeg merge butuh koneksi cepat). Unduh semua video di atas & audio-nya, lalu gabung di editor. Auto-merge coming soon.");
+      setFinalUrl("#");
+    } finally {
+      setBusy("merge", false);
+    }
   };
 
+  const allImagesReady = scenes.length > 0 && scenes.every((s) => !!s.imgUrl);
   const canMerge = scenes.length > 0 && scenes.every((s) => s.videoUrl && s.audioUrl);
+
 
   return (
     <DashboardShell>
@@ -457,6 +516,17 @@ function NaratifPage() {
             <Field label="Judul"><Input value={material.title} onChange={(e) => setMaterial({ ...material, title: e.target.value })} /></Field>
             <Field label="Deskripsi Singkat"><Textarea rows={2} value={material.desc} onChange={(e) => setMaterial({ ...material, desc: e.target.value })} /></Field>
             <Field label="Isi Artikel"><Textarea rows={6} value={material.body} onChange={(e) => setMaterial({ ...material, body: e.target.value })} className="text-xs" /></Field>
+            {material.images && material.images.length > 0 && (
+              <Field label={`Gambar dari Artikel (${material.images.length}) — referensi untuk Brain`}>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {material.images.slice(0, 12).map((src, i) => (
+                    <a key={i} href={src} target="_blank" rel="noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-border bg-black/30">
+                      <img src={src} alt={`ref-${i}`} className="w-full h-full object-cover" loading="lazy" />
+                    </a>
+                  ))}
+                </div>
+              </Field>
+            )}
           </div>
         </Card>
       )}
@@ -533,31 +603,44 @@ function NaratifPage() {
                         </div>
                       )}
                     </div>
-                    {s.audioUrl && <audio src={s.audioUrl} controls className="w-full h-8" />}
+                    {s.audioUrl && (
+                      <audio
+                        src={s.audioUrl}
+                        controls
+                        preload="auto"
+                        className="w-full h-8"
+                        onLoadedMetadata={(e) => { (e.currentTarget as HTMLAudioElement).volume = 1; }}
+                        onPlay={(e) => {
+                          const a = e.currentTarget as HTMLAudioElement;
+                          if (a.muted) a.muted = false;
+                          if (a.volume < 0.05) a.volume = 1;
+                        }}
+                      />
+                    )}
                     <div className="flex flex-wrap gap-1.5">
                       <GhostButton
                         onClick={() => genImageAt(i).catch((e) => setBrainStatus("❌ " + ((e as Error).message || String(e))))}
-                        disabled={!!s.busy}
+                        disabled={!!s.busy || anyBusy}
                         className="!px-2 !py-1 text-[11px]"
                         title="Generate ulang gambar"
                       >
-                        <RefreshCw className="h-3 w-3" /> Img
+                        {s.busy === "img" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Img
                       </GhostButton>
                       <GhostButton
                         onClick={() => genVOAt(i).catch((e) => setBrainStatus("❌ " + ((e as Error).message || String(e))))}
-                        disabled={!!s.busy}
+                        disabled={!!s.busy || bulkBusy.vo}
                         className="!px-2 !py-1 text-[11px]"
                         title="Generate ulang voice-over"
                       >
-                        <RefreshCw className="h-3 w-3" /> VO
+                        {s.busy === "vo" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} VO
                       </GhostButton>
                       <GhostButton
                         onClick={() => genVideoAt(i).catch((e) => setBrainStatus("❌ " + ((e as Error).message || String(e))))}
-                        disabled={!!s.busy || !s.imgUrl}
+                        disabled={!!s.busy || bulkBusy.vid || bulkBusy.img || bulkBusy.merge || !s.imgUrl}
                         className="!px-2 !py-1 text-[11px]"
                         title="Generate ulang video"
                       >
-                        <RefreshCw className="h-3 w-3" /> Vid
+                        {s.busy === "vid" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Vid
                       </GhostButton>
                     </div>
                   </div>
@@ -577,11 +660,34 @@ function NaratifPage() {
             ))}
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <PrimaryButton onClick={genAllImages}><ImageIcon className="h-4 w-4" /> Generate Semua Gambar</PrimaryButton>
-            <PrimaryButton onClick={genAllVO}><Mic className="h-4 w-4" /> Generate Semua Voice-Over</PrimaryButton>
-            <PrimaryButton onClick={genAllVideos}><Film className="h-4 w-4" /> Generate Semua Image→Video</PrimaryButton>
-            <PrimaryButton onClick={merge} disabled={!canMerge}><Merge className="h-4 w-4" /> Gabung jadi Video Naratif</PrimaryButton>
+            <PrimaryButton onClick={genAllImages} disabled={bulkBusy.img || bulkBusy.vid || bulkBusy.merge}>
+              {bulkBusy.img ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+              {bulkBusy.img ? "Menggenerate Gambar…" : "Generate Semua Gambar"}
+            </PrimaryButton>
+            <PrimaryButton onClick={genAllVO} disabled={bulkBusy.vo}>
+              {bulkBusy.vo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+              {bulkBusy.vo ? "Menggenerate VO…" : "Generate Semua Voice-Over"}
+            </PrimaryButton>
+            <PrimaryButton onClick={genAllVideos} disabled={!allImagesReady || bulkBusy.vid || bulkBusy.img || bulkBusy.merge}>
+              {bulkBusy.vid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+              {bulkBusy.vid ? "Menggenerate Video…" : "Generate Semua Image→Video"}
+            </PrimaryButton>
+            <PrimaryButton
+              onClick={merge}
+              disabled={!canMerge || anyBusy}
+              className={canMerge && !anyBusy ? "relative overflow-hidden ring-2 ring-primary/70 animate-pulse" : ""}
+            >
+              {canMerge && !anyBusy && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_1.8s_linear_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                />
+              )}
+              {bulkBusy.merge ? <Loader2 className="h-4 w-4 animate-spin" /> : <Merge className="h-4 w-4" />}
+              {bulkBusy.merge ? "Menggabung…" : "Gabung jadi Video Naratif"}
+            </PrimaryButton>
           </div>
+
           {mergeStatus && <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>}
           {finalUrl && (
             <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 text-center text-sm text-muted-foreground">

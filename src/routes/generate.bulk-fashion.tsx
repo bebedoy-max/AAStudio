@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Rocket, Trash2, Plus, RefreshCw, X } from "lucide-react";
+import { Rocket, Trash2, Plus, RefreshCw, X, Square } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/generate/bulk-fashion")({
   component: BulkFashion,
 });
 
-const PRODUCT_TYPES = ["Blouse", "Cardigan", "Kemeja", "Jaket", "Croptop", "Atasan"];
+const PRODUCT_TYPES = ["Atasan", "Blouse", "Cardigan", "Kemeja", "Jaket", "Croptop"];
 const RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9"];
 
 type QualityOpt = { v: string; label: string; cr: number; default?: boolean };
@@ -74,9 +74,21 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
 
 type Template = { name: string; body: string };
 const DEFAULT_TPL: Template[] = [
-  { name: "Studio Katalog", body: "Karakter dari gambar #1 mengenakan {product_type} dari gambar #2 (outfit ke-{outfit_index}). Foto studio putih high-key, katalog e-commerce, pose diam menghadap kamera, pencahayaan lembut merata, full body, tajam." },
-  { name: "Editorial Moody", body: "Karakter dari gambar #1 mengenakan {product_type} dari gambar #2 (outfit ke-{outfit_index}). Editorial fashion shot, moody cinematic lighting, latar gelap netral, komposisi elegan." },
+  { name: "Hanya Outfit", body: "Hanya outfit saja, untuk frame, pose dan background tetap sama" },
+  { name: "Style Wanita Berhijab", body: "Hanya outfit saja dan sesuaikan untuk style wanita berhijab, untuk frame, pose dan background tetap sama" },
+  { name: "Detail Atasan", body: "Hanya atasan saja ikuti detail, ukuran, kerah leher, kerah tangan, kancing baju atasan image reference 2. Untuk frame, pose dan background tetap sama" },
 ];
+
+function ratioToAspectClass(r: string): string {
+  switch (r) {
+    case "9:16": return "aspect-[9/16]";
+    case "16:9": return "aspect-[16/9]";
+    case "4:5": return "aspect-[4/5]";
+    case "3:4": return "aspect-[3/4]";
+    case "1:1": return "aspect-square";
+    default: return "aspect-[3/4]";
+  }
+}
 
 function BulkFashion() {
   const [char, setChar] = useSticky<string | null>("bf.char", null);
@@ -93,6 +105,9 @@ function BulkFashion() {
   const [tplIdx, setTplIdx] = useSticky<number>("bf.tplIdx", 0);
   const [showTplModal, setShowTplModal] = useState(false);
   const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>("bf.status", { show: false, text: "", pct: 0, time: "0:00" });
+  const [running, setRunning] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const charInput = useRef<HTMLInputElement>(null);
   const outfitInput = useRef<HTMLInputElement>(null);
 
@@ -110,8 +125,29 @@ function BulkFashion() {
       const def = first?.qualities.find((q) => q.default) || first?.qualities[0];
       setQuality(def?.v || "");
     }
+    // Template version — bump to force reset of any stale defaults in user's browser
+    const TPL_VERSION = "3";
+    const savedVer = localStorage.getItem("aatools.bf.templates.v");
     const tpl = localStorage.getItem("aatools.bf.templates");
-    if (tpl) try { setTemplates(JSON.parse(tpl)); } catch {}
+    if (savedVer !== TPL_VERSION) {
+      // Detect user-added custom templates (not part of any legacy default)
+      let userCustom: Template[] = [];
+      if (tpl) {
+        try {
+          const parsed = JSON.parse(tpl) as Template[];
+          userCustom = (Array.isArray(parsed) ? parsed : []).filter(
+            (t) => !/Ganti Outfit Saja|Hanya Outfit|Style Wanita Berhijab|Detail Atasan/.test(t?.name || ""),
+          );
+        } catch {}
+      }
+      const next = [...DEFAULT_TPL, ...userCustom];
+      setTemplates(next);
+      localStorage.setItem("aatools.bf.templates", JSON.stringify(next));
+      localStorage.setItem("aatools.bf.templates.v", TPL_VERSION);
+      setTplIdx(0);
+    } else if (tpl) {
+      try { setTemplates(JSON.parse(tpl) as Template[]); } catch {}
+    }
     // Consume handoff dari Creative Dashboard → prefill char image dari thumbnail
     const h = consumeHandoff();
     if (h && h.workflow === "bulk-fashion" && h.thumbnail_data_url && !char) {
@@ -161,8 +197,17 @@ function BulkFashion() {
     setOutfitFiles((prev) => prev.filter((_, idx) => idx !== i));
   };
 
+  const stopGenerate = () => {
+    abortRef.current?.abort();
+    setRunning(false);
+    setStatus((s) => ({ ...s, text: "⏹️ Dihentikan oleh user", pct: 100 }));
+  };
+
   const generate = async () => {
     if (!charFile || outfitFiles.length === 0) return;
+    const ac = new AbortController();
+    abortRef.current = ac;
+    setRunning(true);
     const start = Date.now();
     setStatus({ show: true, text: `Memproses ${outfitFiles.length} outfit…`, pct: 5, time: "0:00" });
     setResults([]);
@@ -182,7 +227,9 @@ function BulkFashion() {
         outfitFiles,
         promptTemplate: templates[tplIdx]?.body || "",
         productType,
+        signal: ac.signal,
         onProgress: (i, msg, url, err) => {
+          if (ac.signal.aborted) return;
           if (msg === "done" && url) {
             doneCount.n += 1;
             setResults((r) => [...r, { url, status: "done" }]);
@@ -192,11 +239,17 @@ function BulkFashion() {
           setStatus((s) => ({ ...s, text: `#${i + 1}: ${msg}`, pct: Math.min(95, (doneCount.n / outfitFiles.length) * 100) }));
         },
       });
-      setStatus((s) => ({ ...s, pct: 100, text: `✅ Selesai — ${urls.length}/${outfitFiles.length} sukses` }));
+      if (!ac.signal.aborted) {
+        setStatus((s) => ({ ...s, pct: 100, text: `✅ Selesai — ${urls.length}/${outfitFiles.length} sukses` }));
+      }
     } catch (e) {
-      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + ((e as Error).message || String(e)) }));
+      if (!ac.signal.aborted) {
+        setStatus((s) => ({ ...s, pct: 100, text: "❌ " + ((e as Error).message || String(e)) }));
+      }
     } finally {
       clearInterval(tick);
+      setRunning(false);
+      if (abortRef.current === ac) abortRef.current = null;
     }
   };
 
@@ -320,9 +373,18 @@ function BulkFashion() {
           </Field>
         </div>
         <div className="flex items-center gap-3 mt-5 flex-wrap">
-          <PrimaryButton onClick={generate} disabled={!char || outfits.length === 0}>
-            <Rocket className="h-4 w-4" /> Generate
-          </PrimaryButton>
+          {running ? (
+            <button
+              onClick={stopGenerate}
+              className="inline-flex items-center gap-2 rounded-xl bg-destructive/90 hover:bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium shadow"
+            >
+              <Square className="h-4 w-4 fill-current" /> Stop Generate
+            </button>
+          ) : (
+            <PrimaryButton onClick={generate} disabled={!char || outfits.length === 0}>
+              <Rocket className="h-4 w-4" /> Generate
+            </PrimaryButton>
+          )}
           <div className="text-xs text-muted-foreground">
             Cost: <b className="text-foreground font-mono">{totalCost}</b> credits ({outfits.length} × {modelCr})
           </div>
@@ -345,11 +407,28 @@ function BulkFashion() {
         sub={`(${results.filter((r) => r.status === "done").length})`}
         right={
           <div className="flex gap-2">
+            <GhostButton
+              onClick={async () => {
+                const done = results.filter((r) => r.status === "done" && r.url);
+                if (done.length === 0) return;
+                const { downloadFilesAsZip } = await import("@/lib/utils/download-zip");
+                const ext = (u: string) => (u.match(/\.(png|jpe?g|webp)(\?|$)/i)?.[1] || "jpg").toLowerCase();
+                await downloadFilesAsZip(
+                  done.map((r, i) => ({ url: r.url, filename: `outfit_${String(i + 1).padStart(3, "0")}.${ext(r.url)}` })),
+                  `bulk-fashion-${Date.now()}.zip`,
+                );
+              }}
+              disabled={results.filter((r) => r.status === "done").length === 0}
+              title="Download semua hasil sebagai ZIP"
+            >
+              ⬇ <span className="hidden sm:inline">Download ZIP</span>
+            </GhostButton>
             <GhostButton className="text-destructive hover:text-destructive" onClick={() => setResults([])} title="Hapus All">
               <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Hapus All</span>
             </GhostButton>
 
           </div>
+
         }
       >
         {results.length === 0 ? (
@@ -360,11 +439,17 @@ function BulkFashion() {
               <div key={i} className="rounded-xl overflow-hidden border border-border bg-black/40">
                 {r.status === "done" ? (
                   <>
-                    <img src={r.url} alt="" className="w-full aspect-[3/4] object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setLightbox(r.url)}
+                      className={`block w-full ${ratioToAspectClass(ratio)} overflow-hidden cursor-zoom-in`}
+                      title="Klik untuk lihat full screen"
+                    >
+                      <img src={r.url} alt="" className="w-full h-full object-cover" />
+                    </button>
                     <div className="p-2 flex justify-between">
                       <a href={r.url} download className="text-[11px] text-primary hover:underline" title="Download">Download</a>
                       <button onClick={() => setResults((rs) => rs.filter((_, idx) => idx !== i))} className="text-[11px] text-destructive hover:underline" title="Hapus">Hapus</button>
-
                     </div>
                   </>
                 ) : (
@@ -377,6 +462,33 @@ function BulkFashion() {
       </Card>
 
       {showTplModal && <TemplateModal onClose={() => setShowTplModal(false)} onSave={saveTemplate} />}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-sm cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightbox(null); }}
+            className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 rounded-full bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 text-xs"
+          >
+            <X className="h-4 w-4" /> Tutup
+          </button>
+          <img
+            src={lightbox}
+            alt="Preview full"
+            className="w-screen h-screen object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <a
+            href={lightbox}
+            download
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 rounded-full bg-primary text-primary-foreground px-4 py-2 text-sm font-medium shadow"
+          >
+            Download
+          </a>
+        </div>
+      )}
     </DashboardShell>
   );
 }

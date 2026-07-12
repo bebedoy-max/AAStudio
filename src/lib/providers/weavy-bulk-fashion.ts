@@ -8,7 +8,6 @@ import {
   saveWeavyRecipe,
   approveWeavyModel,
   executeWeavyBatch,
-  fetchWeavyCredits,
   uploadWeavyAssetWithRetry,
   resolveWeavyAssetUrl,
 } from "./weavy";
@@ -254,14 +253,10 @@ export async function generateWeavyBulkOne(opts: WeavyBulkOpts): Promise<string>
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message || "";
-      const creditLike = /insufficient|credits?|quota|balance|402|cukup|not enough/i.test(msg);
+      const creditLike = /insufficient|credits?|quota|balance|402|401|403|cukup|not enough|payment|unauthori[sz]ed|amount/i.test(msg);
       if (!creditLike) throw lastErr;
-      const bal = await fetchWeavyCredits(active.accessToken).catch(() => null);
-      if (bal !== null && bal > 5) {
-        throw new Error(
-          `Weavy menolak: "${msg}" — padahal saldo token masih ${bal} cr. Coba turunkan kualitas/model atau pilih token lain di Kelola Token.`,
-        );
-      }
+      // Always rotate to next Weavy token when the model reports credit/quota/auth issues.
+      // The dashboard balance is a workspace estimate and may not reflect per-model gating.
       await rotateWeavyToken(active.id);
     }
   }

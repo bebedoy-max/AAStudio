@@ -26,6 +26,7 @@ import { generateMotionAll, type MotionProvider } from "@/lib/providers/generate
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { useAuth } from "@/lib/auth-context";
+import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -261,7 +262,16 @@ function MotionControl() {
       ),
     );
 
+    const notifId = `motion-${Date.now().toString(36)}`;
+    startNotification(notifId, {
+      label: `Generate Motion Control (${ready.length} slot)`,
+      detail: prompt.trim() || `${provider} · ${modelKey}`,
+      route: "/generate/motion",
+    });
+
     const inputs = ready.map(({ s, i }) => ({ index: i, image: s.image!, video: s.video! }));
+    let doneCount = 0;
+    let errCount = 0;
     try {
       await generateMotionAll(inputs, {
         provider,
@@ -291,6 +301,7 @@ function MotionControl() {
             ),
           );
           if (status === "done" && url) {
+            doneCount += 1;
             persistResults((prev) => [
               {
                 id: Math.random().toString(36).slice(2),
@@ -302,11 +313,21 @@ function MotionControl() {
               },
               ...prev,
             ]);
+          } else if (status === "error") {
+            errCount += 1;
           }
         },
       });
+      if (errCount > 0 && doneCount === 0) {
+        failNotification(notifId, `Semua slot gagal (${errCount})`);
+      } else if (errCount > 0) {
+        finishNotification(notifId, { detail: `${doneCount} sukses · ${errCount} gagal`, route: "/generate/motion" });
+      } else {
+        finishNotification(notifId, { detail: `${doneCount} video siap`, route: "/generate/motion" });
+      }
     } catch (e) {
       pushLog(`Fatal: ${(e as Error).message}`, "error");
+      failNotification(notifId, (e as Error).message);
     } finally {
       setGenerating(false);
     }
@@ -475,7 +496,9 @@ function MotionControl() {
                   .filter((r) => !search || r.prompt.toLowerCase().includes(search.toLowerCase()))
                   .map((r) => (
                     <div key={r.id} className="rounded-xl overflow-hidden border border-border/60 bg-card/40 group">
-                      <video src={r.url} controls preload="metadata" playsInline className="w-full aspect-video bg-black" />
+                      <a href={r.url} target="_blank" rel="noreferrer" className="block relative">
+                        <video src={r.url} controls preload="metadata" playsInline crossOrigin="anonymous" className="w-full aspect-video bg-black" />
+                      </a>
                       <div className="p-2 text-[11px] text-muted-foreground flex items-center justify-between gap-2">
                         <span className="truncate flex-1" title={r.prompt}>{r.prompt || <span className="italic">(no prompt)</span>}</span>
                         <button

@@ -270,8 +270,11 @@ function ImageToVideo() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {results.map((u, i) => (
               <div key={i} className="rounded-xl overflow-hidden border border-border bg-black/40">
-                <video src={u} controls className="w-full aspect-[9/16] object-cover" />
+                <a href={u} target="_blank" rel="noreferrer" className="block">
+                  <video src={u} controls preload="metadata" playsInline crossOrigin="anonymous" className="w-full aspect-[9/16] object-cover" />
+                </a>
                 <div className="p-2 flex justify-between">
+                  <a href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline">▶ Open</a>
                   <a href={u} download className="text-[11px] text-primary hover:underline">Download</a>
                   <button onClick={() => setResults((r) => r.filter((_, idx) => idx !== i))} className="text-[11px] text-destructive hover:underline">Hapus</button>
                 </div>
