@@ -124,6 +124,14 @@ export type Timeline = {
   tracks: TimelineTrack[];
 };
 
+export type RenderResult = {
+  url?: string;
+  provider?: string;
+  status: "queued" | "rendering" | "done" | "error";
+  message?: string;
+  ts: number;
+};
+
 export type ClipperProject = {
   id: string;
   name: string;
@@ -135,6 +143,9 @@ export type ClipperProject = {
   timeline: Timeline | null;
   clips: Array<{ id: string; title: string; start: number; end: number; timeline: Timeline }>;
   renderResult?: { url?: string; provider?: string; status: "queued" | "rendering" | "done" | "error"; message?: string };
+  renderHistory?: RenderResult[];
+  log?: string[];
+  lastProgress?: MixingProgress;
 };
 
 export type DubTranslationMode = "Literal" | "Natural" | "Localization" | "Affiliate Style" | "Formal" | "Casual";
@@ -151,7 +162,7 @@ export type DubbingSettings = {
   sourceLanguage: string;
   targetLanguage: string;
   translationMode: DubTranslationMode;
-  voice: DubVoicePreset;
+  voice: DubVoicePreset | string;
   lipSync: boolean;
   subtitle: "off" | "original" | "translated" | "dual";
   aspectRatio: AspectRatio;
@@ -177,6 +188,9 @@ export type DubbingProject = {
   subtitleSrt?: string;
   timeline: Timeline | null;
   renderResult?: { url?: string; provider?: string; status: "queued" | "rendering" | "done" | "error"; message?: string };
+  renderHistory?: RenderResult[];
+  log?: string[];
+  lastProgress?: MixingProgress;
 };
 
 export const LANGUAGES: Array<{ code: string; label: string }> = [

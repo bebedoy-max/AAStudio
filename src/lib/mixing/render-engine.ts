@@ -83,6 +83,7 @@ async function runFfmpeg(
       clips,
       srt: payload.subtitle?.enabled ? payload.subtitle.srt : undefined,
       aspectRatio: payload.aspectRatio,
+      voiceUrl: payload.audio?.voiceUrl,
       onLog,
       onProgress,
     });

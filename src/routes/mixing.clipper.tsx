@@ -31,6 +31,7 @@ import { loadMemory, saveMemory } from "@/lib/mixing/memory";
 import { listProjects, saveClipper, loadClipper, deleteProject } from "@/lib/mixing/projects";
 import { submitRender, checkSourceSize, fmtBytes, type RenderEngine } from "@/lib/mixing/render-engine";
 import { cloudRenderStatus } from "@/lib/mixing/providers";
+import { NewProjectDialog } from "@/components/mixing/new-project-dialog";
 
 export const Route = createFileRoute("/mixing/clipper")({
   component: ClipperPage,
@@ -80,6 +81,7 @@ function ClipperPage() {
   const [settings, setSettings] = useState<ClipperSettings>(DEFAULT_SETTINGS);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [projects, setProjects] = useState(listProjects("clipper"));
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [renderEngine, setRenderEngine] = useState<RenderEngine>("ffmpeg");
   const [renderOutUrl, setRenderOutUrl] = useState<string | null>(null);
   const [renderProgress, setRenderProgress] = useState<number>(0);
@@ -121,6 +123,14 @@ function ClipperPage() {
 
   const project = state.project;
 
+  // Auto-persist project + latest progress to workspace queue so previous
+  // runs remain visible with their live status/percentage.
+  useEffect(() => {
+    if (!project) return;
+    saveClipper({ ...project, lastProgress: state.progress, log: state.log });
+    setProjects(listProjects("clipper"));
+  }, [project?.id, state.progress.stage, state.progress.pct, state.progress.message, state.log]);
+
   const ensureProject = (): ClipperProject => {
     if (project) return project;
     const p: ClipperProject = {
@@ -137,6 +147,19 @@ function ClipperPage() {
     clipperStore.patch({ project: p });
     return p;
   };
+
+  function removeSource(id: string) {
+    if (!project) return;
+    const src = project.sources.find((s) => s.id === id);
+    if (src?.url?.startsWith("blob:")) try { URL.revokeObjectURL(src.url); } catch { /* */ }
+    const updated: ClipperProject = {
+      ...project,
+      sources: project.sources.filter((s) => s.id !== id),
+      updatedAt: Date.now(),
+    };
+    clipperStore.patch({ project: updated });
+    pushLog(clipperStore, `Removed video: ${src?.name ?? id}`);
+  }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -522,9 +545,17 @@ function ClipperPage() {
     pushLog(clipperStore, `Render ${r.engine} → ${r.status} ${r.jobId ? `(${r.jobId})` : ""}`);
     toast.success(r.message || "Render selesai");
     if (project) {
+      const entry = {
+        url: r.url,
+        provider: r.provider || r.engine || "ffmpeg",
+        status: r.status ?? "queued",
+        message: r.message,
+        ts: Date.now(),
+      };
       const updated: ClipperProject = {
         ...project,
-        renderResult: { url: r.url, provider: r.provider || r.engine, status: r.status ?? "queued", message: r.message },
+        renderResult: entry,
+        renderHistory: [...(project.renderHistory ?? []), entry],
       };
       clipperStore.patch({ project: updated });
       saveClipper(updated);
@@ -573,9 +604,18 @@ function ClipperPage() {
   }
 
   function newProject() {
+    setNewProjectOpen(true);
+  }
+
+  function createProjectWithName(rawName: string) {
+    const name = rawName.trim();
+    if (!name) return;
+    if (project) {
+      saveClipper({ ...project, lastProgress: state.progress, log: state.log });
+    }
     const p: ClipperProject = {
       id: makeId(),
-      name: `Clipper ${new Date().toLocaleString()}`,
+      name,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       sources: [],
@@ -585,12 +625,18 @@ function ClipperPage() {
       clips: [],
     };
     clipperStore.patch({ project: p, progress: { stage: "idle", pct: 0, message: "" }, log: [] });
+    setProjects(listProjects("clipper"));
+    setNewProjectOpen(false);
   }
 
   function openProject(id: string) {
     const p = loadClipper(id);
     if (!p) return;
-    clipperStore.patch({ project: p, progress: { stage: "idle", pct: 0, message: "" }, log: [] });
+    clipperStore.patch({
+      project: p,
+      progress: p.lastProgress ?? { stage: "idle", pct: 0, message: "" },
+      log: p.log ?? [],
+    });
     setSettings(p.settings);
     toast.success(`Loaded: ${p.name}`);
   }
@@ -645,19 +691,16 @@ function ClipperPage() {
               {projects.length === 0 ? (
                 <div className="text-xs text-muted-foreground">No saved projects yet.</div>
               ) : (
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {projects.map((pr) => (
-                    <li key={pr.id} className="flex items-center gap-1">
-                      <button
-                        onClick={() => openProject(pr.id)}
-                        className="flex-1 text-left text-xs truncate px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/60"
-                      >
-                        {pr.name}
-                      </button>
-                      <button onClick={() => removeProject(pr.id)} className="p-1 opacity-60 hover:opacity-100 hover:text-red-400">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
+                    <QueueRow
+                      key={pr.id}
+                      summary={pr}
+                      active={project?.id === pr.id}
+                      live={project?.id === pr.id ? state.progress : undefined}
+                      onOpen={() => openProject(pr.id)}
+                      onDelete={() => removeProject(pr.id)}
+                    />
                   ))}
                 </ul>
               )}
@@ -671,12 +714,31 @@ function ClipperPage() {
 
         {/* MAIN */}
         <main className="space-y-4">
+          {!project ? (
+            <section className="neumorph p-10 text-center">
+              <div className="mx-auto h-14 w-14 grid place-items-center rounded-2xl neumorph mb-4">
+                <Scissors className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="font-display text-xl font-bold text-gradient mb-1">Belum ada project aktif</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Klik <b>+ New Project</b> untuk membuat project baru. Project yang sedang berjalan tetap berjalan di background dan muncul di list Workspace.
+              </p>
+              <button
+                onClick={newProject}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground"
+                style={{ background: "var(--gradient-neon)" }}
+              >
+                + New Project
+              </button>
+            </section>
+          ) : (
+          <>
           {/* UPLOAD */}
           <section className="neumorph p-4">
             <div className="flex items-center gap-2 mb-3">
               <Upload className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Upload video</h2>
-              <span className="text-xs text-muted-foreground">MP4 · MOV · MKV · AVI · WEBM</span>
+              <h2 className="font-semibold truncate">{project.name}</h2>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground ml-1">· Sources</span>
             </div>
             <div
               onDragOver={(e) => e.preventDefault()}
@@ -705,7 +767,16 @@ function ClipperPage() {
               <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {project.sources.map((s) => (
                   <div key={s.id} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
-                    <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted />
+                    <div className="relative">
+                      <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeSource(s.id); }}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-red-500/80 text-white"
+                        title="Hapus video"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                     <div className="text-xs truncate">{s.name}</div>
                     <div className="text-[10px] text-muted-foreground">
                       {(s.size / 1024 / 1024).toFixed(1)} MB · {s.durationSec?.toFixed(1)}s
@@ -869,13 +940,35 @@ function ClipperPage() {
                 </div>
               </div>
             )}
-            {project?.renderResult && !renderOutUrl && (
-              <div className="mt-3 text-xs text-muted-foreground">
-                Last render: {project.renderResult.provider} · {project.renderResult.status} — {project.renderResult.message}
+            {project?.renderHistory && project.renderHistory.length > 0 && (
+              <div className="mt-4">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                  Render Gallery ({project.renderHistory.length})
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {[...project.renderHistory].reverse().map((h, i) => (
+                    <div key={`${h.ts}-${i}`} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
+                      {h.url ? (
+                        <video src={h.url} controls className="rounded-lg w-full h-28 object-cover bg-black" />
+                      ) : (
+                        <div className="rounded-lg w-full h-28 grid place-items-center bg-black/50 text-[10px] text-muted-foreground">no preview</div>
+                      )}
+                      <div className="text-[10px] text-muted-foreground truncate">
+                        {new Date(h.ts).toLocaleString()} · {h.provider}
+                      </div>
+                      {h.url && (
+                        <a href={h.url} download={`clipper-${h.ts}.mp4`} className="text-[11px] text-primary underline truncate">
+                          Download
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>
-
+          </>
+          )}
         </main>
 
         {/* SETTINGS PANEL */}
@@ -1030,6 +1123,14 @@ function ClipperPage() {
         </aside>
       </div>
     </div>
+    <NewProjectDialog
+      open={newProjectOpen}
+      title="Project Clipper Baru"
+      subtitle="Beri nama project agar mudah dikenali di Workspace queue."
+      defaultValue={`Clipper ${new Date().toLocaleString()}`}
+      onConfirm={createProjectWithName}
+      onClose={() => setNewProjectOpen(false)}
+    />
     </DashboardShell>
   );
 }
@@ -1205,5 +1306,60 @@ function RenderEngineBar({ engine, onChange, sourceBytes }: { engine: RenderEngi
         </div>
       )}
     </div>
+  );
+}
+
+function QueueRow({
+  summary,
+  active,
+  live,
+  onOpen,
+  onDelete,
+}: {
+  summary: import("@/lib/mixing/projects").ProjectSummary;
+  active: boolean;
+  live?: import("@/lib/mixing/types").MixingProgress;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const prog = live ?? summary.lastProgress;
+  const stage = prog?.stage ?? "idle";
+  const pct = prog?.pct ?? 0;
+  const running = stage !== "idle" && stage !== "done" && stage !== "error";
+  const tone =
+    stage === "error"
+      ? "bg-red-500"
+      : stage === "done"
+        ? "bg-emerald-500"
+        : running
+          ? "bg-primary animate-pulse"
+          : "bg-border";
+  return (
+    <li className={`rounded-lg border px-2 py-1.5 ${active ? "border-primary/60 bg-primary/5" : "border-border/60 bg-card/30"}`}>
+      <div className="flex items-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${tone}`} />
+        <button onClick={onOpen} className="flex-1 text-left text-xs truncate hover:text-primary">
+          {summary.name}
+        </button>
+        <button onClick={onDelete} className="p-1 opacity-60 hover:opacity-100 hover:text-red-400" title="Hapus project">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {prog && stage !== "idle" && (
+        <>
+          <div className="mt-1 h-1 rounded-full bg-black/40 overflow-hidden">
+            <div
+              className="h-full transition-all"
+              style={{ width: `${Math.max(4, pct)}%`, background: stage === "error" ? "#ef4444" : "var(--gradient-neon)" }}
+            />
+          </div>
+          <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="uppercase tracking-widest">{stage}</span>
+            <span>{pct}%</span>
+          </div>
+          {prog.message && <div className="text-[10px] text-muted-foreground truncate">{prog.message}</div>}
+        </>
+      )}
+    </li>
   );
 }

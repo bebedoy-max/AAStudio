@@ -19,19 +19,20 @@ import { loadMemory, saveMemory } from "@/lib/mixing/memory";
 import { listProjects, saveDubbing, loadDubbing, deleteProject } from "@/lib/mixing/projects";
 import { submitRender, buildDubbingPayload, checkSourceSize, type RenderEngine } from "@/lib/mixing/render-engine";
 import { cloudRenderStatus } from "@/lib/mixing/providers";
+import { NewProjectDialog } from "@/components/mixing/new-project-dialog";
 
 export const Route = createFileRoute("/mixing/dubbing")({
   component: DubbingPage,
 });
 
 const DEFAULT_SETTINGS: DubbingSettings = {
-  sourceLanguage: "id",
-  targetLanguage: "en",
+  sourceLanguage: "zh",
+  targetLanguage: "id",
   translationMode: "Natural",
-  voice: "AI Voice Female",
+  voice: "JBFqnCBsd6RMkjVDRZzb", // George (ElevenLabs)
   lipSync: false,
   subtitle: "translated",
-  aspectRatio: "16:9",
+  aspectRatio: "9:16",
   preserveOriginalVideo: true,
   reframe: false,
   motionEnhancement: false,
@@ -45,11 +46,33 @@ function makeId() {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+const ELEVEN_VOICES: Array<{ id: string; label: string }> = [
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George (M, warm)" },
+  { id: "nPczCjzI2devNBz1zQrb", label: "Brian (M, deep)" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel (M, news)" },
+  { id: "IKne3meq5aSn9XLyUdCD", label: "Charlie (M, casual)" },
+  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Liam (M, articulate)" },
+  { id: "N2lVS1w4EtoT3dr4eOWO", label: "Callum (M, intense)" },
+  { id: "bIHbv24MWmeRgasZH58o", label: "Will (M, chill)" },
+  { id: "cjVigY5qzO86Huf0OWal", label: "Eric (M, smooth)" },
+  { id: "iP95p4xoKVk53GoZ742B", label: "Chris (M, natural)" },
+  { id: "pqHfZKP75CvOlQylNhV4", label: "Bill (M, narrator)" },
+  { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Roger (M, confident)" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah (F, soft)" },
+  { id: "FGY2WhTYpPnrIDTdsKH5", label: "Laura (F, upbeat)" },
+  { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Alice (F, clear)" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda (F, friendly)" },
+  { id: "cgSgspJ2msm6clMCkdW9", label: "Jessica (F, expressive)" },
+  { id: "pFZP5JQG7iQjIQuC4Bku", label: "Lily (F, warm)" },
+  { id: "SAz9YHcvj6GT2YYXdXww", label: "River (N, neutral)" },
+];
+
 function DubbingPage() {
   const state = dubbingStore.use();
   const { user } = useAuth();
   const [settings, setSettings] = useState<DubbingSettings>(DEFAULT_SETTINGS);
   const [projects, setProjects] = useState(listProjects("dubbing"));
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [renderEngine, setRenderEngine] = useState<RenderEngine>("ffmpeg");
   const [renderOutUrl, setRenderOutUrl] = useState<string | null>(null);
@@ -60,6 +83,39 @@ function DubbingPage() {
   const voiceHealth = useMemo(() => health("voice"), []);
   const videoProviders = useMemo(() => listProviders("video"), []);
   const lipSyncAvailable = videoProviders.some((p) => p.available && p.capabilities?.lipSync);
+  const [testingVoice, setTestingVoice] = useState(false);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const testVoice = async () => {
+    if (voiceHealth.status !== "ok") { toast.error("Voice key belum ada."); return; }
+    setTestingVoice(true);
+    try {
+      const sampleByLang: Record<string, string> = {
+        id: "Halo, ini contoh suara untuk pengujian dubbing.",
+        en: "Hello, this is a sample voice for dubbing test.",
+        zh: "你好，这是配音测试的示例声音。",
+        ja: "こんにちは、これは吹き替えテスト用のサンプル音声です。",
+        ko: "안녕하세요, 더빙 테스트용 샘플 음성입니다.",
+      };
+      const text = sampleByLang[settings.targetLanguage] ?? sampleByLang.en;
+      const r = await fetch("/api/router/voice", {
+        method: "POST",
+        headers: headersForVoice(),
+        body: JSON.stringify({ text, voice: settings.voice }),
+      });
+      const j = await r.json().catch(() => null) as { ok?: boolean; audioBase64?: string; mime?: string; error?: string } | null;
+      if (!r.ok || !j?.ok || !j.audioBase64) throw new Error(j?.error || `voice test failed (${r.status})`);
+      const url = `data:${j.mime ?? "audio/mpeg"};base64,${j.audioBase64}`;
+      if (voiceAudioRef.current) { voiceAudioRef.current.pause(); }
+      const audio = new Audio(url);
+      voiceAudioRef.current = audio;
+      await audio.play();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setTestingVoice(false);
+    }
+  };
 
   useEffect(() => {
     const mem = loadMemory().dubbing;
@@ -86,6 +142,12 @@ function DubbingPage() {
   }, [settings.targetLanguage, settings.voice, settings.translationMode, settings.aspectRatio]);
 
   const project = state.project;
+
+  useEffect(() => {
+    if (!project) return;
+    saveDubbing({ ...project, lastProgress: state.progress, log: state.log });
+    setProjects(listProjects("dubbing"));
+  }, [project?.id, state.progress.stage, state.progress.pct, state.progress.message, state.log]);
 
   const ensureProject = (): DubbingProject => {
     if (project) return project;
@@ -129,6 +191,19 @@ function DubbingPage() {
     });
     setStage(dubbingStore, "upload", 100, `Loaded ${additions.length} video`);
     pushLog(dubbingStore, `Upload: ${additions.map((a) => a.name).join(", ")}`);
+  }
+
+  function removeSource(id: string) {
+    if (!project) return;
+    const src = project.sources.find((s) => s.id === id);
+    if (src?.url?.startsWith("blob:")) try { URL.revokeObjectURL(src.url); } catch { /* */ }
+    const updated: DubbingProject = {
+      ...project,
+      sources: project.sources.filter((s) => s.id !== id),
+      updatedAt: Date.now(),
+    };
+    dubbingStore.patch({ project: updated });
+    pushLog(dubbingStore, `Removed video: ${src?.name ?? id}`);
   }
 
   async function extractAudioBlob(source: VideoSource): Promise<Blob> {
@@ -188,7 +263,9 @@ function DubbingPage() {
     try {
       const primary = p.sources[0];
       setStage(dubbingStore, "stt", 10, "Extracting audio…");
+      pushLog(dubbingStore, `Source: ${primary.name} (${(primary.size / 1024 / 1024).toFixed(1)} MB · ${primary.durationSec?.toFixed(1)}s)`);
       const wav = await extractAudioBlob(primary);
+      pushLog(dubbingStore, `Audio ready (${(wav.size / 1024).toFixed(0)} KB, 16k mono WAV)`);
       setStage(dubbingStore, "stt", 30, "Transcribing…");
       const fd = new FormData();
       fd.append("file", wav, "audio.wav");
@@ -197,6 +274,7 @@ function DubbingPage() {
       const elevenKeys = listProviders("stt").find((x) => x.id === "eleven")?.keys ?? [];
       const sttHeaders: Record<string, string> = {};
       if (elevenKeys.length) sttHeaders["x-user-elevenlabs-keys"] = elevenKeys.join(",");
+      pushLog(dubbingStore, `STT → /api/router/stt (${elevenKeys.length} ElevenLabs key, source=${settings.sourceLanguage})`);
 
       const sttRes = await mixingQueue.submit({
         id: "stt",
@@ -204,41 +282,93 @@ function DubbingPage() {
         retries: 1,
         run: async () => {
           const r = await fetch("/api/router/stt", { method: "POST", headers: sttHeaders, body: fd });
-          const j = (await r.json()) as { ok?: boolean; error?: string; transcript?: Transcript };
-          if (!r.ok || !j.ok) throw new Error(j?.error || `stt ${r.status}`);
+          const text = await r.text();
+          let j: { ok?: boolean; error?: string; transcript?: Transcript } | null = null;
+          try { j = JSON.parse(text); } catch { /* non-json */ }
+          if (!r.ok || !j?.ok) {
+            const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+            const reason =
+              r.status === 401 ? "invalid/expired key"
+              : r.status === 402 ? "quota habis / limit"
+              : r.status === 413 ? "file terlalu besar"
+              : r.status === 415 ? "format audio tidak didukung"
+              : r.status === 429 ? "rate-limited"
+              : r.status >= 500 ? "server error" : "gagal";
+            throw new Error(j?.error || `stt ${r.status} (${reason}): ${snippet || "no body"}`);
+          }
           return j.transcript!;
         },
       });
       if (!sttRes.ok) throw new Error(sttRes.error);
       const transcript = sttRes.value;
-      pushLog(dubbingStore, `Transcript: ${transcript.segments.length} segments`);
+      pushLog(dubbingStore, `Transcript OK — ${transcript.segments.length} segments · lang=${transcript.language}`);
 
       setStage(dubbingStore, "translate", 55, `Translating → ${settings.targetLanguage}`);
-      const trRes = await mixingQueue.submit({
-        id: "translate",
-        label: "translate",
-        retries: 1,
-        run: async () => {
-          const r = await fetch("/api/public/dubbing-brain", {
-            method: "POST",
-            headers: headersForBrain(),
-            body: JSON.stringify({
-              segments: transcript.segments,
-              sourceLanguage: settings.sourceLanguage,
-              targetLanguage: settings.targetLanguage,
-              mode: settings.translationMode,
-            }),
-          });
-          const j = (await r.json()) as { ok?: boolean; error?: string; translated?: Transcript };
-          if (!r.ok || !j.ok) throw new Error(j?.error || `translate ${r.status}`);
-          return j.translated!;
-        },
-      });
-      if (!trRes.ok) throw new Error(trRes.error);
-      const translated = trRes.value;
-      pushLog(dubbingStore, `Translated: ${translated.segments.length} segments`);
+      pushLog(dubbingStore, `Brain translate — mode=${settings.translationMode} · ${settings.sourceLanguage} → ${settings.targetLanguage}`);
+      const CHUNK = 8;
+      const chunks: Array<typeof transcript.segments> = [];
+      for (let i = 0; i < transcript.segments.length; i += CHUNK) {
+        chunks.push(transcript.segments.slice(i, i + CHUNK));
+      }
+      pushLog(dubbingStore, `Translate dibagi ${chunks.length} batch (chunk=${CHUNK}) agar tidak time-out gateway`);
+      const translatedSegments: typeof transcript.segments = [];
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const batch = chunks[ci];
+        const label = `translate-${ci + 1}/${chunks.length}`;
+        setStage(
+          dubbingStore,
+          "translate",
+          55 + Math.round((ci / chunks.length) * 20),
+          `Translating batch ${ci + 1}/${chunks.length}`,
+        );
+        const res = await mixingQueue.submit({
+          id: label,
+          label,
+          retries: 2,
+          run: async () => {
+            const r = await fetch("/api/public/dubbing-brain", {
+              method: "POST",
+              headers: headersForBrain(),
+              body: JSON.stringify({
+                segments: batch,
+                sourceLanguage: settings.sourceLanguage,
+                targetLanguage: settings.targetLanguage,
+                mode: settings.translationMode,
+              }),
+            });
+            const text = await r.text();
+            let j: { ok?: boolean; error?: string; translated?: Transcript } | null = null;
+            try { j = JSON.parse(text); } catch { /* */ }
+            if (!r.ok || !j?.ok) {
+              const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+              const reason =
+                r.status === 502 || r.status === 504
+                  ? "gateway timeout — coba ulang batch"
+                  : r.status === 401
+                  ? "invalid AI key"
+                  : r.status === 402
+                  ? "AI credits habis"
+                  : r.status === 429
+                  ? "AI rate-limit"
+                  : "gagal";
+              throw new Error(j?.error || `translate ${r.status} (${reason}): ${snippet || "no body"}`);
+            }
+            return j.translated!;
+          },
+        });
+        if (!res.ok) throw new Error(res.error);
+        translatedSegments.push(...(res.value.segments || []));
+        pushLog(dubbingStore, `Batch ${ci + 1}/${chunks.length} OK — ${res.value.segments?.length ?? 0} segments`);
+      }
+      const translated: Transcript = {
+        language: settings.targetLanguage,
+        fullText: translatedSegments.map((s) => s.text).join(" "),
+        segments: translatedSegments,
+      };
+      pushLog(dubbingStore, `Translated OK — ${translated.segments.length} segments`);
 
       setStage(dubbingStore, "voice", 80, "Generating dubbed voice…");
+      pushLog(dubbingStore, `Voice → /api/router/voice preset=${settings.voice} (${translated.fullText.length} chars)`);
       const voiceRes = await mixingQueue.submit({
         id: "voice",
         label: "voice",
@@ -247,14 +377,25 @@ function DubbingPage() {
           const r = await fetch("/api/router/voice", {
             method: "POST",
             headers: headersForVoice(),
-            body: JSON.stringify({ text: translated.fullText.slice(0, 4500), preset: settings.voice }),
+            body: JSON.stringify({ text: translated.fullText.slice(0, 4500), voice: settings.voice }),
           });
-          const j = (await r.json()) as { ok?: boolean; error?: string; audioBase64?: string; mime?: string };
-          if (!r.ok || !j.ok) throw new Error(j?.error || `voice ${r.status}`);
+          const text = await r.text();
+          let j: { ok?: boolean; error?: string; audioBase64?: string; mime?: string } | null = null;
+          try { j = JSON.parse(text); } catch { /* */ }
+          if (!r.ok || !j?.ok) {
+            const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+            const reason =
+              r.status === 401 ? "invalid/expired voice key"
+              : r.status === 402 ? "voice quota habis"
+              : r.status === 429 ? "rate-limited"
+              : r.status >= 500 ? "server error" : "gagal";
+            throw new Error(j?.error || `voice ${r.status} (${reason}): ${snippet || "no body"}`);
+          }
           return `data:${j.mime ?? "audio/mpeg"};base64,${j.audioBase64}`;
         },
       });
       if (!voiceRes.ok) throw new Error(voiceRes.error);
+      pushLog(dubbingStore, `Voice OK — audio generated`);
 
       const srt = toSrt(translated);
       const updated: DubbingProject = {
@@ -332,9 +473,17 @@ function DubbingPage() {
     setStage(dubbingStore, "export", 100, r.message || "queued");
     pushLog(dubbingStore, `Render ${r.engine} → ${r.status} ${r.jobId ? `(${r.jobId})` : ""}`);
     toast.success(r.message || "Render selesai");
+    const entry = {
+      url: r.url,
+      provider: r.provider || r.engine || "ffmpeg",
+      status: r.status ?? "queued",
+      message: r.message,
+      ts: Date.now(),
+    };
     const updated: DubbingProject = {
       ...project,
-      renderResult: { url: r.url, provider: r.provider || r.engine, status: r.status ?? "queued", message: r.message },
+      renderResult: entry,
+      renderHistory: [...(project.renderHistory ?? []), entry],
     };
     dubbingStore.patch({ project: updated });
     saveDubbing(updated);
@@ -363,12 +512,36 @@ function DubbingPage() {
     download(`${project.name}.aatools.dubbing.json`, JSON.stringify(project, null, 2), "application/json");
   }
   function newProject() {
-    dubbingStore.patch({ project: null, progress: { stage: "idle", pct: 0, message: "" }, log: [] });
+    setNewProjectOpen(true);
+  }
+
+  function createProjectWithName(rawName: string) {
+    const name = rawName.trim();
+    if (!name) return;
+    if (project) saveDubbing({ ...project, lastProgress: state.progress, log: state.log });
+    const p: DubbingProject = {
+      id: makeId(),
+      name,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      sources: [],
+      transcript: null,
+      translated: null,
+      settings,
+      timeline: null,
+    };
+    dubbingStore.patch({ project: p, progress: { stage: "idle", pct: 0, message: "" }, log: [] });
+    setProjects(listProjects("dubbing"));
+    setNewProjectOpen(false);
   }
   function openProject(id: string) {
     const p = loadDubbing(id);
     if (!p) return;
-    dubbingStore.patch({ project: p, progress: { stage: "idle", pct: 0, message: "" }, log: [] });
+    dubbingStore.patch({
+      project: p,
+      progress: p.lastProgress ?? { stage: "idle", pct: 0, message: "" },
+      log: p.log ?? [],
+    });
     setSettings(p.settings);
     toast.success(`Loaded: ${p.name}`);
   }
@@ -415,19 +588,16 @@ function DubbingPage() {
               {projects.length === 0 ? (
                 <div className="text-xs text-muted-foreground">No saved projects yet.</div>
               ) : (
-                <ul className="space-y-1">
+                <ul className="space-y-1.5">
                   {projects.map((pr) => (
-                    <li key={pr.id} className="flex items-center gap-1">
-                      <button
-                        onClick={() => openProject(pr.id)}
-                        className="flex-1 text-left text-xs truncate px-2 py-1.5 rounded-lg hover:bg-sidebar-accent/60"
-                      >
-                        {pr.name}
-                      </button>
-                      <button onClick={() => removeProject(pr.id)} className="p-1 opacity-60 hover:opacity-100 hover:text-red-400">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
+                    <QueueRow
+                      key={pr.id}
+                      summary={pr}
+                      active={project?.id === pr.id}
+                      live={project?.id === pr.id ? state.progress : undefined}
+                      onOpen={() => openProject(pr.id)}
+                      onDelete={() => removeProject(pr.id)}
+                    />
                   ))}
                 </ul>
               )}
@@ -440,10 +610,30 @@ function DubbingPage() {
         )}
 
         <main className="space-y-4">
+          {!project ? (
+            <section className="neumorph p-10 text-center">
+              <div className="mx-auto h-14 w-14 grid place-items-center rounded-2xl neumorph mb-4">
+                <Languages className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="font-display text-xl font-bold text-gradient mb-1">Belum ada project aktif</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Klik <b>+ New Project</b> untuk membuat project baru. Project yang sedang berjalan tetap berjalan di background dan muncul di list Workspace.
+              </p>
+              <button
+                onClick={newProject}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground"
+                style={{ background: "var(--gradient-neon)" }}
+              >
+                + New Project
+              </button>
+            </section>
+          ) : (
+          <>
           <section className="neumorph p-4">
             <div className="flex items-center gap-2 mb-3">
               <Upload className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Upload video</h2>
+              <h2 className="font-semibold truncate">{project.name}</h2>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground ml-1">· Sources</span>
             </div>
             <div
               onDragOver={(e) => e.preventDefault()}
@@ -471,7 +661,16 @@ function DubbingPage() {
               <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
                 {project.sources.map((s) => (
                   <div key={s.id} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
-                    <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted />
+                    <div className="relative">
+                      <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeSource(s.id); }}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-red-500/80 text-white"
+                        title="Hapus video"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                     <div className="text-xs truncate">{s.name}</div>
                   </div>
                 ))}
@@ -579,12 +778,35 @@ function DubbingPage() {
                 </div>
               </div>
             )}
-            {project?.renderResult && (
-              <div className="mt-3 text-xs text-muted-foreground">
-                Last render: {project.renderResult.provider} · {project.renderResult.status} — {project.renderResult.message}
+            {project?.renderHistory && project.renderHistory.length > 0 && (
+              <div className="mt-4">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                  Render Gallery ({project.renderHistory.length})
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {[...project.renderHistory].reverse().map((h, i) => (
+                    <div key={`${h.ts}-${i}`} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
+                      {h.url ? (
+                        <video src={h.url} controls className="rounded-lg w-full h-28 object-cover bg-black" />
+                      ) : (
+                        <div className="rounded-lg w-full h-28 grid place-items-center bg-black/50 text-[10px] text-muted-foreground">no preview</div>
+                      )}
+                      <div className="text-[10px] text-muted-foreground truncate">
+                        {new Date(h.ts).toLocaleString()} · {h.provider}
+                      </div>
+                      {h.url && (
+                        <a href={h.url} download={`dubbing-${h.ts}.mp4`} className="text-[11px] text-primary underline truncate">
+                          Download
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>
+          </>
+          )}
         </main>
 
         <aside className="neumorph p-4 space-y-4 h-fit lg:sticky lg:top-4">
@@ -608,13 +830,27 @@ function DubbingPage() {
           </div>
           <div>
             <SectionLabel>Voice</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {(["Original Voice Clone", "AI Voice Male", "AI Voice Female", "Natural", "Narrator", "Professional", "Friendly"] as const).map((v) => (
-                <button key={v} onClick={() => setSettings((s) => ({ ...s, voice: v }))} className={pill(settings.voice === v)}>
-                  {v}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <select
+                value={settings.voice}
+                onChange={(e) => setSettings((s) => ({ ...s, voice: e.target.value }))}
+                className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+              >
+                {ELEVEN_VOICES.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={testVoice}
+                disabled={testingVoice || voiceHealth.status !== "ok"}
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+                title="Test suara"
+              >
+                {testingVoice ? <Loader2 className="h-3 w-3 animate-spin" /> : <Mic className="h-3 w-3" />}
+                Tes
+              </button>
             </div>
+            <div className="mt-1 text-[10px] text-muted-foreground">Powered by ElevenLabs Multilingual v2</div>
           </div>
           <div>
             <SectionLabel>Lip Sync</SectionLabel>
@@ -657,6 +893,14 @@ function DubbingPage() {
         </aside>
       </div>
     </div>
+    <NewProjectDialog
+      open={newProjectOpen}
+      title="Project Dubber Baru"
+      subtitle="Beri nama project agar mudah dikenali di Workspace queue."
+      defaultValue={`Dubbing ${new Date().toLocaleString()}`}
+      onConfirm={createProjectWithName}
+      onClose={() => setNewProjectOpen(false)}
+    />
     </DashboardShell>
   );
 }
@@ -782,5 +1026,57 @@ function DubbingRenderEngineBar({ engine, onChange, sourceBytes }: { engine: Ren
         </div>
       )}
     </div>
+  );
+}
+
+function QueueRow({
+  summary,
+  active,
+  live,
+  onOpen,
+  onDelete,
+}: {
+  summary: import("@/lib/mixing/projects").ProjectSummary;
+  active: boolean;
+  live?: import("@/lib/mixing/types").MixingProgress;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const prog = live ?? summary.lastProgress;
+  const stage = prog?.stage ?? "idle";
+  const pct = prog?.pct ?? 0;
+  const running = stage !== "idle" && stage !== "done" && stage !== "error";
+  const tone =
+    stage === "error" ? "bg-red-500"
+    : stage === "done" ? "bg-emerald-500"
+    : running ? "bg-primary animate-pulse"
+    : "bg-border";
+  return (
+    <li className={`rounded-lg border px-2 py-1.5 ${active ? "border-primary/60 bg-primary/5" : "border-border/60 bg-card/30"}`}>
+      <div className="flex items-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${tone}`} />
+        <button onClick={onOpen} className="flex-1 text-left text-xs truncate hover:text-primary">
+          {summary.name}
+        </button>
+        <button onClick={onDelete} className="p-1 opacity-60 hover:opacity-100 hover:text-red-400" title="Hapus project">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {prog && stage !== "idle" && (
+        <>
+          <div className="mt-1 h-1 rounded-full bg-black/40 overflow-hidden">
+            <div
+              className="h-full transition-all"
+              style={{ width: `${Math.max(4, pct)}%`, background: stage === "error" ? "#ef4444" : "var(--gradient-neon)" }}
+            />
+          </div>
+          <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="uppercase tracking-widest">{stage}</span>
+            <span>{pct}%</span>
+          </div>
+          {prog.message && <div className="text-[10px] text-muted-foreground truncate">{prog.message}</div>}
+        </>
+      )}
+    </li>
   );
 }

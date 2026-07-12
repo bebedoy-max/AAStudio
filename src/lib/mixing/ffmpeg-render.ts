@@ -59,6 +59,7 @@ export type FfmpegRenderOptions = {
   clips: { startSec: number; endSec: number }[]; // clip cuts
   srt?: string;
   aspectRatio?: string; // "9:16" | "16:9" | "1:1"
+  voiceUrl?: string; // dubbed voice track — mixed over original with vocal ducking
   onLog?: (msg: string) => void;
   onProgress?: (pct: number) => void;
 };
@@ -139,7 +140,46 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
     finalName = "render.mp4";
   }
 
-  const data = (await ff.readFile(finalName)) as Uint8Array;
+  // Dub voice mix — reduce center-panned vocals in original, sidechain-duck
+  // the remaining ambient bed under the dubbed voice, then mix both.
+  let muxedName = finalName;
+  if (opts.voiceUrl) {
+    try {
+      log("Fetching dubbed voice…");
+      await ff.writeFile("dub.m4a", await fetchFile(opts.voiceUrl));
+      log("Mixing dubbed voice with original audio (vocal ducking)…");
+      const filter =
+        // Karaoke-style vocal reduction: subtract center to attenuate voice,
+        // keep stereo ambience. Works on stereo; mono falls back to passthrough.
+        "[0:a]aformat=channel_layouts=stereo,pan=stereo|c0=0.7*c0-0.5*c1|c1=0.7*c1-0.5*c0,volume=1.1[amb];" +
+        "[1:a]aformat=channel_layouts=stereo,volume=1.4[dub];" +
+        "[dub]asplit=2[dubMix][dubSc];" +
+        "[amb][dubSc]sidechaincompress=threshold=0.02:ratio=12:attack=5:release=350:makeup=1[ambDuck];" +
+        "[ambDuck][dubMix]amix=inputs=2:duration=first:dropout_transition=0:weights=1 1.2,dynaudnorm=f=200[aout]";
+      await execOrThrow(
+        ff,
+        [
+          "-i", finalName,
+          "-i", "dub.m4a",
+          "-filter_complex", filter,
+          "-map", "0:v",
+          "-map", "[aout]",
+          "-c:v", "copy",
+          "-c:a", "aac", "-b:a", "160k",
+          "-shortest",
+          "-movflags", "+faststart",
+          "-y", "mixed.mp4",
+        ],
+        "Mix dubbed voice",
+        logLines,
+      );
+      muxedName = "mixed.mp4";
+    } catch (e) {
+      log(`Voice mix failed, falling back to original audio: ${(e as Error).message}`);
+    }
+  }
+
+  const data = (await ff.readFile(muxedName)) as Uint8Array;
   const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
   const url = URL.createObjectURL(blob);
 
@@ -150,6 +190,10 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
     if (opts.srt) await ff.deleteFile("subs.srt");
     await ff.deleteFile("src.mp4");
     if (parts.length > 1) await ff.deleteFile("render.mp4");
+    if (opts.voiceUrl) {
+      try { await ff.deleteFile("dub.m4a"); } catch { /* noop */ }
+      if (muxedName === "mixed.mp4") { try { await ff.deleteFile("mixed.mp4"); } catch { /* noop */ } }
+    }
   } catch {
     // best-effort cleanup
   }
