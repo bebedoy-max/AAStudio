@@ -144,42 +144,97 @@ export async function getWeavyAccessTokenById(tokenId: string): Promise<string |
   return r.accessToken;
 }
 
+function readActiveId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const v = localStorage.getItem(LS_WEAVY_ACTIVE);
+    return v ? (JSON.parse(v) as string | null) : null;
+  } catch {
+    return null;
+  }
+}
+function writeActiveId(id: string | null) {
+  if (typeof window === "undefined") return;
+  if (id) localStorage.setItem(LS_WEAVY_ACTIVE, JSON.stringify(id));
+  else localStorage.removeItem(LS_WEAVY_ACTIVE);
+}
+
+function isUsable(t: StoredWeavyTok): boolean {
+  return t.status !== "failed" && t.status !== "empty";
+}
+
 /** Get the currently active token or the first non-exhausted one. */
 export async function getActiveWeavyAccessToken(): Promise<{ id: string; accessToken: string } | null> {
   if (typeof window === "undefined") return null;
   const list = readTokens();
   if (list.length === 0) return null;
-  const activeId = (() => {
-    try {
-      const v = localStorage.getItem(LS_WEAVY_ACTIVE);
-      return v ? (JSON.parse(v) as string | null) : null;
-    } catch {
-      return null;
-    }
-  })();
+  const activeId = readActiveId();
+  const activeTok = activeId ? list.find((t) => t.id === activeId) : undefined;
+  // Only prefer the active token when it is still usable — otherwise it would
+  // keep handing back an exhausted token in an infinite rotate loop.
+  const preferActive = activeTok && isUsable(activeTok);
   const order = [
-    ...(activeId ? list.filter((t) => t.id === activeId) : []),
-    ...list.filter((t) => t.id !== activeId && t.status !== "failed" && t.status !== "empty"),
+    ...(preferActive ? [activeTok!] : []),
+    ...list.filter((t) => t.id !== activeId && isUsable(t)),
     ...list.filter((t) => t.status === "empty"), // last resort
   ];
   for (const t of order) {
     const at = await getWeavyAccessTokenById(t.id);
-    if (at) return { id: t.id, accessToken: at };
+    if (at) {
+      writeActiveId(t.id);
+      return { id: t.id, accessToken: at };
+    }
   }
   return null;
 }
 
-/** Mark a token exhausted (empty credits) and return the next best access token. */
+/**
+ * Mark a token exhausted, then re-scan ALL tokens, probe their real credit
+ * balance, and activate the first one that still has credits. This guarantees
+ * rotation never returns the same exhausted token and always lands on a token
+ * with usable credits (or null when every token is empty).
+ */
 export async function rotateWeavyToken(exhaustedId: string): Promise<{ id: string; accessToken: string } | null> {
-  const list = readTokens();
-  const t = list.find((x) => x.id === exhaustedId);
-  if (t) {
-    t.status = "empty";
-    t.credits = 0;
-    writeTokens(list);
+  {
+    const list = readTokens();
+    const t = list.find((x) => x.id === exhaustedId);
+    if (t) {
+      t.status = "empty";
+      t.credits = 0;
+      writeTokens(list);
+    }
+    if (readActiveId() === exhaustedId) writeActiveId(null);
   }
-  return getActiveWeavyAccessToken();
+
+  // Re-read fresh and probe each remaining candidate for real credits.
+  const candidates = readTokens().filter((x) => x.id !== exhaustedId && isUsable(x));
+  for (const c of candidates) {
+    const at = await getWeavyAccessTokenById(c.id);
+    if (!at) continue;
+    const credits = await fetchWeavyCredits(at);
+    const list = readTokens();
+    const stored = list.find((x) => x.id === c.id);
+    if (credits !== null && credits <= 0) {
+      // No credits — mark empty and keep scanning.
+      if (stored) {
+        stored.status = "empty";
+        stored.credits = 0;
+        writeTokens(list);
+      }
+      continue;
+    }
+    // credits > 0 or unknown (null) → usable. Activate it.
+    if (stored) {
+      stored.credits = credits;
+      stored.status = "active";
+      writeTokens(list);
+    }
+    writeActiveId(c.id);
+    return { id: c.id, accessToken: at };
+  }
+  return null;
 }
+
 
 // ==================== Upload ====================
 

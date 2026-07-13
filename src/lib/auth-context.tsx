@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Role = "admin" | "editor" | "user";
 
+export type FeatureAccessMode = "public" | "subscription" | "trial";
+export type FeatureAccessEntry = { mode: FeatureAccessMode; trialUntil: string | null };
+
 type Profile = {
   id: string;
   email: string | null;
@@ -19,9 +22,11 @@ type AuthContextValue = {
   profile: Profile | null;
   roles: Role[];
   routePermissions: string[];
+  featureAccess: Record<string, FeatureAccessEntry>;
   loading: boolean;
   isAdmin: boolean;
   hasRoutePermission: (key: string) => boolean;
+  isFeatureEnabled: (key: string) => boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -38,7 +43,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
   const [routePermissions, setRoutePermissions] = useState<string[]>([]);
+  const [featureAccess, setFeatureAccess] = useState<Record<string, FeatureAccessEntry>>({});
   const [loading, setLoading] = useState(true);
+
+  // Global per-feature access settings (public / subscription / trial), managed by admin.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("feature_access" as never)
+        .select("route_key, access_mode, trial_until");
+      if (!active || error || !data) return;
+      const map: Record<string, FeatureAccessEntry> = {};
+      (data as { route_key: string; access_mode: FeatureAccessMode; trial_until: string | null }[]).forEach(
+        (r) => {
+          map[r.route_key] = { mode: r.access_mode, trialUntil: r.trial_until };
+        },
+      );
+      setFeatureAccess(map);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const clearUserData = useCallback(() => {
     setProfile(null);
@@ -150,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, s: Session | null) => {
       if (
         event !== "INITIAL_SESSION" &&
         event !== "SIGNED_IN" &&
@@ -199,9 +226,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     roles,
     routePermissions,
+    featureAccess,
     loading,
     isAdmin: roles.includes("admin"),
     hasRoutePermission: (key) => roles.includes("admin") || routePermissions.includes(key),
+    isFeatureEnabled: (key) => {
+      if (roles.includes("admin")) return true;
+      const entry = featureAccess[key];
+      if (entry) {
+        if (entry.mode === "public") return true;
+        if (entry.mode === "trial") {
+          if (!entry.trialUntil) return true;
+          if (new Date(entry.trialUntil).getTime() > Date.now()) return true;
+        }
+      }
+      return routePermissions.includes(key);
+    },
     refresh: async () => {
       if (session?.user) await loadUserData(session.user.id);
     },

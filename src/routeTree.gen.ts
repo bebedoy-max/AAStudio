@@ -30,18 +30,25 @@ import { Route as GenerateImageToVideoRouteImport } from './routes/generate.imag
 import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
-import { Route as AiInfluencerNewRouteImport } from './routes/ai-influencer.new'
-import { Route as AiInfluencerIdRouteImport } from './routes/ai-influencer.$id'
+import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
+import { Route as AiInfluencerPlannerRouteImport } from './routes/ai-influencer.planner'
+import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.library'
+import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
+import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
+import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
 import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
 import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
 import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
 import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
 import { Route as ApiRouterRenderRouteImport } from './routes/api/router/render'
+import { Route as ApiRouterPlanWeeklyRouteImport } from './routes/api/router/plan-weekly'
 import { Route as ApiRouterImageRouteImport } from './routes/api/router/image'
 import { Route as ApiRouterChatRouteImport } from './routes/api/router/chat'
+import { Route as ApiRouterBrainAnalyzeRouteImport } from './routes/api/router/brain-analyze'
 import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/upload-catbox'
 import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
@@ -160,14 +167,34 @@ const ApiProxyImageRoute = ApiProxyImageRouteImport.update({
   path: '/api/proxy-image',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AiInfluencerNewRoute = AiInfluencerNewRouteImport.update({
-  id: '/new',
-  path: '/new',
+const AiInfluencerPublisherRoute = AiInfluencerPublisherRouteImport.update({
+  id: '/publisher',
+  path: '/publisher',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
-const AiInfluencerIdRoute = AiInfluencerIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
+const AiInfluencerPlannerRoute = AiInfluencerPlannerRouteImport.update({
+  id: '/planner',
+  path: '/planner',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerLibraryRoute = AiInfluencerLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerCharacterRoute = AiInfluencerCharacterRouteImport.update({
+  id: '/character',
+  path: '/character',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerBrainRoute = AiInfluencerBrainRouteImport.update({
+  id: '/brain',
+  path: '/brain',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
 const AdminRequestsRoute = AdminRequestsRouteImport.update({
@@ -178,6 +205,11 @@ const AdminRequestsRoute = AdminRequestsRouteImport.update({
 const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   id: '/payments',
   path: '/payments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAccessRoute = AdminAccessRouteImport.update({
+  id: '/access',
+  path: '/access',
   getParentRoute: () => AdminRoute,
 } as any)
 const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
@@ -210,6 +242,11 @@ const ApiRouterRenderRoute = ApiRouterRenderRouteImport.update({
   path: '/api/router/render',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRouterPlanWeeklyRoute = ApiRouterPlanWeeklyRouteImport.update({
+  id: '/api/router/plan-weekly',
+  path: '/api/router/plan-weekly',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRouterImageRoute = ApiRouterImageRouteImport.update({
   id: '/api/router/image',
   path: '/api/router/image',
@@ -218,6 +255,11 @@ const ApiRouterImageRoute = ApiRouterImageRouteImport.update({
 const ApiRouterChatRoute = ApiRouterChatRouteImport.update({
   id: '/api/router/chat',
   path: '/api/router/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterBrainAnalyzeRoute = ApiRouterBrainAnalyzeRouteImport.update({
+  id: '/api/router/brain-analyze',
+  path: '/api/router/brain-analyze',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicUploadCatboxRoute = ApiPublicUploadCatboxRouteImport.update({
@@ -288,10 +330,15 @@ export interface FileRoutesByFullPath {
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
+  '/admin/access': typeof AdminAccessRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/ai-influencer/$id': typeof AiInfluencerIdRoute
-  '/ai-influencer/new': typeof AiInfluencerNewRoute
+  '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
+  '/ai-influencer/brain': typeof AiInfluencerBrainRoute
+  '/ai-influencer/character': typeof AiInfluencerCharacterRoute
+  '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
+  '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
@@ -320,8 +367,10 @@ export interface FileRoutesByFullPath {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
+  '/api/router/plan-weekly': typeof ApiRouterPlanWeeklyRoute
   '/api/router/render': typeof ApiRouterRenderRoute
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
@@ -333,10 +382,15 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
+  '/admin/access': typeof AdminAccessRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/ai-influencer/$id': typeof AiInfluencerIdRoute
-  '/ai-influencer/new': typeof AiInfluencerNewRoute
+  '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
+  '/ai-influencer/brain': typeof AiInfluencerBrainRoute
+  '/ai-influencer/character': typeof AiInfluencerCharacterRoute
+  '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
+  '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
@@ -365,8 +419,10 @@ export interface FileRoutesByTo {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
+  '/api/router/plan-weekly': typeof ApiRouterPlanWeeklyRoute
   '/api/router/render': typeof ApiRouterRenderRoute
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
@@ -381,10 +437,15 @@ export interface FileRoutesById {
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
+  '/admin/access': typeof AdminAccessRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/ai-influencer/$id': typeof AiInfluencerIdRoute
-  '/ai-influencer/new': typeof AiInfluencerNewRoute
+  '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
+  '/ai-influencer/brain': typeof AiInfluencerBrainRoute
+  '/ai-influencer/character': typeof AiInfluencerCharacterRoute
+  '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
+  '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
@@ -413,8 +474,10 @@ export interface FileRoutesById {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
+  '/api/router/plan-weekly': typeof ApiRouterPlanWeeklyRoute
   '/api/router/render': typeof ApiRouterRenderRoute
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
@@ -430,10 +493,15 @@ export interface FileRouteTypes {
     | '/ai-influencer'
     | '/mixing'
     | '/profile'
+    | '/admin/access'
     | '/admin/payments'
     | '/admin/requests'
-    | '/ai-influencer/$id'
-    | '/ai-influencer/new'
+    | '/ai-influencer/analytics'
+    | '/ai-influencer/brain'
+    | '/ai-influencer/character'
+    | '/ai-influencer/library'
+    | '/ai-influencer/planner'
+    | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
     | '/generate/bulk-fashion'
@@ -462,8 +530,10 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
+    | '/api/router/plan-weekly'
     | '/api/router/render'
     | '/api/router/render-cloud'
     | '/api/router/stt'
@@ -475,10 +545,15 @@ export interface FileRouteTypes {
     | '/'
     | '/mixing'
     | '/profile'
+    | '/admin/access'
     | '/admin/payments'
     | '/admin/requests'
-    | '/ai-influencer/$id'
-    | '/ai-influencer/new'
+    | '/ai-influencer/analytics'
+    | '/ai-influencer/brain'
+    | '/ai-influencer/character'
+    | '/ai-influencer/library'
+    | '/ai-influencer/planner'
+    | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
     | '/generate/bulk-fashion'
@@ -507,8 +582,10 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
+    | '/api/router/plan-weekly'
     | '/api/router/render'
     | '/api/router/render-cloud'
     | '/api/router/stt'
@@ -522,10 +599,15 @@ export interface FileRouteTypes {
     | '/ai-influencer'
     | '/mixing'
     | '/profile'
+    | '/admin/access'
     | '/admin/payments'
     | '/admin/requests'
-    | '/ai-influencer/$id'
-    | '/ai-influencer/new'
+    | '/ai-influencer/analytics'
+    | '/ai-influencer/brain'
+    | '/ai-influencer/character'
+    | '/ai-influencer/library'
+    | '/ai-influencer/planner'
+    | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
     | '/generate/bulk-fashion'
@@ -554,8 +636,10 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
+    | '/api/router/plan-weekly'
     | '/api/router/render'
     | '/api/router/render-cloud'
     | '/api/router/stt'
@@ -594,8 +678,10 @@ export interface RootRouteChildren {
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
   ApiPublicStoryboardBrainRoute: typeof ApiPublicStoryboardBrainRoute
   ApiPublicUploadCatboxRoute: typeof ApiPublicUploadCatboxRoute
+  ApiRouterBrainAnalyzeRoute: typeof ApiRouterBrainAnalyzeRoute
   ApiRouterChatRoute: typeof ApiRouterChatRoute
   ApiRouterImageRoute: typeof ApiRouterImageRoute
+  ApiRouterPlanWeeklyRoute: typeof ApiRouterPlanWeeklyRoute
   ApiRouterRenderRoute: typeof ApiRouterRenderRoute
   ApiRouterRenderCloudRoute: typeof ApiRouterRenderCloudRoute
   ApiRouterSttRoute: typeof ApiRouterSttRoute
@@ -753,18 +839,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProxyImageRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ai-influencer/new': {
-      id: '/ai-influencer/new'
-      path: '/new'
-      fullPath: '/ai-influencer/new'
-      preLoaderRoute: typeof AiInfluencerNewRouteImport
+    '/ai-influencer/publisher': {
+      id: '/ai-influencer/publisher'
+      path: '/publisher'
+      fullPath: '/ai-influencer/publisher'
+      preLoaderRoute: typeof AiInfluencerPublisherRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
-    '/ai-influencer/$id': {
-      id: '/ai-influencer/$id'
-      path: '/$id'
-      fullPath: '/ai-influencer/$id'
-      preLoaderRoute: typeof AiInfluencerIdRouteImport
+    '/ai-influencer/planner': {
+      id: '/ai-influencer/planner'
+      path: '/planner'
+      fullPath: '/ai-influencer/planner'
+      preLoaderRoute: typeof AiInfluencerPlannerRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/library': {
+      id: '/ai-influencer/library'
+      path: '/library'
+      fullPath: '/ai-influencer/library'
+      preLoaderRoute: typeof AiInfluencerLibraryRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/character': {
+      id: '/ai-influencer/character'
+      path: '/character'
+      fullPath: '/ai-influencer/character'
+      preLoaderRoute: typeof AiInfluencerCharacterRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/brain': {
+      id: '/ai-influencer/brain'
+      path: '/brain'
+      fullPath: '/ai-influencer/brain'
+      preLoaderRoute: typeof AiInfluencerBrainRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/analytics': {
+      id: '/ai-influencer/analytics'
+      path: '/analytics'
+      fullPath: '/ai-influencer/analytics'
+      preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
     '/admin/requests': {
@@ -779,6 +893,13 @@ declare module '@tanstack/react-router' {
       path: '/payments'
       fullPath: '/admin/payments'
       preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/access': {
+      id: '/admin/access'
+      path: '/access'
+      fullPath: '/admin/access'
+      preLoaderRoute: typeof AdminAccessRouteImport
       parentRoute: typeof AdminRoute
     }
     '/api/router/voice': {
@@ -823,6 +944,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRouterRenderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/router/plan-weekly': {
+      id: '/api/router/plan-weekly'
+      path: '/api/router/plan-weekly'
+      fullPath: '/api/router/plan-weekly'
+      preLoaderRoute: typeof ApiRouterPlanWeeklyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/router/image': {
       id: '/api/router/image'
       path: '/api/router/image'
@@ -835,6 +963,13 @@ declare module '@tanstack/react-router' {
       path: '/api/router/chat'
       fullPath: '/api/router/chat'
       preLoaderRoute: typeof ApiRouterChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/brain-analyze': {
+      id: '/api/router/brain-analyze'
+      path: '/api/router/brain-analyze'
+      fullPath: '/api/router/brain-analyze'
+      preLoaderRoute: typeof ApiRouterBrainAnalyzeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/upload-catbox': {
@@ -925,12 +1060,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminAccessRoute: typeof AdminAccessRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccessRoute: AdminAccessRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -939,14 +1076,22 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AiInfluencerRouteChildren {
-  AiInfluencerIdRoute: typeof AiInfluencerIdRoute
-  AiInfluencerNewRoute: typeof AiInfluencerNewRoute
+  AiInfluencerAnalyticsRoute: typeof AiInfluencerAnalyticsRoute
+  AiInfluencerBrainRoute: typeof AiInfluencerBrainRoute
+  AiInfluencerCharacterRoute: typeof AiInfluencerCharacterRoute
+  AiInfluencerLibraryRoute: typeof AiInfluencerLibraryRoute
+  AiInfluencerPlannerRoute: typeof AiInfluencerPlannerRoute
+  AiInfluencerPublisherRoute: typeof AiInfluencerPublisherRoute
   AiInfluencerIndexRoute: typeof AiInfluencerIndexRoute
 }
 
 const AiInfluencerRouteChildren: AiInfluencerRouteChildren = {
-  AiInfluencerIdRoute: AiInfluencerIdRoute,
-  AiInfluencerNewRoute: AiInfluencerNewRoute,
+  AiInfluencerAnalyticsRoute: AiInfluencerAnalyticsRoute,
+  AiInfluencerBrainRoute: AiInfluencerBrainRoute,
+  AiInfluencerCharacterRoute: AiInfluencerCharacterRoute,
+  AiInfluencerLibraryRoute: AiInfluencerLibraryRoute,
+  AiInfluencerPlannerRoute: AiInfluencerPlannerRoute,
+  AiInfluencerPublisherRoute: AiInfluencerPublisherRoute,
   AiInfluencerIndexRoute: AiInfluencerIndexRoute,
 }
 
@@ -997,8 +1142,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,
   ApiPublicStoryboardBrainRoute: ApiPublicStoryboardBrainRoute,
   ApiPublicUploadCatboxRoute: ApiPublicUploadCatboxRoute,
+  ApiRouterBrainAnalyzeRoute: ApiRouterBrainAnalyzeRoute,
   ApiRouterChatRoute: ApiRouterChatRoute,
   ApiRouterImageRoute: ApiRouterImageRoute,
+  ApiRouterPlanWeeklyRoute: ApiRouterPlanWeeklyRoute,
   ApiRouterRenderRoute: ApiRouterRenderRoute,
   ApiRouterRenderCloudRoute: ApiRouterRenderCloudRoute,
   ApiRouterSttRoute: ApiRouterSttRoute,

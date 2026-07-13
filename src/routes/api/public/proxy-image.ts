@@ -17,6 +17,9 @@ const ALLOWED_HOSTS = new Set([
   "static-src.lazada.co.id",
   "www.static-src.com",
   "blibli.akamaized.net",
+  "drive.google.com",
+  "drive.usercontent.google.com",
+  "lh3.googleusercontent.com",
 ]);
 
 function isAllowedImageUrl(value: string) {

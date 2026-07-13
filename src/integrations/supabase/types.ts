@@ -337,6 +337,85 @@ export type Database = {
           },
         ]
       }
+      ai_influencer_assets: {
+        Row: {
+          character_id: string
+          content: string | null
+          created_at: string
+          id: string
+          kind: string
+          meta: Json
+          source: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          character_id: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          meta?: Json
+          source?: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          character_id?: string
+          content?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          meta?: Json
+          source?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_influencer_assets_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "ai_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_influencer_brain: {
+        Row: {
+          character_id: string
+          learning: Json
+          memory: Json
+          persona: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          character_id: string
+          learning?: Json
+          memory?: Json
+          persona?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          character_id?: string
+          learning?: Json
+          memory?: Json
+          persona?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_influencer_brain_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: true
+            referencedRelation: "ai_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_influencer_memory: {
         Row: {
           character_id: string
@@ -367,6 +446,153 @@ export type Database = {
             foreignKeyName: "ai_influencer_memory_character_id_fkey"
             columns: ["character_id"]
             isOneToOne: false
+            referencedRelation: "ai_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_influencer_publisher_accounts: {
+        Row: {
+          access_token: string | null
+          character_id: string | null
+          created_at: string
+          handle: string
+          id: string
+          meta: Json
+          platform: string
+          status: string
+          updated_at: string
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          character_id?: string | null
+          created_at?: string
+          handle: string
+          id?: string
+          meta?: Json
+          platform: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          character_id?: string | null
+          created_at?: string
+          handle?: string
+          id?: string
+          meta?: Json
+          platform?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_influencer_publisher_accounts_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "ai_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_influencer_queue: {
+        Row: {
+          caption: string | null
+          character_id: string
+          created_at: string
+          day_label: string | null
+          hashtag: string | null
+          id: string
+          idea: string
+          payload: Json
+          platform: string | null
+          scheduled_for: string | null
+          slot_time: string | null
+          status: string
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          character_id: string
+          created_at?: string
+          day_label?: string | null
+          hashtag?: string | null
+          id?: string
+          idea: string
+          payload?: Json
+          platform?: string | null
+          scheduled_for?: string | null
+          slot_time?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          character_id?: string
+          created_at?: string
+          day_label?: string | null
+          hashtag?: string | null
+          id?: string
+          idea?: string
+          payload?: Json
+          platform?: string | null
+          scheduled_for?: string | null
+          slot_time?: string | null
+          status?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_influencer_queue_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "ai_characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_influencer_strategy: {
+        Row: {
+          character_id: string
+          goals: Json
+          ratios: Json
+          updated_at: string
+          user_id: string
+          weekly: Json
+        }
+        Insert: {
+          character_id: string
+          goals?: Json
+          ratios?: Json
+          updated_at?: string
+          user_id: string
+          weekly?: Json
+        }
+        Update: {
+          character_id?: string
+          goals?: Json
+          ratios?: Json
+          updated_at?: string
+          user_id?: string
+          weekly?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_influencer_strategy_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: true
             referencedRelation: "ai_characters"
             referencedColumns: ["id"]
           },

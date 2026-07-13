@@ -66,23 +66,31 @@ export function LoginCard() {
         style={{ background: "var(--gradient-neon)" }}
       />
       <div className="relative">
-        <div className="text-[11px] font-mono uppercase tracking-[0.3em] text-muted-foreground">
+        <div className="text-[16.5px] font-mono uppercase tracking-[0.3em] text-muted-foreground">
           {mode === "signin" ? "Selamat datang" : "Buat akun baru"}
         </div>
-        <h1 className="mt-1 font-display text-3xl font-bold">
-          {mode === "signin" ? (
-            <>
-              Masuk ke <span className="text-gradient">AATools</span>
-            </>
-          ) : (
-            <>
-              Daftar <span className="text-gradient">AATools</span>
-            </>
-          )}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <div className="mt-5 flex items-center justify-start gap-5">
+          <div className="relative h-[5.6rem] w-[5.6rem] shrink-0">
+            <div
+              className="pointer-events-none absolute inset-[-10%] rounded-full border border-foreground/30 opacity-60 blur-[2px] animate-[logo-smoke_3.5s_ease-in-out_infinite]"
+            />
+            <div
+              className="pointer-events-none absolute inset-[-30%] rounded-full bg-foreground/15 blur-xl animate-[logo-smoke_3s_ease-in-out_infinite]"
+            />
+            <img
+              src="/api/public/proxy-image?url=https%3A%2F%2Fdrive.usercontent.google.com%2Fdownload%3Fid%3D1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4%26export%3Dview"
+              alt="AA Logo"
+              className="relative h-[5.6rem] w-[5.6rem] rounded-full object-cover border border-foreground/20 shadow-[0_0_24px_-8px_var(--color-foreground)]"
+            />
+          </div>
+          <div className="flex flex-col items-start leading-none">
+            <span className="font-display text-[2.7rem] font-black tracking-tight text-gradient">Creative</span>
+            <span className="font-display text-[2.7rem] font-black tracking-tight text-gradient">Studio</span>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
           {mode === "signin"
-            ? "Masuk untuk mengakses studio AI Anda."
+            ? "Masuk untuk mengakses Studio Creative AI Anda."
             : "Buat akun untuk mulai menggunakan studio."}
         </p>
 

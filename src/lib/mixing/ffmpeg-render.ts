@@ -32,13 +32,13 @@ async function toBlobUrl(url: string, type: string): Promise<string> {
 
 export async function getFfmpeg(onLog?: (msg: string) => void): Promise<FFmpeg> {
   if (_ffmpeg) {
-    if (onLog) _ffmpeg.on("log", ({ message }) => onLog(message));
+    if (onLog) _ffmpeg.on("log", ({ message }: { message: string }) => onLog(message));
     return _ffmpeg;
   }
   if (_loading) return _loading;
   _loading = (async () => {
     const ff = new FFmpeg();
-    if (onLog) ff.on("log", ({ message }) => onLog(message));
+    if (onLog) ff.on("log", ({ message }: { message: string }) => onLog(message));
     const [coreURL, wasmURL] = await Promise.all([
       toBlobUrl(`${CDN}?f=esm-core-js&v=${CORE_VER}&pkg=core`, "text/javascript"),
       toBlobUrl(`${CDN}?f=esm-core-wasm&v=${CORE_VER}&pkg=core`, "application/wasm"),
@@ -99,7 +99,7 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
   const progress = opts.onProgress ?? (() => {});
   const ff = await getFfmpeg(log);
 
-  ff.on("progress", ({ progress: p }) => progress(Math.max(0, Math.min(100, Math.round(p * 100)))));
+  ff.on("progress", ({ progress: p }: { progress: number }) => progress(Math.max(0, Math.min(100, Math.round(p * 100)))));
 
   log("Fetching source video…");
   await ff.writeFile("src.mp4", await fetchFile(opts.sourceUrl));

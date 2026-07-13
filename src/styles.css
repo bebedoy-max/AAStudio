@@ -194,6 +194,11 @@
   50% { transform: translate(2px, -3px) scale(1.08); opacity: 0.8; }
 }
 
+@keyframes logo-smoke {
+  0%, 100% { transform: scale(0.92); opacity: 0.45; }
+  50% { transform: scale(1.12); opacity: 0.2; }
+}
+
 @keyframes vvip-gold-shimmer {
   0% { background-position: -120% 0; }
   100% { background-position: 220% 0; }

@@ -468,7 +468,7 @@ function MethodModal({
       supabase.storage
         .from("payment-assets")
         .createSignedUrl(imagePath, 3600)
-        .then(({ data }) => setSignedPreview(data?.signedUrl ?? null));
+        .then(({ data }: { data: { signedUrl: string } | null }) => setSignedPreview(data?.signedUrl ?? null));
     }
   }, [imagePath, imageFile]);
 

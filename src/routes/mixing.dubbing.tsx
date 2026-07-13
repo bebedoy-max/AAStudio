@@ -14,6 +14,7 @@ import type {
 import { LANGUAGES } from "@/lib/mixing/types";
 import { toSrt } from "@/lib/mixing/subtitle-engine";
 import { headersForBrain, headersForVoice, listProviders, health } from "@/lib/mixing/providers";
+import { transcribeElevenClient } from "@/lib/providers/eleven";
 import { mixingQueue } from "@/lib/mixing/queue";
 import { loadMemory, saveMemory } from "@/lib/mixing/memory";
 import { listProjects, saveDubbing, loadDubbing, deleteProject } from "@/lib/mixing/projects";
@@ -267,36 +268,29 @@ function DubbingPage() {
       const wav = await extractAudioBlob(primary);
       pushLog(dubbingStore, `Audio ready (${(wav.size / 1024).toFixed(0)} KB, 16k mono WAV)`);
       setStage(dubbingStore, "stt", 30, "Transcribing…");
-      const fd = new FormData();
-      fd.append("file", wav, "audio.wav");
-      fd.append("filename", "audio.wav");
-      if (settings.sourceLanguage && settings.sourceLanguage !== "auto") fd.append("language", settings.sourceLanguage);
       const elevenKeys = listProviders("stt").find((x) => x.id === "eleven")?.keys ?? [];
-      const sttHeaders: Record<string, string> = {};
-      if (elevenKeys.length) sttHeaders["x-user-elevenlabs-keys"] = elevenKeys.join(",");
-      pushLog(dubbingStore, `STT → /api/router/stt (${elevenKeys.length} ElevenLabs key, source=${settings.sourceLanguage})`);
+      const langCode = settings.sourceLanguage && settings.sourceLanguage !== "auto" ? settings.sourceLanguage : null;
+      pushLog(dubbingStore, `STT langsung → ElevenLabs (${elevenKeys.length} key, source=${settings.sourceLanguage}) · tanpa worker proxy`);
 
       const sttRes = await mixingQueue.submit({
         id: "stt",
         label: "stt",
-        retries: 1,
+        retries: 0,
         run: async () => {
-          const r = await fetch("/api/router/stt", { method: "POST", headers: sttHeaders, body: fd });
-          const text = await r.text();
-          let j: { ok?: boolean; error?: string; transcript?: Transcript } | null = null;
-          try { j = JSON.parse(text); } catch { /* non-json */ }
-          if (!r.ok || !j?.ok) {
-            const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
-            const reason =
-              r.status === 401 ? "invalid/expired key"
-              : r.status === 402 ? "quota habis / limit"
-              : r.status === 413 ? "file terlalu besar"
-              : r.status === 415 ? "format audio tidak didukung"
-              : r.status === 429 ? "rate-limited"
-              : r.status >= 500 ? "server error" : "gagal";
-            throw new Error(j?.error || `stt ${r.status} (${reason}): ${snippet || "no body"}`);
-          }
-          return j.transcript!;
+          const res = await transcribeElevenClient(
+            elevenKeys,
+            wav,
+            "audio.wav",
+            langCode,
+            (m) => pushLog(dubbingStore, m),
+          );
+          if (!res.ok) throw new Error(res.error || "STT gagal");
+          const t: Transcript = {
+            language: res.language,
+            segments: res.segments,
+            fullText: res.fullText,
+          };
+          return t;
         },
       });
       if (!sttRes.ok) throw new Error(sttRes.error);

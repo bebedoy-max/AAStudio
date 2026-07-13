@@ -28,6 +28,14 @@ import {
 // Top-nav sub-menu mirrors sidebar section (Manage / Generate / System).
 const NAV_SECTIONS: Record<string, { label: string; url: string }[]> = {
   "/": [],
+  "/ai-influencer": [
+    { label: "Character", url: "/ai-influencer/character" },
+    { label: "Brain", url: "/ai-influencer/brain" },
+    { label: "Content Planner", url: "/ai-influencer/planner" },
+    { label: "Content Library", url: "/ai-influencer/library" },
+    { label: "Auto Publisher", url: "/ai-influencer/publisher" },
+    { label: "Analytics", url: "/ai-influencer/analytics" },
+  ],
   "/manage": [
     { label: "Token / API Manager", url: "/manage/tokens" },
     { label: "Routing Provider", url: "/manage/routing" },

@@ -23,6 +23,13 @@ import {
   Lightbulb,
   GripVertical,
   ChevronRight,
+  Brain,
+  CalendarRange,
+  FolderOpen,
+  Send,
+  LineChart,
+  Lock,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -44,6 +51,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useAuth } from "@/lib/auth-context";
+import { openUpgradePrompt } from "@/lib/stores/upgrade-prompt";
 import { UpgradeCard } from "@/components/upgrade-card";
 
 const LOGO_URL = "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w512";
@@ -55,7 +63,20 @@ type NavEntry =
 
 const DEFAULT_NAV: NavEntry[] = [
   { kind: "link", key: "dashboard", label: "Creative Dashboard", url: "/", icon: Lightbulb, alwaysVisible: true },
-  { kind: "link", key: "ai-influencer", label: "AI Influencer", url: "/ai-influencer", icon: UserCircle2, permKey: "ai-influencer.studio", premium: true },
+  {
+    kind: "group",
+    key: "ai-influencer",
+    label: "AI Influencer",
+    icon: UserCircle2,
+    items: [
+      { title: "Character", url: "/ai-influencer/character", icon: UserCircle2, permKey: "ai-influencer.studio" },
+      { title: "Brain", url: "/ai-influencer/brain", icon: Brain, permKey: "ai-influencer.studio" },
+      { title: "Content Planner", url: "/ai-influencer/planner", icon: CalendarRange, permKey: "ai-influencer.studio" },
+      { title: "Content Library", url: "/ai-influencer/library", icon: FolderOpen, permKey: "ai-influencer.studio" },
+      { title: "Auto Publisher", url: "/ai-influencer/publisher", icon: Send, permKey: "ai-influencer.studio" },
+      { title: "Analytics", url: "/ai-influencer/analytics", icon: LineChart, permKey: "ai-influencer.studio" },
+    ],
+  },
   {
     kind: "group",
     key: "mixing",
@@ -114,6 +135,7 @@ const ADMIN_GROUP: NavEntry = {
     { title: "Kelola User", url: "/admin", icon: ShieldCheck },
     { title: "Request Pembelian", url: "/admin/requests", icon: Receipt },
     { title: "Metode Pembayaran & Harga", url: "/admin/payments", icon: Wallet },
+    { title: "Pengaturan Halaman", url: "/admin/access", icon: SlidersHorizontal },
   ],
 };
 
@@ -157,6 +179,7 @@ function HoverFlyout({
   onEnter: () => void;
   onLeave: () => void;
 }) {
+  const { isFeatureEnabled, featureAccess } = useAuth();
   if (!open) return null;
   return (
     <div
@@ -171,6 +194,33 @@ function HoverFlyout({
         {items.map((item) => {
           const isActive = currentPath === item.url;
           const CIcon = item.icon;
+          const enabled = !item.permKey || isFeatureEnabled(item.permKey);
+          const access = item.permKey ? featureAccess[item.permKey] : undefined;
+          const trialBadge =
+            enabled && access?.mode === "trial" && access.trialUntil
+              ? `Trial s/d ${new Date(access.trialUntil).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
+              : null;
+
+          if (!enabled) {
+            return (
+              <button
+                key={item.url}
+                type="button"
+                onClick={() => {
+                  openUpgradePrompt(item.permKey);
+                  onNavigate?.();
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 hover:text-foreground/70 hover:bg-sidebar-accent/40 transition-all text-left"
+              >
+                <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
+                  <CIcon className="h-3.5 w-3.5" />
+                </span>
+                <span className="flex-1 truncate">{item.title}</span>
+                <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              </button>
+            );
+          }
+
           return (
             <Link
               key={item.url}
@@ -193,6 +243,11 @@ function HoverFlyout({
                 <CIcon className="h-3.5 w-3.5" />
               </span>
               <span className="flex-1 truncate">{item.title}</span>
+              {trialBadge && (
+                <span className="text-[9px] font-mono uppercase tracking-wider text-amber-300 shrink-0">
+                  {trialBadge}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -342,7 +397,9 @@ export function AppSidebar({
   const { isAdmin, hasRoutePermission, routePermissions } = useAuth();
   const hasAnyPremium = isAdmin || routePermissions.length > 0;
 
-  const filterItems = (its: Item[]) => its.filter((it) => !it.permKey || hasRoutePermission(it.permKey));
+  // Show every feature item (locked ones render disabled in the flyout), so new
+  // users still see all menus — only enabled/disabled differs by access settings.
+  const filterItems = (its: Item[]) => its;
   const allEntries: NavEntry[] = [...DEFAULT_NAV];
   if (isAdmin) allEntries.push(ADMIN_GROUP);
 
