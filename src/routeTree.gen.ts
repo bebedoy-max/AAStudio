@@ -57,6 +57,7 @@ import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/pro
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
+import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
 import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
@@ -303,6 +304,12 @@ const ApiPublicFfmpegCdnRoute = ApiPublicFfmpegCdnRouteImport.update({
   path: '/api/public/ffmpeg-cdn',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicElevenlabsValidateRoute =
+  ApiPublicElevenlabsValidateRouteImport.update({
+    id: '/api/public/elevenlabs-validate',
+    path: '/api/public/elevenlabs-validate',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicElevenlabsTtsRoute = ApiPublicElevenlabsTtsRouteImport.update({
   id: '/api/public/elevenlabs-tts',
   path: '/api/public/elevenlabs-tts',
@@ -359,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
+  '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
@@ -411,6 +419,7 @@ export interface FileRoutesByTo {
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
+  '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
@@ -466,6 +475,7 @@ export interface FileRoutesById {
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
+  '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
@@ -522,6 +532,7 @@ export interface FileRouteTypes {
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
+    | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
@@ -574,6 +585,7 @@ export interface FileRouteTypes {
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
+    | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
@@ -628,6 +640,7 @@ export interface FileRouteTypes {
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
+    | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
@@ -670,6 +683,7 @@ export interface RootRouteChildren {
   ApiPublicCreativeBrainRoute: typeof ApiPublicCreativeBrainRoute
   ApiPublicDubbingBrainRoute: typeof ApiPublicDubbingBrainRoute
   ApiPublicElevenlabsTtsRoute: typeof ApiPublicElevenlabsTtsRoute
+  ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
@@ -1028,6 +1042,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFfmpegCdnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/elevenlabs-validate': {
+      id: '/api/public/elevenlabs-validate'
+      path: '/api/public/elevenlabs-validate'
+      fullPath: '/api/public/elevenlabs-validate'
+      preLoaderRoute: typeof ApiPublicElevenlabsValidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/elevenlabs-tts': {
       id: '/api/public/elevenlabs-tts'
       path: '/api/public/elevenlabs-tts'
@@ -1134,6 +1155,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCreativeBrainRoute: ApiPublicCreativeBrainRoute,
   ApiPublicDubbingBrainRoute: ApiPublicDubbingBrainRoute,
   ApiPublicElevenlabsTtsRoute: ApiPublicElevenlabsTtsRoute,
+  ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,

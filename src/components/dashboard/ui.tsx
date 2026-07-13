@@ -106,7 +106,7 @@ export function GhostButton({ children, ...props }: React.ButtonHTMLAttributes<H
     <button
       {...props}
       className={
-        "inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card/50 px-4 py-2 text-sm font-medium text-foreground/90 hover:text-foreground hover:bg-sidebar-accent/60 transition " +
+        "inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card/50 px-4 py-2 text-sm font-medium text-foreground/90 hover:text-foreground hover:bg-sidebar-accent/60 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-card/50 disabled:hover:text-foreground/90 " +
         (props.className || "")
       }
     >

@@ -1,12 +1,74 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink } from "lucide-react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
-import { checkWeavyToken } from "@/lib/providers/weavy";
+import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
+
+/* ============ Themed Summary Dialog (replaces browser alert) ============ */
+export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
+export type SummaryPayload = { title: string; rows: SummaryRow[]; footer?: string };
+const SummaryCtx = createContext<(p: SummaryPayload) => void>(() => {});
+const useSummaryDialog = () => useContext(SummaryCtx);
+
+function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="neumorph w-full max-w-md p-6 relative animate-in zoom-in-95 duration-200"
+        style={{ background: "var(--gradient-card, hsl(var(--card)))" }}
+      >
+        <div className="flex items-center gap-2.5 mb-4">
+          <div
+            className="h-9 w-9 rounded-full grid place-items-center shrink-0"
+            style={{ background: "var(--gradient-neon)" }}
+          >
+            <CheckCircle2 className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="font-display text-lg text-foreground">{payload.title}</div>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card/40 divide-y divide-border/50">
+          {payload.rows.map((r, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 px-3.5 py-2 text-[12.5px]">
+              <span className="text-muted-foreground">{r.label}</span>
+              <span
+                className={[
+                  "font-semibold font-mono tabular-nums",
+                  r.tone === "ok"
+                    ? "text-emerald-400"
+                    : r.tone === "warn"
+                      ? "text-amber-300"
+                      : r.tone === "bad"
+                        ? "text-rose-400"
+                        : r.tone === "muted"
+                          ? "text-muted-foreground"
+                          : "text-foreground",
+                ].join(" ")}
+              >
+                {r.value}
+              </span>
+            </div>
+          ))}
+        </div>
+        {payload.footer && (
+          <div className="mt-3 text-[11px] text-muted-foreground text-center leading-relaxed">{payload.footer}</div>
+        )}
+        <div className="mt-5 flex justify-center">
+          <PrimaryButton onClick={onClose} className="min-w-[120px] justify-center">
+            OK
+          </PrimaryButton>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/manage/tokens")({
   head: () => ({
@@ -32,13 +94,17 @@ const providers: { key: ProviderKey; label: string; desc: string }[] = [
 // ---- localStorage helpers ----
 type WeavyTok = { id: string; token: string; user?: string; email?: string; credits: number | null; status: "active" | "empty" | "pending" | "failed" };
 type SimpleKey = { id: string; key: string; balance: number | null; status: "active" | "empty" | "pending" | "failed"; note?: string };
+const MIN_WEAVY_CREDITS = 5;
+const MIN_ELEVEN_CREDITS = 50;
 
 const LS = {
   brain: "aatools.brain.geminiKeys",
+  brainChecks: "aatools.brain.checks",
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
   eleven: "aatools.eleven",
+  elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
   creatomate: "aatools.creatomate.keys",
   active: "aatools.weavy.activeId",
@@ -62,80 +128,84 @@ function TokensPage() {
   const [tab, setTab] = useState<ProviderKey>("brain");
   const active = providers.find((p) => p.key === tab)!;
   const [showImport, setShowImport] = useState(false);
+  const [summary, setSummary] = useState<SummaryPayload | null>(null);
 
   return (
-    <DashboardShell>
-      <PageHero
-        eyebrow="Manage"
-        title="Token / API"
-        highlight="Manager"
-        desc="Pusat kelola semua API key & token. Semua tersimpan lokal di browser."
-      />
+    <SummaryCtx.Provider value={setSummary}>
+      <DashboardShell>
+        <PageHero
+          eyebrow="Manage"
+          title="Token / API"
+          highlight="Manager"
+          desc="Pusat kelola semua API key & token. Semua tersimpan lokal di browser."
+        />
 
-      <Card>
-        <div className="flex flex-wrap gap-2 mb-6">
-          {providers.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setTab(p.key)}
-              className={[
-                "px-4 py-2 rounded-full text-sm font-medium transition",
-                tab === p.key
-                  ? "text-primary-foreground glow-pink"
-                  : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
-              ].join(" ")}
-              style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col gap-4">
-            {tab === "brain" && <BrainPane />}
-            {tab === "weavy" && <WeavyPane onOpenImport={() => setShowImport(true)} />}
-            {tab === "wavespeed" && (
-              <ProviderKeyPane
-                provider="wavespeed"
-                lsKey={LS.wavespeed}
-                singlePlaceholder="wsk_live_..."
-                bulkPlaceholder={"wsk_live_XXX...\nwsk_live_YYY..."}
-                helper="Balance dicek via api.wavespeed.ai/api/v3/balance. Dapatkan key di wavespeed.ai."
-              />
-            )}
-            {tab === "magnific" && (
-              <ProviderKeyPane
-                provider="magnific"
-                lsKey={LS.magnific}
-                singlePlaceholder="FPSX... (Magnific/Freepik API key)"
-                bulkPlaceholder={"FPSX-XXXX...\nFPSX-YYYY..."}
-                helper="Magnific dipakai untuk Motion Control (Kling motion transfer via api.magnific.com)."
-              />
-            )}
-            {tab === "eleven" && <ElevenPane />}
-            {tab === "render" && <RenderPane />}
+        <Card>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {providers.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setTab(p.key)}
+                className={[
+                  "px-4 py-2 rounded-full text-sm font-medium transition",
+                  tab === p.key
+                    ? "text-primary-foreground glow-pink"
+                    : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
+                ].join(" ")}
+                style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
-          <div className="neumorph p-4 h-fit">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Info</div>
-            <div className="mt-1 font-display text-base text-foreground">{active.label}</div>
-            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{active.desc}</p>
-            <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-              🔒 Key disimpan HANYA di <code className="text-foreground/80">localStorage</code> browser. Tidak pernah dikirim/di-log ke server selain saat request generate.
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 flex flex-col gap-4">
+              {tab === "brain" && <BrainPane />}
+              {tab === "weavy" && <WeavyPane onOpenImport={() => setShowImport(true)} />}
+              {tab === "wavespeed" && (
+                <ProviderKeyPane
+                  provider="wavespeed"
+                  lsKey={LS.wavespeed}
+                  singlePlaceholder="wsk_live_..."
+                  bulkPlaceholder={"wsk_live_XXX...\nwsk_live_YYY..."}
+                  helper="Balance dicek via api.wavespeed.ai/api/v3/balance. Dapatkan key di wavespeed.ai."
+                />
+              )}
+              {tab === "magnific" && (
+                <ProviderKeyPane
+                  provider="magnific"
+                  lsKey={LS.magnific}
+                  singlePlaceholder="FPSX... (Magnific/Freepik API key)"
+                  bulkPlaceholder={"FPSX-XXXX...\nFPSX-YYYY..."}
+                  helper="Magnific dipakai untuk Motion Control (Kling motion transfer via api.magnific.com)."
+                />
+              )}
+              {tab === "eleven" && <ElevenPane />}
+              {tab === "render" && <RenderPane />}
             </div>
-            <HowToGet provider={tab} />
-          </div>
-        </div>
-      </Card>
 
-      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
-    </DashboardShell>
+            <div className="neumorph p-4 h-fit">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Info</div>
+              <div className="mt-1 font-display text-base text-foreground">{active.label}</div>
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{active.desc}</p>
+              <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
+                🔒 Key disimpan HANYA di <code className="text-foreground/80">localStorage</code> browser. Tidak pernah dikirim/di-log ke server selain saat request generate.
+              </div>
+              <HowToGet provider={tab} />
+            </div>
+          </div>
+        </Card>
+
+        {showImport && <ImportModal onClose={() => setShowImport(false)} />}
+        {summary && <SummaryDialog payload={summary} onClose={() => setSummary(null)} />}
+      </DashboardShell>
+    </SummaryCtx.Provider>
   );
 }
 
 /* ============ How to get API keys — per provider ============ */
-type GuideStep = { text: string; code?: string };
+type GuideStep = { text: string; code?: string; link?: { url: string; label: string } };
 type Guide = {
   url: string;
   urlLabel: string;
@@ -146,8 +216,8 @@ type Guide = {
 
 const GUIDES: Record<ProviderKey, Guide> = {
   brain: {
-    url: "https://aistudio.google.com/apikey",
-    urlLabel: "aistudio.google.com/apikey",
+    url: "https://aistudio.google.com/api-keys",
+    urlLabel: "aistudio.google.com/api-keys",
     prefix: "AIza…",
     steps: [
       { text: "Buka Google AI Studio dan login pakai akun Google." },
@@ -159,23 +229,27 @@ const GUIDES: Record<ProviderKey, Guide> = {
     tip: "Free tier Gemini: 15 request/menit, 1 juta token/hari untuk gemini-2.5-flash. Key yang dimulai selain AIza (mis. AQ.Ab8…) BUKAN API key — itu OAuth token dan akan ditolak.",
   },
   weavy: {
-    url: "https://app.weavy.ai",
-    urlLabel: "app.weavy.ai",
-    prefix: "eyJhbGci… (JWT refresh token)",
+    url: "https://drive.google.com/file/d/1xJEUv31VdzF8FVXPzfcpRcnq8ahV3_8w/view?usp=sharing",
+    urlLabel: "Weavy Token Extractor",
+    
     steps: [
-      { text: "Buka app.weavy.ai dan login dengan akun Weavy kamu." },
-      { text: "Tekan F12 di browser → pilih tab Console." },
-      {
-        text: "Paste script berikut lalu Enter — token otomatis ter-copy ke clipboard:",
-        code: `indexedDB.open('firebaseLocalStorageDb').onsuccess=e=>{let t=e.target.result.transaction('firebaseLocalStorage').objectStore('firebaseLocalStorage').getAll();t.onsuccess=e=>{let r=e.target.result.find(i=>i.value?.stsTokenManager?.refreshToken);r?copy(r.value.stsTokenManager.refreshToken).then(()=>alert('Token copied!')):alert('Not found.')}}`,
-      },
-      { text: "Paste ke Bulk Input di sebelah. Ulangi untuk tiap akun Weavy — makin banyak, makin besar credit pool." },
+      { text: "Download Weavy Token Extractor (klik link di atas)." },
+      { text: "Ekstrak / unzip file yang sudah di-download." },
+      { text: "Buka Manager Extension di browser (mis. chrome://extensions)." },
+      { text: "Aktifkan Developer mode di pojok kanan atas Manager Extension." },
+      { text: "Klik tombol Load unpacked." },
+      { text: "Cari folder Weavy Token Extension yang sudah di-ekstrak tadi, lalu Select Folder." },
+      { text: "Pin Weavy Token Extension agar muncul di taskbar atas browser." },
+      { text: "Buka ", link: { url: "https://app.weavy.ai", label: "app.weavy.ai" }, code: undefined },
+      { text: "Klik icon Weavy Token di taskbar → klik Extract Token, lalu klik Copy Token." },
+      { text: "Paste token ke Bulk Input di sebelah dan simpan. Ulangi untuk tiap akun Weavy — makin banyak, makin besar credit pool." },
     ],
-    tip: "Refresh token Weavy berumur panjang. Bila expired, ulangi F12 → paste script.",
+    tip: "Refresh token Weavy berumur panjang. Bila expired, ulangi langkah Extract Token dari extension.",
   },
+
   wavespeed: {
-    url: "https://wavespeed.ai/dashboard/api-keys",
-    urlLabel: "wavespeed.ai/dashboard",
+    url: "https://wavespeed.ai/accesskey",
+    urlLabel: "wavespeed.ai/accesskey",
     prefix: "wsk_live_…",
     steps: [
       { text: "Register/login di wavespeed.ai." },
@@ -187,8 +261,8 @@ const GUIDES: Record<ProviderKey, Guide> = {
     tip: "1 klip 5 detik Kling v2.1 Standard ≈ $0.25. Saldo $5 = ±20 klip.",
   },
   magnific: {
-    url: "https://www.freepik.com/api/dashboard",
-    urlLabel: "freepik.com/api/dashboard",
+    url: "https://www.magnific.com/api",
+    urlLabel: "magnific.com/api",
     prefix: "FPSX…",
     steps: [
       { text: "Magnific sekarang bagian dari Freepik — daftar / login di freepik.com." },
@@ -200,8 +274,8 @@ const GUIDES: Record<ProviderKey, Guide> = {
     tip: "Motion Control (Kling motion transfer) ≈ 50 Freepik cr per klip 5 detik.",
   },
   eleven: {
-    url: "https://elevenlabs.io/app/settings/api-keys",
-    urlLabel: "elevenlabs.io/app/settings/api-keys",
+    url: "https://elevenlabs.io/app/developers/api-keys",
+    urlLabel: "elevenlabs.io/app/developers/api-keys",
     prefix: "sk_… (xi-api-key)",
     steps: [
       { text: "Register/login di elevenlabs.io (free tier: 10.000 karakter/bulan)." },
@@ -249,6 +323,17 @@ function HowToGet({ provider }: { provider: ProviderKey }) {
         {g.steps.map((s, i) => (
           <li key={i}>
             {s.text}
+            {s.link && (
+              <a
+                href={s.link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline hover:text-primary/80"
+              >
+                {s.link.label}
+              </a>
+            )}
+            {s.link && " dan login akun Weavy kamu."}
             {s.code && (
               <pre className="mt-1 rounded-md bg-black/50 border border-border p-2 overflow-x-auto text-[9px] font-mono text-foreground/80 whitespace-pre-wrap break-all">
                 {s.code}
@@ -298,13 +383,24 @@ function BrainPane() {
   const [bulk, setBulk] = useState("");
   const [status, setStatus] = useState("");
   const [checks, setChecks] = useState<BrainKeyStatus[]>([]);
+  const [stored, setStored] = useState<string[]>([]);
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const [busy, setBusy] = useState(false);
+  const showSummary = useSummaryDialog();
 
   useEffect(() => {
     const keys = readJSON<string[]>(LS.brain, []);
-    setBulk(keys.join("\n"));
+    setStored(keys);
+    const savedChecks = readJSON<BrainKeyStatus[]>(LS.brainChecks, []).filter((c) => keys.includes(c.key));
+    setChecks(savedChecks);
     setStatus(keys.length ? `${keys.length} key tersimpan` : "Belum ada key");
   }, []);
+
+  // Persist checks so status survives tab switches / remounts.
+  const saveChecks = (next: BrainKeyStatus[]) => {
+    setChecks(next);
+    writeJSON(LS.brainChecks, next);
+  };
 
   const parse = (raw: string) =>
     raw
@@ -312,47 +408,105 @@ function BrainPane() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-  const save = () => {
-    const keys = parse(bulk);
-    writeJSON(LS.brain, keys);
-    setStatus(`✅ ${keys.length} key tersimpan`);
-  };
-  const append = () => {
-    const existing = readJSON<string[]>(LS.brain, []);
-    const merged = Array.from(new Set([...existing, ...parse(bulk)]));
+  const isValidFormat = (k: string) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ\.[A-Za-z0-9_-]{20,}$/.test(k);
+
+  const tambah = async () => {
+    const raw = parse(bulk);
+    if (raw.length === 0) return;
+    setBusy(true);
+    const existing = new Set(stored);
+    const toCheck = Array.from(new Set(raw)).filter((k) => !existing.has(k));
+    if (toCheck.length === 0) {
+      setStatus("Semua key sudah tersimpan");
+      setBulk("");
+      setBusy(false);
+      return;
+    }
+    const badFormat = toCheck.filter((k) => !isValidFormat(k));
+    const goodFormat = toCheck.filter(isValidFormat);
+    setProgress({ show: true, pct: 5, text: `Validasi ${goodFormat.length} key…` });
+    const results: BrainKeyStatus[] = [];
+    const accepted: string[] = [];
+    for (let i = 0; i < goodFormat.length; i++) {
+      const r = await checkGeminiKey(goodFormat[i]);
+      results.push(r);
+      if (r.state === "active" || r.state === "limited") accepted.push(goodFormat[i]);
+      setProgress({ show: true, pct: Math.round(((i + 1) / goodFormat.length) * 100), text: `Cek ${i + 1}/${goodFormat.length}` });
+      await new Promise((res) => setTimeout(res, 120));
+    }
+    const merged = Array.from(new Set([...stored, ...accepted]));
     writeJSON(LS.brain, merged);
-    setBulk(merged.join("\n"));
-    setStatus(`➕ Sekarang total ${merged.length} key`);
+    setStored(merged);
+    // Preserve prior statuses for keys not re-tested this round.
+    const mergedChecks = [
+      ...checks.filter((c) => merged.includes(c.key) && !results.some((r) => r.key === c.key)),
+      ...results,
+    ];
+    saveChecks(mergedChecks);
+    setProgress({ show: false, pct: 0, text: "" });
+    setBulk("");
+    const a = results.filter((r) => r.state === "active").length;
+    const l = results.filter((r) => r.state === "limited").length;
+    const invalid = results.filter((r) => r.state === "invalid").length;
+    const failed = results.filter((r) => r.state === "failed").length;
+    const dup = raw.length - toCheck.length;
+    setStatus(`Total tersimpan: ${merged.length} · ✅ ${a} aktif · ⏳ ${l} limit · ❌ ${invalid + failed + badFormat.length} ditolak`);
+    setBusy(false);
+    showSummary({
+      title: "Ringkasan Import Gemini Key",
+      rows: [
+        { label: "Total input", value: raw.length },
+        { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
+        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        { label: "Berhasil ditambahkan", value: accepted.length, tone: "ok" },
+        { label: "  – Aktif", value: a, tone: "ok" },
+        { label: "  – Rate-limited (tetap disimpan)", value: l, tone: "warn" },
+        { label: "Invalid / ditolak", value: invalid, tone: invalid ? "bad" : "muted" },
+        { label: "Gagal / error", value: failed, tone: failed ? "bad" : "muted" },
+      ],
+      footer: `Total key tersimpan sekarang: ${merged.length}`,
+    });
   };
+
   const clear = () => {
     writeJSON(LS.brain, []);
-    setBulk("");
+    writeJSON(LS.brainChecks, []);
+    setStored([]);
     setChecks([]);
     setStatus("🗑 Semua key dihapus");
   };
 
   const checkAll = async () => {
-    const keys = parse(bulk);
-    if (keys.length === 0) {
-      setStatus("Tidak ada key untuk dicek");
-      return;
-    }
-    writeJSON(LS.brain, keys);
-    setChecks(keys.map((k) => ({ key: k, state: "checking" as const })));
-    setProgress({ show: true, pct: 5, text: `Cek ${keys.length} key…` });
+    if (stored.length === 0) return;
+    setBusy(true);
+    setChecks(stored.map((k) => ({ key: k, state: "checking" as const })));
+    setProgress({ show: true, pct: 5, text: `Cek ${stored.length} key…` });
     const results: BrainKeyStatus[] = [];
-    for (let i = 0; i < keys.length; i++) {
-      const r = await checkGeminiKey(keys[i]);
+    for (let i = 0; i < stored.length; i++) {
+      const r = await checkGeminiKey(stored[i]);
       results.push(r);
-      setChecks([...results, ...keys.slice(i + 1).map((k) => ({ key: k, state: "checking" as const }))]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / keys.length) * 100), text: `Cek ${i + 1}/${keys.length}` });
+      saveChecks([...results, ...stored.slice(i + 1).map((k) => ({ key: k, state: "checking" as const }))]);
+      setProgress({ show: true, pct: Math.round(((i + 1) / stored.length) * 100), text: `Cek ${i + 1}/${stored.length}` });
       await new Promise((res) => setTimeout(res, 120));
     }
+    saveChecks(results);
     setProgress({ show: false, pct: 0, text: "" });
     const a = results.filter((r) => r.state === "active").length;
     const l = results.filter((r) => r.state === "limited").length;
-    const bad = results.filter((r) => r.state === "invalid" || r.state === "failed").length;
-    setStatus(`✅ ${a} aktif · ⏳ ${l} limit · ❌ ${bad} bermasalah (dari ${keys.length})`);
+    const invalid = results.filter((r) => r.state === "invalid").length;
+    const failed = results.filter((r) => r.state === "failed").length;
+    setStatus(`✅ ${a} aktif · ⏳ ${l} limit · ❌ ${invalid + failed} bermasalah (dari ${stored.length})`);
+    setBusy(false);
+    showSummary({
+      title: "Ringkasan Cek Gemini Key",
+      rows: [
+        { label: "Total key dicek", value: stored.length },
+        { label: "Aktif", value: a, tone: "ok" },
+        { label: "Rate-limited", value: l, tone: "warn" },
+        { label: "Invalid / ditolak", value: invalid, tone: invalid ? "bad" : "muted" },
+        { label: "Gagal / error", value: failed, tone: failed ? "bad" : "muted" },
+      ],
+    });
   };
 
   const mask = (k: string) => (k.length <= 12 ? k : `${k.slice(0, 6)}…${k.slice(-4)}`);
@@ -369,6 +523,9 @@ function BrainPane() {
   const label = (s: BrainKeyStatus["state"]) =>
     ({ active: "Active", limited: "Rate-limited", invalid: "Invalid", failed: "Failed", checking: "Checking…", unknown: "—" }[s]);
 
+  const canAdd = bulk.trim().length > 0 && !busy;
+  const hasStored = stored.length > 0;
+
   return (
     <>
       <div className="text-xs text-muted-foreground leading-relaxed">
@@ -384,12 +541,15 @@ function BrainPane() {
         />
       </Field>
       <div className="flex flex-wrap gap-2">
-        <PrimaryButton onClick={save}>💾 Save Semua</PrimaryButton>
-        <GhostButton onClick={append}><Plus className="h-3.5 w-3.5" /> Tambah (append)</GhostButton>
-        <GhostButton onClick={checkAll} disabled={progress.show}>
-          <RefreshCw className={`h-3.5 w-3.5 ${progress.show ? "animate-spin" : ""}`} /> Cek Limit & Status
+        <PrimaryButton onClick={tambah} disabled={!canAdd}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
+        </PrimaryButton>
+        <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
+          <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} /> Cek Limit & Status
         </GhostButton>
-        <GhostButton onClick={clear} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Hapus Semua</GhostButton>
+        <GhostButton onClick={clear} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+          <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
+        </GhostButton>
       </div>
       {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
       {progress.show && (
@@ -400,18 +560,35 @@ function BrainPane() {
           <div className="mt-1 text-[10px] text-muted-foreground">{progress.text}</div>
         </div>
       )}
-      {checks.length > 0 && (
+      {stored.length > 0 && (
         <div className="mt-1 space-y-1.5">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status per key</div>
-          {checks.map((c, i) => (
-            <div key={i} className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-card/40 px-2.5 py-1.5">
-              <code className="text-[11px] font-mono text-foreground/85 truncate">{mask(c.key)}</code>
-              <div className="flex items-center gap-2 shrink-0">
-                {c.detail && <span className="text-[10px] text-muted-foreground truncate max-w-[220px]">{c.detail}</span>}
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge(c.state)}`}>{label(c.state)}</span>
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Key tersimpan ({stored.length})</div>
+          {stored.map((k, i) => {
+            const c = checks.find((x) => x.key === k);
+            const state = c?.state ?? "unknown";
+            return (
+              <div key={i} className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-card/40 px-2.5 py-1.5">
+                <code className="text-[11px] font-mono text-foreground/85 truncate">{mask(k)}</code>
+                <div className="flex items-center gap-2 shrink-0">
+                  {c?.detail && <span className="text-[10px] text-muted-foreground truncate max-w-[220px]">{c.detail}</span>}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge(state)}`}>{label(state)}</span>
+                  <button
+                    onClick={() => {
+                      const next = stored.filter((x) => x !== k);
+                      writeJSON(LS.brain, next);
+                      setStored(next);
+                      saveChecks(checks.filter((x) => x.key !== k));
+                      setStatus(next.length ? `${next.length} key tersimpan` : "🗑 Semua key dihapus");
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition"
+                    title="Hapus key ini"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </>
@@ -426,14 +603,67 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
   const [list, setList] = useState<WeavyTok[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const showSummary = useSummaryDialog();
 
   useEffect(() => {
     setList(readJSON<WeavyTok[]>(LS.weavy, []));
     setActiveId(readJSON<string | null>(LS.active, null));
-    const onStore = () => setList(readJSON<WeavyTok[]>(LS.weavy, []));
+    const onStore = () => {
+      setList(readJSON<WeavyTok[]>(LS.weavy, []));
+      setActiveId(readJSON<string | null>(LS.active, null));
+    };
     window.addEventListener("storage", onStore);
     return () => window.removeEventListener("storage", onStore);
   }, []);
+
+  // Silent auto-check every 30 minutes: refresh credits, rotate away from
+  // any active token whose balance drops below MIN_WEAVY_CREDITS.
+  useEffect(() => {
+    const tick = async () => {
+      const stored = readJSON<WeavyTok[]>(LS.weavy, []);
+      if (stored.length === 0) return;
+      let changed = false;
+      const next = [...stored];
+      for (let i = 0; i < next.length; i++) {
+        const t = next[i];
+        try {
+          const res = await checkWeavyToken(t.token);
+          const updated: WeavyTok = res.ok
+            ? {
+                ...t,
+                email: res.email ?? t.email,
+                credits: res.credits,
+                status: res.credits === null ? "pending" : res.credits >= MIN_WEAVY_CREDITS ? "active" : "empty",
+              }
+            : { ...t, status: "failed", credits: null };
+          if (JSON.stringify(updated) !== JSON.stringify(t)) {
+            next[i] = updated;
+            changed = true;
+          }
+        } catch {
+          /* ignore transient */
+        }
+      }
+      if (changed) {
+        writeJSON(LS.weavy, next);
+        setList(next);
+      }
+      const currentActive = readJSON<string | null>(LS.active, null);
+      const active = next.find((x) => x.id === currentActive);
+      if (!active || active.status !== "active" || (active.credits ?? 0) < MIN_WEAVY_CREDITS) {
+        if (currentActive) {
+          const rotated = await rotateWeavyToken(currentActive);
+          if (rotated) setActiveId(rotated.id);
+        } else {
+          const got = await getActiveWeavyAccessToken();
+          if (got) setActiveId(got.id);
+        }
+      }
+    };
+    const iv = setInterval(tick, 30 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, []);
+
 
   const persist = (next: WeavyTok[]) => {
     setList(next);
@@ -451,32 +681,82 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       .map((s) => s.trim())
       .filter(Boolean);
 
-  const connect = () => {
-    if (!token.trim()) return;
-    const next: WeavyTok = { id: uid(), token: token.trim(), credits: 0, status: "pending" };
-    const merged = [...list, next];
-    persist(merged);
-    if (!activeId) {
-      setActiveId(next.id);
-      writeJSON(LS.active, next.id);
-    }
-    setToken("");
-  };
-  const importBulkInline = () => {
-    const tokens = parseBulkTokens(bulkTokenText);
-    if (!tokens.length) return;
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+  const isValidFormat = (t: string) => /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t) || /^[A-Za-z0-9_-]{40,}$/.test(t);
+
+  const tambahTokens = async (rawList: string[]) => {
+    if (rawList.length === 0) return;
+    setBusy(true);
     const existing = new Set(list.map((t) => t.token));
-    const added: WeavyTok[] = tokens
-      .filter((t) => !existing.has(t))
-      .map((t) => ({ id: uid(), token: t, credits: 0, status: "pending" }));
+    const dedup = Array.from(new Set(rawList)).filter((t) => !existing.has(t));
+    if (dedup.length === 0) {
+      setStatus("Semua token sudah tersimpan");
+      setBusy(false);
+      return;
+    }
+    const badFormat = dedup.filter((t) => !isValidFormat(t));
+    const good = dedup.filter(isValidFormat);
+    setProgress({ show: true, pct: 5, text: `Validasi ${good.length} token…` });
+    const added: WeavyTok[] = [];
+    let lowCredit = 0;
+    let invalidToken = 0;
+    for (let i = 0; i < good.length; i++) {
+      const t = good[i];
+      const res = await checkWeavyToken(t);
+      if (res.ok && res.credits !== null && res.credits >= MIN_WEAVY_CREDITS) {
+        added.push({
+          id: uid(),
+          token: t,
+          email: res.email,
+          credits: res.credits,
+          status: "active",
+        });
+      } else if (res.ok) {
+        lowCredit++;
+      } else {
+        invalidToken++;
+      }
+      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      await new Promise((r) => setTimeout(r, 150));
+    }
     const merged = [...list, ...added];
     persist(merged);
     if (!activeId && added[0]) {
       setActiveId(added[0].id);
       writeJSON(LS.active, added[0].id);
     }
+    setProgress({ show: false, pct: 0, text: "" });
+    const totalCr = added.reduce((a, x) => a + (x.credits ?? 0), 0);
+    const dup = rawList.length - dedup.length;
+    setStatus(`✅ ${added.length} token ditambahkan · ❌ ${badFormat.length + lowCredit + invalidToken} ditolak · +${totalCr} cr`);
+    setBusy(false);
+    showSummary({
+      title: "Ringkasan Import Weavy Token",
+      rows: [
+        { label: "Total input", value: rawList.length },
+        { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
+        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        { label: "Berhasil ditambahkan", value: `${added.length}  (+${totalCr} cr)`, tone: "ok" },
+        { label: `Credit habis / < ${MIN_WEAVY_CREDITS}`, value: lowCredit, tone: lowCredit ? "warn" : "muted" },
+        { label: "Token invalid / expired", value: invalidToken, tone: invalidToken ? "bad" : "muted" },
+      ],
+      footer: `Total token tersimpan sekarang: ${merged.length}`,
+    });
+  };
+
+  const connect = async () => {
+    if (!token.trim()) return;
+    await tambahTokens([token.trim()]);
+    setToken("");
+  };
+  const importBulkInline = async () => {
+    const tokens = parseBulkTokens(bulkTokenText);
+    if (!tokens.length) return;
+    await tambahTokens(tokens);
     setBulkTokenText("");
   };
+
   const remove = (id: string) => {
     const next = list.filter((t) => t.id !== id);
     persist(next);
@@ -491,13 +771,15 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
     writeJSON(LS.active, id);
   };
   const clearAll = () => {
-    if (!confirm("Hapus semua token Weavy?")) return;
     persist([]);
     setActiveId(null);
     writeJSON(LS.active, null);
+    setStatus("Semua token dihapus");
   };
   const checkAll = async () => {
     if (list.length === 0) return;
+    setBusy(true);
+
     setProgress({ show: true, pct: 5, text: `Refreshing ${list.length} token…` });
     let working = [...list];
     for (let i = 0; i < working.length; i++) {
@@ -508,7 +790,7 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
             ...t,
             email: res.email ?? t.email,
             credits: res.credits,
-            status: res.credits === null ? "pending" : res.credits > 0 ? "active" : "empty",
+            status: res.credits === null ? "pending" : res.credits >= MIN_WEAVY_CREDITS ? "active" : "empty",
           }
         : { ...t, status: "failed", credits: null };
       working = working.map((x) => (x.id === t.id ? updated : x));
@@ -521,8 +803,33 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       // small delay to avoid hammering Firebase
       await new Promise((r) => setTimeout(r, 150));
     }
+    const usable = working.filter((t) => t.status === "active" && t.credits !== null && t.credits >= MIN_WEAVY_CREDITS);
+    const empty = working.filter((t) => t.status === "empty").length;
+    const failed = working.filter((t) => t.status === "failed").length;
+    if (usable.length !== working.length) {
+      persist(usable);
+      const nextActive = usable.some((t) => t.id === activeId) ? activeId : usable[0]?.id ?? null;
+      setActiveId(nextActive);
+      writeJSON(LS.active, nextActive);
+      setStatus(`✅ ${usable.length} token valid tersimpan · 🧹 ${working.length - usable.length} token dibuang (gagal/credit < ${MIN_WEAVY_CREDITS})`);
+    } else {
+      setStatus(`✅ ${usable.length} token valid tersimpan`);
+    }
     setProgress({ show: false, pct: 0, text: "" });
+    setBusy(false);
+    const totalCr = usable.reduce((a, x) => a + (x.credits ?? 0), 0);
+    showSummary({
+      title: "Ringkasan Cek Weavy Token",
+      rows: [
+        { label: "Total token dicek", value: working.length },
+        { label: `Aktif (credit ≥ ${MIN_WEAVY_CREDITS})`, value: `${usable.length}  (${totalCr} cr)`, tone: "ok" },
+        { label: `Credit habis / < ${MIN_WEAVY_CREDITS}`, value: empty, tone: empty ? "warn" : "muted" },
+        { label: "Invalid / gagal refresh", value: failed, tone: failed ? "bad" : "muted" },
+      ],
+      footer: `Token tersimpan sekarang: ${usable.length}`,
+    });
   };
+
 
   return (
     <>
@@ -550,7 +857,9 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
             value={token}
             onChange={(e) => setToken(e.target.value)}
           />
-          <PrimaryButton onClick={connect} disabled={!token.trim()}>Connect</PrimaryButton>
+          <PrimaryButton onClick={connect} disabled={!token.trim() || busy}>
+            <Plus className="h-3.5 w-3.5" /> Tambah
+          </PrimaryButton>
         </div>
       ) : (
         <Field label="Bulk Refresh Tokens (satu per baris atau pisah koma)">
@@ -566,15 +875,28 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 
       <div className="flex gap-2 flex-wrap">
         {mode === "bulk" && (
-          <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim()}>
-            <Upload className="h-3.5 w-3.5" /> Import Bulk
+          <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
+            <Plus className="h-3.5 w-3.5" /> Tambah
           </PrimaryButton>
         )}
         <GhostButton onClick={onOpenImport} className="w-full sm:w-auto"><Upload className="h-3.5 w-3.5" /> Import dari File</GhostButton>
+        <GhostButton onClick={checkAll} disabled={list.length === 0 || busy}>
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
+        </GhostButton>
         <GhostButton onClick={clearAll} disabled={list.length === 0} className="text-destructive hover:text-destructive disabled:opacity-40">
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
+
+
+      {progress.show && (
+        <div>
+          <div className="text-[10px] text-muted-foreground mb-1">{progress.text}</div>
+          <div className="h-1 rounded-full bg-border overflow-hidden">
+            <div className="h-full transition-all" style={{ width: `${progress.pct}%`, background: "var(--gradient-neon)" }} />
+          </div>
+        </div>
+      )}
 
       {list.length > 0 && (
         <div className="rounded-xl border border-border/70 bg-card/40 p-3 flex flex-col gap-2">
@@ -586,16 +908,7 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
             <span>
               <b className="text-emerald-400">{activeCount}</b> active <b className="text-rose-400 ml-1">{emptyCount}</b> empty
             </span>
-            <PrimaryButton onClick={checkAll} className="ml-auto !py-1.5 !px-3 text-xs"><RefreshCw className="h-3 w-3" /> Check All</PrimaryButton>
           </div>
-          {progress.show && (
-            <div>
-              <div className="text-[10px] text-muted-foreground mb-1">{progress.text}</div>
-              <div className="h-1 rounded-full bg-border overflow-hidden">
-                <div className="h-full transition-all" style={{ width: `${progress.pct}%`, background: "var(--gradient-neon)" }} />
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -608,19 +921,13 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
               t.id === activeId ? "border-primary/60 bg-primary/5" : "border-border bg-card/40",
             ].join(" ")}
           >
-            <button
-              onClick={() => setActive(t.id)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:border-primary/50 transition"
-              title="Pilih token aktif"
-            >
-              <span
-                className={[
-                  "h-2.5 w-2.5 rounded-full",
-                  t.status === "active" ? "bg-emerald-400" : t.status === "empty" ? "bg-rose-400" : t.status === "failed" ? "bg-red-500" : "bg-amber-400",
-                ].join(" ")}
-              />
-              {t.id === activeId ? "Aktif" : "Pilih"}
-            </button>
+            <span
+              className={[
+                "h-2.5 w-2.5 shrink-0 rounded-full",
+                t.status === "active" ? "bg-emerald-400" : t.status === "empty" ? "bg-rose-400" : t.status === "failed" ? "bg-red-500" : "bg-amber-400",
+              ].join(" ")}
+              title={t.id === activeId ? "Aktif (auto)" : t.status}
+            />
             <div className="font-mono truncate text-muted-foreground flex-1" title={t.email || t.token}>
               {t.email ? <span className="text-foreground/80">{t.email}</span> : `${t.token.slice(0, 32)}…`}
             </div>
@@ -639,17 +946,7 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
         )}
       </div>
 
-      <details className="rounded-xl border border-border/60 bg-card/30 p-3 text-xs text-muted-foreground">
-        <summary className="cursor-pointer text-foreground/90">Cara mendapatkan Refresh Token</summary>
-        <ol className="list-decimal pl-5 mt-2 space-y-1">
-          <li>Buka <a className="text-primary underline" href="https://app.weavy.ai" target="_blank" rel="noreferrer">app.weavy.ai</a> & login</li>
-          <li>Tekan F12 → tab <b>Console</b></li>
-          <li>Paste script berikut lalu Enter, token otomatis ter-copy:</li>
-        </ol>
-        <pre className="mt-2 rounded-lg bg-black/50 border border-border p-2 overflow-x-auto text-[10px] font-mono">
-{`indexedDB.open('firebaseLocalStorageDb').onsuccess=e=>{let t=e.target.result.transaction('firebaseLocalStorage').objectStore('firebaseLocalStorage').getAll();t.onsuccess=e=>{let r=e.target.result.find(i=>i.value?.stsTokenManager?.refreshToken);r?copy(r.value.stsTokenManager.refreshToken).then(()=>alert('Token copied!')):alert('Not found.')}}`}
-        </pre>
-      </details>
+
     </>
   );
 }
@@ -672,39 +969,98 @@ function ProviderKeyPane({
   const [bulk, setBulk] = useState("");
   const [mode, setMode] = useState<"single" | "bulk">("single");
   const [list, setList] = useState<SimpleKey[]>([]);
-  const [checking, setChecking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const showSummary = useSummaryDialog();
 
   useEffect(() => setList(readJSON<SimpleKey[]>(lsKey, [])), [lsKey]);
   const persist = (next: SimpleKey[]) => {
     setList(next);
     writeJSON(lsKey, next);
   };
-  const add = () => {
-    if (!k.trim()) return;
-    persist([...list, { id: uid(), key: k.trim(), balance: null, status: "pending" }]);
-    setK("");
-  };
   const parseBulk = (raw: string) =>
     raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
-  const importBulk = () => {
-    const keys = parseBulk(bulk);
-    if (!keys.length) return;
-    const existing = new Set(list.map((x) => x.key));
-    const added = keys
-      .filter((k) => !existing.has(k))
-      .map<SimpleKey>((k) => ({ id: uid(), key: k, balance: null, status: "pending" }));
-    persist([...list, ...added]);
-    setBulk("");
+
+  const isValidFormat = (key: string) =>
+    provider === "wavespeed"
+      ? /^wsk_[A-Za-z0-9_-]{8,}$/i.test(key) || /^ws_[A-Za-z0-9_-]{8,}$/i.test(key)
+      : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
+
+  const probe = async (key: string): Promise<SimpleKey> => {
+    if (provider === "wavespeed") {
+      const res = await checkWavespeedBalance(key);
+      return {
+        id: uid(),
+        key,
+        balance: res.balance,
+        status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
+      };
+    }
+    const res = await checkMagnificKey(key);
+    return { id: uid(), key, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
   };
+
+  const tambah = async () => {
+    const raw = mode === "single" ? (k.trim() ? [k.trim()] : []) : parseBulk(bulk);
+    if (raw.length === 0) return;
+    setBusy(true);
+    const existing = new Set(list.map((x) => x.key));
+    const dedup = Array.from(new Set(raw)).filter((key) => !existing.has(key));
+    if (dedup.length === 0) {
+      setStatus("Semua key sudah tersimpan");
+      setK(""); setBulk(""); setBusy(false);
+      return;
+    }
+    const badFormat = dedup.filter((key) => !isValidFormat(key));
+    const good = dedup.filter(isValidFormat);
+    setProgress({ show: true, pct: 5, text: `Validasi ${good.length} key…` });
+    const added: SimpleKey[] = [];
+    let empty = 0;
+    let failed = 0;
+    for (let i = 0; i < good.length; i++) {
+      const item = await probe(good[i]);
+      if (item.status === "active") added.push(item);
+      else if (item.status === "empty") { empty++; added.push(item); }
+      else failed++;
+      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    const merged = [...list, ...added];
+    persist(merged);
+    setProgress({ show: false, pct: 0, text: "" });
+    setK(""); setBulk("");
+    const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
+    const summary = provider === "wavespeed"
+      ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
+      : `${merged.length} key tersimpan`;
+    setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
+    setBusy(false);
+    const dup = raw.length - dedup.length;
+    const label = provider === "wavespeed" ? "Wavespeed" : "Magnific";
+    showSummary({
+      title: `Ringkasan Import ${label} Key`,
+      rows: [
+        { label: "Total input", value: raw.length },
+        { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
+        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        { label: "Berhasil ditambahkan", value: added.length, tone: "ok" },
+        { label: "Aktif (saldo tersedia)", value: added.length - empty, tone: "ok" },
+        { label: "Saldo kosong (tetap disimpan)", value: empty, tone: empty ? "warn" : "muted" },
+        { label: "Ditolak (invalid / gagal)", value: failed, tone: failed ? "bad" : "muted" },
+      ],
+      footer: `Total key tersimpan sekarang: ${merged.length}`,
+    });
+  };
+
   const remove = (id: string) => persist(list.filter((x) => x.id !== id));
   const clearAll = () => {
-    if (!confirm("Hapus semua key?")) return;
     persist([]);
+    setStatus("🗑 Semua key dihapus");
   };
   const checkAll = async () => {
     if (list.length === 0) return;
-    setChecking(true);
+    setBusy(true);
     setProgress({ show: true, pct: 5, text: `Checking ${list.length} key…` });
     let working = [...list];
     for (let i = 0; i < working.length; i++) {
@@ -712,31 +1068,42 @@ function ProviderKeyPane({
       let updated: SimpleKey;
       if (provider === "wavespeed") {
         const res = await checkWavespeedBalance(x.key);
-        updated = {
-          ...x,
-          balance: res.balance,
-          status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
-        };
+        updated = { ...x, balance: res.balance, status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed" };
       } else {
         const res = await checkMagnificKey(x.key);
-        // legacy: no probe — mark active
         updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
       }
       working = working.map((y) => (y.id === x.id ? updated : y));
       persist(working);
-      setProgress({
-        show: true,
-        pct: Math.round(((i + 1) / working.length) * 100),
-        text: `Checking ${i + 1}/${working.length}`,
-      });
+      setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` });
       await new Promise((r) => setTimeout(r, 120));
     }
-    setChecking(false);
+    setBusy(false);
     setProgress({ show: false, pct: 0, text: "" });
+    const active = working.filter((x) => x.status === "active").length;
+    const emp = working.filter((x) => x.status === "empty").length;
+    const failed = working.filter((x) => x.status === "failed").length;
+    const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
+    const label = provider === "wavespeed" ? "Wavespeed" : "Magnific";
+    showSummary({
+      title: `Ringkasan Cek ${label} Key`,
+      rows: [
+        { label: "Total key dicek", value: working.length },
+        {
+          label: "Aktif",
+          value: provider === "wavespeed" ? `${active}  ($${totBal.toFixed(2)})` : active,
+          tone: "ok",
+        },
+        { label: "Saldo kosong", value: emp, tone: emp ? "warn" : "muted" },
+        { label: "Invalid / gagal", value: failed, tone: failed ? "bad" : "muted" },
+      ],
+    });
   };
 
   const total = list.reduce((a, x) => a + (x.balance ?? 0), 0);
   const activeCount = list.filter((x) => x.status === "active").length;
+  const hasStored = list.length > 0;
+  const canAdd = (mode === "single" ? k.trim().length > 0 : bulk.trim().length > 0) && !busy;
 
   return (
     <>
@@ -761,16 +1128,15 @@ function ProviderKeyPane({
           {provider === "wavespeed" && (
             <span>Total: <b className="text-emerald-400">${total.toFixed(2)}</b></span>
           )}
-          <PrimaryButton onClick={checkAll} disabled={checking || list.length === 0}>
-            <RefreshCw className={["h-3.5 w-3.5", checking ? "animate-spin" : ""].join(" ")} /> Cek Saldo
-          </PrimaryButton>
         </div>
       </div>
 
       {mode === "single" ? (
         <div className="flex gap-2">
           <Input type="password" placeholder={singlePlaceholder} value={k} onChange={(e) => setK(e.target.value)} />
-          <PrimaryButton onClick={add} disabled={!k.trim()}>Add</PrimaryButton>
+          <PrimaryButton onClick={tambah} disabled={!canAdd}>
+            <Plus className="h-3.5 w-3.5" /> Tambah
+          </PrimaryButton>
         </div>
       ) : (
         <>
@@ -783,16 +1149,22 @@ function ProviderKeyPane({
               className="font-mono text-xs"
             />
           </Field>
-          <div className="flex gap-2">
-            <PrimaryButton onClick={importBulk} disabled={!bulk.trim()}>📥 Import Bulk</PrimaryButton>
-            {list.length > 0 && (
-              <GhostButton onClick={clearAll} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
-              </GhostButton>
-            )}
-          </div>
+          <PrimaryButton onClick={tambah} disabled={!canAdd}>
+            <Plus className="h-3.5 w-3.5" /> Tambah
+          </PrimaryButton>
         </>
       )}
+
+      <div className="flex gap-2 flex-wrap">
+        <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+        </GhostButton>
+        <GhostButton onClick={clearAll} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+          <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
+        </GhostButton>
+      </div>
+
+      {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
 
       {progress.show && (
         <div className="rounded-lg border border-border bg-card/40 p-2 text-[11px]">
@@ -848,14 +1220,16 @@ const voices = [
 ];
 const emptyEleven: ElevenCfg = { keys: [], voice: voices[0].value, customVoice: "" };
 
-type ElevenKeyStatus = { key: string; ok: boolean; remaining: number; limit: number; tier?: string };
+type ElevenKeyStatus = { key: string; ok: boolean; remaining: number | null; limit: number; tier?: string; method?: string; note?: string; reason?: string };
 
 function ElevenPane() {
   const [cfg, setCfg] = useState<ElevenCfg>(emptyEleven);
   const [bulk, setBulk] = useState("");
   const [status, setStatus] = useState("");
   const [keyStatuses, setKeyStatuses] = useState<ElevenKeyStatus[]>([]);
-  const [checking, setChecking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const showSummary = useSummaryDialog();
 
   useEffect(() => {
     const stored = readJSON<ElevenCfg | { apiKey?: string; voice?: string; customVoice?: string }>(LS.eleven, emptyEleven);
@@ -868,26 +1242,95 @@ function ElevenPane() {
             customVoice: (stored as { customVoice?: string }).customVoice || "",
           };
     setCfg(migrated);
-    setBulk(migrated.keys.join("\n"));
+    const savedStatuses = readJSON<ElevenKeyStatus[]>(LS.elevenChecks, []).filter((s) => migrated.keys.includes(s.key));
+    setKeyStatuses(savedStatuses);
   }, []);
 
-  const parse = (raw: string) => raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
-
-  const saveKeys = () => {
-    const keys = parse(bulk);
-    const next = { ...cfg, keys };
-    setCfg(next);
-    writeJSON(LS.eleven, next);
-    setStatus(`✅ ${keys.length} key tersimpan`);
+  // Persist statuses so "Valid via tes suara" survives tab switch / remount.
+  const saveStatuses = (next: ElevenKeyStatus[]) => {
+    setKeyStatuses(next);
+    writeJSON(LS.elevenChecks, next);
   };
-  const appendKeys = () => {
-    const merged = Array.from(new Set([...cfg.keys, ...parse(bulk)]));
+
+  const parse = (raw: string) => raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+  const isValidFormat = (k: string) => /^sk_[A-Za-z0-9_-]{20,}$/.test(k) || /^xi-[A-Za-z0-9-]{20,}$/.test(k);
+
+  const tambah = async () => {
+    const raw = parse(bulk);
+    if (raw.length === 0) return;
+    setBusy(true);
+    const existing = new Set(cfg.keys);
+    const dedup = Array.from(new Set(raw)).filter((k) => !existing.has(k));
+    if (dedup.length === 0) {
+      setStatus("Semua key sudah tersimpan");
+      setBulk(""); setBusy(false);
+      return;
+    }
+    const badFormat = dedup.filter((k) => !isValidFormat(k));
+    const good = dedup.filter(isValidFormat);
+    const results: ElevenKeyStatus[] = [];
+    const accepted: string[] = [];
+    setProgress({ show: true, pct: 5, text: `Cek ${good.length} key…` });
+    for (let i = 0; i < good.length; i++) {
+      const k = good[i];
+      const r = await checkElevenKey(k);
+      const canSave = r.ok && (r.remaining === null || r.remaining >= MIN_ELEVEN_CREDITS);
+      results.push({
+        key: k,
+        ok: canSave,
+        remaining: r.remaining,
+        limit: r.characterLimit,
+        tier: r.tier,
+        method: r.method,
+        note: r.note,
+        reason: !r.ok ? "tes suara gagal" : !canSave ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
+      });
+      if (canSave) accepted.push(k);
+      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      await new Promise((res) => setTimeout(res, 120));
+    }
+    const merged = Array.from(new Set([...cfg.keys, ...accepted]));
     const next = { ...cfg, keys: merged };
     setCfg(next);
-    setBulk(merged.join("\n"));
     writeJSON(LS.eleven, next);
-    setStatus(`➕ Total ${merged.length} key`);
+    // Merge status baru dengan status lama, buang yang tidak lagi tersimpan
+    const combined = [
+      ...keyStatuses.filter((s) => merged.includes(s.key) && !results.some((r) => r.key === s.key)),
+      ...results,
+    ];
+    saveStatuses(combined);
+    setProgress({ show: false, pct: 0, text: "" });
+    setBulk("");
+    const okResults = results.filter((r) => r.ok);
+    const readableResults = okResults.filter((r) => r.remaining !== null);
+    const totalRem = readableResults.reduce((a, r) => a + (r.remaining ?? 0), 0);
+    const totalLim = okResults.reduce((a, r) => a + r.limit, 0);
+    const info = readableResults.length > 0
+      ? `Sisa credit ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
+      : okResults.length > 0
+        ? "valid via tes suara 1 kata; saldo tidak terbaca"
+        : "tidak ada key yang lolos tes suara/saldo";
+    setStatus(`✅ ${accepted.length} tersimpan · ❌ ${badFormat.length + (good.length - accepted.length)} ditolak/credit < ${MIN_ELEVEN_CREDITS} · ${info}`);
+    setBusy(false);
+    const dup = raw.length - dedup.length;
+    const lowCredit = results.filter((r) => !r.ok && r.reason?.startsWith("credit")).length;
+    const testFailed = results.filter((r) => !r.ok && r.reason === "tes suara gagal").length;
+    showSummary({
+      title: "Ringkasan Import ElevenLabs Key",
+      rows: [
+        { label: "Total input", value: raw.length },
+        { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
+        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        { label: "Berhasil ditambahkan", value: accepted.length, tone: "ok" },
+        { label: `Credit habis / < ${MIN_ELEVEN_CREDITS}`, value: lowCredit, tone: lowCredit ? "warn" : "muted" },
+        { label: "Invalid / tes suara gagal", value: testFailed, tone: testFailed ? "bad" : "muted" },
+      ],
+      footer:
+        `Total key tersimpan sekarang: ${merged.length}` +
+        (totalLim > 0 ? ` · Saldo agregat: ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars` : ""),
+    });
   };
+
   const saveVoice = () => {
     writeJSON(LS.eleven, cfg);
     setStatus("💾 Voice tersimpan");
@@ -899,10 +1342,7 @@ function ElevenPane() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": cfg.keys[0] },
-        body: JSON.stringify({
-          text: "Halo, ini adalah test suara dari AATools.",
-          voiceId: cfg.voice,
-        }),
+        body: JSON.stringify({ text: "Halo, ini adalah test suara dari AATools.", voiceId: cfg.voice }),
       });
       if (!r.ok) { const j = await r.json().catch(() => ({} as { error?: string })); throw new Error(j.error || `HTTP ${r.status}`); }
       const buf = await r.arrayBuffer();
@@ -914,27 +1354,71 @@ function ElevenPane() {
     }
   };
   const clear = () => {
-    setCfg(emptyEleven);
-    setBulk("");
-    setKeyStatuses([]);
-    writeJSON(LS.eleven, emptyEleven);
-    setStatus("🗑 Semua key & voice direset");
+    const next = { ...emptyEleven, voice: cfg.voice, customVoice: cfg.customVoice };
+    setCfg(next);
+    saveStatuses([]);
+    writeJSON(LS.eleven, next);
+    setStatus("🗑 Semua key dihapus");
   };
   const checkAllKeys = async () => {
     if (cfg.keys.length === 0) return;
-    setChecking(true);
+    setBusy(true);
     setStatus(`🔍 Cek ${cfg.keys.length} ElevenLabs key…`);
+    setProgress({ show: true, pct: 5, text: `Cek ${cfg.keys.length} key…` });
     const results: ElevenKeyStatus[] = [];
-    for (const k of cfg.keys) {
+    for (let i = 0; i < cfg.keys.length; i++) {
+      const k = cfg.keys[i];
       const r = await checkElevenKey(k);
-      results.push({ key: k, ok: r.ok, remaining: r.remaining, limit: r.characterLimit, tier: r.tier });
-      setKeyStatuses([...results]);
+      const canUse = r.ok && (r.remaining === null || r.remaining >= MIN_ELEVEN_CREDITS);
+      results.push({
+        key: k,
+        ok: canUse,
+        remaining: r.remaining,
+        limit: r.characterLimit,
+        tier: r.tier,
+        method: r.method,
+        note: r.note,
+        reason: !r.ok ? "tes suara gagal" : !canUse ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
+      });
+      saveStatuses([...results]);
+      setProgress({ show: true, pct: Math.round(((i + 1) / cfg.keys.length) * 100), text: `Cek ${i + 1}/${cfg.keys.length}` });
       await new Promise((r) => setTimeout(r, 120));
     }
     const okCount = results.filter((r) => r.ok).length;
-    setStatus(`✅ Cek selesai — ${okCount}/${results.length} key aktif`);
-    setChecking(false);
+    const totalRem = results.filter((r) => r.ok && r.remaining !== null).reduce((a, r) => a + (r.remaining ?? 0), 0);
+    const totalLim = results.filter((r) => r.ok).reduce((a, r) => a + r.limit, 0);
+    const usableKeys = results.filter((r) => r.ok).map((r) => r.key);
+    const next = { ...cfg, keys: usableKeys };
+    setCfg(next);
+    writeJSON(LS.eleven, next);
+    saveStatuses(results.filter((r) => r.ok));
+    const removed = results.length - okCount;
+    const saldoInfo = totalLim > 0
+      ? `Sisa credit ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
+      : "valid via tes suara; saldo tidak terbaca";
+    setStatus(`✅ ${okCount}/${results.length} key aktif tersimpan · 🧹 ${removed} dibuang · ${saldoInfo}`);
+    setProgress({ show: false, pct: 0, text: "" });
+    setBusy(false);
+    const lowCredit = results.filter((r) => !r.ok && r.reason?.startsWith("credit")).length;
+    const testFailed = results.filter((r) => !r.ok && r.reason === "tes suara gagal").length;
+    showSummary({
+      title: "Ringkasan Cek ElevenLabs Key",
+      rows: [
+        { label: "Total key dicek", value: results.length },
+        { label: "Aktif & tersimpan", value: okCount, tone: "ok" },
+        { label: `Credit habis / < ${MIN_ELEVEN_CREDITS}`, value: lowCredit, tone: lowCredit ? "warn" : "muted" },
+        { label: "Invalid / tes suara gagal", value: testFailed, tone: testFailed ? "bad" : "muted" },
+        { label: "Dibuang", value: removed, tone: removed ? "warn" : "muted" },
+      ],
+      footer:
+        totalLim > 0
+          ? `Saldo agregat aktif: ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
+          : "Saldo tidak terbaca dari API",
+    });
   };
+
+  const canAdd = bulk.trim().length > 0 && !busy;
+  const hasStored = cfg.keys.length > 0;
 
   return (
     <>
@@ -948,29 +1432,49 @@ function ElevenPane() {
         />
       </Field>
       <div className="flex flex-wrap gap-2">
-        <PrimaryButton onClick={saveKeys}>💾 Save Semua</PrimaryButton>
-        <GhostButton onClick={appendKeys}><Plus className="h-3.5 w-3.5" /> Tambah (append)</GhostButton>
-        <PrimaryButton onClick={checkAllKeys} disabled={checking || cfg.keys.length === 0}>
-          <RefreshCw className={["h-3.5 w-3.5", checking ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+        <PrimaryButton onClick={tambah} disabled={!canAdd}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
-        <GhostButton onClick={clear} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /> Hapus Semua</GhostButton>
+        <GhostButton onClick={checkAllKeys} disabled={!hasStored || busy}>
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+        </GhostButton>
+        <GhostButton onClick={clear} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+          <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
+        </GhostButton>
       </div>
 
-      {keyStatuses.length > 0 && (
+      {cfg.keys.length > 0 && (
         <div className="flex flex-col gap-1">
-          {keyStatuses.map((s, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card/40 px-3 py-1.5 text-[11px]">
-              <span className={["h-2 w-2 rounded-full shrink-0", s.ok ? "bg-emerald-400" : "bg-red-500"].join(" ")} />
-              <span className="font-mono truncate text-muted-foreground flex-1">{s.key.slice(0, 10)}…{s.key.slice(-4)}</span>
-              {s.ok ? (
-                <span className="text-emerald-400 font-semibold whitespace-nowrap">
-                  {s.remaining.toLocaleString()} / {s.limit.toLocaleString()} chars{s.tier ? ` · ${s.tier}` : ""}
-                </span>
-              ) : (
-                <span className="text-red-400 font-semibold">Invalid</span>
-              )}
-            </div>
-          ))}
+          {cfg.keys.map((k, i) => {
+            const s = keyStatuses.find((x) => x.key === k);
+            return (
+              <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card/40 px-3 py-1.5 text-[11px]">
+                <span className={["h-2 w-2 rounded-full shrink-0", s?.ok ? "bg-emerald-400" : s ? "bg-red-500" : "bg-amber-400"].join(" ")} />
+                <span className="font-mono truncate text-muted-foreground flex-1">{k.slice(0, 10)}…{k.slice(-4)}</span>
+                {s?.ok ? (
+                  <span className="text-emerald-400 font-semibold whitespace-nowrap">
+                    {s.remaining === null ? "Valid via tes suara" : `${s.remaining.toLocaleString()} / ${s.limit.toLocaleString()} chars`}{s.tier ? ` · ${s.tier}` : ""}
+                  </span>
+                ) : s ? (
+                  <span className="text-red-400 font-semibold">{s.reason || "Ditolak"}</span>
+                ) : (
+                  <span className="text-muted-foreground">belum dicek</span>
+                )}
+                <button
+                  onClick={() => {
+                    const next = { ...cfg, keys: cfg.keys.filter((x) => x !== k) };
+                    setCfg(next);
+                    writeJSON(LS.eleven, next);
+                    saveStatuses(keyStatuses.filter((x) => x.key !== k));
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition"
+                  title="Hapus key ini"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -986,8 +1490,16 @@ function ElevenPane() {
       </Field>
       <div className="flex gap-2">
         <GhostButton onClick={saveVoice} className="flex-1">💾 Simpan Voice</GhostButton>
-        <GhostButton onClick={test} className="flex-1">🔊 Test</GhostButton>
+        <GhostButton onClick={test} className="flex-1" disabled={!hasStored}>🔊 Test</GhostButton>
       </div>
+      {progress.show && (
+        <div className="rounded-md border border-border bg-card/40 p-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className="h-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
+          </div>
+          <div className="mt-1 text-[10px] text-muted-foreground">{progress.text}</div>
+        </div>
+      )}
       {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
       <div className="text-[11px] text-muted-foreground leading-relaxed">
         {cfg.keys.length} key aktif · disimpan lokal di browser (localStorage), tidak pernah dikirim/di-log ke server selain saat generate voice-over.
@@ -999,6 +1511,8 @@ function ElevenPane() {
 /* ============ Bulk Import Modal (Weavy) ============ */
 function ImportModal({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState("");
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const parse = (raw: string) =>
     raw
@@ -1013,18 +1527,32 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     reader.readAsText(f);
   };
 
-  const doImport = () => {
+  const isValidFormat = (t: string) => /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t) || /^[A-Za-z0-9_-]{40,}$/.test(t);
+
+  const doImport = async () => {
     const tokens = parse(text);
     if (!tokens.length) return;
+    setBusy(true);
     const existing = readJSON<WeavyTok[]>(LS.weavy, []);
     const existingSet = new Set(existing.map((t) => t.token));
-    const added: WeavyTok[] = tokens
-      .filter((t) => !existingSet.has(t))
-      .map((t) => ({ id: uid(), token: t, credits: 0, status: "pending" }));
+    const candidates = Array.from(new Set(tokens)).filter((t) => !existingSet.has(t));
+    const badFormat = candidates.filter((t) => !isValidFormat(t));
+    const good = candidates.filter(isValidFormat);
+    const added: WeavyTok[] = [];
+    for (const t of good) {
+      const res = await checkWeavyToken(t);
+      if (res.ok && res.credits !== null && res.credits >= MIN_WEAVY_CREDITS) {
+        added.push({ id: uid(), token: t, email: res.email, credits: res.credits, status: "active" });
+      }
+      await new Promise((r) => setTimeout(r, 150));
+    }
     const merged = [...existing, ...added];
     writeJSON(LS.weavy, merged);
+    if (!readJSON<string | null>(LS.active, null) && added[0]) writeJSON(LS.active, added[0].id);
     window.dispatchEvent(new Event("storage"));
-    onClose();
+    setBusy(false);
+    setStatus(`✅ ${added.length} token diimport · ❌ ${badFormat.length + (good.length - added.length)} ditolak/credit < ${MIN_WEAVY_CREDITS}`);
+    if (added.length > 0) onClose();
   };
 
   return (
@@ -1034,7 +1562,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
           <X className="h-3.5 w-3.5" /> Tutup
         </button>
         <div className="font-display text-lg mb-1">📋 Import Tokens</div>
-        <div className="text-xs text-muted-foreground mb-4">1 token per baris. Duplikat otomatis di-skip.</div>
+        <div className="text-xs text-muted-foreground mb-4">1 token per baris. Duplikat otomatis di-skip, credit wajib minimal {MIN_WEAVY_CREDITS}.</div>
 
         <label className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border/80 bg-card/30 px-4 py-6 text-center cursor-pointer hover:border-primary/60 transition mb-3">
           <FileText className="h-5 w-5 text-muted-foreground" />
@@ -1052,8 +1580,9 @@ function ImportModal({ onClose }: { onClose: () => void }) {
         />
         <div className="flex gap-2 justify-end mt-3">
           <GhostButton onClick={onClose}>Batal</GhostButton>
-          <PrimaryButton onClick={doImport} disabled={!text.trim()}>Import</PrimaryButton>
+          <PrimaryButton onClick={doImport} disabled={!text.trim() || busy}>{busy ? "Checking…" : "Import"}</PrimaryButton>
         </div>
+        {status && <div className="mt-2 text-[11px] text-muted-foreground">{status}</div>}
       </div>
     </div>
   );
@@ -1094,16 +1623,32 @@ function MiniKeyPane({
 }) {
   const [k, setK] = useState("");
   const [list, setList] = useState<SimpleKey[]>([]);
+  const [status, setStatus] = useState("");
   useEffect(() => setList(readJSON<SimpleKey[]>(lsKey, [])), [lsKey]);
   const persist = (next: SimpleKey[]) => { setList(next); writeJSON(lsKey, next); };
+  const isValidFormat = (s: string) => /^[A-Za-z0-9._-]{16,}$/.test(s);
   const add = () => {
-    if (!k.trim()) return;
-    if (list.some((x) => x.key === k.trim())) { setK(""); return; }
-    persist([...list, { id: uid(), key: k.trim(), balance: null, status: "active" }]);
+    const key = k.trim();
+    if (!key) return;
+    if (list.some((x) => x.key === key)) { setStatus("Key sudah tersimpan"); setK(""); return; }
+    if (!isValidFormat(key)) { setStatus("❌ Format key tidak valid (min 16 karakter alfanumerik)"); return; }
+    persist([...list, { id: uid(), key, balance: null, status: "active" }]);
+    setStatus(`✅ Ditambahkan · ${list.length + 1} key tersimpan`);
     setK("");
   };
-  const remove = (id: string) => persist(list.filter((x) => x.id !== id));
+  const remove = (id: string) => {
+    const next = list.filter((x) => x.id !== id);
+    persist(next);
+    setStatus(next.length === 0 ? "🗑 Semua key dihapus" : `${next.length} key tersimpan`);
+  };
+  const clearAll = () => {
+    if (!confirm(`Hapus semua ${title} key?`)) return;
+    persist([]);
+    setStatus("🗑 Semua key dihapus");
+  };
   const activeCount = list.length;
+  const canAdd = k.trim().length > 0;
+  const hasStored = activeCount > 0;
   return (
     <div className="neumorph p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
@@ -1119,8 +1664,17 @@ function MiniKeyPane({
       </div>
       <div className="flex gap-2">
         <Input type="password" placeholder={placeholder} value={k} onChange={(e) => setK(e.target.value)} />
-        <PrimaryButton onClick={add} disabled={!k.trim()}>Add</PrimaryButton>
+        <PrimaryButton onClick={add} disabled={!canAdd}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
+        </PrimaryButton>
       </div>
+      <div className="flex gap-2">
+        <GhostButton onClick={clearAll} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+          <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
+        </GhostButton>
+      </div>
+      {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
+
       <div className="flex flex-col gap-1.5">
         {list.map((x) => (
           <div key={x.id} className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">

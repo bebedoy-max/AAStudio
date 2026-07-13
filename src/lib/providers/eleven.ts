@@ -4,26 +4,37 @@ export type ElevenSubscription = {
   ok: boolean;
   characterCount: number;
   characterLimit: number;
-  remaining: number;
+  remaining: number | null;
   tier?: string;
+  method?: "subscription" | "tts-probe";
+  note?: string;
 };
 
 export async function checkElevenKey(apiKey: string): Promise<ElevenSubscription> {
-  const empty: ElevenSubscription = { ok: false, characterCount: 0, characterLimit: 0, remaining: 0 };
+  const empty: ElevenSubscription = { ok: false, characterCount: 0, characterLimit: 0, remaining: null };
   try {
-    const r = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
-      headers: { "xi-api-key": apiKey },
+    const r = await fetch("/api/public/elevenlabs-validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Eleven-Key": apiKey },
+      body: JSON.stringify({ text: "ok" }),
     });
     if (!r.ok) return empty;
-    const d = await r.json();
-    const characterCount = Number(d.character_count ?? 0);
-    const characterLimit = Number(d.character_limit ?? 0);
+    const d = (await r.json()) as Partial<ElevenSubscription>;
+    const characterCount = Number(d.characterCount ?? 0);
+    const characterLimit = Number(d.characterLimit ?? 0);
+    const remaining = typeof d.remaining === "number"
+      ? d.remaining
+      : characterLimit > 0
+        ? Math.max(0, characterLimit - characterCount)
+        : null;
     return {
-      ok: true,
+      ok: !!d.ok,
       characterCount,
       characterLimit,
-      remaining: Math.max(0, characterLimit - characterCount),
-      tier: d.tier,
+      remaining,
+      tier: typeof d.tier === "string" ? d.tier : undefined,
+      method: d.method,
+      note: typeof d.note === "string" ? d.note : undefined,
     };
   } catch {
     return empty;
