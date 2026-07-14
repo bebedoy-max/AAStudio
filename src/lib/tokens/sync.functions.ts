@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const ALLOWED_TOKEN_KEYS = [
   "aatools.brain.geminiKeys",
+  "aatools.brain.openaiKeys",
   "aatools.brain.checks",
   "aatools.weavy.tokens",
   "aatools.wavespeed.keys",

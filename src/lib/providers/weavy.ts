@@ -1,5 +1,6 @@
 // Weavy provider client — mirrors legacy aamotion.html behavior.
 // All calls are made directly from the browser (same as legacy) to app.weavy.ai / api.weavy.ai.
+import { pushTokenAsync } from "@/lib/tokens/sync";
 
 export const WEAVY_API = "https://api.weavy.ai/api";
 const FIREBASE_API_KEY = "AIzaSyC-qLy3TFyXMogJPfMkZJ9H_q46hEu1sxI";
@@ -121,7 +122,11 @@ function readTokens(): StoredWeavyTok[] {
   }
 }
 function writeTokens(list: StoredWeavyTok[]) {
-  if (typeof window !== "undefined") localStorage.setItem(LS_WEAVY_TOKENS, JSON.stringify(list));
+  if (typeof window !== "undefined") {
+    const serialized = JSON.stringify(list);
+    localStorage.setItem(LS_WEAVY_TOKENS, serialized);
+    pushTokenAsync(LS_WEAVY_TOKENS, serialized);
+  }
 }
 
 /** Get a valid access token for a specific stored token by id, refreshing if needed. */
@@ -155,8 +160,10 @@ function readActiveId(): string | null {
 }
 function writeActiveId(id: string | null) {
   if (typeof window === "undefined") return;
-  if (id) localStorage.setItem(LS_WEAVY_ACTIVE, JSON.stringify(id));
+  const serialized = JSON.stringify(id);
+  if (id) localStorage.setItem(LS_WEAVY_ACTIVE, serialized);
   else localStorage.removeItem(LS_WEAVY_ACTIVE);
+  pushTokenAsync(LS_WEAVY_ACTIVE, serialized);
 }
 
 function isUsable(t: StoredWeavyTok): boolean {

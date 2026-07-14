@@ -2,7 +2,13 @@ import { createContext, useContext, useEffect, useCallback, useState, type React
 import { useQueryClient } from "@tanstack/react-query";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { syncTokensForUser, resetTokenSync } from "@/lib/tokens/sync";
+import { syncTokensForUser, resetTokenSync, clearLocalTokenCache } from "@/lib/tokens/sync";
+import {
+  clearLocalExclusiveSession,
+  endExclusiveSession,
+  startExclusiveSession,
+  verifyExclusiveSession,
+} from "@/lib/auth/single-session";
 
 type Role = "admin" | "editor" | "user";
 
@@ -74,6 +80,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoutePermissions([]);
   }, []);
 
+  const forceLocalSignOut = useCallback(
+    async (uid?: string) => {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      clearLocalTokenCache();
+      resetTokenSync();
+      clearLocalExclusiveSession(uid);
+      setSession(null);
+      clearUserData();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error) console.warn("[auth] local sign-out failed", error.message);
+    },
+    [clearUserData, queryClient],
+  );
+
   const loadUserData = useCallback(async (uid: string) => {
     const nowIso = new Date().toISOString();
     const [{ data: p, error: profileError }, { data: r, error: rolesError }, { data: rp, error: permissionsError }] = await Promise.all([
@@ -103,10 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     let loadId = 0;
 
-    async function readSessionFromUrlOrStorage() {
+    async function readSessionFromUrlOrStorage(): Promise<{ session: Session | null; shouldClaim: boolean }> {
       if (typeof window === "undefined") {
         const { data } = await supabase.auth.getSession();
-        return data.session;
+        return { session: data.session, shouldClaim: false };
       }
 
       const url = new URL(window.location.href);
@@ -138,14 +159,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           `${url.pathname}${cleanSearch ? `?${cleanSearch}` : ""}${url.hash}`,
         );
 
-        if (data.session) return data.session;
+        if (data.session) return { session: data.session, shouldClaim: true };
       }
 
       const { data } = await supabase.auth.getSession();
-      return data.session;
+      return { session: data.session, shouldClaim: false };
     }
 
-    async function applySession(nextSession: Session | null, source: string, event?: AuthChangeEvent) {
+    async function applySession(nextSession: Session | null, source: string, event?: AuthChangeEvent, shouldClaim = false) {
       const currentLoadId = ++loadId;
       logAuth(source, {
         event,
@@ -156,12 +177,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!mounted || currentLoadId !== loadId) return;
 
-      setSession(nextSession);
-
       if (!nextSession?.user) {
+        setSession(null);
         clearUserData();
+        clearLocalTokenCache();
+        resetTokenSync();
+        clearLocalExclusiveSession();
         return;
       }
+
+      const sessionAllowed = shouldClaim
+        ? await startExclusiveSession(nextSession.user.id)
+        : await verifyExclusiveSession(nextSession.user.id);
+
+      if (!mounted || currentLoadId !== loadId) return;
+
+      if (!sessionAllowed) {
+        console.warn("[auth] another device/browser is now the active session");
+        await forceLocalSignOut(nextSession.user.id);
+        return;
+      }
+
+      setSession(nextSession);
 
       await loadUserData(nextSession.user.id);
     }
@@ -169,13 +206,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function initializeAuth() {
       setLoading(true);
       try {
-        const initialSession = await readSessionFromUrlOrStorage();
-        await applySession(initialSession, "Session Loaded");
+        const initial = await readSessionFromUrlOrStorage();
+        await applySession(initial.session, "Session Loaded", undefined, initial.shouldClaim);
       } catch (error) {
         console.warn("[auth] initial session load failed", error);
         if (mounted) {
           setSession(null);
           clearUserData();
+          clearLocalTokenCache();
+          resetTokenSync();
+          clearLocalExclusiveSession();
         }
       } finally {
         if (mounted) setLoading(false);
@@ -200,19 +240,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: s?.user.email ?? null,
       });
 
-      setSession(s);
       if (event === "SIGNED_OUT") {
+        setSession(null);
         clearUserData();
+        clearLocalTokenCache();
+        resetTokenSync();
+        clearLocalExclusiveSession();
         setLoading(false);
         return;
       }
 
       if (s?.user) {
         setTimeout(() => {
-          void loadUserData(s.user.id);
+          void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");
         }, 0);
       } else {
         clearUserData();
+        clearLocalTokenCache();
+        resetTokenSync();
+        clearLocalExclusiveSession();
       }
       setLoading(false);
     });
@@ -223,7 +269,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, [clearUserData, loadUserData]);
+  }, [clearUserData, forceLocalSignOut, loadUserData]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let cancelled = false;
+    const uid = session.user.id;
+    const check = async () => {
+      const ok = await verifyExclusiveSession(uid);
+      if (!cancelled && !ok) await forceLocalSignOut(uid);
+    };
+    const onFocus = () => void check();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    const interval = window.setInterval(check, 15_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [forceLocalSignOut, session?.user?.id]);
 
   const value: AuthContextValue = {
     session,
@@ -254,11 +323,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logAuth("Signing out");
       await queryClient.cancelQueries();
       queryClient.clear();
-      const { error } = await supabase.auth.signOut();
+      if (session?.user) await endExclusiveSession(session.user.id);
+      clearLocalTokenCache();
+      resetTokenSync();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) throw error;
       setSession(null);
       clearUserData();
-      resetTokenSync();
     },
   };
 
