@@ -7,6 +7,7 @@ import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { pushTokenAsync, ALLOWED_TOKEN_KEYS } from "@/lib/tokens/sync";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
 export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
@@ -120,8 +121,14 @@ const readJSON = <T,>(k: string, fallback: T): T => {
     return fallback;
   }
 };
+const SYNCED_KEYS: ReadonlySet<string> = new Set(ALLOWED_TOKEN_KEYS);
 const writeJSON = (k: string, v: unknown) => {
-  if (typeof window !== "undefined") localStorage.setItem(k, JSON.stringify(v));
+  if (typeof window === "undefined") return;
+  const serialized = JSON.stringify(v);
+  localStorage.setItem(k, serialized);
+  // Mirror to Supabase (encrypted server-side) so the user finds their keys
+  // again on any other device / browser.
+  if (SYNCED_KEYS.has(k)) pushTokenAsync(k, serialized);
 };
 
 function TokensPage() {
@@ -137,7 +144,7 @@ function TokensPage() {
           eyebrow="Manage"
           title="Token / API"
           highlight="Manager"
-          desc="Pusat kelola semua API key & token. Semua tersimpan lokal di browser."
+          desc="Pusat kelola semua API key & token. Tersimpan terenkripsi di akun kamu — auto sync di semua perangkat."
         />
 
         <Card>
@@ -190,7 +197,7 @@ function TokensPage() {
               <div className="mt-1 font-display text-base text-foreground">{active.label}</div>
               <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{active.desc}</p>
               <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                🔒 Key disimpan HANYA di <code className="text-foreground/80">localStorage</code> browser. Tidak pernah dikirim/di-log ke server selain saat request generate.
+                🔒 Key dienkripsi (AES-GCM) di database akunmu & di-cache di browser. Otomatis tersinkron ketika kamu login di perangkat lain.
               </div>
               <HowToGet provider={tab} />
             </div>

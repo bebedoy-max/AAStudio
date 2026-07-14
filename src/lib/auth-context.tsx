@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useCallback, useState, type React
 import { useQueryClient } from "@tanstack/react-query";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { syncTokensForUser, resetTokenSync } from "@/lib/tokens/sync";
 
 type Role = "admin" | "editor" | "user";
 
@@ -92,6 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile((p as Profile) ?? null);
     setRoles(((r ?? []) as { role: Role }[]).map((x) => x.role));
     setRoutePermissions(((rp ?? []) as { route_key: string }[]).map((x) => x.route_key));
+
+    // Pull encrypted per-user tokens (API keys) from Supabase into localStorage
+    // so users don't need to re-enter them on new devices.
+    void syncTokensForUser(uid);
   }, []);
 
   useEffect(() => {
@@ -253,6 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       setSession(null);
       clearUserData();
+      resetTokenSync();
     },
   };
 

@@ -13,6 +13,7 @@ type Insight = {
 
 const KEY = "aatools.dashboard.brainInsight";
 const TTL_MS = 6 * 60 * 60 * 1000;
+const SCHEDULED_HOURS = [6, 12, 18];
 
 function loadCached(): { data: Insight; at: number } | null {
   if (typeof window === "undefined") return null;
@@ -27,17 +28,38 @@ function loadCached(): { data: Insight; at: number } | null {
   }
 }
 
+/** Returns timestamp (ms) of the most recent scheduled slot (6/12/18) that has already passed today. */
+function lastScheduledSlot(now = new Date()): number {
+  const h = now.getHours();
+  const passed = SCHEDULED_HOURS.filter((x) => x <= h);
+  const slotHour = passed.length ? passed[passed.length - 1] : SCHEDULED_HOURS[SCHEDULED_HOURS.length - 1];
+  const d = new Date(now);
+  if (!passed.length) d.setDate(d.getDate() - 1); // yesterday's 18:00
+  d.setHours(slotHour, 0, 0, 0);
+  return d.getTime();
+}
+
 export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void }) {
   const [insight, setInsight] = useState<Insight | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const cached = loadCached();
-    if (cached && Date.now() - cached.at < TTL_MS) {
-      setInsight(cached.data);
-    } else {
-      fetchInsight();
-    }
+    const slotTs = lastScheduledSlot();
+    const stale =
+      !cached ||
+      Date.now() - cached.at > TTL_MS ||
+      cached.at < slotTs; // cache older than most recent scheduled slot
+    if (cached) setInsight(cached.data);
+    if (stale) fetchInsight();
+
+    // Poll every 5 min: if we've crossed into a new scheduled slot since last fetch, refresh
+    const iv = window.setInterval(() => {
+      const c = loadCached();
+      const s = lastScheduledSlot();
+      if (!c || c.at < s) fetchInsight();
+    }, 5 * 60 * 1000);
+    return () => window.clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -46,16 +68,28 @@ export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void })
     if (!keys.openai && !keys.gemini) return;
     setLoading(true);
     try {
+      const now = new Date();
+      const todayStr = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      const isoDate = now.toISOString().slice(0, 10);
       const system =
-        "You are an AI daily briefing for a content creator. Reply pure JSON only, no fences.";
-      const user = `Produce today's creator briefing in Indonesian. Return JSON:
+        `You are an AI daily briefing for a content creator. Today is ${todayStr} (${isoDate}). ` +
+        `Only reference current, up-to-date trends/news/tools relevant to the last 30 days. ` +
+        `Never mention years earlier than ${now.getFullYear()} unless historically relevant. ` +
+        `Reply pure JSON only, no fences.`;
+      const user = `Produce today's creator briefing in Indonesian for ${todayStr}. Return JSON:
 {
-  "greeting": "1 short line (e.g. 'Hari ini saya menemukan...')",
-  "viral_keywords": string[5],
-  "news": string[2],
+  "greeting": "1 short line yang menyebut tanggal hari ini secara natural (e.g. 'Hari ini ${todayStr}, tren yang lagi panas...')",
+  "viral_keywords": string[5] (keyword yang sedang viral MINGGU INI, bukan tahun lalu),
+  "news": string[2] (berita AI / platform / creator economy terbaru, sertakan sumber & tanggal jika bisa),
   "opportunities": string[7] (affiliate niches worth trying today),
   "niche_ideas": string[3] (video ideas that fit AI/faceless/story/affiliate creators)
-}`;
+}
+Pastikan semua konten relevan untuk ${todayStr}, JANGAN pakai referensi lama.`;
       const res = await fetch("/api/router/chat", {
         method: "POST",
         headers: headersFor(keys),
@@ -76,6 +110,7 @@ export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void })
       setLoading(false);
     }
   }
+
 
   return (
     <div className="neumorph p-5">
