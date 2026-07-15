@@ -5,6 +5,7 @@ import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { syncTokensForUser, resetTokenSync, clearLocalTokenCache } from "@/lib/tokens/sync";
 import {
+<<<<<<< HEAD
   claimExclusiveSession,
   clearLocalExclusiveSession,
   endExclusiveSession,
@@ -12,6 +13,13 @@ import {
   verifyExclusiveSession,
 } from "@/lib/auth/single-session";
 import { hasRunningTasks } from "@/lib/stores/notifications";
+=======
+  clearLocalExclusiveSession,
+  endExclusiveSession,
+  startExclusiveSession,
+  verifyExclusiveSession,
+} from "@/lib/auth/single-session";
+>>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
 
 type Role = "admin" | "editor" | "user";
 
@@ -189,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+<<<<<<< HEAD
       if (shouldClaim) {
         const claim = await claimExclusiveSession(nextSession.user.id);
         if (!mounted || currentLoadId !== loadId) return;
@@ -212,6 +221,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await forceLocalSignOut(nextSession.user.id);
           return;
         }
+=======
+      const sessionAllowed = shouldClaim
+        ? await startExclusiveSession(nextSession.user.id)
+        : await verifyExclusiveSession(nextSession.user.id);
+
+      if (!mounted || currentLoadId !== loadId) return;
+
+      if (!sessionAllowed) {
+        console.warn("[auth] another device/browser is now the active session");
+        await forceLocalSignOut(nextSession.user.id);
+        return;
+>>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
       }
 
       setSession(nextSession);
@@ -287,12 +308,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [clearUserData, forceLocalSignOut, loadUserData]);
 
+<<<<<<< HEAD
   const lastActivityRef = useRef<number>(Date.now());
 
+=======
+>>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
   useEffect(() => {
     if (!session?.user) return;
     let cancelled = false;
     const uid = session.user.id;
+<<<<<<< HEAD
     lastActivityRef.current = Date.now();
 
     const idleLogout = async () => {
@@ -350,10 +375,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const idleInterval = window.setInterval(runIdleAndVerify, 15_000);
     const hbInterval = window.setInterval(backgroundHeartbeat, 60_000);
+=======
+    const check = async () => {
+      const ok = await verifyExclusiveSession(uid);
+      if (!cancelled && !ok) await forceLocalSignOut(uid);
+    };
+    const onFocus = () => void check();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void check();
+    };
+    const interval = window.setInterval(check, 15_000);
+>>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
+<<<<<<< HEAD
       window.clearInterval(idleInterval);
       window.clearInterval(hbInterval);
       window.removeEventListener("focus", onFocus);
@@ -362,6 +399,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [forceLocalSignOut, session?.user?.id]);
 
+=======
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [forceLocalSignOut, session?.user?.id]);
+>>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
 
   const value: AuthContextValue = {
     session,
