@@ -278,11 +278,7 @@ function InlineSubmenu({
   currentPath: string;
   onNavigate?: () => void;
 }) {
-<<<<<<< HEAD
   const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
-=======
-  const { isFeatureEnabled, featureAccess } = useAuth();
->>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
   return (
     <div className="mt-1 ml-9 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
       {items.map((item) => {
@@ -290,14 +286,9 @@ function InlineSubmenu({
         const CIcon = item.icon;
         const enabled = !item.permKey || isFeatureEnabled(item.permKey);
         const access = item.permKey ? featureAccess[item.permKey] : undefined;
-<<<<<<< HEAD
         const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
         const trialBadge =
           enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
-=======
-        const trialBadge =
-          enabled && access?.mode === "trial" && access.trialUntil
->>>>>>> 2073706dba434f8f26c0f07e02ba87235882b3af
             ? `Trial s/d ${new Date(access.trialUntil).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
             : null;
 
