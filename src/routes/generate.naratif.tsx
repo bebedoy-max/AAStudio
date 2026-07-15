@@ -401,6 +401,9 @@ function NaratifPage() {
         audioUrl = `data:audio/mpeg;base64,${btoa(bin)}`;
       } catch { /* fall back to blob URL */ }
       patchScene(i, { audioUrl, busy: null });
+      // Refresh saldo ElevenLabs & auto-prune key yang credit-nya sudah di bawah minimum.
+      const { notifyGenerationDone } = await import("@/lib/tokens/refresh");
+      notifyGenerationDone("eleven");
     } catch (e) {
       patchScene(i, { busy: null });
       throw e;

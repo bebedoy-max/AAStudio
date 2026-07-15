@@ -16,14 +16,14 @@ const TIPS: PlaybookTip[] = [
 ];
 
 const NEWS: NewsItem[] = [
-  { title: "Kling 2.5 diluncurkan — motion transfer 2x lebih akurat", source: "Kling AI", tag: "Model" },
-  { title: "TikTok update: video >60 detik dapat prioritas For You", source: "TikTok Newsroom", tag: "Platform" },
-  { title: "Sora 2 API dibuka publik dengan tier prioritas", source: "OpenAI", tag: "Model" },
-  { title: "YouTube Shorts revenue naik 40% Q4", source: "YouTube Creator", tag: "Platform" },
-  { title: "Gemini 3 Flash Image lebih murah 60% dari GPT-Image", source: "Google DeepMind", tag: "AI News" },
-  { title: "Runway Gen-4 masuk beta — konsistensi karakter native", source: "Runway", tag: "Model" },
-  { title: "Instagram push AI-generated label mandatory", source: "Meta", tag: "Platform" },
-  { title: "Wavespeed v2 turunkan latency image-to-video ke 12 detik", source: "Wavespeed", tag: "Model" },
+  { title: "Kling AI — model & update terbaru", source: "Kling AI", tag: "Model", url: "https://klingai.com/" },
+  { title: "TikTok Newsroom — pengumuman produk & algoritma", source: "TikTok Newsroom", tag: "Platform", url: "https://newsroom.tiktok.com/" },
+  { title: "OpenAI Sora — dokumentasi & pengumuman", source: "OpenAI", tag: "Model", url: "https://openai.com/sora" },
+  { title: "YouTube Creator Blog — update Shorts & monetisasi", source: "YouTube Creator", tag: "Platform", url: "https://blog.youtube/inside-youtube/" },
+  { title: "Google DeepMind — rilis Gemini terbaru", source: "Google DeepMind", tag: "AI News", url: "https://deepmind.google/discover/blog/" },
+  { title: "Runway Research — Gen model & fitur baru", source: "Runway", tag: "Model", url: "https://runwayml.com/research" },
+  { title: "Meta Newsroom — Instagram AI label & fitur creator", source: "Meta", tag: "Platform", url: "https://about.fb.com/news/" },
+  { title: "Wavespeed — dokumentasi model & performa", source: "Wavespeed", tag: "Model", url: "https://wavespeed.ai/" },
 ];
 
 function dayOfYear(): number {

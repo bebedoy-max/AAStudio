@@ -1,7 +1,17 @@
-import { createContext, useContext, useEffect, useCallback, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { syncTokensForUser, resetTokenSync, clearLocalTokenCache } from "@/lib/tokens/sync";
+import {
+  claimExclusiveSession,
+  clearLocalExclusiveSession,
+  endExclusiveSession,
+  INACTIVITY_TIMEOUT_MS,
+  verifyExclusiveSession,
+} from "@/lib/auth/single-session";
+import { hasRunningTasks } from "@/lib/stores/notifications";
 
 type Role = "admin" | "editor" | "user";
 
@@ -73,6 +83,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoutePermissions([]);
   }, []);
 
+  const forceLocalSignOut = useCallback(
+    async (uid?: string) => {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      clearLocalTokenCache();
+      resetTokenSync();
+      clearLocalExclusiveSession(uid);
+      setSession(null);
+      clearUserData();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
+      if (error) console.warn("[auth] local sign-out failed", error.message);
+    },
+    [clearUserData, queryClient],
+  );
+
   const loadUserData = useCallback(async (uid: string) => {
     const nowIso = new Date().toISOString();
     const [{ data: p, error: profileError }, { data: r, error: rolesError }, { data: rp, error: permissionsError }] = await Promise.all([
@@ -92,16 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile((p as Profile) ?? null);
     setRoles(((r ?? []) as { role: Role }[]).map((x) => x.role));
     setRoutePermissions(((rp ?? []) as { route_key: string }[]).map((x) => x.route_key));
+
+    // Pull encrypted per-user tokens (API keys) from Supabase into localStorage
+    // so users don't need to re-enter them on new devices.
+    void syncTokensForUser(uid);
   }, []);
 
   useEffect(() => {
     let mounted = true;
     let loadId = 0;
 
-    async function readSessionFromUrlOrStorage() {
+    async function readSessionFromUrlOrStorage(): Promise<{ session: Session | null; shouldClaim: boolean }> {
       if (typeof window === "undefined") {
         const { data } = await supabase.auth.getSession();
-        return data.session;
+        return { session: data.session, shouldClaim: false };
       }
 
       const url = new URL(window.location.href);
@@ -133,14 +162,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           `${url.pathname}${cleanSearch ? `?${cleanSearch}` : ""}${url.hash}`,
         );
 
-        if (data.session) return data.session;
+        if (data.session) return { session: data.session, shouldClaim: true };
       }
 
       const { data } = await supabase.auth.getSession();
-      return data.session;
+      return { session: data.session, shouldClaim: false };
     }
 
-    async function applySession(nextSession: Session | null, source: string, event?: AuthChangeEvent) {
+    async function applySession(nextSession: Session | null, source: string, event?: AuthChangeEvent, shouldClaim = false) {
       const currentLoadId = ++loadId;
       logAuth(source, {
         event,
@@ -151,12 +180,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!mounted || currentLoadId !== loadId) return;
 
-      setSession(nextSession);
-
       if (!nextSession?.user) {
+        setSession(null);
         clearUserData();
+        clearLocalTokenCache();
+        resetTokenSync();
+        clearLocalExclusiveSession();
         return;
       }
+
+      if (shouldClaim) {
+        const claim = await claimExclusiveSession(nextSession.user.id);
+        if (!mounted || currentLoadId !== loadId) return;
+        if (claim === "blocked") {
+          toast.error(
+            "Akun ini sedang aktif di perangkat lain. Jika Anda pemilik akun, tunggu hingga sesi tersebut idle 30 menit lalu coba lagi.",
+            { duration: 8000 },
+          );
+          await forceLocalSignOut(nextSession.user.id);
+          return;
+        }
+        if (claim === "error") {
+          toast.error("Tidak bisa memvalidasi sesi. Coba lagi.");
+          await forceLocalSignOut(nextSession.user.id);
+          return;
+        }
+      } else {
+        const ok = await verifyExclusiveSession(nextSession.user.id);
+        if (!mounted || currentLoadId !== loadId) return;
+        if (!ok) {
+          await forceLocalSignOut(nextSession.user.id);
+          return;
+        }
+      }
+
+      setSession(nextSession);
 
       await loadUserData(nextSession.user.id);
     }
@@ -164,13 +222,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function initializeAuth() {
       setLoading(true);
       try {
-        const initialSession = await readSessionFromUrlOrStorage();
-        await applySession(initialSession, "Session Loaded");
+        const initial = await readSessionFromUrlOrStorage();
+        await applySession(initial.session, "Session Loaded", undefined, initial.shouldClaim);
       } catch (error) {
         console.warn("[auth] initial session load failed", error);
         if (mounted) {
           setSession(null);
           clearUserData();
+          clearLocalTokenCache();
+          resetTokenSync();
+          clearLocalExclusiveSession();
         }
       } finally {
         if (mounted) setLoading(false);
@@ -195,19 +256,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: s?.user.email ?? null,
       });
 
-      setSession(s);
       if (event === "SIGNED_OUT") {
+        setSession(null);
         clearUserData();
+        clearLocalTokenCache();
+        resetTokenSync();
+        clearLocalExclusiveSession();
         setLoading(false);
         return;
       }
 
       if (s?.user) {
         setTimeout(() => {
-          void loadUserData(s.user.id);
+          void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");
         }, 0);
       } else {
         clearUserData();
+        clearLocalTokenCache();
+        resetTokenSync();
+        clearLocalExclusiveSession();
       }
       setLoading(false);
     });
@@ -218,7 +285,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       sub.subscription.unsubscribe();
     };
-  }, [clearUserData, loadUserData]);
+  }, [clearUserData, forceLocalSignOut, loadUserData]);
+
+  const lastActivityRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let cancelled = false;
+    const uid = session.user.id;
+    lastActivityRef.current = Date.now();
+
+    const idleLogout = async () => {
+      toast.info("Anda otomatis keluar setelah 30 menit tidak aktif.", { duration: 6000 });
+      await forceLocalSignOut(uid);
+    };
+
+    // Idle-check HANYA dijalankan saat tab visible. Kalau tab di-hide,
+    // kita anggap user sedang menunggu proses (mis. generate) atau memang
+    // sedang buka tab lain — jangan langsung logout. Timer idle di-reset
+    // setiap kali tab kembali visible sehingga user selalu punya waktu
+    // penuh setelah balik ke aplikasi.
+    const runIdleAndVerify = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+      // Selama ada proses generate/render yang berjalan, anggap itu sebagai
+      // aktivitas — reset timer idle. User tidak akan pernah ke-logout saat
+      // job masih berjalan (mis. motion, storyboard, naratif, dubbing).
+      if (hasRunningTasks()) {
+        lastActivityRef.current = Date.now();
+      }
+      if (Date.now() - lastActivityRef.current >= INACTIVITY_TIMEOUT_MS) {
+        if (!cancelled) await idleLogout();
+        return;
+      }
+      const ok = await verifyExclusiveSession(uid);
+      if (!cancelled && !ok) await forceLocalSignOut(uid);
+    };
+
+    // Heartbeat ringan tetap jalan meski tab hidden supaya slot sesi
+    // tidak dianggap idle oleh perangkat lain, TAPI tanpa idle-logout.
+    const backgroundHeartbeat = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") return;
+      await verifyExclusiveSession(uid).catch(() => false);
+    };
+
+    const markActive = () => {
+      lastActivityRef.current = Date.now();
+    };
+    const onFocus = () => {
+      markActive();
+      void runIdleAndVerify();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        // User baru balik — reset timer idle supaya tidak langsung ke-logout.
+        markActive();
+        void runIdleAndVerify();
+      }
+    };
+
+    const activityEvents: (keyof WindowEventMap)[] = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    activityEvents.forEach((ev) => window.addEventListener(ev, markActive, { passive: true }));
+
+    const idleInterval = window.setInterval(runIdleAndVerify, 15_000);
+    const hbInterval = window.setInterval(backgroundHeartbeat, 60_000);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(idleInterval);
+      window.clearInterval(hbInterval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      activityEvents.forEach((ev) => window.removeEventListener(ev, markActive));
+    };
+  }, [forceLocalSignOut, session?.user?.id]);
+
 
   const value: AuthContextValue = {
     session,
@@ -249,7 +392,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logAuth("Signing out");
       await queryClient.cancelQueries();
       queryClient.clear();
-      const { error } = await supabase.auth.signOut();
+      if (session?.user) await endExclusiveSession(session.user.id);
+      clearLocalTokenCache();
+      resetTokenSync();
+      const { error } = await supabase.auth.signOut({ scope: "local" });
       if (error) throw error;
       setSession(null);
       clearUserData();

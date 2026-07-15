@@ -94,9 +94,17 @@ const DEFAULT_NAV: NavEntry[] = [
     icon: Sparkles,
     items: [
       { title: "Motion Control", url: "/generate/motion", icon: Move3d, permKey: "generate.motion" },
-      { title: "Produk Storyboard", url: "/generate/storyboard", icon: Package, permKey: "generate.storyboard" },
       { title: "Bulk Fashion Generator", url: "/generate/bulk-fashion", icon: Shirt, permKey: "generate.bulk-fashion" },
       { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
+    ],
+  },
+  {
+    kind: "group",
+    key: "storyboard",
+    label: "Storyboard",
+    icon: BookText,
+    items: [
+      { title: "Produk Storyboard", url: "/generate/storyboard", icon: Package, permKey: "generate.storyboard" },
       { title: "Naratif Video Maker", url: "/generate/naratif", icon: BookText, permKey: "generate.naratif" },
     ],
   },
@@ -105,7 +113,6 @@ const DEFAULT_NAV: NavEntry[] = [
     key: "manage",
     label: "Manage",
     icon: Layers,
-    requirePremium: true,
     items: [
       { title: "Token / API Manager", url: "/manage/tokens", icon: KeyRound },
       { title: "Routing Provider", url: "/manage/routing", icon: RouteIcon },
@@ -116,7 +123,6 @@ const DEFAULT_NAV: NavEntry[] = [
     key: "system",
     label: "System",
     icon: Cog,
-    requirePremium: true,
     items: [
       { title: "Analytic", url: "/system/analytic", icon: BarChart3 },
       { title: "Pengaturan", url: "/system/settings", icon: Settings },
@@ -179,7 +185,7 @@ function HoverFlyout({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
   if (!open) return null;
   return (
     <div
@@ -196,8 +202,12 @@ function HoverFlyout({
           const CIcon = item.icon;
           const enabled = !item.permKey || isFeatureEnabled(item.permKey);
           const access = item.permKey ? featureAccess[item.permKey] : undefined;
+          // Trial badge hanya ditampilkan untuk user yang tidak punya akses
+          // eksplisit ke menu ini — jadi user yang sudah subscribe / diberi
+          // akses admin tidak melihat label "Trial" yang tidak relevan.
+          const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
           const trialBadge =
-            enabled && access?.mode === "trial" && access.trialUntil
+            enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
               ? `Trial s/d ${new Date(access.trialUntil).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
               : null;
 
@@ -242,12 +252,14 @@ function HoverFlyout({
               >
                 <CIcon className="h-3.5 w-3.5" />
               </span>
-              <span className="flex-1 truncate">{item.title}</span>
-              {trialBadge && (
-                <span className="text-[9px] font-mono uppercase tracking-wider text-amber-300 shrink-0">
-                  {trialBadge}
-                </span>
-              )}
+              <span className="flex-1 min-w-0 leading-tight">
+                <span className="block truncate">{item.title}</span>
+                {trialBadge && (
+                  <span className="block text-[9px] font-mono uppercase tracking-wider text-amber-300 truncate mt-0.5">
+                    {trialBadge}
+                  </span>
+                )}
+              </span>
             </Link>
           );
         })}
@@ -256,14 +268,97 @@ function HoverFlyout({
   );
 }
 
+/** Inline (mobile-drawer) submenu: renders items directly below the group row */
+function InlineSubmenu({
+  items,
+  currentPath,
+  onNavigate,
+}: {
+  items: Item[];
+  currentPath: string;
+  onNavigate?: () => void;
+}) {
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
+  return (
+    <div className="mt-1 ml-9 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
+      {items.map((item) => {
+        const isActive = currentPath === item.url;
+        const CIcon = item.icon;
+        const enabled = !item.permKey || isFeatureEnabled(item.permKey);
+        const access = item.permKey ? featureAccess[item.permKey] : undefined;
+        const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
+        const trialBadge =
+          enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
+            ? `Trial s/d ${new Date(access.trialUntil).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
+            : null;
+
+        if (!enabled) {
+          return (
+            <button
+              key={item.url}
+              type="button"
+              onClick={() => {
+                openUpgradePrompt(item.permKey);
+                onNavigate?.();
+              }}
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 hover:text-foreground/70 hover:bg-sidebar-accent/40 transition-all text-left"
+            >
+              <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
+                <CIcon className="h-3.5 w-3.5" />
+              </span>
+              <span className="flex-1 truncate">{item.title}</span>
+              <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+            </button>
+          );
+        }
+
+        return (
+          <Link
+            key={item.url}
+            to={item.url}
+            onClick={onNavigate}
+            className={[
+              "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all",
+              isActive
+                ? "text-primary-foreground"
+                : "text-foreground/85 hover:text-foreground hover:bg-sidebar-accent/60",
+            ].join(" ")}
+            style={isActive ? { background: "var(--gradient-neon)" } : undefined}
+          >
+            <span
+              className={[
+                "h-7 w-7 grid place-items-center rounded-lg shrink-0",
+                isActive ? "bg-black/25" : "bg-sidebar-accent/60 border border-sidebar-border",
+              ].join(" ")}
+            >
+              <CIcon className="h-3.5 w-3.5" />
+            </span>
+            <span className="flex-1 min-w-0 leading-tight">
+              <span className="block truncate">{item.title}</span>
+              {trialBadge && (
+                <span className="block text-[9px] font-mono uppercase tracking-wider text-amber-300 truncate mt-0.5">
+                  {trialBadge}
+                </span>
+              )}
+            </span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+
 function SortableEntry({
   entry,
   currentPath,
   onNavigate,
+  inline = false,
 }: {
   entry: NavEntry;
   currentPath: string;
   onNavigate?: () => void;
+  inline?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.key });
   const style = {
@@ -281,7 +376,13 @@ function SortableEntry({
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [hoverOpen, setHoverOpen] = useState(false);
   const [anchorTop, setAnchorTop] = useState(0);
+  const [inlineOpen, setInlineOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
+
+  // Auto-open inline group if a child route is active
+  useEffect(() => {
+    if (inline && entry.kind === "group" && activeUrl) setInlineOpen(true);
+  }, [inline, entry.kind, activeUrl]);
 
   const scheduleClose = () => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
@@ -327,8 +428,8 @@ function SortableEntry({
       ref={setNodeRef}
       style={style}
       className="relative"
-      onMouseEnter={entry.kind === "group" ? openFlyout : undefined}
-      onMouseLeave={entry.kind === "group" ? scheduleClose : undefined}
+      onMouseEnter={entry.kind === "group" && !inline ? openFlyout : undefined}
+      onMouseLeave={entry.kind === "group" && !inline ? scheduleClose : undefined}
     >
       <div ref={rowRef} className="flex items-center gap-1">
         <button
@@ -359,6 +460,24 @@ function SortableEntry({
               )}
             </span>
           </Link>
+        ) : inline ? (
+          <button
+            type="button"
+            onClick={() => setInlineOpen((v) => !v)}
+            className={rowClasses}
+            style={activeUrl ? { background: "var(--gradient-neon)" } : undefined}
+            aria-expanded={inlineOpen}
+          >
+            {iconBadge}
+            <span className="flex-1 min-w-0 font-medium text-left truncate text-[15px]">{entry.label}</span>
+            <ChevronRight
+              className={[
+                "h-4 w-4 transition-transform shrink-0",
+                inlineOpen ? "rotate-90" : "",
+                activeUrl ? "opacity-90" : "opacity-50",
+              ].join(" ")}
+            />
+          </button>
         ) : (
           <div
             className={rowClasses}
@@ -371,7 +490,7 @@ function SortableEntry({
         )}
       </div>
 
-      {entry.kind === "group" && (
+      {entry.kind === "group" && !inline && (
         <HoverFlyout
           items={entry.items}
           currentPath={currentPath}
@@ -385,9 +504,14 @@ function SortableEntry({
           onLeave={scheduleClose}
         />
       )}
+
+      {entry.kind === "group" && inline && inlineOpen && (
+        <InlineSubmenu items={entry.items} currentPath={currentPath} onNavigate={onNavigate} />
+      )}
     </div>
   );
 }
+
 
 export function AppSidebar({
   inline = false,
@@ -492,7 +616,7 @@ export function AppSidebar({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             {ordered.map((e) => (
-              <SortableEntry key={e.key} entry={e} currentPath={currentPath} onNavigate={onNavigate} />
+              <SortableEntry key={e.key} entry={e} currentPath={currentPath} onNavigate={onNavigate} inline={inline} />
             ))}
           </SortableContext>
         </DndContext>

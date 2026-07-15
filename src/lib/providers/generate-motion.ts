@@ -16,6 +16,7 @@ import {
 import { buildKlingMotionControlRecipe } from "./weavy-recipes";
 import { getFirstWavespeedKey, wsUploadMedia, wsMotionControl } from "./wavespeed";
 import { runMagnificMotion } from "./magnific-motion";
+import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 function getFirstMagnificKey(): string | null {
   if (typeof window === "undefined") return null;
@@ -190,4 +191,7 @@ export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOp
       }
     }),
   );
+  // Setelah batch selesai, refresh saldo provider yang dipakai supaya Token
+  // Manager selalu up-to-date & token yang habis auto ter-prune.
+  notifyGenerationDone(opts.provider);
 }

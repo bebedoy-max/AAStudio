@@ -1,12 +1,35 @@
 import { useState } from "react";
-import { BookOpen, Newspaper, ArrowRight } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { BookOpen, Newspaper, ArrowRight, ExternalLink } from "lucide-react";
 import { todaysTips, todaysNews } from "@/lib/dashboard/playbook";
 import { Chip } from "./section";
+import { setHandoff } from "@/lib/creative/handoff";
 
 export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => void }) {
   const [tab, setTab] = useState<"playbook" | "news">("playbook");
   const tips = todaysTips();
   const news = todaysNews();
+  const navigate = useNavigate();
+
+  const handleGenerate = (n: { title: string; url?: string }) => {
+    // Kalau berita punya URL, langsung setHandoff dgn autoScrape ke Naratif
+    // Video Maker. Halaman naratif akan otomatis mengisi field URL dan
+    // menjalankan scraping tanpa perlu paste manual.
+    if (n.url) {
+      setHandoff({
+        workflow: "narrative-video",
+        title: n.title,
+        hook: "",
+        description: n.title,
+        sourceUrl: n.url,
+        autoScrape: true,
+      });
+      void navigate({ to: "/generate/naratif" });
+      return;
+    }
+    // Tidak ada URL — fallback ke behavior lama: research keyword.
+    onGenerate(n.title);
+  };
 
   return (
     <div className="neumorph p-5 h-full">
@@ -57,11 +80,24 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
                   <Chip>{n.tag}</Chip>
                   <span className="text-[10px] text-muted-foreground">{n.source}</span>
                 </div>
-                <div className="text-sm text-foreground/95 mt-1">{n.title}</div>
+                {n.url ? (
+                  <a
+                    href={n.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-foreground/95 mt-1 inline-flex items-center gap-1 hover:text-primary hover:underline"
+                  >
+                    <span className="truncate">{n.title}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
+                  </a>
+                ) : (
+                  <div className="text-sm text-foreground/95 mt-1">{n.title}</div>
+                )}
               </div>
               <button
-                onClick={() => onGenerate(n.title)}
+                onClick={() => handleGenerate(n)}
                 className="shrink-0 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+                title={n.url ? "Buka di Naratif Video Maker + scrape otomatis" : "Riset topik"}
               >
                 Generate <ArrowRight className="h-3 w-3" />
               </button>
