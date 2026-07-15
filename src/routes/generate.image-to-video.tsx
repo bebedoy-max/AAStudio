@@ -10,7 +10,7 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 export const Route = createFileRoute("/generate/image-to-video")({
   head: () => ({
     meta: [
-      { title: "Image To Video — AATools" },
+      { title: "Image To Video — AA Creative Studio" },
       { name: "description", content: "1 gambar → pilih model, aspek rasio, kualitas, prompt → generate video." },
     ],
   }),

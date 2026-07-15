@@ -15,7 +15,7 @@ function ratioClass(r: string): string {
 export const Route = createFileRoute("/generate/naratif")({
   head: () => ({
     meta: [
-      { title: "Naratif Video Maker — AATools" },
+      { title: "Naratif Video Maker — AA Creative Studio" },
       { name: "description", content: "Link artikel → scrape → Brain → gambar per scene → voice-over → gabung jadi video naratif." },
     ],
   }),

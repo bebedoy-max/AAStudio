@@ -30,6 +30,7 @@ import {
   LineChart,
   Lock,
   SlidersHorizontal,
+  LifeBuoy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -142,6 +143,7 @@ const ADMIN_GROUP: NavEntry = {
     { title: "Request Pembelian", url: "/admin/requests", icon: Receipt },
     { title: "Metode Pembayaran & Harga", url: "/admin/payments", icon: Wallet },
     { title: "Pengaturan Halaman", url: "/admin/access", icon: SlidersHorizontal },
+    { title: "Kontak Support", url: "/admin/contact", icon: LifeBuoy },
   ],
 };
 

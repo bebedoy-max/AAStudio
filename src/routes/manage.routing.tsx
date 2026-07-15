@@ -5,7 +5,7 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 
 export const Route = createFileRoute("/manage/routing")({
-  head: () => ({ meta: [{ title: "Routing Provider — AATools" }, { name: "description", content: "Pilih provider per kapabilitas: Image, Video, Voice Over, Motion Control." }] }),
+  head: () => ({ meta: [{ title: "Routing Provider — AA Creative Studio" }, { name: "description", content: "Pilih provider per kapabilitas: Image, Video, Voice Over, Motion Control." }] }),
   component: RoutingPage,
 });
 

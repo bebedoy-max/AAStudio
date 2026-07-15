@@ -10,7 +10,7 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 export const Route = createFileRoute("/generate/bulk-fashion")({
   head: () => ({
     meta: [
-      { title: "Bulk Fashion Generator — AATools" },
+      { title: "Bulk Fashion Generator — AA Creative Studio" },
       { name: "description", content: "1 karakter + banyak outfit → generate parallel → download ZIP." },
     ],
   }),
