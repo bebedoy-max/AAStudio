@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
@@ -38,7 +39,7 @@ export const Route = createFileRoute("/generate/storyboard")({
       },
     ],
   }),
-  component: StoryboardPage,
+  component: withKeyGuard(StoryboardPage, ["brain"]),
 });
 
 // ---- Model catalog (mirror MODEL_CATALOG.storyboard from legacy) ----

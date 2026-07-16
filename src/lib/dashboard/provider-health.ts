@@ -41,17 +41,16 @@ const subscribe = (l: () => void) => {
 };
 
 if (typeof window !== "undefined") {
-  window.addEventListener("storage", (e) => {
-    if (e.key && e.key.startsWith("aatools.brain.")) {
-      state = compute();
-      listeners.forEach((l) => l());
-    }
-  });
-  // Refresh every 60s (cheap, all-local)
-  setInterval(() => {
+  const refresh = () => {
     state = compute();
     listeners.forEach((l) => l());
-  }, 60000);
+  };
+  window.addEventListener("storage", (e) => {
+    if (e.key && e.key.startsWith("aatools.brain.")) refresh();
+  });
+  window.addEventListener("aatools:keys-changed", refresh);
+  // Refresh every 60s (cheap, all-local)
+  setInterval(refresh, 60000);
 }
 
 export function useProviders(): Provider[] {

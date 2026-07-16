@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -34,7 +35,7 @@ import { cloudRenderStatus } from "@/lib/mixing/providers";
 import { NewProjectDialog } from "@/components/mixing/new-project-dialog";
 
 export const Route = createFileRoute("/mixing/clipper")({
-  component: ClipperPage,
+  component: withKeyGuard(ClipperPage, ["brain", "eleven"]),
 });
 
 const DEFAULT_SETTINGS: ClipperSettings = {

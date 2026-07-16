@@ -1,80 +1,103 @@
-## Content Planner — Pre-Generate Config + Auto-Fill Daily Planner
+# Token Bank & Token Manager View Toggle
 
-Restrukturisasi halaman `ai-influencer/planner` supaya user menentukan parameter dulu sebelum generate weekly strategy, dan hasil generate langsung mengisi Daily Planner dengan konten siap-pakai (judul, caption, hashtag, jadwal, tipe konten, platform target).
+## Ringkasan
+- Admin punya menu baru **Token Bank** untuk menyetok API key per provider, mengatur harga, mentransfer ke user, dan meng-approve pembelian.
+- User bisa membeli token dari Token Bank lewat alur checkout yang sudah ada (upload bukti transfer → admin approve → key otomatis masuk ke Token Manager user).
+- Token Manager: setiap panel provider mendapat tombol **View** (default sembunyi) supaya panel ringkas walau banyak key.
 
-### 1. Config Card baru (di atas tombol Generate)
+## Perubahan UI
 
-Tiga blok pilihan (semua persist ke `content_strategy.ratios` sebagai JSON `config` — tidak perlu schema baru):
+### 1. Token Manager (`/manage/tokens`)
+- Semua panel (Brain, Weavy, Wavespeed, Magnific, Eleven, Render) default hanya menampilkan ringkasan (jumlah key, status). Tombol "View (n)" untuk expand daftar key.
+- Tambah tombol "Beli Token dari Bank" di header → membuka dialog katalog Token Bank.
 
-**a. Jenis Konten (multi-select checkbox)**
-- Image only
-- Motion / Video (image-to-video)
-- UGC Storyboard
-- Carousel
-- Reels / Shorts script
-- (minimal 1 harus dipilih)
+### 2. Sidebar
+- Admin group tambah: **Token Bank** → `/admin/token-bank`.
 
-**b. Kategori Konten (multi-select checkbox)**
-- Fashion, Beauty, Lifestyle, Personal Branding, Food, Travel, Fitness, Education, Entertainment, Affiliate/Review
+### 3. Halaman Admin `/admin/token-bank` (baru)
+Tab per provider. Setiap tab:
+- Form tambah key (bulk, 1 per baris) + label opsional.
+- Tabel stok: label, key (masked/reveal), status (available/assigned), tombol Delete / Transfer.
+- Panel harga: input harga per key (IDR), toggle aktif.
+- Dialog Transfer: pilih user (search email) → 1 klik pindahkan 1 key.
+- Tab "Riwayat" transaksi.
 
-**c. Target Platform (multi-select checkbox + status koneksi)**
-- TikTok, Instagram, Facebook, YouTube Shorts, X/Twitter, Threads
-- Setiap item cek status koneksi (dari `standard_connectors--list_connections` yang sudah ada; untuk sekarang tandai "belum terhubung" jika tidak ada). Kalau user pilih platform yang belum connect → tampilkan warning kuning di bawah tombol Generate, boleh tetap generate (jadwal disimpan sebagai draft), tapi saat waktu publish sistem akan blok + notif.
+### 4. Dialog Beli Token (user)
+Reuse pola `checkout-dialog`:
+- Katalog: hanya provider dengan `is_active=true`, `stok>0`, `harga>0`.
+- User pilih provider + qty, isi metode pembayaran + upload bukti → buat `purchase_request` bertype `token_bank`.
+- Setelah admin approve di `/admin/requests`, sistem otomatis pull N key available dari `token_bank_keys`, mark `assigned`, append ke `user_tokens` (encrypted).
 
-Tombol **Generate Weekly Strategy** disable sampai minimal 1 pilihan di setiap blok.
+## Perubahan DB (migration)
 
-### 2. Generate Weekly Strategy → panggil Brain
+```sql
+CREATE TYPE public.bank_provider AS ENUM
+  ('brain','weavy','wavespeed','magnific','eleven','shotstack','creatomate');
 
-Ganti `IDEA_TEMPLATES` statis dengan panggilan ke AI brain (`/api/router/chat` via `getCreativeKeys`) yang mengirim:
-- Character card + personality + memory scenes (sudah ada di `src/lib/ai-influencer/brain.ts`)
-- Config user (jenis, kategori, platform)
-- Reference persona hasil brain-analyze (jika ada di DB)
+CREATE TABLE public.token_bank_keys (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider bank_provider NOT NULL,
+  key_value text NOT NULL,      -- disimpan plaintext di tabel admin-only (RLS ketat)
+  label text,
+  status text NOT NULL DEFAULT 'available',  -- available|assigned|disabled
+  assigned_to uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  assigned_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-AI mengembalikan JSON array 7-14 item (posting frequency dari ratios):
-```json
-[{
-  "day": "Sen", "slot_time": "09:00",
-  "platform": "TikTok", "content_type": "motion",
-  "category": "fashion",
-  "title": "...", "caption": "...", "hashtags": ["#..."],
-  "image_prompt": "...", "video_reference_url": "..." // dari ref medsos untuk motion/dance
-}]
+CREATE TABLE public.token_bank_prices (
+  provider bank_provider PRIMARY KEY,
+  price_idr integer NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.token_bank_transactions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key_id uuid REFERENCES public.token_bank_keys(id) ON DELETE SET NULL,
+  provider bank_provider NOT NULL,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  kind text NOT NULL,           -- 'transfer' | 'purchase'
+  price_idr integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES auth.users(id)
+);
+
+ALTER TABLE public.purchase_requests
+  ADD COLUMN IF NOT EXISTS request_kind text NOT NULL DEFAULT 'subscription',
+  ADD COLUMN IF NOT EXISTS token_provider bank_provider,
+  ADD COLUMN IF NOT EXISTS token_qty integer;
 ```
+GRANTs: token_bank_keys & transactions → `authenticated` (RLS admin-only). token_bank_prices → `SELECT TO authenticated` (semua user melihat harga), `ALL` admin. Semua tabel `service_role` ALL.
 
-Untuk `motion` type, brain memilih outfit dari character + video reference URL dari social refs yang sudah dianalisa sebelumnya.
+RLS:
+- `token_bank_keys`: hanya admin (has_role) untuk semua operasi.
+- `token_bank_prices`: SELECT semua authenticated, INSERT/UPDATE/DELETE admin.
+- `token_bank_transactions`: admin lihat semua; user lihat baris `user_id = auth.uid()`.
 
-Gunakan `callJsonAI` (retry + extractJson) yang sudah ada di `brain-analyze.ts` — expose lewat endpoint baru `POST /api/router/plan-weekly` supaya dedup logic parsing.
+## Server functions (`src/lib/token-bank/bank.functions.ts`)
+- `listBankInventory()` — admin: semua key + count per provider.
+- `addBankKeys({provider, keys[]})` — admin bulk insert.
+- `deleteBankKey({id})` — admin.
+- `setBankPrice({provider, price_idr, is_active})` — admin upsert.
+- `listBankPrices()` — public authenticated: dipakai user untuk katalog & admin.
+- `transferBankKey({keyId, userEmail})` — admin: cari user, mark assigned, append ke `user_tokens` (decrypt→append→encrypt via `crypto.server`), insert transaksi.
+- `fulfillTokenPurchase({purchaseRequestId})` — admin: dipanggil saat approve di halaman requests bila `request_kind='token_bank'`. Ambil N key available, transfer ke user.
 
-### 3. Daily Planner box — auto-fill dengan konten jadi
+Semua pakai `requireSupabaseAuth` + cek `has_role('admin')` untuk operasi admin, kecuali `listBankPrices`.
 
-Ubah `QueueRow` + tabel `content_queue` untuk menyimpan konten siap-pakai. Field baru (di kolom JSON `meta` bila sudah ada, atau tambah kolom):
-- `title`, `caption`, `hashtags[]`
-- `content_type` (image | motion | ugc | carousel | reels)
-- `category`
-- `image_prompt`, `video_reference_url`
+## Perubahan file
+- **create** `supabase/migrations/<ts>_token_bank.sql`
+- **create** `src/lib/token-bank/bank.functions.ts`
+- **create** `src/routes/admin.token-bank.tsx`
+- **create** `src/components/token-bank/buy-dialog.tsx`
+- **create** `src/components/token-bank/transfer-dialog.tsx`
+- **edit** `src/components/app-sidebar.tsx` (link admin baru)
+- **edit** `src/routes/manage.tokens.tsx` (View toggle per panel + tombol Beli)
+- **edit** `src/routes/admin.requests.tsx` (approve → jalankan `fulfillTokenPurchase` bila kind=token_bank)
+- **edit** `src/components/checkout-dialog.tsx` (support `request_kind='token_bank'` untuk bundle token)
 
-Cek dulu schema tabel di Supabase, tambah kolom `meta jsonb default '{}'` via migration bila belum ada (dengan GRANT block).
-
-Tampilan tiap item di Queue view: card lebih besar dengan title (bold), caption 2 baris (truncate), hashtag chips, tipe konten badge, platform badge, tombol edit inline untuk **Jadwal** (`<input type="datetime-local" min={now}>` — validasi tidak boleh backdate), dan tombol "Generate Now" bila status `waiting`.
-
-### 4. Auto-publish saat waktu tiba
-
-- Tambah cron/interval di client (setiap 60 detik saat halaman planner/publisher terbuka) yang cek queue: item `ready` dengan `scheduled_for <= now`.
-- Kalau platform target `connected` → panggil publisher (stub existing) → status `published`.
-- Kalau tidak connected → status `failed` dengan `error: "medsos belum terhubung"` + toast + banner persistent di halaman "Sambungkan {platform} untuk mempublikasikan otomatis" dengan link ke `manage.tokens` / `standard_connectors--connect`.
-
-Untuk lifecycle penuh (idea→image→motion→ready) tetap manual via tombol "Generate Now" untuk sekarang — tidak diperluas di iterasi ini untuk menjaga scope.
-
-### File yang disentuh
-
-- `src/routes/ai-influencer.planner.tsx` — config card, form state, tombol generate refactor, queue rendering baru, datetime picker, auto-publish poller, banner platform.
-- `src/lib/ai-influencer/studio.functions.ts` — perluas `saveQueueBatch`/`updateQueueItem` untuk field `meta`, tambah `loadConfig`/`saveConfig` (atau simpan di `strategy.ratios.config`).
-- `src/routes/api/router/plan-weekly.ts` (baru) — server route yang membangun prompt + panggil `callJsonAI` + return array item planner.
-- `src/routes/api/router/brain-analyze.ts` — export `callJsonAI` helper (kalau belum) supaya reusable.
-- Migration Supabase: `alter table content_queue add column if not exists meta jsonb default '{}'::jsonb;` + GRANT (tabel sudah ada dari fitur existing).
-- `src/lib/ai-influencer/publisher-poller.ts` (baru) — hook `useAutoPublisher(queue)`.
-
-### Out of scope (untuk iterasi berikut)
-
-- Actual image/video generation pipeline di dalam planner (masih pakai tombol Generate Now yang mengarah ke Library).
-- Real OAuth koneksi TikTok/IG (pakai status yang sudah ada di connectors).
+## Catatan
+- Key disimpan plaintext di `token_bank_keys` karena butuh dibaca admin, lalu di-encrypt saat masuk ke `user_tokens`. RLS admin-only + service_role = tidak bisa dibaca user biasa.
+- Untuk provider Weavy/Brain/Eleven yang formatnya array of object di localStorage user, server fn akan parse existing JSON dan append entry baru (mengikuti format masing-masing panel).
+- Transfer manual bypass pembayaran; pembelian selalu lewat checkout + approval, jadi ledger stok bank baru turun saat admin klik Approve.

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -17,7 +18,7 @@ import { listReferences, listCharacters, type Character } from "@/lib/ai-influen
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 
 export const Route = createFileRoute("/ai-influencer/brain")({
-  component: BrainPage,
+  component: withKeyGuard(BrainPage, ["brain"]),
 });
 
 const PERSONA_KEYS = [

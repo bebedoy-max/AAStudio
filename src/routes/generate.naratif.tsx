@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Rocket, Play, Search, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/generate/naratif")({
       { name: "description", content: "Link artikel → scrape → Brain → gambar per scene → voice-over → gabung jadi video naratif." },
     ],
   }),
-  component: NaratifPage,
+  component: withKeyGuard(NaratifPage, ["brain", "eleven"]),
 });
 
 // ============ Model Catalog (mirror legacy MODEL_CATALOG structure) ============

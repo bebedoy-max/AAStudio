@@ -75,8 +75,11 @@ function Gate() {
 
 type Price = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
+type AccessRow = { route_key: string; access_mode: "public" | "subscription" | "trial"; trial_until: string | null };
+
 function PricesSection() {
   const [rows, setRows] = useState<Price[]>([]);
+  const [access, setAccess] = useState<Record<string, AccessRow>>({});
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -89,22 +92,29 @@ function PricesSection() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from("feature_prices").select("*").order("label");
+    const [{ data }, { data: accessData }] = await Promise.all([
+      supabase.from("feature_prices").select("*").order("label"),
+      supabase.from("feature_access" as never).select("route_key, access_mode, trial_until"),
+    ]);
     const existing = (data ?? []) as Price[];
     const existingKeys = new Set(existing.map((r) => r.route_key));
     const missing = DEFAULT_ROWS.filter((r) => !existingKeys.has(r.route_key));
+    let finalRows = existing;
     if (missing.length > 0) {
       const { error: insErr } = await supabase
         .from("feature_prices")
         .insert(missing.map((m) => ({ ...m, is_active: true })));
       if (!insErr) {
         const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
-        setRows((refetched ?? []) as Price[]);
-        setLoading(false);
-        return;
+        finalRows = (refetched ?? []) as Price[];
       }
     }
-    setRows(existing);
+    const accessMap: Record<string, AccessRow> = {};
+    ((accessData ?? []) as AccessRow[]).forEach((a) => {
+      accessMap[a.route_key] = a;
+    });
+    setAccess(accessMap);
+    setRows(finalRows);
     setLoading(false);
   }
   useEffect(() => {
@@ -143,6 +153,9 @@ function PricesSection() {
   const bundleRow = rows.find((r) => r.route_key === FULL_KEY) ?? null;
   const featureRows = rows.filter((r) => r.route_key !== FULL_KEY);
 
+  // Default when there's no row: "subscription" (matches admin.access default).
+  const modeOf = (key: string) => access[key]?.access_mode ?? "subscription";
+
   return (
     <Card>
       <div className="p-4 border-b border-border/60">
@@ -176,14 +189,36 @@ function PricesSection() {
           {featureRows.map((r) => {
             const draft = drafts[r.route_key];
             const dirty = draft !== undefined && draft !== r.price_idr;
+            const mode = modeOf(r.route_key);
+            const locked = mode !== "subscription";
+            const modeLabel = mode === "public" ? "Umum" : mode === "trial" ? "Trial" : "Langganan";
             return (
               <div
                 key={r.route_key}
-                className="rounded-2xl border border-border bg-card/40 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+                className={`rounded-2xl border bg-card/40 p-3 flex flex-col sm:flex-row sm:items-center gap-3 ${
+                  locked ? "border-dashed border-border/60 opacity-70" : "border-border"
+                }`}
               >
                 <div className="flex-1 min-w-0 w-full">
-                  <div className="text-sm font-medium truncate">{r.label}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="text-sm font-medium truncate">{r.label}</div>
+                    <span
+                      className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${
+                        locked
+                          ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
+                          : "border-primary/40 text-primary bg-primary/10"
+                      }`}
+                    >
+                      {modeLabel}
+                    </span>
+                  </div>
                   <div className="text-[10px] font-mono text-muted-foreground">{r.route_key}</div>
+                  {locked && (
+                    <div className="text-[11px] text-muted-foreground mt-1">
+                      Harga hanya bisa diatur ketika mode akses fitur ini <b>Langganan</b>. Ubah di bagian
+                      pengaturan akses di atas.
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
                   <div className="flex items-center gap-1.5">
@@ -193,15 +228,17 @@ function PricesSection() {
                     min={0}
                     step={1000}
                     value={draft ?? r.price_idr}
+                    disabled={locked}
                     onChange={(e) =>
                       setDrafts((d) => ({ ...d, [r.route_key]: Number(e.target.value) }))
                     }
-                    className="w-28 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-sm text-right font-mono outline-none focus:border-primary/60"
+                    className="w-28 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-sm text-right font-mono outline-none focus:border-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   </div>
                 <button
                   onClick={() => toggleActive(r)}
-                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border ${
+                  disabled={locked}
+                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border disabled:opacity-50 disabled:cursor-not-allowed ${
                     r.is_active
                       ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
                       : "border-rose-400/50 text-rose-300 bg-rose-400/10"
@@ -211,7 +248,7 @@ function PricesSection() {
                 </button>
                 <button
                   onClick={() => save(r)}
-                  disabled={!dirty || saving === r.route_key}
+                  disabled={!dirty || saving === r.route_key || locked}
                   className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
                   style={{ background: "var(--gradient-neon)" }}
                 >

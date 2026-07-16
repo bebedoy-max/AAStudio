@@ -37,10 +37,14 @@ async function probeSubscription(key: string) {
 }
 
 async function probeTinyTts(key: string, body: Body) {
-  const text = (body.text || "ok").trim().slice(0, 8) || "ok";
+  // Mirror the settings used by /api/public/elevenlabs-tts (yang dipakai
+  // tombol "Test suara"): model multilingual_v2 + mp3_44100_128. Beberapa
+  // plan ElevenLabs menolak eleven_turbo_v2_5 / mp3_22050_32 walau TTS
+  // multilingual berhasil, sehingga probe lama false-negative.
+  const text = (body.text || "Tes").trim().slice(0, 16) || "Tes";
   const voiceId = (body.voiceId || "JBFqnCBsd6RMkjVDRZzb").trim();
   const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_22050_32`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
     {
       method: "POST",
       headers: {
@@ -50,11 +54,12 @@ async function probeTinyTts(key: string, body: Body) {
       },
       body: JSON.stringify({
         text,
-        model_id: "eleven_turbo_v2_5",
+        model_id: "eleven_multilingual_v2",
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75,
-          use_speaker_boost: false,
+          style: 0.35,
+          use_speaker_boost: true,
           speed: 1,
         },
       }),
@@ -89,6 +94,8 @@ export const Route = createFileRoute("/api/public/elevenlabs-validate")({
         if (!key) return json({ ok: false, error: "X-Eleven-Key required" }, 400);
 
         const body = (await request.json().catch(() => ({}))) as Body;
+
+        // Primary: subscription endpoint — cocok utk sebagian besar key & ambil saldo.
         const sub = await probeSubscription(key);
         if (sub.ok) {
           return json({
@@ -101,19 +108,42 @@ export const Route = createFileRoute("/api/public/elevenlabs-validate")({
           });
         }
 
-        const tts = await probeTinyTts(key, body);
-        if (!tts.ok) {
-          return json({ ok: false, method: "tts-probe", error: tts.error || `ElevenLabs ${tts.status}` }, 401);
+        // Fallback 1: /v1/user — endpoint ringan yg lolos di tier tanpa akses subscription.
+        try {
+          const userRes = await fetch("https://api.elevenlabs.io/v1/user", {
+            headers: { "xi-api-key": key },
+          });
+          if (userRes.ok) {
+            return json({
+              ok: true,
+              method: "subscription",
+              characterCount: 0,
+              characterLimit: 0,
+              remaining: null,
+              note: "Valid via /v1/user; saldo tidak tersedia dari endpoint ini.",
+            });
+          }
+          // 401 = key betul-betul invalid → langsung tolak, jangan TTS probe (buang kuota).
+          if (userRes.status === 401) {
+            return json({ ok: false, method: "user", error: `ElevenLabs 401 (invalid key)` }, 401);
+          }
+        } catch {
+          /* lanjut ke TTS probe */
         }
 
-        return json({
-          ok: true,
-          method: "tts-probe",
-          characterCount: 0,
-          characterLimit: 0,
-          remaining: null,
-          note: "Valid via tiny voice probe; saldo tidak tersedia dari subscription endpoint.",
-        });
+        // Fallback 2: TTS probe (paling mahal, tapi cocok dg apa yg diuji "tes suara").
+        const tts = await probeTinyTts(key, body);
+        if (tts.ok) {
+          return json({
+            ok: true,
+            method: "tts-probe",
+            characterCount: 0,
+            characterLimit: 0,
+            remaining: null,
+            note: "Valid via tiny voice probe; saldo tidak tersedia.",
+          });
+        }
+        return json({ ok: false, method: "tts-probe", error: tts.error || `ElevenLabs ${tts.status}` }, 401);
       },
     },
   },

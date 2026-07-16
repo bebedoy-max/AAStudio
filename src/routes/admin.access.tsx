@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ALL_ROUTE_KEYS, type FeatureAccessMode } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, Globe, Lock, Clock } from "lucide-react";
+import { Loader2, ShieldCheck, Save, Globe, Lock, Clock, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/access")({
@@ -249,6 +249,97 @@ function AccessBody() {
           </div>
         </Card>
       ))}
+
+      <ContactSection />
     </div>
+  );
+}
+
+function ContactSection() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("app_settings")
+        .select("support_email, support_phone, support_whatsapp")
+        .eq("id", 1)
+        .maybeSingle();
+      if (!error && data) {
+        setEmail(data.support_email ?? "");
+        setPhone(data.support_phone ?? "");
+        setWhatsapp(data.support_whatsapp ?? "");
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    const { error } = await (supabase as any).from("app_settings").upsert({
+      id: 1,
+      support_email: email.trim() || null,
+      support_phone: phone.trim() || null,
+      support_whatsapp: whatsapp.trim() || null,
+      updated_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Kontak support tersimpan");
+  }
+
+  const inputCls =
+    "w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none focus:border-primary/60";
+
+  return (
+    <Card>
+      <div className="p-4 border-b border-border/60 flex items-center gap-3">
+        <div
+          className="h-9 w-9 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+          style={{ background: "var(--gradient-neon)" }}
+        >
+          <LifeBuoy className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="font-display text-lg">Kontak Support</div>
+          <div className="text-xs text-muted-foreground">
+            Informasi ini akan tampil di halaman Pusat Bantuan. Kosongkan field yang tidak ingin ditampilkan.
+          </div>
+        </div>
+      </div>
+      {loading ? (
+        <div className="p-8 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="p-4 space-y-4 max-w-xl">
+          <label className="block">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">Email</div>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="support@domain.com" className={inputCls} />
+          </label>
+          <label className="block">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">Nomor Telepon</div>
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+62 ..." className={inputCls} />
+          </label>
+          <label className="block">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">Nomor WhatsApp</div>
+            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+62812xxxx (tanpa spasi untuk link wa.me)" className={inputCls} />
+          </label>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            style={{ background: "var(--gradient-neon)" }}
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Simpan Kontak
+          </button>
+        </div>
+      )}
+    </Card>
   );
 }

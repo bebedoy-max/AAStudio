@@ -6,6 +6,7 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX } from "lucide-react";
 import { toast } from "sonner";
+import { fulfillTokenPurchase } from "@/lib/token-bank/bank.functions";
 
 export const Route = createFileRoute("/admin/requests")({
   head: () => ({
@@ -131,11 +132,25 @@ function Body() {
       .from("purchase_requests")
       .update({ status, admin_note, reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
       .eq("id", row.id);
+    if (error) {
+      setBusy(null);
+      return toast.error(error.message);
+    }
+    // Auto-fulfill token-bank purchases: pulls N keys from bank, appends encrypted
+    // to buyer's user_tokens, marks bank rows as assigned. Idempotent server-side.
+    if (status === "approved" && (row as unknown as { request_kind?: string }).request_kind === "token_bank") {
+      try {
+        await fulfillTokenPurchase({ data: { purchaseRequestId: row.id } });
+        toast.success("Disetujui — token dikirim ke user");
+      } catch (e) {
+        toast.error("Approve OK tapi gagal kirim token: " + (e instanceof Error ? e.message : ""));
+      }
+    } else {
+      toast.success(
+        status === "approved" ? "Disetujui — fitur aktif 30 hari" : "Ditolak",
+      );
+    }
     setBusy(null);
-    if (error) return toast.error(error.message);
-    toast.success(
-      status === "approved" ? "Disetujui — fitur aktif 30 hari" : "Ditolak",
-    );
     load();
   }
 

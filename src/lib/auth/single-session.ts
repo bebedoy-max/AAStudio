@@ -41,8 +41,19 @@ function storageKey(userId: string) {
   return `${SESSION_KEY_PREFIX}${userId}`;
 }
 
-function isMissingTable(error: DbError | null) {
-  return Boolean(error?.message?.includes("user_active_sessions") && error.message.includes("does not exist"));
+function isMissingTable(error: (DbError & { code?: string; details?: string }) | null) {
+  if (!error) return false;
+  const msg = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  // Cover Postgres ("relation ... does not exist"), PostgREST schema-cache
+  // ("could not find the table"), and PostgREST error codes for missing
+  // relations (PGRST205) or missing table (42P01).
+  if (error.code === "PGRST205" || error.code === "42P01") return true;
+  if (msg.includes("user_active_sessions")) {
+    if (msg.includes("does not exist")) return true;
+    if (msg.includes("could not find the table")) return true;
+    if (msg.includes("schema cache")) return true;
+  }
+  return false;
 }
 
 function createSessionId() {
@@ -86,17 +97,21 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
       console.warn("[auth] user_active_sessions table is missing; single-session enforcement is disabled.");
       return "claimed";
     }
-    console.warn("[auth] failed to read active session", readError.message);
-    return "error";
+    // Jangan blokir login karena masalah infrastruktur single-session
+    // (RLS, network, dsb). Cukup log dan izinkan sesi berjalan.
+    console.warn("[auth] failed to read active session, allowing login", readError.message);
+    return "claimed";
   }
 
   const localSessionId = localStorage.getItem(storageKey(userId));
   const existingIsMine = existing?.session_id && localSessionId && existing.session_id === localSessionId;
 
-  if (existing && !existingIsMine && isFresh(existing.updated_at)) {
-    // Sesi lain masih aktif — jangan ganggu, tolak login di perangkat ini.
-    return "blocked";
-  }
+  // Fresh sign-in di perangkat ini selalu menang. Sesi lain (kalau masih
+  // terbuka) akan mendeteksi session_id mismatch pada heartbeat berikutnya
+  // dan otomatis logout lokal. Ini mencegah user "terkunci 30 menit" ketika
+  // DELETE saat logout di perangkat lain gagal senyap atau heartbeat masih
+  // sempat refresh updated_at sebelum tab benar-benar tertutup.
+  void existingIsMine;
 
   const sessionId = existingIsMine ? (localSessionId as string) : createSessionId();
   localStorage.setItem(storageKey(userId), sessionId);
@@ -108,8 +123,8 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
 
   if (error) {
     if (isMissingTable(error)) return "claimed";
-    console.warn("[auth] failed to claim active session", error.message);
-    return "error";
+    console.warn("[auth] failed to claim active session, allowing login", error.message);
+    return "claimed";
   }
 
   return "claimed";
@@ -122,7 +137,6 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
 export async function verifyExclusiveSession(userId: string): Promise<boolean> {
   if (typeof window === "undefined") return true;
   const localSessionId = localStorage.getItem(storageKey(userId));
-  if (!localSessionId) return false;
 
   const { data, error } = await activeSessionsTable()
     .select("session_id, updated_at")
@@ -131,11 +145,22 @@ export async function verifyExclusiveSession(userId: string): Promise<boolean> {
 
   if (error) {
     if (isMissingTable(error)) return true;
-    console.warn("[auth] failed to verify active session", error.message);
-    return false;
+    // Fail-open on transient read errors — jangan logout user karena
+    // masalah jaringan/RLS sementara.
+    console.warn("[auth] failed to verify active session, allowing", error.message);
+    return true;
   }
 
-  if (!data?.session_id) return false;
+  // Tabel ada tapi belum ada baris untuk user ini (mis. claim gagal senyap
+  // atau baris ke-hapus). Jangan langsung logout — anggap sesi ini valid
+  // dan biarkan heartbeat berikutnya menulis ulang slot.
+  if (!data?.session_id) return true;
+  // Kalau localStorage kosong (mis. karena claim awal skip write), adopsi
+  // session_id yang ada supaya user tidak ke-logout saat balik ke tab.
+  if (!localSessionId) {
+    localStorage.setItem(storageKey(userId), data.session_id);
+    return true;
+  }
   if (data.session_id !== localSessionId) return false;
 
   // Heartbeat — perbarui updated_at supaya slot tetap milik user ini.
