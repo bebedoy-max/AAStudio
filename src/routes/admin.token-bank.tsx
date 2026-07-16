@@ -175,7 +175,7 @@ function Body() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <AllPricesPanel prices={prices} onSaved={load} />
+          <PricePanel provider={tab} price={prices[tab]} onSaved={load} />
         </div>
       </div>
 
@@ -196,7 +196,6 @@ function Body() {
 
 function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => void }) {
   const [bulk, setBulk] = useState("");
-  const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -204,10 +203,9 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
     if (keys.length === 0) return toast.error("Isi minimal 1 key");
     setBusy(true);
     try {
-      const r = await addBankKeys({ data: { provider, keys, label: label.trim() || undefined } });
+      const r = await addBankKeys({ data: { provider, keys } });
       toast.success(`+${r.added} key tersimpan`);
       setBulk("");
-      setLabel("");
       onDone();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal simpan");
@@ -223,7 +221,7 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
           <Plus className="h-4 w-4" /> Tambah key {PROVIDER_LABELS[provider]}
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
-          1 key per baris. Label opsional untuk mempermudah identifikasi.
+          1 key per baris. Info sisa credit akan terlihat setelah key tersimpan.
         </div>
       </div>
       <div className="p-4 flex flex-col gap-3">
@@ -233,12 +231,6 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
           rows={5}
           placeholder={"KEY_1\nKEY_2\n..."}
           className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary/60"
-        />
-        <input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Label / catatan (opsional)"
-          className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none focus:border-primary/60"
         />
         <div className="flex justify-end">
           <button
@@ -365,8 +357,7 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
         <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
           <tr className="border-b border-border/60">
             <th className="px-4 py-2">Key</th>
-            <th className="px-4 py-2">Info</th>
-            <th className="px-4 py-2">Label</th>
+            <th className="px-4 py-2">Info Sisa Credit</th>
             <th className="px-4 py-2">Status</th>
             <th className="px-4 py-2">Ditambahkan</th>
             <th className="px-4 py-2 text-right">Aksi</th>
@@ -405,7 +396,6 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
                   </button>
                 )}
               </td>
-              <td className="px-4 py-2 text-xs text-muted-foreground">{r.label ?? "—"}</td>
               <td className="px-4 py-2">
                 <span
                   className={[
@@ -439,95 +429,79 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
   );
 }
 
-function AllPricesPanel({
-  prices,
+function PricePanel({
+  provider,
+  price,
   onSaved,
 }: {
-  prices: Record<string, PriceRow>;
+  provider: BankProvider;
+  price: PriceRow | undefined;
   onSaved: () => void;
 }) {
-  type Draft = { price: number; active: boolean };
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-  const [saving, setSaving] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ price: number; active: boolean }>({
+    price: price?.price_idr ?? 0,
+    active: price?.is_active ?? true,
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const next: Record<string, Draft> = {};
-    for (const p of BANK_PROVIDERS) {
-      const cur = prices[p];
-      next[p] = { price: cur?.price_idr ?? 0, active: cur?.is_active ?? true };
-    }
-    setDrafts(next);
-  }, [prices]);
+    setDraft({ price: price?.price_idr ?? 0, active: price?.is_active ?? true });
+  }, [provider, price]);
 
-  async function save(provider: BankProvider) {
-    const d = drafts[provider];
-    if (!d) return;
-    setSaving(provider);
+  async function save() {
+    setSaving(true);
     try {
-      await setBankPrice({ data: { provider, price_idr: d.price, is_active: d.active } });
+      await setBankPrice({
+        data: { provider, price_idr: draft.price, is_active: draft.active },
+      });
       toast.success(`${PROVIDER_LABELS[provider]}: harga tersimpan`);
       onSaved();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal");
     } finally {
-      setSaving(null);
+      setSaving(false);
     }
   }
 
   return (
     <Card>
       <div className="p-4 border-b border-border/60">
-        <div className="font-display text-lg">Harga jual per provider</div>
+        <div className="font-display text-lg">Harga jual · {PROVIDER_LABELS[provider]}</div>
         <div className="text-xs text-muted-foreground">
-          Set harga & aktifkan masing-masing. Set 0 / nonaktif = tidak muncul di toko user.
+          Harga khusus untuk provider ini. Set 0 / nonaktif = tidak muncul di toko user.
         </div>
       </div>
-      <div className="p-3 flex flex-col divide-y divide-border/50">
-        {BANK_PROVIDERS.map((p) => {
-          const d = drafts[p] ?? { price: 0, active: true };
-          return (
-            <div key={p} className="py-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-medium">{PROVIDER_LABELS[p]}</div>
-                <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={d.active}
-                    onChange={(e) =>
-                      setDrafts((s) => ({ ...s, [p]: { ...d, active: e.target.checked } }))
-                    }
-                    className="h-3.5 w-3.5 rounded border-border"
-                  />
-                  aktif
-                </label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  value={d.price}
-                  onChange={(e) =>
-                    setDrafts((s) => ({
-                      ...s,
-                      [p]: { ...d, price: Number(e.target.value) || 0 },
-                    }))
-                  }
-                  className="flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-sm font-mono outline-none focus:border-primary/60"
-                />
-                <button
-                  onClick={() => save(p)}
-                  disabled={saving === p}
-                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
-                  style={{ background: "var(--gradient-neon)" }}
-                >
-                  {saving === p ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                  Simpan
-                </button>
-              </div>
-              <div className="text-[10px] font-mono text-muted-foreground">{rupiah(d.price)} / key</div>
-            </div>
-          );
-        })}
+      <div className="p-4 flex flex-col gap-3">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={draft.active}
+            onChange={(e) => setDraft((s) => ({ ...s, active: e.target.checked }))}
+            className="h-3.5 w-3.5 rounded border-border"
+          />
+          Aktif di toko
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            value={draft.price}
+            onChange={(e) =>
+              setDraft((s) => ({ ...s, price: Number(e.target.value) || 0 }))
+            }
+            className="flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-sm font-mono outline-none focus:border-primary/60"
+          />
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+            style={{ background: "var(--gradient-neon)" }}
+          >
+            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Simpan
+          </button>
+        </div>
+        <div className="text-[10px] font-mono text-muted-foreground">{rupiah(draft.price)} / key</div>
       </div>
     </Card>
   );
