@@ -7,12 +7,8 @@ import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
-<<<<<<< HEAD
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useAuth } from "@/lib/auth-context";
-=======
-import { pushTokenAsync, ALLOWED_TOKEN_KEYS } from "@/lib/tokens/sync";
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
@@ -150,16 +146,11 @@ function TokensPage() {
   const [showImport, setShowImport] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [syncTick, setSyncTick] = useState(0);
-<<<<<<< HEAD
   // Default: pane terbuka (user langsung bisa input & lihat sisa credit di
   // tabel). Auto-collapse hanya ketika user pertama kali buka sebuah tab yang
   // sudah punya >10 key — di kasus itu view dikecilkan agar tidak overwhelming
   // sampai user manual klik View.
   const [showKeys, setShowKeys] = useState(true);
-=======
-  // Default: tampilan ringkas — user klik "View" untuk buka detail key.
-  const [showKeys, setShowKeys] = useState(false);
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   const [buyOpen, setBuyOpen] = useState(false);
 
   useEffect(() => {

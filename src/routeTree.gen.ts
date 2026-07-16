@@ -37,10 +37,7 @@ import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.
 import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
-<<<<<<< HEAD
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
@@ -209,14 +206,11 @@ const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
-<<<<<<< HEAD
 const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
   getParentRoute: () => AdminRoute,
 } as any)
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
   id: '/token-bank',
   path: '/token-bank',
@@ -365,10 +359,7 @@ export interface FileRoutesByFullPath {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
-<<<<<<< HEAD
   '/admin/transactions': typeof AdminTransactionsRoute
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -424,10 +415,7 @@ export interface FileRoutesByTo {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
-<<<<<<< HEAD
   '/admin/transactions': typeof AdminTransactionsRoute
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -486,10 +474,7 @@ export interface FileRoutesById {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
-<<<<<<< HEAD
   '/admin/transactions': typeof AdminTransactionsRoute
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -549,10 +534,7 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
-<<<<<<< HEAD
     | '/admin/transactions'
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -608,10 +590,7 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
-<<<<<<< HEAD
     | '/admin/transactions'
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -669,10 +648,7 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
-<<<<<<< HEAD
     | '/admin/transactions'
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -963,7 +939,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
-<<<<<<< HEAD
     '/admin/transactions': {
       id: '/admin/transactions'
       path: '/transactions'
@@ -971,8 +946,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTransactionsRouteImport
       parentRoute: typeof AdminRoute
     }
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     '/admin/token-bank': {
       id: '/admin/token-bank'
       path: '/token-bank'
@@ -1170,10 +1143,7 @@ interface AdminRouteChildren {
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminTokenBankRoute: typeof AdminTokenBankRoute
-<<<<<<< HEAD
   AdminTransactionsRoute: typeof AdminTransactionsRoute
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -1182,10 +1152,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminTokenBankRoute: AdminTokenBankRoute,
-<<<<<<< HEAD
   AdminTransactionsRoute: AdminTransactionsRoute,
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   AdminIndexRoute: AdminIndexRoute,
 }
 

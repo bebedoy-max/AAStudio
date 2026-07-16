@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-<<<<<<< HEAD
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -16,10 +15,6 @@ import {
   RefreshCw,
   Trash,
 } from "lucide-react";
-=======
-import { toast } from "sonner";
-import { Loader2, ShieldCheck, Save, Plus, Trash2, Send, Eye, EyeOff, Search, RefreshCw } from "lucide-react";
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import { useAuth } from "@/lib/auth-context";
@@ -27,20 +22,14 @@ import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
-<<<<<<< HEAD
 import { confirmDialog } from "@/components/ui-confirm";
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 import {
   BANK_PROVIDERS,
   PROVIDER_LABELS,
   type BankProvider,
   addBankKeys,
   deleteBankKey,
-<<<<<<< HEAD
   deleteAllBankKeys,
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   listBankInventory,
   listBankPrices,
   setBankPrice,
@@ -96,10 +85,7 @@ function Gate() {
 
 type InvRow = Awaited<ReturnType<typeof listBankInventory>>[number];
 type PriceRow = Awaited<ReturnType<typeof listBankPrices>>[number];
-<<<<<<< HEAD
 const BANK_CHECKS_CACHE_KEY = "aatools.tokenBank.checkInfo.v1";
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -110,7 +96,6 @@ function maskKey(k: string) {
   return k.slice(0, 4) + "••••" + k.slice(-4);
 }
 
-<<<<<<< HEAD
 function readBankChecksCache(): Record<string, CheckInfo> {
   if (typeof window === "undefined") return {};
   try {
@@ -126,20 +111,15 @@ function writeBankChecksCache(next: Record<string, CheckInfo>) {
   localStorage.setItem(BANK_CHECKS_CACHE_KEY, JSON.stringify(next));
 }
 
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 function Body() {
   const [tab, setTab] = useState<BankProvider>("brain");
   const [inventory, setInventory] = useState<InvRow[]>([]);
   const [prices, setPrices] = useState<Record<string, PriceRow>>({});
   const [loading, setLoading] = useState(true);
   const [transferOpen, setTransferOpen] = useState(false);
-<<<<<<< HEAD
   const [checks, setChecks] = useState<Record<string, CheckInfo>>(() => readBankChecksCache());
   const [checkingAll, setCheckingAll] = useState(false);
   const [checkProgress, setCheckProgress] = useState<{ done: number; total: number } | null>(null);
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 
   async function load() {
     setLoading(true);
@@ -166,7 +146,6 @@ function Body() {
     return g;
   }, [inventory]);
 
-<<<<<<< HEAD
   const allForTab = byProvider[tab] ?? [];
   const currentList = allForTab.filter((r) => r.status === "available");
   const available = currentList.length;
@@ -237,11 +216,6 @@ function Body() {
       toast.error(e instanceof Error ? e.message : "Gagal hapus");
     }
   }
-=======
-  const currentList = byProvider[tab] ?? [];
-  const available = currentList.filter((r) => r.status === "available").length;
-  const assigned = currentList.filter((r) => r.status === "assigned").length;
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 
   return (
     <div className="flex flex-col gap-4">
@@ -271,17 +245,12 @@ function Body() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 flex flex-col gap-4">
-<<<<<<< HEAD
           <AddKeys provider={tab} onDone={onAdded} progress={checkProgress} />
-=======
-          <AddKeys provider={tab} onDone={load} />
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
           <Card>
             <div className="p-4 border-b border-border/60 flex items-center justify-between gap-3">
               <div>
                 <div className="font-display text-lg">{PROVIDER_LABELS[tab]}</div>
                 <div className="text-xs text-muted-foreground">
-<<<<<<< HEAD
                   {available} tersedia · {assigned} sudah tersalur (lihat Laporan Transaksi)
                 </div>
               </div>
@@ -303,26 +272,12 @@ function Body() {
                   <Send className="h-3.5 w-3.5" /> Transfer ke User
                 </button>
               </div>
-=======
-                  {available} tersedia · {assigned} sudah dipakai · total {currentList.length}
-                </div>
-              </div>
-              <button
-                onClick={() => setTransferOpen(true)}
-                disabled={available === 0}
-                className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-                style={{ background: "var(--gradient-neon)" }}
-              >
-                <Send className="h-3.5 w-3.5" /> Transfer ke User
-              </button>
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
             </div>
             {loading ? (
               <div className="p-8 grid place-items-center">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
               </div>
             ) : currentList.length === 0 ? (
-<<<<<<< HEAD
               <div className="p-8 text-center text-sm text-muted-foreground">Tidak ada key tersedia.</div>
             ) : (
               <KeyList
@@ -333,11 +288,6 @@ function Body() {
                 onCheckAll={() => runChecks(currentList)}
                 onDeleted={load}
               />
-=======
-              <div className="p-8 text-center text-sm text-muted-foreground">Belum ada key.</div>
-            ) : (
-              <KeyList rows={currentList} provider={tab} onDeleted={load} />
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
             )}
           </Card>
         </div>
@@ -362,7 +312,6 @@ function Body() {
   );
 }
 
-<<<<<<< HEAD
 type AddSummary = {
   provider: BankProvider;
   total: number;
@@ -466,26 +415,10 @@ function AddKeys({
         toast.error("Tidak ada key valid yang disimpan");
       }
       onDone(insertedIds, idChecks);
-=======
-function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => void }) {
-  const [bulk, setBulk] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit() {
-    const keys = bulk.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
-    if (keys.length === 0) return toast.error("Isi minimal 1 key");
-    setBusy(true);
-    try {
-      const r = await addBankKeys({ data: { provider, keys } });
-      toast.success(`+${r.added} key tersimpan`);
-      setBulk("");
-      onDone();
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal simpan");
     } finally {
       setBusy(false);
-<<<<<<< HEAD
       setTimeout(() => setCheckPct(null), 600);
     }
   }
@@ -497,11 +430,6 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
       : 0;
   const activePct = progress ?? checkPct;
 
-=======
-    }
-  }
-
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   return (
     <Card>
       <div className="p-4 border-b border-border/60">
@@ -509,12 +437,8 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
           <Plus className="h-4 w-4" /> Tambah key {PROVIDER_LABELS[provider]}
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
-<<<<<<< HEAD
           1 key per baris. Setiap key <b>dites dulu</b> ke provider — hanya yang valid disimpan ke bank.
           {provider === "eleven" && " (ElevenLabs: tes suara 1 kata via TTS)"}
-=======
-          1 key per baris. Info sisa credit akan terlihat setelah key tersimpan.
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
         </div>
       </div>
       <div className="p-4 flex flex-col gap-3">
@@ -525,7 +449,6 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
           placeholder={"KEY_1\nKEY_2\n..."}
           className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary/60"
         />
-<<<<<<< HEAD
         {activePct && (
           <div className="rounded-xl border border-border bg-card/40 p-2.5">
             <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
@@ -542,8 +465,6 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
             </div>
           </div>
         )}
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
         <div className="flex justify-end">
           <button
             onClick={submit}
@@ -551,24 +472,17 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
             className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             style={{ background: "var(--gradient-neon)" }}
           >
-<<<<<<< HEAD
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Cek &amp; Simpan
           </button>
         </div>
         {summary && (
           <AddSummaryPopup summary={summary} onClose={() => setSummary(null)} />
         )}
-=======
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Simpan
-          </button>
-        </div>
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
       </div>
     </Card>
   );
 }
 
-<<<<<<< HEAD
 function AddSummaryPopup({ summary, onClose }: { summary: AddSummary; onClose: () => void }) {
   const rejected = summary.total - summary.added - summary.duplicate;
   if (typeof document === "undefined") return null;
@@ -658,8 +572,6 @@ function RowLine({
   );
 }
 
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 type CheckInfo = { label: string; tone: "ok" | "warn" | "bad" | "muted"; loading?: boolean };
 
 async function runProviderCheck(provider: BankProvider, key: string): Promise<CheckInfo> {
@@ -683,14 +595,10 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
       case "eleven": {
         const r = await checkElevenKey(key);
         if (!r.ok) return { label: "Invalid key", tone: "bad" };
-<<<<<<< HEAD
         if (r.remaining == null) {
           return { label: `Aktif${r.tier ? ` · ${r.tier}` : ""}`, tone: "ok" };
         }
         const rem = r.remaining;
-=======
-        const rem = r.remaining ?? 0;
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
         return {
           label: `${rem.toLocaleString("id-ID")} chars${r.tier ? ` · ${r.tier}` : ""}`,
           tone: rem <= 0 ? "bad" : rem < 500 ? "warn" : "ok",
@@ -700,7 +608,6 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
         const r = await checkMagnificKey(key);
         return r.ok ? { label: "Tersimpan (no probe)", tone: "muted" } : { label: "Invalid", tone: "bad" };
       }
-<<<<<<< HEAD
       case "brain": {
         const isAIza = /^AIza[0-9A-Za-z_-]{20,}$/.test(key);
         const isAQ = /^AQ\.[A-Za-z0-9_-]{20,}$/.test(key);
@@ -724,13 +631,6 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
           return { label: "Gagal cek jaringan", tone: "bad" };
         }
       }
-=======
-      case "brain":
-        return {
-          label: /^AIza[0-9A-Za-z_-]{35}$/.test(key) ? "Format Gemini OK" : "Bukan format AIza…",
-          tone: /^AIza[0-9A-Za-z_-]{35}$/.test(key) ? "ok" : "bad",
-        };
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
       case "shotstack":
       case "creatomate":
         return { label: "Tersimpan", tone: "muted" };
@@ -750,7 +650,6 @@ function toneClass(t: CheckInfo["tone"]) {
         : "text-muted-foreground border-border bg-muted/10";
 }
 
-<<<<<<< HEAD
 function KeyList({
   rows,
   checks,
@@ -779,37 +678,6 @@ function KeyList({
     setDeleting(row.id);
     try {
       await deleteBankKey({ data: { id: row.id } });
-=======
-function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: BankProvider; onDeleted: () => void }) {
-  const [reveal, setReveal] = useState<Record<string, boolean>>({});
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [checks, setChecks] = useState<Record<string, CheckInfo>>({});
-  const [checkingAll, setCheckingAll] = useState(false);
-
-  async function checkOne(row: InvRow) {
-    setChecks((s) => ({ ...s, [row.id]: { label: "Cek…", tone: "muted", loading: true } }));
-    const info = await runProviderCheck(provider, row.key_value);
-    setChecks((s) => ({ ...s, [row.id]: info }));
-  }
-
-  async function checkAll() {
-    setCheckingAll(true);
-    try {
-      for (const r of rows) {
-        // sequential to avoid provider rate limits
-        await checkOne(r);
-      }
-    } finally {
-      setCheckingAll(false);
-    }
-  }
-
-  async function del(id: string) {
-    if (!confirm("Hapus key ini dari bank?")) return;
-    setDeleting(id);
-    try {
-      await deleteBankKey({ data: { id } });
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
       onDeleted();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal hapus");
@@ -822,11 +690,7 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
     <div className="overflow-x-auto">
       <div className="px-4 pt-3 flex justify-end">
         <button
-<<<<<<< HEAD
           onClick={onCheckAll}
-=======
-          onClick={checkAll}
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
           disabled={checkingAll || rows.length === 0}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-sidebar-accent/40 disabled:opacity-50"
         >
@@ -839,22 +703,14 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
           <tr className="border-b border-border/60">
             <th className="px-4 py-2">Key</th>
             <th className="px-4 py-2">Info Sisa Credit</th>
-<<<<<<< HEAD
             <th className="px-4 py-2">Status / Penerima</th>
-=======
-            <th className="px-4 py-2">Status</th>
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
             <th className="px-4 py-2">Ditambahkan</th>
             <th className="px-4 py-2 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-<<<<<<< HEAD
             <tr key={r.id} className="border-b border-border/40 hover:bg-sidebar-accent/20 align-top">
-=======
-            <tr key={r.id} className="border-b border-border/40 hover:bg-sidebar-accent/20">
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
               <td className="px-4 py-2 font-mono text-xs">
                 {reveal[r.id] ? r.key_value : maskKey(r.key_value)}
                 <button
@@ -878,11 +734,7 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
                   </span>
                 ) : (
                   <button
-<<<<<<< HEAD
                     onClick={() => onCheckOne(r)}
-=======
-                    onClick={() => checkOne(r)}
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
                     className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-border bg-card/50 hover:bg-sidebar-accent/40"
                   >
                     <RefreshCw className="h-3 w-3" /> Cek
@@ -900,7 +752,6 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
                 >
                   {r.status}
                 </span>
-<<<<<<< HEAD
                 {r.status === "assigned" && (
                   <div className="mt-1 text-[11px] leading-tight">
                     <div className="text-foreground/85 truncate max-w-[220px]">
@@ -916,19 +767,13 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
                     )}
                   </div>
                 )}
-=======
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
               </td>
               <td className="px-4 py-2 text-xs text-muted-foreground">
                 {new Date(r.created_at).toLocaleDateString("id-ID")}
               </td>
               <td className="px-4 py-2 text-right">
                 <button
-<<<<<<< HEAD
                   onClick={() => del(r)}
-=======
-                  onClick={() => del(r.id)}
->>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
                   disabled={deleting === r.id}
                   className="inline-flex items-center gap-1 rounded-full border border-rose-400/40 text-rose-300 px-2.5 py-1 text-xs hover:bg-rose-500/10 disabled:opacity-50"
                 >
