@@ -10,6 +10,7 @@ export type PurchaseRow = {
   user_id: string;
   route_key: string;
   price_idr: number;
+  payment_method_id: string | null;
   payment_method_name: string | null;
   note: string | null;
   status: "pending" | "approved" | "rejected";
@@ -35,7 +36,7 @@ function classify(row: PurchaseRow): PurchaseView {
       ? "subscription"
       : "other";
   const title = isTokenBank
-    ? "Pembelian Token Bank"
+    ? "Pembelian Token/API Key"
     : kind === "subscription"
       ? "Aktivasi Langganan"
       : row.route_key;
@@ -63,7 +64,7 @@ export function usePurchaseFeed(pollMs = 20_000): {
         const { data, error } = await supabase
           .from("purchase_requests")
           .select(
-            "id, user_id, route_key, price_idr, payment_method_name, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
+            "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
           )
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
@@ -94,7 +95,7 @@ export function usePurchaseFeed(pollMs = 20_000): {
     void supabase
       .from("purchase_requests")
       .select(
-        "id, user_id, route_key, price_idr, payment_method_name, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
+        "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })

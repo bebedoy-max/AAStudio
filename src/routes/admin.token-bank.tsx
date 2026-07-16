@@ -578,8 +578,17 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
   try {
     switch (provider) {
       case "weavy": {
+        // Weavy refresh token: string panjang (biasanya >200 char, prefix AMf-/AEu-).
+        const isWeavyFormat = key.length >= 100 && /^[A-Za-z0-9_-]+$/.test(key);
         const r = await checkWeavyToken(key);
-        if (!r.ok) return { label: "Invalid / expired", tone: "bad" };
+        if (!r.ok) {
+          // Probe Firebase kadang gagal transient (rate-limit / CORS / refresh token
+          // baru saja dipakai di Token Manager). Jangan hanguskan batch — tetap simpan
+          // kalau formatnya benar, admin bisa "Cek ulang" nanti dari tabel.
+          return isWeavyFormat
+            ? { label: "Belum tervalidasi (simpan)", tone: "warn" }
+            : { label: "Format tidak dikenal", tone: "bad" };
+        }
         if (r.credits == null) return { label: r.email ?? "OK · credits ?", tone: "warn" };
         return {
           label: `${r.credits} cr${r.email ? ` · ${r.email}` : ""}`,
@@ -593,8 +602,17 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
         return { label: `$${b.toFixed(2)}`, tone: b <= 0 ? "bad" : b < 1 ? "warn" : "ok" };
       }
       case "eleven": {
+        // ElevenLabs API key: sk_ + 40..80 hex.
+        const isElevenFormat = /^sk_[a-f0-9]{40,80}$/i.test(key);
         const r = await checkElevenKey(key);
-        if (!r.ok) return { label: "Invalid key", tone: "bad" };
+        if (!r.ok) {
+          // Endpoint /v1/user/subscription & TTS probe kadang 401 walau key valid
+          // (scope terbatas, voice default tidak diizinkan). Konsisten dg flow
+          // "Tes suara" di Token Manager: kalau format benar, tetap simpan.
+          return isElevenFormat
+            ? { label: "Belum tervalidasi (simpan)", tone: "warn" }
+            : { label: "Bukan format sk_…", tone: "bad" };
+        }
         if (r.remaining == null) {
           return { label: `Aktif${r.tier ? ` · ${r.tier}` : ""}`, tone: "ok" };
         }
