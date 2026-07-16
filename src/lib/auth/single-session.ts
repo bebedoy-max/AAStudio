@@ -135,7 +135,6 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
 export async function verifyExclusiveSession(userId: string): Promise<boolean> {
   if (typeof window === "undefined") return true;
   const localSessionId = localStorage.getItem(storageKey(userId));
-  if (!localSessionId) return false;
 
   const { data, error } = await activeSessionsTable()
     .select("session_id, updated_at")
@@ -144,11 +143,22 @@ export async function verifyExclusiveSession(userId: string): Promise<boolean> {
 
   if (error) {
     if (isMissingTable(error)) return true;
-    console.warn("[auth] failed to verify active session", error.message);
-    return false;
+    // Fail-open on transient read errors — jangan logout user karena
+    // masalah jaringan/RLS sementara.
+    console.warn("[auth] failed to verify active session, allowing", error.message);
+    return true;
   }
 
-  if (!data?.session_id) return false;
+  // Tabel ada tapi belum ada baris untuk user ini (mis. claim gagal senyap
+  // atau baris ke-hapus). Jangan langsung logout — anggap sesi ini valid
+  // dan biarkan heartbeat berikutnya menulis ulang slot.
+  if (!data?.session_id) return true;
+  // Kalau localStorage kosong (mis. karena claim awal skip write), adopsi
+  // session_id yang ada supaya user tidak ke-logout saat balik ke tab.
+  if (!localSessionId) {
+    localStorage.setItem(storageKey(userId), data.session_id);
+    return true;
+  }
   if (data.session_id !== localSessionId) return false;
 
   // Heartbeat — perbarui updated_at supaya slot tetap milik user ini.
