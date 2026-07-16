@@ -105,3 +105,10 @@ const getSnap = () => state;
 export function useNotifications(): State {
   return useSyncExternalStore(subscribe, getSnap, getSnap);
 }
+
+// Non-hook helper for background timers (idle checker) — returns true when
+// there's any generate/render job currently in progress. Any running task
+// counts as user activity so the idle-logout timer keeps getting reset.
+export function hasRunningTasks(): boolean {
+  return state.items.some((n) => n.status === "running");
+}

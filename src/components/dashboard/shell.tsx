@@ -42,10 +42,12 @@ const NAV_SECTIONS: Record<string, { label: string; url: string }[]> = {
   ],
   "/generate": [
     { label: "Motion Control", url: "/generate/motion" },
-    { label: "Produk Storyboard", url: "/generate/storyboard" },
-    { label: "Bulk Fashion", url: "/generate/bulk-fashion" },
+    { label: "Bulk Fashion Generator", url: "/generate/bulk-fashion" },
     { label: "Image To Video", url: "/generate/image-to-video" },
-    { label: "Naratif Video", url: "/generate/naratif" },
+  ],
+  "/storyboard": [
+    { label: "Produk Storyboard", url: "/generate/storyboard" },
+    { label: "Naratif Video Maker", url: "/generate/naratif" },
   ],
   "/mixing": [
     { label: "AI Clipper", url: "/mixing/clipper" },
@@ -60,6 +62,7 @@ const NAV_SECTIONS: Record<string, { label: string; url: string }[]> = {
     { label: "Kelola User", url: "/admin" },
     { label: "Request Pembelian", url: "/admin/requests" },
     { label: "Metode Pembayaran", url: "/admin/payments" },
+    { label: "Pengaturan Halaman", url: "/admin/access" },
   ],
 };
 
@@ -262,7 +265,12 @@ function AccountMenu() {
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const section = pathname === "/" ? "/" : "/" + pathname.split("/")[1];
+  const section =
+    pathname === "/"
+      ? "/"
+      : pathname.startsWith("/generate/storyboard") || pathname.startsWith("/generate/naratif")
+        ? "/storyboard"
+        : "/" + pathname.split("/")[1];
   const items = NAV_SECTIONS[section] || NAV_SECTIONS["/"];
   const isHome = pathname === "/";
 

@@ -3,6 +3,7 @@
 // and Magnific proxy for magnific provider.
 
 import { getFirstWavespeedKey, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API } from "./wavespeed";
+import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 export type I2VProvider = "weavy" | "wavespeed" | "magnific";
 
@@ -63,7 +64,13 @@ async function runMagnificI2V(opts: I2VOpts): Promise<string> {
 }
 
 export async function generateI2V(opts: I2VOpts): Promise<string> {
-  if (opts.provider === "wavespeed") return runWavespeedI2V(opts);
-  if (opts.provider === "weavy") return runWeavyI2V(opts);
-  return runMagnificI2V(opts);
+  try {
+    if (opts.provider === "wavespeed") return await runWavespeedI2V(opts);
+    if (opts.provider === "weavy") return await runWeavyI2V(opts);
+    return await runMagnificI2V(opts);
+  } finally {
+    if (opts.provider === "wavespeed" || opts.provider === "weavy" || opts.provider === "magnific") {
+      notifyGenerationDone(opts.provider);
+    }
+  }
 }

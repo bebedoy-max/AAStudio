@@ -38,6 +38,7 @@ import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.br
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminContactRouteImport } from './routes/admin.contact'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
 import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
@@ -208,6 +209,11 @@ const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminContactRoute = AdminContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAccessRoute = AdminAccessRouteImport.update({
   id: '/access',
   path: '/access',
@@ -338,6 +344,7 @@ export interface FileRoutesByFullPath {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
@@ -391,6 +398,7 @@ export interface FileRoutesByTo {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
@@ -504,6 +513,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/requests'
     | '/ai-influencer/analytics'
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/requests'
     | '/ai-influencer/analytics'
@@ -612,6 +623,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/requests'
     | '/ai-influencer/analytics'
@@ -909,6 +921,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPaymentsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/contact': {
+      id: '/admin/contact'
+      path: '/contact'
+      fullPath: '/admin/contact'
+      preLoaderRoute: typeof AdminContactRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/access': {
       id: '/admin/access'
       path: '/access'
@@ -1082,6 +1101,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
+  AdminContactRoute: typeof AdminContactRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1089,6 +1109,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
+  AdminContactRoute: AdminContactRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminIndexRoute: AdminIndexRoute,

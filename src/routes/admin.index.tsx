@@ -20,7 +20,7 @@ import {
 export const Route = createFileRoute("/admin/")({
   head: () => ({
     meta: [
-      { title: "Admin Panel — AATools" },
+      { title: "Admin Panel — AA Creative Studio" },
       { name: "description", content: "Kelola user, role, dan akses fitur." },
     ],
   }),

@@ -32,7 +32,7 @@ import { startNotification, finishNotification, failNotification } from "@/lib/s
 export const Route = createFileRoute("/generate/motion")({
   head: () => ({
     meta: [
-      { title: "Motion Control — AATools" },
+      { title: "Motion Control — AA Creative Studio" },
       {
         name: "description",
         content:

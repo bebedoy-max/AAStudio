@@ -10,8 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Profil Saya — AATools" },
-      { name: "description", content: "Kelola info profil, avatar, dan password akun AATools." },
+      { title: "Profil Saya — AA Creative Studio" },
+      { name: "description", content: "Kelola info profil, avatar, dan password akun AA Creative Studio." },
     ],
   }),
   component: ProfilePage,

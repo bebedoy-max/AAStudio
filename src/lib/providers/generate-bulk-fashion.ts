@@ -3,6 +3,7 @@
 // Weavy path uses recipe pipeline (with its own token rotation).
 
 import { getAllWavespeedKeys, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API, isWavespeedRotatableError } from "./wavespeed";
+import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 export type BulkProvider = "weavy" | "wavespeed" | "magnific";
 
@@ -128,8 +129,14 @@ async function runWeavyBulk(opts: BulkFashionOpts): Promise<string[]> {
 }
 
 export async function generateBulkFashion(opts: BulkFashionOpts): Promise<string[]> {
-  if (opts.provider === "wavespeed") return runWavespeedBulk(opts);
-  if (opts.provider === "weavy") return runWeavyBulk(opts);
-  throw new Error("Magnific belum menyediakan bulk fashion edit endpoint di proxy.");
+  try {
+    if (opts.provider === "wavespeed") return await runWavespeedBulk(opts);
+    if (opts.provider === "weavy") return await runWeavyBulk(opts);
+    throw new Error("Magnific belum menyediakan bulk fashion edit endpoint di proxy.");
+  } finally {
+    if (opts.provider === "wavespeed" || opts.provider === "weavy") {
+      notifyGenerationDone(opts.provider);
+    }
+  }
 }
 

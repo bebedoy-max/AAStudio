@@ -30,7 +30,7 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 export const Route = createFileRoute("/generate/storyboard")({
   head: () => ({
     meta: [
-      { title: "Produk Storyboard — AATools" },
+      { title: "Produk Storyboard — AA Creative Studio" },
       {
         name: "description",
         content:

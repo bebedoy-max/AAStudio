@@ -1,12 +1,14 @@
 // Global search index — routes, features, projects. Used by header search.
 import { ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import type { Project } from "@/lib/dashboard/projects";
+import { HELP_GUIDES_META } from "@/lib/dashboard/help-guides-index";
 
 export type SearchItem = {
   id: string;
   label: string;
   description?: string;
   route: string;
+  hash?: string;
   group: string;
   keywords: string[];
 };
@@ -61,6 +63,18 @@ export function buildSearchIndex(projects: Project[], opts: { isAdmin: boolean; 
       route: p.route ?? "/",
       group: "Project",
       keywords: [p.title.toLowerCase(), p.kind, p.niche?.toLowerCase() ?? "", "project", "hasil", "generate"],
+    });
+  }
+
+  for (const g of HELP_GUIDES_META) {
+    items.push({
+      id: `help-${g.id}`,
+      label: g.title,
+      description: `Panduan · ${g.summary}`,
+      route: "/system/help",
+      hash: g.id,
+      group: "Panduan",
+      keywords: [...g.tags, g.category, "help", "bantuan", "panduan", "dokumentasi", g.title.toLowerCase()],
     });
   }
 

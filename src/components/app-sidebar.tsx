@@ -30,6 +30,7 @@ import {
   LineChart,
   Lock,
   SlidersHorizontal,
+  LifeBuoy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -142,6 +143,7 @@ const ADMIN_GROUP: NavEntry = {
     { title: "Request Pembelian", url: "/admin/requests", icon: Receipt },
     { title: "Metode Pembayaran & Harga", url: "/admin/payments", icon: Wallet },
     { title: "Pengaturan Halaman", url: "/admin/access", icon: SlidersHorizontal },
+    { title: "Kontak Support", url: "/admin/contact", icon: LifeBuoy },
   ],
 };
 
@@ -185,7 +187,7 @@ function HoverFlyout({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
   if (!open) return null;
   return (
     <div
@@ -202,8 +204,12 @@ function HoverFlyout({
           const CIcon = item.icon;
           const enabled = !item.permKey || isFeatureEnabled(item.permKey);
           const access = item.permKey ? featureAccess[item.permKey] : undefined;
+          // Trial badge hanya ditampilkan untuk user yang tidak punya akses
+          // eksplisit ke menu ini — jadi user yang sudah subscribe / diberi
+          // akses admin tidak melihat label "Trial" yang tidak relevan.
+          const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
           const trialBadge =
-            enabled && access?.mode === "trial" && access.trialUntil
+            enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
               ? `Trial s/d ${new Date(access.trialUntil).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
               : null;
 
@@ -274,7 +280,7 @@ function InlineSubmenu({
   currentPath: string;
   onNavigate?: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
   return (
     <div className="mt-1 ml-9 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
       {items.map((item) => {
@@ -282,8 +288,9 @@ function InlineSubmenu({
         const CIcon = item.icon;
         const enabled = !item.permKey || isFeatureEnabled(item.permKey);
         const access = item.permKey ? featureAccess[item.permKey] : undefined;
+        const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
         const trialBadge =
-          enabled && access?.mode === "trial" && access.trialUntil
+          enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
             ? `Trial s/d ${new Date(access.trialUntil).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`
             : null;
 

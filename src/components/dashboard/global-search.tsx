@@ -33,7 +33,7 @@ export function GlobalSearch() {
   function go(item: SearchItem) {
     setOpen(false);
     setQ("");
-    navigate({ to: item.route });
+    navigate({ to: item.route, hash: item.hash });
   }
 
   return (

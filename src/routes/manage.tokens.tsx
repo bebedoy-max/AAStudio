@@ -74,7 +74,7 @@ function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose:
 export const Route = createFileRoute("/manage/tokens")({
   head: () => ({
     meta: [
-      { title: "Token / API Manager — AATools" },
+      { title: "Token / API Manager — AA Creative Studio" },
       { name: "description", content: "Kelola API key semua provider AI — Brain, Weavy, Wavespeed, Magnific, ElevenLabs." },
     ],
   }),
@@ -1360,7 +1360,7 @@ function ElevenPane() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": cfg.keys[0] },
-        body: JSON.stringify({ text: "Halo, ini adalah test suara dari AATools.", voiceId: cfg.voice }),
+        body: JSON.stringify({ text: "Halo, ini adalah test suara dari AA Creative Studio.", voiceId: cfg.voice }),
       });
       if (!r.ok) { const j = await r.json().catch(() => ({} as { error?: string })); throw new Error(j.error || `HTTP ${r.status}`); }
       const buf = await r.arrayBuffer();
