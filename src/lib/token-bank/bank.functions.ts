@@ -28,7 +28,11 @@ function assertProvider(p: string): asserts p is BankProvider {
     throw new Error(`Unknown provider: ${p}`);
 }
 
+<<<<<<< HEAD
 export const BANK_STORAGE_KEY: Record<BankProvider, string> = {
+=======
+const STORAGE_KEY: Record<BankProvider, string> = {
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   brain: "aatools.brain.geminiKeys",
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
@@ -101,7 +105,11 @@ export const listBankInventory = createServerFn({ method: "GET" })
       .select("id, provider, key_value, label, status, assigned_to, assigned_at, created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
+<<<<<<< HEAD
     const rows = (data ?? []) as {
+=======
+    return (data ?? []) as {
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
       id: string;
       provider: BankProvider;
       key_value: string;
@@ -111,6 +119,7 @@ export const listBankInventory = createServerFn({ method: "GET" })
       assigned_at: string | null;
       created_at: string;
     }[];
+<<<<<<< HEAD
     // Attach assigned user info (email + display name) via a batched profiles lookup.
     const assignedIds = Array.from(
       new Set(rows.map((r) => r.assigned_to).filter((x): x is string => !!x)),
@@ -132,6 +141,8 @@ export const listBankInventory = createServerFn({ method: "GET" })
       assigned_email: r.assigned_to ? byId[r.assigned_to]?.email ?? null : null,
       assigned_display_name: r.assigned_to ? byId[r.assigned_to]?.display_name ?? null : null,
     }));
+=======
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   });
 
 export const addBankKeys = createServerFn({ method: "POST" })
@@ -152,6 +163,7 @@ export const addBankKeys = createServerFn({ method: "POST" })
       label: data.label,
       created_by: context.userId,
     }));
+<<<<<<< HEAD
     const { data: inserted, error } = await db
       .from("token_bank_keys")
       .insert(rows)
@@ -162,6 +174,11 @@ export const addBankKeys = createServerFn({ method: "POST" })
       added: rows.length,
       inserted: (inserted ?? []) as { id: string; key_value: string }[],
     };
+=======
+    const { error } = await db.from("token_bank_keys").insert(rows);
+    if (error) throw new Error(error.message);
+    return { ok: true, added: rows.length };
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   });
 
 export const deleteBankKey = createServerFn({ method: "POST" })
@@ -178,6 +195,7 @@ export const deleteBankKey = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+<<<<<<< HEAD
 export const deleteBankKeys = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { ids: string[] }) => {
@@ -211,6 +229,8 @@ export const deleteAllBankKeys = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+=======
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 export const listBankPrices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -293,6 +313,7 @@ async function deliverKeysToUser(params: {
   kind: "transfer" | "purchase";
   priceIdr: number;
   purchaseRequestId?: string | null;
+<<<<<<< HEAD
   adminDb: LooseClient; // caller's admin-authenticated supabase (RLS-honored)
 }) {
   const { encryptString, decryptString } = await import("@/lib/tokens/crypto.server");
@@ -301,6 +322,14 @@ async function deliverKeysToUser(params: {
   // Read stock via the caller's admin session — the admin has full RLS
   // access to token_bank_keys (policy: admin-all), so no service role needed.
   const { data: keys, error: kErr } = await adminDb
+=======
+}) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as unknown as LooseClient;
+  const { encryptString, decryptString } = await import("@/lib/tokens/crypto.server");
+
+  const { data: keys, error: kErr } = await admin
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     .from("token_bank_keys")
     .select("id, key_value")
     .eq("provider", params.provider)
@@ -315,11 +344,15 @@ async function deliverKeysToUser(params: {
     );
   }
 
+<<<<<<< HEAD
   // user_tokens is scoped to auth.uid() in RLS — cross-user writes need service role.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const admin = supabaseAdmin as unknown as LooseClient;
 
   const storageKey = BANK_STORAGE_KEY[params.provider];
+=======
+  const storageKey = STORAGE_KEY[params.provider];
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   const { data: existing } = await admin
     .from("user_tokens")
     .select("ciphertext")
@@ -355,7 +388,11 @@ async function deliverKeysToUser(params: {
   if (upErr) throw new Error(upErr.message);
 
   const ids = picked.map((k) => k.id);
+<<<<<<< HEAD
   const { error: mkErr } = await adminDb
+=======
+  const { error: mkErr } = await admin
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
     .from("token_bank_keys")
     .update({
       status: "assigned",
@@ -375,7 +412,11 @@ async function deliverKeysToUser(params: {
     purchase_request_id: params.purchaseRequestId ?? null,
     created_by: params.actorUserId,
   }));
+<<<<<<< HEAD
   const { error: txErr } = await adminDb.from("token_bank_transactions").insert(txRows);
+=======
+  const { error: txErr } = await admin.from("token_bank_transactions").insert(txRows);
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   if (txErr) throw new Error(txErr.message);
 
   return { delivered: picked.length };
@@ -398,6 +439,7 @@ export const transferBankKeys = createServerFn({ method: "POST" })
       actorUserId: context.userId,
       kind: "transfer",
       priceIdr: 0,
+<<<<<<< HEAD
       adminDb: context.supabase as unknown as LooseClient,
     });
   });
@@ -424,6 +466,11 @@ function parseCartFromNote(note: string | null | undefined): { provider: BankPro
   }
 }
 
+=======
+    });
+  });
+
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 export const fulfillTokenPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { purchaseRequestId: string }) => {
@@ -437,7 +484,11 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
 
     const { data: prRaw, error } = await admin
       .from("purchase_requests")
+<<<<<<< HEAD
       .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note")
+=======
+      .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status")
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
       .eq("id", data.purchaseRequestId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -449,10 +500,18 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
       token_qty: number | null;
       price_idr: number;
       status: string;
+<<<<<<< HEAD
       note: string | null;
     } | null;
     if (!pr) throw new Error("Purchase request not found");
     if (pr.request_kind !== "token_bank") return { ok: true, skipped: "not a token_bank request" };
+=======
+    } | null;
+    if (!pr) throw new Error("Purchase request not found");
+    if (pr.request_kind !== "token_bank") return { ok: true, skipped: "not a token_bank request" };
+    if (!pr.token_provider || !pr.token_qty)
+      throw new Error("Request is missing token_provider or token_qty");
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 
     const { data: existingTx } = await admin
       .from("token_bank_transactions")
@@ -462,6 +521,7 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
     if (Array.isArray(existingTx) && existingTx.length > 0)
       return { ok: true, skipped: "already fulfilled" };
 
+<<<<<<< HEAD
     // Prefer multi-provider cart embedded in note; fall back to legacy
     // single-provider token_provider/token_qty columns.
     const cart = parseCartFromNote(pr.note);
@@ -491,6 +551,18 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
       delivered += r.delivered;
     }
     return { ok: true, delivered };
+=======
+    await deliverKeysToUser({
+      provider: pr.token_provider as BankProvider,
+      qty: pr.token_qty,
+      targetUserId: pr.user_id,
+      actorUserId: context.userId,
+      kind: "purchase",
+      priceIdr: pr.price_idr,
+      purchaseRequestId: pr.id,
+    });
+    return { ok: true };
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
   });
 
 export const searchUsersForTransfer = createServerFn({ method: "POST" })
@@ -510,6 +582,7 @@ export const searchUsersForTransfer = createServerFn({ method: "POST" })
     return (rows ?? []) as { id: string; email: string | null; display_name: string | null }[];
   });
 
+<<<<<<< HEAD
 export type BankTxRow = {
   id: string;
   provider: BankProvider;
@@ -589,6 +662,8 @@ export const resetBankTransactions = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+=======
+>>>>>>> bb4e8b6b7c77c07aab52ac89d0572bb0f7005c86
 export const PROVIDER_LABELS: Record<BankProvider, string> = {
   brain: "Brain (Gemini)",
   weavy: "Weavy",
