@@ -97,10 +97,15 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
       console.warn("[auth] user_active_sessions table is missing; single-session enforcement is disabled.");
       return "claimed";
     }
+<<<<<<< HEAD
     // Jangan blokir login karena masalah infrastruktur single-session
     // (RLS, network, dsb). Cukup log dan izinkan sesi berjalan.
     console.warn("[auth] failed to read active session, allowing login", readError.message);
     return "claimed";
+=======
+    console.warn("[auth] failed to read active session", readError.message);
+    return "error";
+>>>>>>> 0c8a60a08af0710818e1c177e91db8eca8546ea9
   }
 
   const localSessionId = localStorage.getItem(storageKey(userId));
@@ -121,8 +126,13 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
 
   if (error) {
     if (isMissingTable(error)) return "claimed";
+<<<<<<< HEAD
     console.warn("[auth] failed to claim active session, allowing login", error.message);
     return "claimed";
+=======
+    console.warn("[auth] failed to claim active session", error.message);
+    return "error";
+>>>>>>> 0c8a60a08af0710818e1c177e91db8eca8546ea9
   }
 
   return "claimed";
