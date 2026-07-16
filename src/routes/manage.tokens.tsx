@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
@@ -8,6 +8,7 @@ import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS } from "@/lib/tokens/sync";
+import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
 export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
@@ -129,6 +130,11 @@ const writeJSON = (k: string, v: unknown) => {
   // Mirror to Supabase (encrypted server-side) so the user finds their keys
   // again on any other device / browser.
   if (SYNCED_KEYS.has(k)) pushTokenAsync(k, serialized);
+  // Notify same-tab listeners (dashboard, key-guards) — the `storage` event
+  // does not fire in the tab that made the change.
+  if (k.startsWith("aatools.")) {
+    window.dispatchEvent(new CustomEvent("aatools:keys-changed"));
+  }
 };
 
 function TokensPage() {
@@ -137,6 +143,9 @@ function TokensPage() {
   const [showImport, setShowImport] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [syncTick, setSyncTick] = useState(0);
+  // Default: tampilan ringkas — user klik "View" untuk buka detail key.
+  const [showKeys, setShowKeys] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
 
   useEffect(() => {
     const onSynced = () => setSyncTick((n) => n + 1);
@@ -157,7 +166,7 @@ function TokensPage() {
         />
 
         <Card>
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             {providers.map((p) => (
               <button
                 key={p.key}
@@ -173,34 +182,58 @@ function TokensPage() {
                 {p.label}
               </button>
             ))}
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setBuyOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold hover:bg-primary/20"
+                title="Beli token dari Token Bank"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                Beli Token
+              </button>
+              <button
+                onClick={() => setShowKeys((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs font-medium hover:bg-sidebar-accent/40"
+                title={showKeys ? "Sembunyikan daftar key" : "Tampilkan daftar key"}
+              >
+                {showKeys ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {showKeys ? "Hide" : "View"}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 flex flex-col gap-4">
-              {tab === "brain" && <BrainPane key={paneKey} />}
-              {tab === "weavy" && <WeavyPane key={paneKey} onOpenImport={() => setShowImport(true)} />}
-              {tab === "wavespeed" && (
-                <ProviderKeyPane
-                  key={paneKey}
-                  provider="wavespeed"
-                  lsKey={LS.wavespeed}
-                  singlePlaceholder="wsk_live_..."
-                  bulkPlaceholder={"wsk_live_XXX...\nwsk_live_YYY..."}
-                  helper="Balance dicek via api.wavespeed.ai/api/v3/balance. Dapatkan key di wavespeed.ai."
-                />
+              {!showKeys ? (
+                <CompactSummary provider={tab} onView={() => setShowKeys(true)} tick={syncTick} />
+              ) : (
+                <>
+                  {tab === "brain" && <BrainPane key={paneKey} />}
+                  {tab === "weavy" && <WeavyPane key={paneKey} onOpenImport={() => setShowImport(true)} />}
+                  {tab === "wavespeed" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="wavespeed"
+                      lsKey={LS.wavespeed}
+                      singlePlaceholder="wsk_live_..."
+                      bulkPlaceholder={"wsk_live_XXX...\nwsk_live_YYY..."}
+                      helper="Balance dicek via api.wavespeed.ai/api/v3/balance. Dapatkan key di wavespeed.ai."
+                    />
+                  )}
+                  {tab === "magnific" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="magnific"
+                      lsKey={LS.magnific}
+                      singlePlaceholder="FPSX... (Magnific/Freepik API key)"
+                      bulkPlaceholder={"FPSX-XXXX...\nFPSX-YYYY..."}
+                      helper="Magnific dipakai untuk Motion Control (Kling motion transfer via api.magnific.com)."
+                    />
+                  )}
+                  {tab === "eleven" && <ElevenPane key={paneKey} />}
+                  {tab === "render" && <RenderPane key={paneKey} />}
+                </>
               )}
-              {tab === "magnific" && (
-                <ProviderKeyPane
-                  key={paneKey}
-                  provider="magnific"
-                  lsKey={LS.magnific}
-                  singlePlaceholder="FPSX... (Magnific/Freepik API key)"
-                  bulkPlaceholder={"FPSX-XXXX...\nFPSX-YYYY..."}
-                  helper="Magnific dipakai untuk Motion Control (Kling motion transfer via api.magnific.com)."
-                />
-              )}
-              {tab === "eleven" && <ElevenPane key={paneKey} />}
-              {tab === "render" && <RenderPane key={paneKey} />}
             </div>
 
             <div className="neumorph p-4 h-fit">
@@ -217,10 +250,81 @@ function TokensPage() {
 
         {showImport && <ImportModal onClose={() => setShowImport(false)} />}
         {summary && <SummaryDialog payload={summary} onClose={() => setSummary(null)} />}
+        {buyOpen && <BuyTokenDialog onClose={() => setBuyOpen(false)} />}
       </DashboardShell>
     </SummaryCtx.Provider>
   );
 }
+
+/** Compact per-provider summary shown when detail panel is hidden. */
+function CompactSummary({
+  provider,
+  onView,
+  tick,
+}: {
+  provider: ProviderKey;
+  onView: () => void;
+  tick: number;
+}) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    // Read localStorage without mutating; support all shapes used by panes.
+    let n = 0;
+    try {
+      const raw = localStorage.getItem(
+        provider === "brain"
+          ? LS.brain
+          : provider === "weavy"
+            ? LS.weavy
+            : provider === "wavespeed"
+              ? LS.wavespeed
+              : provider === "magnific"
+                ? LS.magnific
+                : provider === "eleven"
+                  ? LS.eleven
+                  : LS.shotstack,
+      );
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) n = parsed.length;
+        else if (parsed && Array.isArray(parsed.keys)) n = parsed.keys.length;
+      }
+      if (provider === "render") {
+        // Sum shotstack + creatomate for Render tab.
+        const ss = JSON.parse(localStorage.getItem(LS.shotstack) ?? "[]");
+        const cm = JSON.parse(localStorage.getItem(LS.creatomate) ?? "[]");
+        n = (Array.isArray(ss) ? ss.length : 0) + (Array.isArray(cm) ? cm.length : 0);
+      }
+    } catch {
+      n = 0;
+    }
+    setCount(n);
+  }, [provider, tick]);
+
+  const label = providers.find((p) => p.key === provider)?.label ?? provider;
+
+  return (
+    <div className="neumorph p-6 flex flex-col items-center text-center gap-3">
+      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+      <div className="font-display text-3xl text-gradient">{count}</div>
+      <div className="text-xs text-muted-foreground">
+        key tersimpan (tersembunyi). Klik View untuk kelola / tambah key.
+      </div>
+      <button
+        onClick={onView}
+        className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-primary-foreground"
+        style={{ background: "var(--gradient-neon)" }}
+      >
+        <Eye className="h-3.5 w-3.5" />
+        View {count > 0 ? `(${count})` : ""}
+      </button>
+    </div>
+  );
+}
+
+
 
 /* ============ How to get API keys — per provider ============ */
 type GuideStep = { text: string; code?: string; link?: { url: string; label: string } };

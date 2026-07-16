@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Upload, Languages, Mic, Loader2, Download, Zap, FileVideo, Trash2 } from "lucide-react";
@@ -23,7 +24,7 @@ import { cloudRenderStatus } from "@/lib/mixing/providers";
 import { NewProjectDialog } from "@/components/mixing/new-project-dialog";
 
 export const Route = createFileRoute("/mixing/dubbing")({
-  component: DubbingPage,
+  component: withKeyGuard(DubbingPage, ["brain", "eleven"]),
 });
 
 const DEFAULT_SETTINGS: DubbingSettings = {

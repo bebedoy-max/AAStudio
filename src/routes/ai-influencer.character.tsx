@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -28,7 +29,7 @@ import {
 import { insertAsset } from "@/lib/ai-influencer/studio.functions";
 
 export const Route = createFileRoute("/ai-influencer/character")({
-  component: CharacterPage,
+  component: withKeyGuard(CharacterPage, ["brain"]),
 });
 
 const RATIOS = ["1:1", "4:5", "3:4", "9:16", "16:9"];

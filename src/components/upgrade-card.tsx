@@ -12,13 +12,15 @@ function formatRupiah(n: number) {
 }
 
 export function UpgradeCard() {
-  const { isAdmin, routePermissions } = useAuth();
+  const { isAdmin, isFeatureEnabled } = useAuth();
   const [open, setOpen] = useState(false);
 
   const hasFullAccess = useMemo(() => {
     if (isAdmin) return true;
-    return ALL_ROUTE_KEYS.every((r) => routePermissions.includes(r.key));
-  }, [isAdmin, routePermissions]);
+    // If every premium feature is already enabled (via permission, public mode,
+    // or active trial), there is nothing left to upgrade to.
+    return ALL_ROUTE_KEYS.every((r) => isFeatureEnabled(r.key));
+  }, [isAdmin, isFeatureEnabled]);
 
   if (hasFullAccess) return null;
 
@@ -67,7 +69,7 @@ export function UpgradeDialog({
   onClose: () => void;
   preselectedFeature?: string;
 }) {
-  const { routePermissions, user } = useAuth();
+  const { routePermissions, featureAccess, user } = useAuth();
   const [prices, setPrices] = useState<Record<string, { label: string; price_idr: number }>>({});
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const [selected, setSelected] = useState<string[]>(preselectedFeature ? [preselectedFeature] : []);
@@ -102,9 +104,19 @@ export function UpgradeDialog({
     loadPending();
   }, [user?.id]);
 
-  const availableFeatures = ALL_ROUTE_KEYS.filter(
-    (f) => !routePermissions.includes(f.key),
-  );
+  // Only show features that are:
+  //   - not already unlocked for this user (no permission granted)
+  //   - actually gated by subscription (mode === 'subscription'; default when
+  //     the admin hasn't configured it, which matches the access page default)
+  //   - have an active, non-zero price
+  const availableFeatures = ALL_ROUTE_KEYS.filter((f) => {
+    if (routePermissions.includes(f.key)) return false;
+    const mode = featureAccess[f.key]?.mode ?? "subscription";
+    if (mode !== "subscription") return false;
+    const price = prices[f.key]?.price_idr;
+    if (!price || price <= 0) return false;
+    return true;
+  });
 
   const isPending = (k: string) => pendingKeys.includes(k);
 

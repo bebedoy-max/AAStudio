@@ -106,10 +106,12 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
   const localSessionId = localStorage.getItem(storageKey(userId));
   const existingIsMine = existing?.session_id && localSessionId && existing.session_id === localSessionId;
 
-  if (existing && !existingIsMine && isFresh(existing.updated_at)) {
-    // Sesi lain masih aktif — jangan ganggu, tolak login di perangkat ini.
-    return "blocked";
-  }
+  // Fresh sign-in di perangkat ini selalu menang. Sesi lain (kalau masih
+  // terbuka) akan mendeteksi session_id mismatch pada heartbeat berikutnya
+  // dan otomatis logout lokal. Ini mencegah user "terkunci 30 menit" ketika
+  // DELETE saat logout di perangkat lain gagal senyap atau heartbeat masih
+  // sempat refresh updated_at sebelum tab benar-benar tertutup.
+  void existingIsMine;
 
   const sessionId = existingIsMine ? (localSessionId as string) : createSessionId();
   localStorage.setItem(storageKey(userId), sessionId);

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -21,7 +22,7 @@ import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 import { openConfirm } from "@/components/ai-influencer/dialogs";
 
 export const Route = createFileRoute("/ai-influencer/planner")({
-  component: PlannerPage,
+  component: withKeyGuard(PlannerPage, ["brain"]),
 });
 
 const WORKFLOW_STEPS = [
