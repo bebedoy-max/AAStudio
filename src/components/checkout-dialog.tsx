@@ -1,20 +1,13 @@
+// Checkout for feature-subscription purchases (30-day access to premium routes).
+// Creates ONE purchase_request carrying the primary feature key + extras
+// encoded in the note, then pays via Midtrans QRIS. Webhook auto-approves
+// the row and grants route_permissions for every listed feature.
 import { useEffect, useMemo, useState } from "react";
-import { X, Upload, Loader2, Copy, Check, QrCode, Landmark, Wallet, CircleDollarSign } from "lucide-react";
+import { X, Loader2, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
-
-type PaymentMethod = {
-  id: string;
-  type: "qris" | "bank" | "ewallet" | "custom";
-  name: string;
-  instructions: string | null;
-  account_number: string | null;
-  account_holder: string | null;
-  image_url: string | null;
-  is_active: boolean;
-  sort_order: number;
-};
+import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 
 type FeaturePrice = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
@@ -22,12 +15,7 @@ function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
-const iconByType = {
-  qris: QrCode,
-  bank: Landmark,
-  ewallet: Wallet,
-  custom: CircleDollarSign,
-} as const;
+type Order = { id: string; total: number; status: "pending" | "approved" | "rejected" };
 
 export function CheckoutDialog({
   featureKeys,
@@ -44,106 +32,74 @@ export function CheckoutDialog({
 }) {
   const { user } = useAuth();
   const [prices, setPrices] = useState<FeaturePrice[]>([]);
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [methodId, setMethodId] = useState<string>("");
-  const [signedImage, setSignedImage] = useState<string | null>(null);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [proofPreview, setProofPreview] = useState<string | null>(null);
-  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [order, setOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [{ data: fp }, { data: pm }] = await Promise.all([
-        supabase.from("feature_prices").select("*").in("route_key", featureKeys),
-        supabase.from("payment_methods").select("*").eq("is_active", true).order("sort_order"),
-      ]);
+      const { data: fp } = await supabase
+        .from("feature_prices")
+        .select("*")
+        .in("route_key", featureKeys);
       setPrices((fp ?? []) as FeaturePrice[]);
-      setMethods((pm ?? []) as PaymentMethod[]);
-      if ((pm ?? []).length > 0) setMethodId((pm as PaymentMethod[])[0].id);
       setLoading(false);
     })();
   }, [featureKeys.join(",")]);
-
-  const selectedMethod = useMemo(() => methods.find((m) => m.id === methodId) ?? null, [methods, methodId]);
-
-  // Sign QRIS / method image URL
-  useEffect(() => {
-    setSignedImage(null);
-    if (!selectedMethod?.image_url) return;
-    (async () => {
-      const { data } = await supabase.storage
-        .from("payment-assets")
-        .createSignedUrl(selectedMethod.image_url!, 3600);
-      setSignedImage(data?.signedUrl ?? null);
-    })();
-  }, [selectedMethod?.image_url]);
 
   const individualTotal = useMemo(() => prices.reduce((s, p) => s + p.price_idr, 0), [prices]);
   const isBundle = !!bundleLabel && typeof bundlePrice === "number" && bundlePrice > 0;
   const total = isBundle ? (bundlePrice as number) : individualTotal;
 
-  function onProofChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error("Bukti transfer maksimal 5MB");
-      return;
-    }
-    setProofFile(f);
-    setProofPreview(URL.createObjectURL(f));
-  }
-
-  async function copy(text: string, key: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      toast.error("Gagal menyalin");
-    }
-  }
-
   async function submit() {
     if (!user) return;
-    if (!selectedMethod) return toast.error("Pilih metode pembayaran");
-    if (!proofFile) return toast.error("Upload bukti pembayaran dulu");
+    if (total <= 0) return toast.error("Total pembayaran belum valid");
     setSubmitting(true);
     try {
-      // Upload proof
-      const ext = proofFile.name.split(".").pop() || "png";
-      const path = `${user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("payment-proofs")
-        .upload(path, proofFile, { upsert: false, contentType: proofFile.type });
-      if (upErr) throw upErr;
+      const primaryKey = prices[0]?.route_key ?? featureKeys[0];
+      const extraKeys = prices
+        .map((p) => p.route_key)
+        .filter((k) => k !== primaryKey);
+      const featuresMarker =
+        extraKeys.length > 0 ? ` [FEATURES:${extraKeys.join(",")}]` : "";
+      const labelList = prices.map((p) => p.label).join(", ");
+      const bundleTag = isBundle ? `[BUNDLE: ${bundleLabel}] ` : "";
+      const note = `${bundleTag}${labelList}${featuresMarker}`.trim();
 
-      // Insert one purchase_request per feature
-      const bundleNote = isBundle ? "[BUNDLE: FULL AKSES] " : "";
-      const rows = prices.map((p, i) => ({
+      const row = {
         user_id: user.id,
-        route_key: p.route_key,
-        // Bundle mode: attribute the full discount price to the first row, others = 0.
-        price_idr: isBundle ? (i === 0 ? (bundlePrice as number) : 0) : p.price_idr,
-        payment_method_id: selectedMethod.id,
-        payment_method_name: selectedMethod.name,
-        proof_image_url: path,
-        note: (bundleNote + (note || "")).trim() || null,
+        route_key: primaryKey,
+        price_idr: total,
+        payment_method_id: null,
+        payment_method_name: "QRIS (Midtrans)",
+        note,
         status: "pending" as const,
-      }));
-      const { error: insErr } = await supabase.from("purchase_requests").insert(rows);
-      if (insErr) throw insErr;
-
-      toast.success("Permintaan dikirim! Admin akan memverifikasi pembayaran Anda.");
+      };
+      const { data, error } = await supabase
+        .from("purchase_requests")
+        .insert(row as never)
+        .select("id, status")
+        .single();
+      if (error) throw error;
+      const inserted = data as { id: string; status: Order["status"] };
+      setOrder({ id: inserted.id, total, status: inserted.status });
       onSubmitted?.();
-      onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal mengirim permintaan");
+      toast.error(e instanceof Error ? e.message : "Gagal membuat pesanan");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function refreshStatus() {
+    if (!order) return;
+    const { data } = await supabase
+      .from("purchase_requests")
+      .select("status")
+      .eq("id", order.id)
+      .maybeSingle();
+    const st = (data as { status?: Order["status"] } | null)?.status;
+    if (st && st !== order.status) setOrder({ ...order, status: st });
   }
 
   return (
@@ -169,7 +125,7 @@ export function CheckoutDialog({
           Checkout
         </div>
         <h2 className="mt-1 font-display text-2xl font-bold">
-          Selesaikan <span className="text-gradient">pembayaran</span>
+          Aktivasi <span className="text-gradient">via QRIS</span>
         </h2>
 
         {loading ? (
@@ -222,135 +178,59 @@ export function CheckoutDialog({
               </div>
             </div>
 
-            {/* Payment methods */}
-            <div className="mt-5">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                Metode pembayaran
-              </div>
-              {methods.length === 0 ? (
-                <div className="text-sm text-muted-foreground p-4 border border-border rounded-xl">
-                  Belum ada metode pembayaran aktif. Hubungi admin.
+            {order ? (
+              order.status === "approved" ? (
+                <div className="mt-5 rounded-2xl border border-emerald-400/40 bg-emerald-400/5 p-6 flex flex-col items-center gap-2 text-emerald-200">
+                  <CircleCheck className="h-8 w-8" />
+                  <div className="font-semibold">Fitur aktif selama 30 hari</div>
+                  <div className="text-xs opacity-80">Silakan tutup dialog dan gunakan fitur.</div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {methods.map((m) => {
-                    const active = m.id === methodId;
-                    const Icon = iconByType[m.type];
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        onClick={() => setMethodId(m.id)}
-                        className={[
-                          "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition",
-                          active ? "border-primary/60 bg-primary/[0.08]" : "border-border bg-card/40 hover:bg-sidebar-accent/40",
-                        ].join(" ")}
-                      >
-                        <Icon className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm truncate">{m.name}</span>
-                      </button>
-                    );
-                  })}
+                <div className="mt-5">
+                  <MidtransQrisPanel
+                    purchaseRequestId={order.id}
+                    amount={order.total}
+                    onApproved={refreshStatus}
+                  />
                 </div>
-              )}
-            </div>
-
-            {/* Selected method details */}
-            {selectedMethod && (
-              <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4">
-                {selectedMethod.type === "qris" && signedImage && (
-                  <div className="flex flex-col items-center gap-2">
-                    <img src={signedImage} alt="QRIS" className="max-h-64 rounded-xl border border-border bg-white p-2" />
-                    <div className="text-xs text-muted-foreground">Scan QRIS di atas untuk membayar</div>
-                  </div>
-                )}
-                {selectedMethod.type !== "qris" && (
-                  <div className="flex flex-col gap-2">
-                    {selectedMethod.account_number && (
-                      <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2.5">
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Nomor</div>
-                          <div className="font-mono text-sm truncate">{selectedMethod.account_number}</div>
-                        </div>
-                        <button
-                          onClick={() => copy(selectedMethod.account_number!, "num")}
-                          className="ml-3 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-card"
-                        >
-                          {copied === "num" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                          Salin
-                        </button>
-                      </div>
-                    )}
-                    {selectedMethod.account_holder && (
-                      <div className="rounded-xl border border-border bg-background/40 px-3 py-2.5">
-                        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Atas nama</div>
-                        <div className="text-sm">{selectedMethod.account_holder}</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {selectedMethod.instructions && (
-                  <div className="mt-3 text-xs text-muted-foreground whitespace-pre-line">
-                    {selectedMethod.instructions}
-                  </div>
-                )}
-              </div>
+              )
+            ) : (
+              <>
+                <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
+                  Pembayaran otomatis via <b className="text-foreground">QRIS Midtrans</b>. Bayar
+                  pakai GoPay, ShopeePay, Dana, OVO, atau mobile banking apa pun yang mendukung
+                  QRIS. Fitur langsung aktif begitu pembayaran terkonfirmasi.
+                </div>
+                <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
+                  <button
+                    onClick={onClose}
+                    className="rounded-full border border-border bg-card/50 px-4 py-2 text-sm hover:bg-sidebar-accent/60"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={submit}
+                    disabled={submitting || total <= 0}
+                    className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                    style={{ background: "var(--gradient-neon)" }}
+                  >
+                    {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Lanjut ke QRIS · {rupiah(total)}
+                  </button>
+                </div>
+              </>
             )}
 
-            {/* Proof upload */}
-            <div className="mt-5">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                Bukti pembayaran <span className="text-rose-400">*</span>
+            {order && (
+              <div className="mt-5 flex justify-end">
+                <button
+                  onClick={onClose}
+                  className="rounded-full border border-border bg-card/50 px-4 py-2 text-sm hover:bg-sidebar-accent/60"
+                >
+                  {order.status === "approved" ? "Selesai" : "Tutup"}
+                </button>
               </div>
-              <label className="flex items-center gap-3 rounded-2xl border border-dashed border-border bg-card/30 px-4 py-4 cursor-pointer hover:bg-sidebar-accent/40">
-                <Upload className="h-4 w-4 text-primary" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm">
-                    {proofFile ? proofFile.name : "Klik untuk upload gambar (max 5MB)"}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">JPG / PNG</div>
-                </div>
-                {proofPreview && <img src={proofPreview} alt="preview" className="h-12 w-12 rounded-lg object-cover" />}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={onProofChange}
-                />
-              </label>
-            </div>
-
-            {/* Note */}
-            <div className="mt-4">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                Catatan (opsional)
-              </div>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={2}
-                placeholder="Contoh: Nama pengirim di bukti transfer…"
-                className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none focus:border-primary/60"
-              />
-            </div>
-
-            <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
-              <button
-                onClick={onClose}
-                className="rounded-full border border-border bg-card/50 px-4 py-2 text-sm hover:bg-sidebar-accent/60"
-              >
-                Batal
-              </button>
-              <button
-                onClick={submit}
-                disabled={submitting || !proofFile || !selectedMethod}
-                className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                style={{ background: "var(--gradient-neon)" }}
-              >
-                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Kirim untuk diverifikasi
-              </button>
-            </div>
+            )}
           </>
         )}
       </div>

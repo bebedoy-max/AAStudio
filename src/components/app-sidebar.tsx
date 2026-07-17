@@ -143,6 +143,7 @@ const ADMIN_GROUP: NavEntry = {
     { title: "Request Pembelian", url: "/admin/requests", icon: Receipt },
     { title: "Metode Pembayaran & Harga", url: "/admin/payments", icon: Wallet },
     { title: "Token Bank", url: "/admin/token-bank", icon: KeyRound },
+    { title: "Laporan Transaksi", url: "/admin/transactions", icon: LineChart },
     { title: "Pengaturan Halaman", url: "/admin/access", icon: SlidersHorizontal },
   ],
 };

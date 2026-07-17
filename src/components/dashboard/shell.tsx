@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -12,6 +12,9 @@ import {
   LogOut,
   ShieldCheck,
   User as UserIcon,
+  Clock,
+  ShoppingBag,
+  CircleAlert,
 } from "lucide-react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { UpgradeDialogHost } from "@/components/upgrade-card";
@@ -24,6 +27,8 @@ import {
   clearFinished,
   type AppNotification,
 } from "@/lib/stores/notifications";
+import { usePurchaseFeed, rupiah, type PurchaseView } from "@/lib/stores/purchase-feed";
+import { PurchaseDetailDialog } from "@/components/purchase-detail-dialog";
 
 // Top-nav sub-menu mirrors sidebar section (Manage / Generate / System).
 const NAV_SECTIONS: Record<string, { label: string; url: string }[]> = {
@@ -77,22 +82,38 @@ function formatAgo(ts: number): string {
   return `${Math.floor(h / 24)}h lalu`;
 }
 
+function purchaseTone(status: PurchaseView["status"]) {
+  if (status === "approved") return "text-emerald-300";
+  if (status === "rejected") return "text-rose-300";
+  return "text-amber-300";
+}
+function purchaseStatusLabel(status: PurchaseView["status"]) {
+  if (status === "approved") return "Sudah dibayar";
+  if (status === "rejected") return "Ditolak";
+  return "Belum dibayar";
+}
+
 function NotifPanel({
   items,
+  purchases,
   onClose,
   onNavigate,
+  onPickPurchase,
 }: {
   items: AppNotification[];
+  purchases: PurchaseView[];
   onClose: () => void;
   onNavigate: (n: AppNotification) => void;
+  onPickPurchase: (p: PurchaseView) => void;
 }) {
+  const empty = items.length === 0 && purchases.length === 0;
   return (
     <div className="fixed left-2 right-2 top-16 z-40 mx-auto max-w-sm sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:mx-0 sm:w-[22rem] sm:max-w-none neumorph p-0 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
         <div>
           <div className="font-display text-sm text-foreground">Notifikasi</div>
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            Proses generate & update
+            Pembelian, generate & update
           </div>
         </div>
         <button
@@ -104,79 +125,155 @@ function NotifPanel({
         </button>
       </div>
       <div className="max-h-[70vh] overflow-y-auto">
-        {items.length === 0 ? (
+        {empty ? (
           <div className="px-4 py-10 text-center text-xs text-muted-foreground">
             Belum ada notifikasi.
             <div className="mt-1 text-muted-foreground/70">
-              Notifikasi muncul saat ada proses generate berjalan atau selesai.
+              Notifikasi muncul saat ada proses generate atau pembelian token.
             </div>
           </div>
         ) : (
-          <ul className="divide-y divide-border/50">
-            {items.map((n) => {
-              const Icon =
-                n.status === "running" ? Loader2 : n.status === "done" ? CheckCircle2 : AlertCircle;
-              const tone =
-                n.status === "running"
-                  ? "text-primary"
-                  : n.status === "done"
-                    ? "text-emerald-300"
-                    : "text-rose-300";
-              const clickable = !!n.route;
-              return (
-                <li
-                  key={n.id}
-                  className={[
-                    "px-4 py-3 flex items-start gap-3 transition",
-                    clickable ? "cursor-pointer hover:bg-sidebar-accent/40" : "",
-                    !n.read ? "bg-primary/[0.04]" : "",
-                  ].join(" ")}
-                  onClick={() => {
-                    if (clickable) {
-                      onNavigate(n);
-                      onClose();
-                    }
-                  }}
-                >
-                  <span
-                    className={[
-                      "h-8 w-8 shrink-0 grid place-items-center rounded-lg border border-border bg-sidebar-accent/60",
-                      tone,
-                    ].join(" ")}
-                  >
-                    <Icon className={["h-4 w-4", n.status === "running" ? "animate-spin" : ""].join(" ")} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm text-foreground/95 truncate">{n.label}</div>
-                    {n.detail && (
-                      <div className="text-xs text-muted-foreground truncate">{n.detail}</div>
-                    )}
-                    <div className="mt-1 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                      <span>
-                        {n.status === "running"
-                          ? "Berjalan"
-                          : n.status === "done"
-                            ? "Selesai"
-                            : "Gagal"}
-                      </span>
-                      <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/60" />
-                      <span>{formatAgo(n.endedAt ?? n.startedAt)}</span>
-                    </div>
+          <>
+            {purchases.length > 0 && (
+              <div>
+                <div className="px-4 pt-3 pb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  Pembelian token
+                </div>
+                <ul className="divide-y divide-border/50">
+                  {purchases.map((p) => {
+                    const Icon =
+                      p.status === "approved"
+                        ? CheckCircle2
+                        : p.status === "rejected"
+                          ? CircleAlert
+                          : Clock;
+                    const tone = purchaseTone(p.status);
+                    return (
+                      <li
+                        key={p.id}
+                        onClick={() => {
+                          onPickPurchase(p);
+                          onClose();
+                        }}
+                        className="px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-sidebar-accent/40 transition"
+                      >
+                        <span
+                          className={[
+                            "h-8 w-8 shrink-0 grid place-items-center rounded-lg border border-border bg-sidebar-accent/60",
+                            tone,
+                          ].join(" ")}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-foreground/95 truncate flex items-center gap-1.5">
+                            <ShoppingBag className="h-3 w-3 text-muted-foreground shrink-0" />
+                            {p.title}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {rupiah(p.price_idr)}
+                            {p.cart && p.cart.length > 0
+                              ? ` · ${p.cart.reduce((a, x) => a + x.qty, 0)} key`
+                              : ""}
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider">
+                            <span className={tone}>{purchaseStatusLabel(p.status)}</span>
+                            <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/60" />
+                            <span className="text-muted-foreground">
+                              {formatAgo(new Date(p.updated_at || p.created_at).getTime())}
+                            </span>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            {items.length > 0 && (
+              <div>
+                {purchases.length > 0 && (
+                  <div className="px-4 pt-3 pb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground border-t border-border/50">
+                    Proses generate
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeNotification(n.id);
-                    }}
-                    className="shrink-0 text-muted-foreground/60 hover:text-foreground"
-                    title="Hapus"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                )}
+                <ul className="divide-y divide-border/50">
+                  {items.map((n) => {
+                    const Icon =
+                      n.status === "running"
+                        ? Loader2
+                        : n.status === "done"
+                          ? CheckCircle2
+                          : AlertCircle;
+                    const tone =
+                      n.status === "running"
+                        ? "text-primary"
+                        : n.status === "done"
+                          ? "text-emerald-300"
+                          : "text-rose-300";
+                    const clickable = !!n.route;
+                    return (
+                      <li
+                        key={n.id}
+                        className={[
+                          "px-4 py-3 flex items-start gap-3 transition",
+                          clickable ? "cursor-pointer hover:bg-sidebar-accent/40" : "",
+                          !n.read ? "bg-primary/[0.04]" : "",
+                        ].join(" ")}
+                        onClick={() => {
+                          if (clickable) {
+                            onNavigate(n);
+                            onClose();
+                          }
+                        }}
+                      >
+                        <span
+                          className={[
+                            "h-8 w-8 shrink-0 grid place-items-center rounded-lg border border-border bg-sidebar-accent/60",
+                            tone,
+                          ].join(" ")}
+                        >
+                          <Icon
+                            className={[
+                              "h-4 w-4",
+                              n.status === "running" ? "animate-spin" : "",
+                            ].join(" ")}
+                          />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm text-foreground/95 truncate">{n.label}</div>
+                          {n.detail && (
+                            <div className="text-xs text-muted-foreground truncate">{n.detail}</div>
+                          )}
+                          <div className="mt-1 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                            <span>
+                              {n.status === "running"
+                                ? "Berjalan"
+                                : n.status === "done"
+                                  ? "Selesai"
+                                  : "Gagal"}
+                            </span>
+                            <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/60" />
+                            <span>{formatAgo(n.endedAt ?? n.startedAt)}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeNotification(n.id);
+                          }}
+                          className="shrink-0 text-muted-foreground/60 hover:text-foreground"
+                          title="Hapus"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -276,10 +373,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [pickedPurchase, setPickedPurchase] = useState<PurchaseView | null>(null);
   const navigate = useNavigate();
   const { items: notifs } = useNotifications();
+  const { items: purchases } = usePurchaseFeed();
+  const pendingPurchases = useMemo(
+    () => purchases.filter((p) => p.status === "pending").length,
+    [purchases],
+  );
   const unread = notifs.filter((n) => !n.read).length;
   const running = notifs.filter((n) => n.status === "running").length;
+  const badgeCount = running + pendingPurchases;
 
   // Close drawer on route change
   useEffect(() => {
@@ -388,14 +492,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 aria-label="Notifikasi"
                 className="relative inline-flex h-10 w-10 md:w-auto md:px-3 items-center justify-center gap-2 rounded-full border border-border bg-card/50 text-xs text-foreground/90"
               >
-                <Bell className={["h-4 w-4", running > 0 ? "text-primary" : ""].join(" ")} />
+                <Bell className={["h-4 w-4", badgeCount > 0 ? "text-primary" : ""].join(" ")} />
                 <span className="hidden xl:inline">Notifikasi</span>
-                {(unread > 0 || running > 0) && (
+                {(unread > 0 || badgeCount > 0) && (
                   <span
                     className="absolute -top-1 -right-1 h-5 min-w-5 px-1 grid place-items-center rounded-full text-[10px] font-mono text-primary-foreground"
                     style={{ background: "var(--gradient-neon)" }}
                   >
-                    {running > 0 ? running : unread}
+                    {badgeCount > 0 ? badgeCount : unread}
                   </span>
                 )}
               </button>
@@ -408,10 +512,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                   />
                   <NotifPanel
                     items={notifs}
+                    purchases={purchases}
                     onClose={() => setNotifOpen(false)}
                     onNavigate={(n) => {
                       if (n.route) navigate({ to: n.route });
                     }}
+                    onPickPurchase={(p) => setPickedPurchase(p)}
                   />
                 </>
               )}
@@ -424,6 +530,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </header>
         <div className="p-4 sm:p-6 flex flex-col gap-6">{children}</div>
       </main>
+      {pickedPurchase && (
+        <PurchaseDetailDialog
+          purchase={pickedPurchase}
+          onClose={() => setPickedPurchase(null)}
+        />
+      )}
       <UpgradeDialogHost />
     </div>
   );

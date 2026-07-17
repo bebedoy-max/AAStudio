@@ -28,7 +28,7 @@ function assertProvider(p: string): asserts p is BankProvider {
     throw new Error(`Unknown provider: ${p}`);
 }
 
-const STORAGE_KEY: Record<BankProvider, string> = {
+export const BANK_STORAGE_KEY: Record<BankProvider, string> = {
   brain: "aatools.brain.geminiKeys",
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
@@ -101,7 +101,7 @@ export const listBankInventory = createServerFn({ method: "GET" })
       .select("id, provider, key_value, label, status, assigned_to, assigned_at, created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []) as {
+    const rows = (data ?? []) as {
       id: string;
       provider: BankProvider;
       key_value: string;
@@ -111,6 +111,27 @@ export const listBankInventory = createServerFn({ method: "GET" })
       assigned_at: string | null;
       created_at: string;
     }[];
+    // Attach assigned user info (email + display name) via a batched profiles lookup.
+    const assignedIds = Array.from(
+      new Set(rows.map((r) => r.assigned_to).filter((x): x is string => !!x)),
+    );
+    let byId: Record<string, { email: string | null; display_name: string | null }> = {};
+    if (assignedIds.length) {
+      const { data: profs } = await db
+        .from("profiles")
+        .select("id, email, display_name")
+        .in("id", assignedIds);
+      byId = Object.fromEntries(
+        ((profs ?? []) as { id: string; email: string | null; display_name: string | null }[]).map(
+          (p) => [p.id, { email: p.email, display_name: p.display_name }],
+        ),
+      );
+    }
+    return rows.map((r) => ({
+      ...r,
+      assigned_email: r.assigned_to ? byId[r.assigned_to]?.email ?? null : null,
+      assigned_display_name: r.assigned_to ? byId[r.assigned_to]?.display_name ?? null : null,
+    }));
   });
 
 export const addBankKeys = createServerFn({ method: "POST" })
@@ -131,9 +152,16 @@ export const addBankKeys = createServerFn({ method: "POST" })
       label: data.label,
       created_by: context.userId,
     }));
-    const { error } = await db.from("token_bank_keys").insert(rows);
+    const { data: inserted, error } = await db
+      .from("token_bank_keys")
+      .insert(rows)
+      .select("id, key_value");
     if (error) throw new Error(error.message);
-    return { ok: true, added: rows.length };
+    return {
+      ok: true,
+      added: rows.length,
+      inserted: (inserted ?? []) as { id: string; key_value: string }[],
+    };
   });
 
 export const deleteBankKey = createServerFn({ method: "POST" })
@@ -146,6 +174,39 @@ export const deleteBankKey = createServerFn({ method: "POST" })
     await requireAdmin(context);
     const db = context.supabase as unknown as LooseClient;
     const { error } = await db.from("token_bank_keys").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteBankKeys = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { ids: string[] }) => {
+    if (!Array.isArray(data.ids) || data.ids.length === 0) throw new Error("ids required");
+    return { ids: data.ids.filter(Boolean) };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    const { error } = await db.from("token_bank_keys").delete().in("id", data.ids);
+    if (error) throw new Error(error.message);
+    return { ok: true, deleted: data.ids.length };
+  });
+
+export const deleteAllBankKeys = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { provider: string; includeAssigned?: boolean }) => {
+    assertProvider(data.provider);
+    return {
+      provider: data.provider as BankProvider,
+      includeAssigned: !!data.includeAssigned,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    let q = db.from("token_bank_keys").delete().eq("provider", data.provider);
+    if (!data.includeAssigned) q = q.eq("status", "available");
+    const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -232,12 +293,14 @@ async function deliverKeysToUser(params: {
   kind: "transfer" | "purchase";
   priceIdr: number;
   purchaseRequestId?: string | null;
+  adminDb: LooseClient; // caller's admin-authenticated supabase (RLS-honored)
 }) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const admin = supabaseAdmin as unknown as LooseClient;
   const { encryptString, decryptString } = await import("@/lib/tokens/crypto.server");
+  const adminDb = params.adminDb;
 
-  const { data: keys, error: kErr } = await admin
+  // Read stock via the caller's admin session — the admin has full RLS
+  // access to token_bank_keys (policy: admin-all), so no service role needed.
+  const { data: keys, error: kErr } = await adminDb
     .from("token_bank_keys")
     .select("id, key_value")
     .eq("provider", params.provider)
@@ -252,7 +315,11 @@ async function deliverKeysToUser(params: {
     );
   }
 
-  const storageKey = STORAGE_KEY[params.provider];
+  // user_tokens is scoped to auth.uid() in RLS — cross-user writes need service role.
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as unknown as LooseClient;
+
+  const storageKey = BANK_STORAGE_KEY[params.provider];
   const { data: existing } = await admin
     .from("user_tokens")
     .select("ciphertext")
@@ -288,7 +355,7 @@ async function deliverKeysToUser(params: {
   if (upErr) throw new Error(upErr.message);
 
   const ids = picked.map((k) => k.id);
-  const { error: mkErr } = await admin
+  const { error: mkErr } = await adminDb
     .from("token_bank_keys")
     .update({
       status: "assigned",
@@ -308,7 +375,7 @@ async function deliverKeysToUser(params: {
     purchase_request_id: params.purchaseRequestId ?? null,
     created_by: params.actorUserId,
   }));
-  const { error: txErr } = await admin.from("token_bank_transactions").insert(txRows);
+  const { error: txErr } = await adminDb.from("token_bank_transactions").insert(txRows);
   if (txErr) throw new Error(txErr.message);
 
   return { delivered: picked.length };
@@ -331,8 +398,31 @@ export const transferBankKeys = createServerFn({ method: "POST" })
       actorUserId: context.userId,
       kind: "transfer",
       priceIdr: 0,
+      adminDb: context.supabase as unknown as LooseClient,
     });
   });
+
+const CART_MARKER = "[TOKEN_BANK_CART]";
+function parseCartFromNote(note: string | null | undefined): { provider: BankProvider; qty: number }[] | null {
+  if (!note) return null;
+  const i = note.indexOf(CART_MARKER);
+  if (i < 0) return null;
+  try {
+    const parsed = JSON.parse(note.slice(i + CART_MARKER.length));
+    if (!Array.isArray(parsed)) return null;
+    const out: { provider: BankProvider; qty: number }[] = [];
+    for (const r of parsed) {
+      const p = String(r?.provider ?? "");
+      const q = Math.floor(Number(r?.qty) || 0);
+      if (q <= 0) continue;
+      if (!(PROVIDERS as readonly string[]).includes(p)) continue;
+      out.push({ provider: p as BankProvider, qty: q });
+    }
+    return out.length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
 
 export const fulfillTokenPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -347,7 +437,7 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
 
     const { data: prRaw, error } = await admin
       .from("purchase_requests")
-      .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status")
+      .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note")
       .eq("id", data.purchaseRequestId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -359,11 +449,10 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
       token_qty: number | null;
       price_idr: number;
       status: string;
+      note: string | null;
     } | null;
     if (!pr) throw new Error("Purchase request not found");
     if (pr.request_kind !== "token_bank") return { ok: true, skipped: "not a token_bank request" };
-    if (!pr.token_provider || !pr.token_qty)
-      throw new Error("Request is missing token_provider or token_qty");
 
     const { data: existingTx } = await admin
       .from("token_bank_transactions")
@@ -373,16 +462,35 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
     if (Array.isArray(existingTx) && existingTx.length > 0)
       return { ok: true, skipped: "already fulfilled" };
 
-    await deliverKeysToUser({
-      provider: pr.token_provider as BankProvider,
-      qty: pr.token_qty,
-      targetUserId: pr.user_id,
-      actorUserId: context.userId,
-      kind: "purchase",
-      priceIdr: pr.price_idr,
-      purchaseRequestId: pr.id,
-    });
-    return { ok: true };
+    // Prefer multi-provider cart embedded in note; fall back to legacy
+    // single-provider token_provider/token_qty columns.
+    const cart = parseCartFromNote(pr.note);
+    const items =
+      cart ??
+      (pr.token_provider && pr.token_qty
+        ? [{ provider: pr.token_provider as BankProvider, qty: pr.token_qty }]
+        : null);
+    if (!items || items.length === 0)
+      throw new Error("Request is missing token cart items");
+
+    const totalKeys = items.reduce((a, it) => a + it.qty, 0);
+    const perKeyPrice = totalKeys > 0 ? Math.round(pr.price_idr / totalKeys) : 0;
+    let delivered = 0;
+    for (const it of items) {
+      const r = await deliverKeysToUser({
+        provider: it.provider,
+        qty: it.qty,
+        targetUserId: pr.user_id,
+        actorUserId: context.userId,
+        kind: "purchase",
+        // Attribute price per-key so every transaction row carries a value.
+        priceIdr: perKeyPrice * it.qty,
+        purchaseRequestId: pr.id,
+        adminDb: context.supabase as unknown as LooseClient,
+      });
+      delivered += r.delivered;
+    }
+    return { ok: true, delivered };
   });
 
 export const searchUsersForTransfer = createServerFn({ method: "POST" })
@@ -400,6 +508,85 @@ export const searchUsersForTransfer = createServerFn({ method: "POST" })
       .limit(10);
     if (error) throw new Error(error.message);
     return (rows ?? []) as { id: string; email: string | null; display_name: string | null }[];
+  });
+
+export type BankTxRow = {
+  id: string;
+  provider: BankProvider;
+  kind: string;
+  price_idr: number;
+  created_at: string;
+  user_id: string;
+  key_id: string | null;
+  purchase_request_id: string | null;
+  user_email: string | null;
+  user_display_name: string | null;
+};
+
+export const listBankTransactions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      provider?: string | null;
+      kind?: string | null;
+      userId?: string | null;
+      dateFrom?: string | null;
+      dateTo?: string | null;
+    }) => ({
+      provider: data.provider ?? null,
+      kind: data.kind ?? null,
+      userId: data.userId ?? null,
+      dateFrom: data.dateFrom ?? null,
+      dateTo: data.dateTo ?? null,
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    let q = db
+      .from("token_bank_transactions")
+      .select("id, provider, kind, price_idr, created_at, user_id, key_id, purchase_request_id")
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    if (data.provider) q = q.eq("provider", data.provider);
+    if (data.kind) q = q.eq("kind", data.kind);
+    if (data.userId) q = q.eq("user_id", data.userId);
+    if (data.dateFrom) q = q.gte("created_at", data.dateFrom);
+    if (data.dateTo) q = q.lte("created_at", data.dateTo);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const list = (rows ?? []) as Omit<BankTxRow, "user_email" | "user_display_name">[];
+    const uids = Array.from(new Set(list.map((r) => r.user_id).filter(Boolean)));
+    let byId: Record<string, { email: string | null; display_name: string | null }> = {};
+    if (uids.length) {
+      const { data: profs } = await db
+        .from("profiles")
+        .select("id, email, display_name")
+        .in("id", uids);
+      byId = Object.fromEntries(
+        ((profs ?? []) as { id: string; email: string | null; display_name: string | null }[]).map(
+          (p) => [p.id, { email: p.email, display_name: p.display_name }],
+        ),
+      );
+    }
+    return list.map((r) => ({
+      ...r,
+      user_email: byId[r.user_id]?.email ?? null,
+      user_display_name: byId[r.user_id]?.display_name ?? null,
+    })) as BankTxRow[];
+  });
+
+export const resetBankTransactions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    const { error } = await db
+      .from("token_bank_transactions")
+      .delete()
+      .not("id", "is", null);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const PROVIDER_LABELS: Record<BankProvider, string> = {

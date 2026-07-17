@@ -1,7 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, Save, Plus, Trash2, Send, Eye, EyeOff, Search, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  Save,
+  Plus,
+  Trash2,
+  Send,
+  Eye,
+  EyeOff,
+  Search,
+  RefreshCw,
+  Trash,
+} from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import { useAuth } from "@/lib/auth-context";
@@ -9,12 +22,14 @@ import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { confirmDialog } from "@/components/ui-confirm";
 import {
   BANK_PROVIDERS,
   PROVIDER_LABELS,
   type BankProvider,
   addBankKeys,
   deleteBankKey,
+  deleteAllBankKeys,
   listBankInventory,
   listBankPrices,
   setBankPrice,
@@ -70,6 +85,7 @@ function Gate() {
 
 type InvRow = Awaited<ReturnType<typeof listBankInventory>>[number];
 type PriceRow = Awaited<ReturnType<typeof listBankPrices>>[number];
+const BANK_CHECKS_CACHE_KEY = "aatools.tokenBank.checkInfo.v1";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -80,12 +96,30 @@ function maskKey(k: string) {
   return k.slice(0, 4) + "••••" + k.slice(-4);
 }
 
+function readBankChecksCache(): Record<string, CheckInfo> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(BANK_CHECKS_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, CheckInfo>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeBankChecksCache(next: Record<string, CheckInfo>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(BANK_CHECKS_CACHE_KEY, JSON.stringify(next));
+}
+
 function Body() {
   const [tab, setTab] = useState<BankProvider>("brain");
   const [inventory, setInventory] = useState<InvRow[]>([]);
   const [prices, setPrices] = useState<Record<string, PriceRow>>({});
   const [loading, setLoading] = useState(true);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [checks, setChecks] = useState<Record<string, CheckInfo>>(() => readBankChecksCache());
+  const [checkingAll, setCheckingAll] = useState(false);
+  const [checkProgress, setCheckProgress] = useState<{ done: number; total: number } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -112,9 +146,76 @@ function Body() {
     return g;
   }, [inventory]);
 
-  const currentList = byProvider[tab] ?? [];
-  const available = currentList.filter((r) => r.status === "available").length;
-  const assigned = currentList.filter((r) => r.status === "assigned").length;
+  const allForTab = byProvider[tab] ?? [];
+  const currentList = allForTab.filter((r) => r.status === "available");
+  const available = currentList.length;
+  const assigned = allForTab.length - currentList.length;
+
+  async function checkOne(row: InvRow) {
+    setChecks((s) => ({ ...s, [row.id]: { label: "Cek…", tone: "muted", loading: true } }));
+    const info = await runProviderCheck(row.provider, row.key_value);
+    setChecks((s) => {
+      const next = { ...s, [row.id]: info };
+      writeBankChecksCache(next);
+      return next;
+    });
+    return info;
+  }
+
+  async function runChecks(rows: InvRow[]) {
+    if (rows.length === 0) return;
+    setCheckingAll(true);
+    setCheckProgress({ done: 0, total: rows.length });
+    try {
+      for (let i = 0; i < rows.length; i++) {
+        await checkOne(rows[i]);
+        setCheckProgress({ done: i + 1, total: rows.length });
+      }
+    } finally {
+      setCheckingAll(false);
+      setTimeout(() => setCheckProgress(null), 800);
+    }
+  }
+
+  async function onAdded(insertedIds: string[], preChecks: Record<string, CheckInfo>) {
+    // Reload inventory; use the pre-validated CheckInfo so the table shows
+    // real credit info immediately without a second probe.
+    await load();
+    if (Object.keys(preChecks).length > 0) {
+      setChecks((s) => {
+        const next = { ...s, ...preChecks };
+        writeBankChecksCache(next);
+        return next;
+      });
+    }
+    // Any inserted rows without a preCheck fallback to a single check.
+    setTimeout(async () => {
+      const inv = await listBankInventory();
+      setInventory(inv);
+      const rowsWithoutCheck = inv.filter(
+        (r) => insertedIds.includes(r.id) && !preChecks[r.id],
+      );
+      if (rowsWithoutCheck.length > 0) await runChecks(rowsWithoutCheck);
+    }, 0);
+  }
+
+  async function onDeleteAll() {
+    const availableRows = currentList.filter((r) => r.status === "available");
+    if (availableRows.length === 0) return toast.info("Tidak ada key available untuk dihapus");
+    const ok = await confirmDialog({
+      title: `Hapus semua key ${PROVIDER_LABELS[tab]}?`,
+      description: `${availableRows.length} key available akan dihapus dari bank. Key yang sudah assigned ke user tidak ikut terhapus. Aksi ini tidak dapat dibatalkan.`,
+      confirmLabel: `Hapus ${availableRows.length} key`,
+    });
+    if (!ok) return;
+    try {
+      await deleteAllBankKeys({ data: { provider: tab, includeAssigned: false } });
+      toast.success(`${availableRows.length} key dihapus`);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Gagal hapus");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -144,32 +245,49 @@ function Body() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <AddKeys provider={tab} onDone={load} />
+          <AddKeys provider={tab} onDone={onAdded} progress={checkProgress} />
           <Card>
             <div className="p-4 border-b border-border/60 flex items-center justify-between gap-3">
               <div>
                 <div className="font-display text-lg">{PROVIDER_LABELS[tab]}</div>
                 <div className="text-xs text-muted-foreground">
-                  {available} tersedia · {assigned} sudah dipakai · total {currentList.length}
+                  {available} tersedia · {assigned} sudah tersalur (lihat Laporan Transaksi)
                 </div>
               </div>
-              <button
-                onClick={() => setTransferOpen(true)}
-                disabled={available === 0}
-                className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-                style={{ background: "var(--gradient-neon)" }}
-              >
-                <Send className="h-3.5 w-3.5" /> Transfer ke User
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onDeleteAll}
+                  disabled={available === 0}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/40 bg-rose-500/10 text-rose-300 px-3 py-1.5 text-xs font-semibold hover:bg-rose-500/20 disabled:opacity-40"
+                  title="Hapus semua key available"
+                >
+                  <Trash className="h-3.5 w-3.5" /> Hapus Semua
+                </button>
+                <button
+                  onClick={() => setTransferOpen(true)}
+                  disabled={available === 0}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                  style={{ background: "var(--gradient-neon)" }}
+                >
+                  <Send className="h-3.5 w-3.5" /> Transfer ke User
+                </button>
+              </div>
             </div>
             {loading ? (
               <div className="p-8 grid place-items-center">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
               </div>
             ) : currentList.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">Belum ada key.</div>
+              <div className="p-8 text-center text-sm text-muted-foreground">Tidak ada key tersedia.</div>
             ) : (
-              <KeyList rows={currentList} provider={tab} onDeleted={load} />
+              <KeyList
+                rows={currentList}
+                checks={checks}
+                checkingAll={checkingAll}
+                onCheckOne={checkOne}
+                onCheckAll={() => runChecks(currentList)}
+                onDeleted={load}
+              />
             )}
           </Card>
         </div>
@@ -194,25 +312,123 @@ function Body() {
   );
 }
 
-function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => void }) {
+type AddSummary = {
+  provider: BankProvider;
+  total: number;
+  duplicate: number;
+  invalidFormat: number;
+  probeFailed: number;
+  added: number;
+  addedRows: { key: string; label: string; tone: CheckInfo["tone"] }[];
+  rejectedRows: { key: string; label: string }[];
+};
+
+function AddKeys({
+  provider,
+  onDone,
+  progress,
+}: {
+  provider: BankProvider;
+  onDone: (insertedIds: string[], preChecks: Record<string, CheckInfo>) => void;
+  progress: { done: number; total: number } | null;
+}) {
   const [bulk, setBulk] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checkPct, setCheckPct] = useState<{ done: number; total: number } | null>(null);
+  const [summary, setSummary] = useState<AddSummary | null>(null);
 
   async function submit() {
-    const keys = bulk.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
-    if (keys.length === 0) return toast.error("Isi minimal 1 key");
+    const rawKeys = bulk.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+    if (rawKeys.length === 0) return toast.error("Isi minimal 1 key");
     setBusy(true);
+    setSummary(null);
     try {
-      const r = await addBankKeys({ data: { provider, keys } });
-      toast.success(`+${r.added} key tersimpan`);
-      setBulk("");
-      onDone();
+      // Dedupe against existing inventory for this provider.
+      const inv = await listBankInventory();
+      const existing = new Set(
+        inv.filter((r) => r.provider === provider).map((r) => r.key_value),
+      );
+      const uniq = Array.from(new Set(rawKeys));
+      const duplicate = rawKeys.length - uniq.length + uniq.filter((k) => existing.has(k)).length;
+      const toCheck = uniq.filter((k) => !existing.has(k));
+
+      // Pre-validate every key by hitting the provider's check endpoint before
+      // anything is written to the bank. Only rows with tone !== "bad" are
+      // inserted; the resolved CheckInfo is passed to the caller so the table
+      // shows the real credit info immediately (no "Cek…" step).
+      const preChecks: Record<string, CheckInfo> = {};
+      const accepted: string[] = [];
+      const rejected: { key: string; label: string }[] = [];
+      let invalidFormat = 0;
+      let probeFailed = 0;
+
+      setCheckPct({ done: 0, total: toCheck.length });
+      for (let i = 0; i < toCheck.length; i++) {
+        const k = toCheck[i];
+        const info = await runProviderCheck(provider, k);
+        if (info.tone === "bad") {
+          rejected.push({ key: k, label: info.label });
+          if (info.label.toLowerCase().includes("format") || info.label.toLowerCase().includes("bukan"))
+            invalidFormat++;
+          else probeFailed++;
+        } else {
+          accepted.push(k);
+          preChecks[k] = info;
+        }
+        setCheckPct({ done: i + 1, total: toCheck.length });
+      }
+
+      let insertedIds: string[] = [];
+      let idsByKey: Record<string, string> = {};
+      if (accepted.length > 0) {
+        const r = await addBankKeys({ data: { provider, keys: accepted } });
+        insertedIds = r.inserted.map((x) => x.id);
+        idsByKey = Object.fromEntries(r.inserted.map((x) => [x.key_value, x.id]));
+      }
+
+      // Map preChecks (keyed by key_value) to row-id keyed cache for parent.
+      const idChecks: Record<string, CheckInfo> = {};
+      for (const [k, info] of Object.entries(preChecks)) {
+        const id = idsByKey[k];
+        if (id) idChecks[id] = info;
+      }
+
+      setSummary({
+        provider,
+        total: rawKeys.length,
+        duplicate,
+        invalidFormat,
+        probeFailed,
+        added: accepted.length,
+        addedRows: accepted.map((k) => ({
+          key: k,
+          label: preChecks[k]?.label ?? "OK",
+          tone: preChecks[k]?.tone ?? "muted",
+        })),
+        rejectedRows: rejected,
+      });
+
+      if (accepted.length > 0) {
+        toast.success(`${accepted.length} key valid tersimpan`);
+        setBulk("");
+      } else {
+        toast.error("Tidak ada key valid yang disimpan");
+      }
+      onDone(insertedIds, idChecks);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal simpan");
     } finally {
       setBusy(false);
+      setTimeout(() => setCheckPct(null), 600);
     }
   }
+
+  const pct = progress
+    ? Math.round((progress.done / progress.total) * 100)
+    : checkPct
+      ? Math.round((checkPct.done / Math.max(1, checkPct.total)) * 100)
+      : 0;
+  const activePct = progress ?? checkPct;
 
   return (
     <Card>
@@ -221,7 +437,8 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
           <Plus className="h-4 w-4" /> Tambah key {PROVIDER_LABELS[provider]}
         </div>
         <div className="text-xs text-muted-foreground mt-0.5">
-          1 key per baris. Info sisa credit akan terlihat setelah key tersimpan.
+          1 key per baris. Setiap key <b>dites dulu</b> ke provider — hanya yang valid disimpan ke bank.
+          {provider === "eleven" && " (ElevenLabs: tes suara 1 kata via TTS)"}
         </div>
       </div>
       <div className="p-4 flex flex-col gap-3">
@@ -232,6 +449,22 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
           placeholder={"KEY_1\nKEY_2\n..."}
           className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary/60"
         />
+        {activePct && (
+          <div className="rounded-xl border border-border bg-card/40 p-2.5">
+            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
+              <span>{progress ? "Auto-check key baru" : "Validasi key…"}</span>
+              <span>
+                {activePct.done}/{activePct.total}
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full transition-all"
+                style={{ width: `${pct}%`, background: "var(--gradient-neon)" }}
+              />
+            </div>
+          </div>
+        )}
         <div className="flex justify-end">
           <button
             onClick={submit}
@@ -239,11 +472,103 @@ function AddKeys({ provider, onDone }: { provider: BankProvider; onDone: () => v
             className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             style={{ background: "var(--gradient-neon)" }}
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Simpan
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Cek &amp; Simpan
+          </button>
+        </div>
+        {summary && (
+          <AddSummaryPopup summary={summary} onClose={() => setSummary(null)} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function AddSummaryPopup({ summary, onClose }: { summary: AddSummary; onClose: () => void }) {
+  const rejected = summary.total - summary.added - summary.duplicate;
+  if (typeof document === "undefined") return null;
+  return createPortal((
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="neumorph w-full max-w-md p-5 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-muted-foreground">
+          Ringkasan Import
+        </div>
+        <div className="mt-1 font-display text-xl">
+          {PROVIDER_LABELS[summary.provider]}{" "}
+          <span className="text-gradient">· {summary.added}/{summary.total} valid</span>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-border/60 bg-card/40 divide-y divide-border/50 text-[12.5px]">
+          <RowLine label="Total input" value={summary.total} />
+          <RowLine label="Duplikat (sudah ada)" value={summary.duplicate} tone="muted" />
+          <RowLine label="Format salah" value={summary.invalidFormat} tone={summary.invalidFormat ? "bad" : "muted"} />
+          <RowLine
+            label="Invalid / probe gagal"
+            value={summary.probeFailed}
+            tone={summary.probeFailed ? "bad" : "muted"}
+          />
+          <RowLine label="Berhasil disimpan" value={summary.added} tone="ok" />
+        </div>
+
+        {summary.rejectedRows.length > 0 && (
+          <details className="mt-3">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+              Lihat {rejected} key ditolak
+            </summary>
+            <div className="mt-2 rounded-lg border border-rose-400/30 bg-rose-400/5 p-2 max-h-40 overflow-y-auto text-[11px] font-mono flex flex-col gap-1">
+              {summary.rejectedRows.map((r, i) => (
+                <div key={i} className="flex items-center justify-between gap-2">
+                  <span className="text-rose-300 truncate">{maskKey(r.key)}</span>
+                  <span className="text-rose-300/80 shrink-0">{r.label}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground"
+            style={{ background: "var(--gradient-neon)" }}
+          >
+            OK
           </button>
         </div>
       </div>
-    </Card>
+    </div>
+  ), document.body);
+}
+
+function RowLine({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | string;
+  tone?: "ok" | "warn" | "bad" | "muted";
+}) {
+  const cls =
+    tone === "ok"
+      ? "text-emerald-400"
+      : tone === "warn"
+        ? "text-amber-300"
+        : tone === "bad"
+          ? "text-rose-400"
+          : tone === "muted"
+            ? "text-muted-foreground"
+            : "text-foreground";
+  return (
+    <div className="flex items-center justify-between gap-3 px-3.5 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-semibold font-mono tabular-nums ${cls}`}>{value}</span>
+    </div>
   );
 }
 
@@ -253,8 +578,17 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
   try {
     switch (provider) {
       case "weavy": {
+        // Weavy refresh token: string panjang (biasanya >200 char, prefix AMf-/AEu-).
+        const isWeavyFormat = key.length >= 100 && /^[A-Za-z0-9_-]+$/.test(key);
         const r = await checkWeavyToken(key);
-        if (!r.ok) return { label: "Invalid / expired", tone: "bad" };
+        if (!r.ok) {
+          // Probe Firebase kadang gagal transient (rate-limit / CORS / refresh token
+          // baru saja dipakai di Token Manager). Jangan hanguskan batch — tetap simpan
+          // kalau formatnya benar, admin bisa "Cek ulang" nanti dari tabel.
+          return isWeavyFormat
+            ? { label: "Belum tervalidasi (simpan)", tone: "warn" }
+            : { label: "Format tidak dikenal", tone: "bad" };
+        }
         if (r.credits == null) return { label: r.email ?? "OK · credits ?", tone: "warn" };
         return {
           label: `${r.credits} cr${r.email ? ` · ${r.email}` : ""}`,
@@ -268,9 +602,21 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
         return { label: `$${b.toFixed(2)}`, tone: b <= 0 ? "bad" : b < 1 ? "warn" : "ok" };
       }
       case "eleven": {
+        // ElevenLabs API key: sk_ + 40..80 hex.
+        const isElevenFormat = /^sk_[a-f0-9]{40,80}$/i.test(key);
         const r = await checkElevenKey(key);
-        if (!r.ok) return { label: "Invalid key", tone: "bad" };
-        const rem = r.remaining ?? 0;
+        if (!r.ok) {
+          // Endpoint /v1/user/subscription & TTS probe kadang 401 walau key valid
+          // (scope terbatas, voice default tidak diizinkan). Konsisten dg flow
+          // "Tes suara" di Token Manager: kalau format benar, tetap simpan.
+          return isElevenFormat
+            ? { label: "Belum tervalidasi (simpan)", tone: "warn" }
+            : { label: "Bukan format sk_…", tone: "bad" };
+        }
+        if (r.remaining == null) {
+          return { label: `Aktif${r.tier ? ` · ${r.tier}` : ""}`, tone: "ok" };
+        }
+        const rem = r.remaining;
         return {
           label: `${rem.toLocaleString("id-ID")} chars${r.tier ? ` · ${r.tier}` : ""}`,
           tone: rem <= 0 ? "bad" : rem < 500 ? "warn" : "ok",
@@ -280,11 +626,29 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
         const r = await checkMagnificKey(key);
         return r.ok ? { label: "Tersimpan (no probe)", tone: "muted" } : { label: "Invalid", tone: "bad" };
       }
-      case "brain":
-        return {
-          label: /^AIza[0-9A-Za-z_-]{35}$/.test(key) ? "Format Gemini OK" : "Bukan format AIza…",
-          tone: /^AIza[0-9A-Za-z_-]{35}$/.test(key) ? "ok" : "bad",
-        };
+      case "brain": {
+        const isAIza = /^AIza[0-9A-Za-z_-]{20,}$/.test(key);
+        const isAQ = /^AQ\.[A-Za-z0-9_-]{20,}$/.test(key);
+        if (!isAIza && !isAQ) return { label: "Bukan format AIza…/AQ…", tone: "bad" };
+        // Probe both AIza dan AQ. lewat endpoint models — sama seperti flow
+        // di Token Manager user, sehingga info status konsisten.
+        try {
+          const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
+          );
+          if (r.ok) {
+            const data = (await r.json().catch(() => ({}))) as { models?: unknown[] };
+            const n = Array.isArray(data.models) ? data.models.length : 0;
+            return { label: n > 0 ? `OK · ${n}+ model tersedia` : "Aktif", tone: "ok" };
+          }
+          if (r.status === 429) return { label: "Rate-limited", tone: "warn" };
+          if (r.status === 401 || r.status === 403 || r.status === 400)
+            return { label: "Key ditolak", tone: "bad" };
+          return { label: `HTTP ${r.status}`, tone: "bad" };
+        } catch {
+          return { label: "Gagal cek jaringan", tone: "bad" };
+        }
+      }
       case "shotstack":
       case "creatomate":
         return { label: "Tersimpan", tone: "muted" };
@@ -304,35 +668,34 @@ function toneClass(t: CheckInfo["tone"]) {
         : "text-muted-foreground border-border bg-muted/10";
 }
 
-function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: BankProvider; onDeleted: () => void }) {
+function KeyList({
+  rows,
+  checks,
+  checkingAll,
+  onCheckOne,
+  onCheckAll,
+  onDeleted,
+}: {
+  rows: InvRow[];
+  checks: Record<string, CheckInfo>;
+  checkingAll: boolean;
+  onCheckOne: (row: InvRow) => Promise<CheckInfo>;
+  onCheckAll: () => Promise<void>;
+  onDeleted: () => void;
+}) {
   const [reveal, setReveal] = useState<Record<string, boolean>>({});
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [checks, setChecks] = useState<Record<string, CheckInfo>>({});
-  const [checkingAll, setCheckingAll] = useState(false);
 
-  async function checkOne(row: InvRow) {
-    setChecks((s) => ({ ...s, [row.id]: { label: "Cek…", tone: "muted", loading: true } }));
-    const info = await runProviderCheck(provider, row.key_value);
-    setChecks((s) => ({ ...s, [row.id]: info }));
-  }
-
-  async function checkAll() {
-    setCheckingAll(true);
+  async function del(row: InvRow) {
+    const ok = await confirmDialog({
+      title: "Hapus key ini dari bank?",
+      description: `Key ${maskKey(row.key_value)} akan dihapus permanen dari inventory.`,
+      confirmLabel: "Hapus key",
+    });
+    if (!ok) return;
+    setDeleting(row.id);
     try {
-      for (const r of rows) {
-        // sequential to avoid provider rate limits
-        await checkOne(r);
-      }
-    } finally {
-      setCheckingAll(false);
-    }
-  }
-
-  async function del(id: string) {
-    if (!confirm("Hapus key ini dari bank?")) return;
-    setDeleting(id);
-    try {
-      await deleteBankKey({ data: { id } });
+      await deleteBankKey({ data: { id: row.id } });
       onDeleted();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal hapus");
@@ -345,7 +708,7 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
     <div className="overflow-x-auto">
       <div className="px-4 pt-3 flex justify-end">
         <button
-          onClick={checkAll}
+          onClick={onCheckAll}
           disabled={checkingAll || rows.length === 0}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-sidebar-accent/40 disabled:opacity-50"
         >
@@ -358,14 +721,14 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
           <tr className="border-b border-border/60">
             <th className="px-4 py-2">Key</th>
             <th className="px-4 py-2">Info Sisa Credit</th>
-            <th className="px-4 py-2">Status</th>
+            <th className="px-4 py-2">Status / Penerima</th>
             <th className="px-4 py-2">Ditambahkan</th>
             <th className="px-4 py-2 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-b border-border/40 hover:bg-sidebar-accent/20">
+            <tr key={r.id} className="border-b border-border/40 hover:bg-sidebar-accent/20 align-top">
               <td className="px-4 py-2 font-mono text-xs">
                 {reveal[r.id] ? r.key_value : maskKey(r.key_value)}
                 <button
@@ -389,7 +752,7 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
                   </span>
                 ) : (
                   <button
-                    onClick={() => checkOne(r)}
+                    onClick={() => onCheckOne(r)}
                     className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-border bg-card/50 hover:bg-sidebar-accent/40"
                   >
                     <RefreshCw className="h-3 w-3" /> Cek
@@ -407,13 +770,28 @@ function KeyList({ rows, provider, onDeleted }: { rows: InvRow[]; provider: Bank
                 >
                   {r.status}
                 </span>
+                {r.status === "assigned" && (
+                  <div className="mt-1 text-[11px] leading-tight">
+                    <div className="text-foreground/85 truncate max-w-[220px]">
+                      {r.assigned_display_name || "—"}
+                    </div>
+                    <div className="text-muted-foreground truncate max-w-[220px]">
+                      {r.assigned_email || r.assigned_to?.slice(0, 8) + "…"}
+                    </div>
+                    {r.assigned_at && (
+                      <div className="text-[10px] text-muted-foreground/80 font-mono">
+                        {new Date(r.assigned_at).toLocaleDateString("id-ID")}
+                      </div>
+                    )}
+                  </div>
+                )}
               </td>
               <td className="px-4 py-2 text-xs text-muted-foreground">
                 {new Date(r.created_at).toLocaleDateString("id-ID")}
               </td>
               <td className="px-4 py-2 text-right">
                 <button
-                  onClick={() => del(r.id)}
+                  onClick={() => del(r)}
                   disabled={deleting === r.id}
                   className="inline-flex items-center gap-1 rounded-full border border-rose-400/40 text-rose-300 px-2.5 py-1 text-xs hover:bg-rose-500/10 disabled:opacity-50"
                 >

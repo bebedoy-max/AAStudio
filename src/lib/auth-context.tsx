@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Pull encrypted per-user tokens (API keys) from Supabase into localStorage
     // so users don't need to re-enter them on new devices.
-    void syncTokensForUser(uid);
+    void syncTokensForUser(uid, { force: true });
   }, []);
 
   useEffect(() => {
@@ -335,12 +335,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     const onFocus = () => {
       markActive();
+      void syncTokensForUser(uid, { force: true });
       void runIdleAndVerify();
     };
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         // User baru balik — reset timer idle supaya tidak langsung ke-logout.
         markActive();
+        void syncTokensForUser(uid, { force: true });
         void runIdleAndVerify();
       }
     };

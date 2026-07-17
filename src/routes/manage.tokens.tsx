@@ -7,7 +7,8 @@ import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
-import { pushTokenAsync, ALLOWED_TOKEN_KEYS } from "@/lib/tokens/sync";
+import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
+import { useAuth } from "@/lib/auth-context";
 import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
@@ -123,6 +124,7 @@ const readJSON = <T,>(k: string, fallback: T): T => {
   }
 };
 const SYNCED_KEYS: ReadonlySet<string> = new Set(ALLOWED_TOKEN_KEYS);
+const TOKEN_SYNC_EVENTS = ["aatools:tokens-synced", "aatools:keys-changed", "storage"] as const;
 const writeJSON = (k: string, v: unknown) => {
   if (typeof window === "undefined") return;
   const serialized = JSON.stringify(v);
@@ -138,20 +140,69 @@ const writeJSON = (k: string, v: unknown) => {
 };
 
 function TokensPage() {
+  const { user, loading } = useAuth();
   const [tab, setTab] = useState<ProviderKey>("brain");
   const active = providers.find((p) => p.key === tab)!;
   const [showImport, setShowImport] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [syncTick, setSyncTick] = useState(0);
-  // Default: tampilan ringkas — user klik "View" untuk buka detail key.
-  const [showKeys, setShowKeys] = useState(false);
+  // Default: pane terbuka (user langsung bisa input & lihat sisa credit di
+  // tabel). Auto-collapse hanya ketika user pertama kali buka sebuah tab yang
+  // sudah punya >10 key — di kasus itu view dikecilkan agar tidak overwhelming
+  // sampai user manual klik View.
+  const [showKeys, setShowKeys] = useState(true);
   const [buyOpen, setBuyOpen] = useState(false);
 
   useEffect(() => {
     const onSynced = () => setSyncTick((n) => n + 1);
-    window.addEventListener("aatools:tokens-synced", onSynced);
-    return () => window.removeEventListener("aatools:tokens-synced", onSynced);
+    for (const ev of TOKEN_SYNC_EVENTS) window.addEventListener(ev, onSynced);
+    return () => {
+      for (const ev of TOKEN_SYNC_EVENTS) window.removeEventListener(ev, onSynced);
+    };
   }, []);
+
+  // On tab change: collapse only when the current tab has more than 10 keys.
+  useEffect(() => {
+    let n = 0;
+    try {
+      const key =
+        tab === "brain"
+          ? LS.brain
+          : tab === "weavy"
+            ? LS.weavy
+            : tab === "wavespeed"
+              ? LS.wavespeed
+              : tab === "magnific"
+                ? LS.magnific
+                : tab === "eleven"
+                  ? LS.eleven
+                  : LS.shotstack;
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) n = parsed.length;
+        else if (parsed && Array.isArray(parsed.keys)) n = parsed.keys.length;
+      }
+      if (tab === "render") {
+        const ss = JSON.parse(localStorage.getItem(LS.shotstack) ?? "[]");
+        const cm = JSON.parse(localStorage.getItem(LS.creatomate) ?? "[]");
+        n = (Array.isArray(ss) ? ss.length : 0) + (Array.isArray(cm) ? cm.length : 0);
+      }
+    } catch {
+      /* ignore */
+    }
+    setShowKeys(n <= 10);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  useEffect(() => {
+    if (loading || !user?.id) return;
+    void syncTokensForUser(user.id, { force: true });
+    const refreshRemoteTokens = window.setInterval(() => {
+      void syncTokensForUser(user.id, { force: true });
+    }, 20_000);
+    return () => window.clearInterval(refreshRemoteTokens);
+  }, [loading, user?.id]);
 
   const paneKey = `${tab}-${syncTick}`;
 
@@ -516,6 +567,27 @@ function BrainPane() {
     const savedChecks = readJSON<BrainKeyStatus[]>(LS.brainChecks, []).filter((c) => keys.includes(c.key));
     setChecks(savedChecks);
     setStatus(keys.length ? `${keys.length} key tersimpan` : "Belum ada key");
+    // Auto-check key yang belum punya status (mis. baru saja ditransfer dari
+    // admin) supaya info sisa credit langsung tampil di baris tabel — sama
+    // seperti flow saat user manual input.
+    const uncheckedKeys = keys.filter((k) => !savedChecks.some((c) => c.key === k));
+    if (uncheckedKeys.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const results: BrainKeyStatus[] = [...savedChecks];
+      for (const k of uncheckedKeys) {
+        if (cancelled) return;
+        const r = await checkGeminiKey(k);
+        results.push(r);
+        if (!cancelled) {
+          writeJSON(LS.brainChecks, results);
+          setChecks([...results]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Persist checks so status survives tab switches / remounts.
@@ -728,14 +800,53 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
-    setList(readJSON<WeavyTok[]>(LS.weavy, []));
+    const initial = readJSON<WeavyTok[]>(LS.weavy, []);
+    setList(initial);
     setActiveId(readJSON<string | null>(LS.active, null));
     const onStore = () => {
       setList(readJSON<WeavyTok[]>(LS.weavy, []));
       setActiveId(readJSON<string | null>(LS.active, null));
     };
     window.addEventListener("storage", onStore);
-    return () => window.removeEventListener("storage", onStore);
+    // Auto-check token yang credits masih null / pending (mis. baru transfer
+    // dari admin) supaya sisa credit langsung tampil.
+    const pending = initial.filter((t) => t.credits === null || t.status === "pending");
+    let cancelled = false;
+    if (pending.length > 0) {
+      (async () => {
+        let working = [...initial];
+        for (const t of pending) {
+          if (cancelled) return;
+          try {
+            const res = await checkWeavyToken(t.token);
+            const updated: WeavyTok = res.ok
+              ? {
+                  ...t,
+                  email: res.email ?? t.email,
+                  credits: res.credits,
+                  status:
+                    res.credits === null
+                      ? "pending"
+                      : res.credits >= MIN_WEAVY_CREDITS
+                        ? "active"
+                        : "empty",
+                }
+              : { ...t, status: "failed", credits: null };
+            working = working.map((x) => (x.id === t.id ? updated : x));
+            if (!cancelled) {
+              writeJSON(LS.weavy, working);
+              setList(working);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      })();
+    }
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", onStore);
+    };
   }, []);
 
   // Silent auto-check every 30 minutes: refresh credits, rotate away from
@@ -1096,7 +1207,45 @@ function ProviderKeyPane({
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
   const showSummary = useSummaryDialog();
 
-  useEffect(() => setList(readJSON<SimpleKey[]>(lsKey, [])), [lsKey]);
+  useEffect(() => {
+    const initial = readJSON<SimpleKey[]>(lsKey, []);
+    setList(initial);
+    // Auto-probe key yang balance null / status pending (mis. baru saja
+    // ditransfer oleh admin dari Token Bank) supaya sisa saldo langsung tampil.
+    const pending = initial.filter((x) => x.balance === null || x.status === "pending");
+    if (pending.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      let working = [...initial];
+      for (const x of pending) {
+        if (cancelled) return;
+        try {
+          let updated: SimpleKey;
+          if (provider === "wavespeed") {
+            const res = await checkWavespeedBalance(x.key);
+            updated = {
+              ...x,
+              balance: res.balance,
+              status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
+            };
+          } else {
+            const res = await checkMagnificKey(x.key);
+            updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
+          }
+          working = working.map((y) => (y.id === x.id ? updated : y));
+          if (!cancelled) {
+            writeJSON(lsKey, working);
+            setList(working);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lsKey, provider]);
   const persist = (next: SimpleKey[]) => {
     setList(next);
     writeJSON(lsKey, next);
@@ -1366,6 +1515,36 @@ function ElevenPane() {
     setCfg(migrated);
     const savedStatuses = readJSON<ElevenKeyStatus[]>(LS.elevenChecks, []).filter((s) => migrated.keys.includes(s.key));
     setKeyStatuses(savedStatuses);
+    // Auto-check key yang belum punya status tersimpan (mis. baru dikirim
+    // admin) — jalankan tes suara 1 kata via checkElevenKey.
+    const unchecked = migrated.keys.filter((k) => !savedStatuses.some((s) => s.key === k));
+    if (unchecked.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const results: ElevenKeyStatus[] = [...savedStatuses];
+      for (const k of unchecked) {
+        if (cancelled) return;
+        const r = await checkElevenKey(k);
+        const canUse = r.ok && (r.remaining === null || r.remaining >= MIN_ELEVEN_CREDITS);
+        results.push({
+          key: k,
+          ok: canUse,
+          remaining: r.remaining,
+          limit: r.characterLimit,
+          tier: r.tier,
+          method: r.method,
+          note: r.note,
+          reason: !r.ok ? "tes suara gagal" : !canUse ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
+        });
+        if (!cancelled) {
+          writeJSON(LS.elevenChecks, results);
+          setKeyStatuses([...results]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Persist statuses so "Valid via tes suara" survives tab switch / remount.

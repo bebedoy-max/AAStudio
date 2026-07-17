@@ -37,6 +37,7 @@ import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.
 import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
+import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
@@ -64,6 +65,7 @@ import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
+import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -205,6 +207,11 @@ const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
+const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
   id: '/token-bank',
   path: '/token-bank',
@@ -342,6 +349,12 @@ const ApiPublicClipperBrainRoute = ApiPublicClipperBrainRouteImport.update({
   path: '/api/public/clipper-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMidtransNotificationRoute =
+  ApiPublicMidtransNotificationRouteImport.update({
+    id: '/api/public/midtrans/notification',
+    path: '/api/public/midtrans/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -353,6 +366,7 @@ export interface FileRoutesByFullPath {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -399,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -408,6 +423,7 @@ export interface FileRoutesByTo {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -454,6 +470,7 @@ export interface FileRoutesByTo {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -466,6 +483,7 @@ export interface FileRoutesById {
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
+  '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -512,6 +530,7 @@ export interface FileRoutesById {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -525,6 +544,7 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
+    | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -571,6 +591,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/midtrans/notification'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -580,6 +601,7 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
+    | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -626,6 +648,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/midtrans/notification'
   id:
     | '__root__'
     | '/'
@@ -637,6 +660,7 @@ export interface FileRouteTypes {
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
+    | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -683,6 +707,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/midtrans/notification'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -727,6 +752,7 @@ export interface RootRouteChildren {
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
   ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
+  ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -927,6 +953,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
+    '/admin/transactions': {
+      id: '/admin/transactions'
+      path: '/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/token-bank': {
       id: '/admin/token-bank'
       path: '/token-bank'
@@ -1116,6 +1149,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicClipperBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/midtrans/notification': {
+      id: '/api/public/midtrans/notification'
+      path: '/api/public/midtrans/notification'
+      fullPath: '/api/public/midtrans/notification'
+      preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1124,6 +1164,7 @@ interface AdminRouteChildren {
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminTokenBankRoute: typeof AdminTokenBankRoute
+  AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -1132,6 +1173,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminTokenBankRoute: AdminTokenBankRoute,
+  AdminTransactionsRoute: AdminTransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -1216,6 +1258,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
   ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
+  ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
