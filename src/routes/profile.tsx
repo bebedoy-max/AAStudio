@@ -6,6 +6,8 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activity/log";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyUserTags } from "@/lib/admin/users.functions";
 
 
 export const Route = createFileRoute("/profile")({
@@ -31,6 +33,15 @@ function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   const [uploading, setUploading] = useState(false);
+  const [tags, setTags] = useState<("vip" | "vvip")[]>([]);
+  const fetchTags = useServerFn(getMyUserTags);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchTags()
+      .then((t) => setTags(t as ("vip" | "vvip")[]))
+      .catch(() => {});
+  }, [user, fetchTags]);
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? "");
@@ -165,6 +176,23 @@ function ProfilePage() {
               {isAdmin ? <ShieldCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />}
               {roleLabel}
             </div>
+            {tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                {tags.map((t) => (
+                  <span
+                    key={t}
+                    className={[
+                      "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                      t === "vvip"
+                        ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+                        : "border-fuchsia-400/50 text-fuchsia-200 bg-fuchsia-500/10",
+                    ].join(" ")}
+                  >
+                    <Crown className="h-2.5 w-2.5" /> {t}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <label className="mt-4 w-full">
               <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1 text-left">

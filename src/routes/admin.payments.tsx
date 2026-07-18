@@ -19,6 +19,7 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
 
 export const Route = createFileRoute("/admin/payments")({
   head: () => ({
@@ -66,7 +67,7 @@ function Gate() {
   return (
     <div className="flex flex-col gap-4">
       <PricesSection />
-      <MethodsSection />
+      <PaymentGatewaysSection />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, ShieldCheck, Search, RefreshCw } from "lucide-react";
+import { Loader2, ShieldCheck, Search, RefreshCw, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -79,6 +79,7 @@ function Body() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [limit] = useState(500);
+  const [exportOpen, setExportOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -128,6 +129,104 @@ function Body() {
     });
   }, [rows, profiles, userFilter]);
 
+  function fileStamp() {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+  function activeFilterSummary() {
+    const parts: string[] = [];
+    if (category) parts.push(`kategori=${category}`);
+    if (actionFilter.trim()) parts.push(`aksi~${actionFilter.trim()}`);
+    if (userFilter.trim()) parts.push(`user~${userFilter.trim()}`);
+    if (from) parts.push(`from=${from}`);
+    if (to) parts.push(`to=${to}`);
+    return parts.length ? parts.join(" · ") : "semua data";
+  }
+  function rowsAsTable() {
+    return filtered.map((r) => {
+      const p = r.user_id ? profiles[r.user_id] : null;
+      return {
+        waktu: new Date(r.created_at).toLocaleString("id-ID", {
+          dateStyle: "short",
+          timeStyle: "medium",
+        }),
+        nama: p?.display_name || "",
+        email: p?.email || r.user_id || "",
+        kategori: r.category,
+        aksi: r.action,
+        detail: r.details ? JSON.stringify(r.details) : "",
+      };
+    });
+  }
+  function download(name: string, mime: string, content: string | Blob) {
+    const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function exportCSV() {
+    const table = rowsAsTable();
+    const headers = ["Waktu", "Nama", "Email/User", "Kategori", "Aksi", "Detail"];
+    const esc = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [headers.map(esc).join(",")];
+    for (const r of table) {
+      lines.push([r.waktu, r.nama, r.email, r.kategori, r.aksi, r.detail].map(esc).join(","));
+    }
+    download(`log-aktivitas-${fileStamp()}.csv`, "text/csv;charset=utf-8", "\uFEFF" + lines.join("\n"));
+    setExportOpen(false);
+  }
+  function exportTXT() {
+    const table = rowsAsTable();
+    const head = `Log Aktivitas — filter: ${activeFilterSummary()}\nTotal: ${table.length} entri\n${"=".repeat(72)}\n\n`;
+    const body = table
+      .map(
+        (r) =>
+          `[${r.waktu}]\n  User    : ${r.nama} <${r.email}>\n  Kategori: ${r.kategori}\n  Aksi    : ${r.aksi}\n  Detail  : ${r.detail || "—"}`,
+      )
+      .join("\n\n");
+    download(`log-aktivitas-${fileStamp()}.txt`, "text/plain;charset=utf-8", head + body);
+    setExportOpen(false);
+  }
+  function exportPDF() {
+    const table = rowsAsTable();
+    const rowsHtml = table
+      .map(
+        (r) =>
+          `<tr><td>${r.waktu}</td><td><b>${r.nama || "—"}</b><br/><span class="muted">${r.email}</span></td><td>${r.kategori}</td><td>${r.aksi}</td><td class="detail">${(r.detail || "—").replace(/</g, "&lt;")}</td></tr>`,
+      )
+      .join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>Log Aktivitas</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111;margin:24px}
+h1{margin:0 0 4px;font-size:18px}
+.meta{color:#555;font-size:11px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}
+th{background:#f2f2f2}
+.muted{color:#666;font-size:10px}
+.detail{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;word-break:break-word;max-width:340px}
+@media print{@page{size:A4 landscape;margin:12mm}}
+</style></head><body>
+<h1>Log Aktivitas</h1>
+<div class="meta">Filter: ${activeFilterSummary()} · Total: ${table.length} entri · Dicetak ${new Date().toLocaleString("id-ID")}</div>
+<table><thead><tr><th>Waktu</th><th>User</th><th>Kategori</th><th>Aksi</th><th>Detail</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="5" style="text-align:center;padding:24px;color:#666">Tidak ada data.</td></tr>'}</tbody></table>
+<script>window.onload=()=>{setTimeout(()=>window.print(),200);}</script>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    setExportOpen(false);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -170,13 +269,40 @@ function Body() {
             onChange={(e) => setTo(e.target.value)}
             className="rounded-full border border-border bg-card/50 px-3 py-2 text-sm"
           />
-          <button
-            onClick={load}
-            className="md:col-span-6 inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--gradient-neon)" }}
-          >
-            <RefreshCw className="h-4 w-4" /> Terapkan filter
-          </button>
+          <div className="md:col-span-6 flex flex-wrap items-center gap-2">
+            <button
+              onClick={load}
+              className="flex-1 min-w-[12rem] inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
+              style={{ background: "var(--gradient-neon)" }}
+            >
+              <RefreshCw className="h-4 w-4" /> Terapkan filter
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen((v) => !v)}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card/50 px-4 py-2 text-sm hover:bg-sidebar-accent/60"
+                title={`Unduh ${filtered.length} entri sesuai filter`}
+              >
+                <Download className="h-4 w-4" /> Unduh ({filtered.length})
+              </button>
+              {exportOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setExportOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 z-40 w-56 neumorph p-1">
+                    <button onClick={exportCSV} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-sidebar-accent/60">
+                      Excel / CSV (.csv)
+                    </button>
+                    <button onClick={exportPDF} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-sidebar-accent/60">
+                      PDF (print)
+                    </button>
+                    <button onClick={exportTXT} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-sidebar-accent/60">
+                      Teks (.txt)
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </Card>
 

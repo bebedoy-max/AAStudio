@@ -1,103 +1,125 @@
-# Token Bank & Token Manager View Toggle
-
 ## Ringkasan
-- Admin punya menu baru **Token Bank** untuk menyetok API key per provider, mengatur harga, mentransfer ke user, dan meng-approve pembelian.
-- User bisa membeli token dari Token Bank lewat alur checkout yang sudah ada (upload bukti transfer → admin approve → key otomatis masuk ke Token Manager user).
-- Token Manager: setiap panel provider mendapat tombol **View** (default sembunyi) supaya panel ringkas walau banyak key.
+Tambah 3 fitur besar di area admin & profile:
+1. Info **login terakhir** + hitung **total API key aktif** di menu Manajemen User.
+2. Dialog Kelola User: assign **tag VIP/VVIP** (many-to-many), tampil sebagai badge di halaman Profile user.
+3. Menu **Metode Pembayaran** jadi Payment Gateway Manager: admin bisa menambah/mengubah konfigurasi gateway (Midtrans full integrasi, provider lain simpan config + test koneksi saja).
 
-## Perubahan UI
+---
 
-### 1. Token Manager (`/manage/tokens`)
-- Semua panel (Brain, Weavy, Wavespeed, Magnific, Eleven, Render) default hanya menampilkan ringkasan (jumlah key, status). Tombol "View (n)" untuk expand daftar key.
-- Tambah tombol "Beli Token dari Bank" di header → membuka dialog katalog Token Bank.
+## 1. Login terakhir + total API key aktif
 
-### 2. Sidebar
-- Admin group tambah: **Token Bank** → `/admin/token-bank`.
+**Server function baru** `src/lib/admin/users.functions.ts`:
+- `listUsersWithStats()` → admin-only, gabungkan:
+  - `auth.users.last_sign_in_at` (via `supabaseAdmin.auth.admin.listUsers`)
+  - `admin_user_token_counts()` (sudah ada) → `tokens_count + bank_keys_count = total_active_keys`
+- Otorisasi: verifikasi caller `has_role('admin')` dulu pakai `context.supabase` sebelum load `supabaseAdmin`.
 
-### 3. Halaman Admin `/admin/token-bank` (baru)
-Tab per provider. Setiap tab:
-- Form tambah key (bulk, 1 per baris) + label opsional.
-- Tabel stok: label, key (masked/reveal), status (available/assigned), tombol Delete / Transfer.
-- Panel harga: input harga per key (IDR), toggle aktif.
-- Dialog Transfer: pilih user (search email) → 1 klik pindahkan 1 key.
-- Tab "Riwayat" transaksi.
+**UI** `src/routes/admin.index.tsx`:
+- Kolom baru: "Login terakhir" (relative time), "API Key Aktif" (angka total dengan tooltip breakdown per provider bila hover — data breakdown dari fungsi yang sama).
 
-### 4. Dialog Beli Token (user)
-Reuse pola `checkout-dialog`:
-- Katalog: hanya provider dengan `is_active=true`, `stok>0`, `harga>0`.
-- User pilih provider + qty, isi metode pembayaran + upload bukti → buat `purchase_request` bertype `token_bank`.
-- Setelah admin approve di `/admin/requests`, sistem otomatis pull N key available dari `token_bank_keys`, mark `assigned`, append ke `user_tokens` (encrypted).
+---
 
-## Perubahan DB (migration)
+## 2. Badge VIP / VVIP (user_tags many-to-many)
 
+**Migration** `supabase/migrations/…_user_tags.sql`:
 ```sql
-CREATE TYPE public.bank_provider AS ENUM
-  ('brain','weavy','wavespeed','magnific','eleven','shotstack','creatomate');
-
-CREATE TABLE public.token_bank_keys (
+CREATE TABLE public.user_tags (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider bank_provider NOT NULL,
-  key_value text NOT NULL,      -- disimpan plaintext di tabel admin-only (RLS ketat)
-  label text,
-  status text NOT NULL DEFAULT 'available',  -- available|assigned|disabled
-  assigned_to uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  assigned_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  tag text NOT NULL CHECK (tag IN ('vip','vvip')),
+  assigned_by uuid REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, tag)
 );
+GRANT SELECT ON public.user_tags TO authenticated;
+GRANT ALL ON public.user_tags TO service_role;
+ALTER TABLE public.user_tags ENABLE ROW LEVEL SECURITY;
+-- SELECT: user lihat tag miliknya, admin lihat semua
+-- ALL:  admin only
+```
+Extensible untuk tag lain nanti (mis. `beta`, `staff`) — CHECK constraint bisa diperluas.
 
-CREATE TABLE public.token_bank_prices (
-  provider bank_provider PRIMARY KEY,
-  price_idr integer NOT NULL DEFAULT 0,
+**Server fn**: `assignUserTag`, `removeUserTag`, `listMyTags`.
+
+**UI**:
+- Dialog Kelola User (di `admin.index.tsx`): section "Label", checkbox VIP / VVIP.
+- `src/components/user-tag-badge.tsx` — badge gradient (VIP emas, VVIP ungu-emas).
+- `src/routes/profile.tsx`: tampilkan badge di header profile bila user punya tag.
+
+---
+
+## 3. Payment Gateway Manager
+
+Rombak `src/routes/admin.payments.tsx` yang sekarang hanya untuk metode statis (QRIS/bank/e-wallet upload logo) → jadi **Payment Gateway Settings**.
+
+**Migration** `…_payment_gateways.sql`:
+```sql
+CREATE TABLE public.payment_gateways (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider text NOT NULL,          -- 'midtrans' | 'xendit' | 'doku' | ...
+  label text NOT NULL,             -- nama tampilan
+  environment text NOT NULL DEFAULT 'sandbox',  -- sandbox | production
   is_active boolean NOT NULL DEFAULT true,
+  config_ciphertext text NOT NULL, -- JSON parameter, dienkripsi AES-GCM
+  last_test_at timestamptz,
+  last_test_status text,           -- ok | failed
+  last_test_message text,
+  created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
-
-CREATE TABLE public.token_bank_transactions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  key_id uuid REFERENCES public.token_bank_keys(id) ON DELETE SET NULL,
-  provider bank_provider NOT NULL,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  kind text NOT NULL,           -- 'transfer' | 'purchase'
-  price_idr integer NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id)
-);
-
-ALTER TABLE public.purchase_requests
-  ADD COLUMN IF NOT EXISTS request_kind text NOT NULL DEFAULT 'subscription',
-  ADD COLUMN IF NOT EXISTS token_provider bank_provider,
-  ADD COLUMN IF NOT EXISTS token_qty integer;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.payment_gateways TO authenticated;
+GRANT ALL ON public.payment_gateways TO service_role;
+ALTER TABLE public.payment_gateways ENABLE ROW LEVEL SECURITY;
+-- Admin ALL; authenticated SELECT hanya (provider, label, is_active, environment) via view atau kolom terpilih di RLS.
 ```
-GRANTs: token_bank_keys & transactions → `authenticated` (RLS admin-only). token_bank_prices → `SELECT TO authenticated` (semua user melihat harga), `ALL` admin. Semua tabel `service_role` ALL.
+Ciphertext pakai helper `src/lib/tokens/crypto.server.ts` yang sudah ada (AES-GCM + `TOKEN_ENCRYPTION_KEY`).
 
-RLS:
-- `token_bank_keys`: hanya admin (has_role) untuk semua operasi.
-- `token_bank_prices`: SELECT semua authenticated, INSERT/UPDATE/DELETE admin.
-- `token_bank_transactions`: admin lihat semua; user lihat baris `user_id = auth.uid()`.
+**Katalog provider** `src/lib/payments/providers-catalog.ts` — daftar provider + schema parameter (field, type, required, secret?). Riset yang saya kompilasi:
 
-## Server functions (`src/lib/token-bank/bank.functions.ts`)
-- `listBankInventory()` — admin: semua key + count per provider.
-- `addBankKeys({provider, keys[]})` — admin bulk insert.
-- `deleteBankKey({id})` — admin.
-- `setBankPrice({provider, price_idr, is_active})` — admin upsert.
-- `listBankPrices()` — public authenticated: dipakai user untuk katalog & admin.
-- `transferBankKey({keyId, userEmail})` — admin: cari user, mark assigned, append ke `user_tokens` (decrypt→append→encrypt via `crypto.server`), insert transaksi.
-- `fulfillTokenPurchase({purchaseRequestId})` — admin: dipanggil saat approve di halaman requests bila `request_kind='token_bank'`. Ambil N key available, transfer ke user.
+| Provider | Parameter kunci |
+|---|---|
+| **Midtrans** | merchant_id, client_key, server_key, environment (sandbox/production) |
+| **Xendit** | secret_key (server), public_key (opsional), webhook_verification_token, environment |
+| **DOKU** | client_id, secret_key, environment (Jokul API) |
+| **Faspay** | merchant_id, merchant_code, user_id, password, environment |
+| **Finpay / Finnet** | merchant_id, merchant_key, environment |
+| **Espay** | merchant_id, signature_key, password, environment |
+| **Winpay** | merchant_id, secret_key, environment |
+| **Prismalink** | merchant_id, terminal_id, secret_key, environment |
+| **iPay88 / Kaspay** | merchant_code, merchant_key, environment |
+| **FirstPay** | merchant_id, api_key, environment |
+| **TrueMoney** | merchant_id, api_key, secret_key, environment |
+| **VA BCA** | corporate_id, va_prefix (BCA_ID), api_key, secret_key, environment |
+| **VA BRI (BRIVA)** | client_id, client_secret, institution_code, brizzi_merchant_id, environment |
+| **VA Mandiri** | merchant_id, client_id, client_secret, environment |
+| **VA BNI** | client_id, client_secret, prefix, environment |
 
-Semua pakai `requireSupabaseAuth` + cek `has_role('admin')` untuk operasi admin, kecuali `listBankPrices`.
+Field `environment` selalu ada. Parameter secret di-flag `secret: true` supaya UI mask + tidak dikirim balik ke client saat edit.
 
-## Perubahan file
-- **create** `supabase/migrations/<ts>_token_bank.sql`
-- **create** `src/lib/token-bank/bank.functions.ts`
-- **create** `src/routes/admin.token-bank.tsx`
-- **create** `src/components/token-bank/buy-dialog.tsx`
-- **create** `src/components/token-bank/transfer-dialog.tsx`
-- **edit** `src/components/app-sidebar.tsx` (link admin baru)
-- **edit** `src/routes/manage.tokens.tsx` (View toggle per panel + tombol Beli)
-- **edit** `src/routes/admin.requests.tsx` (approve → jalankan `fulfillTokenPurchase` bila kind=token_bank)
-- **edit** `src/components/checkout-dialog.tsx` (support `request_kind='token_bank'` untuk bundle token)
+**Server functions** `src/lib/payments/gateways.functions.ts`:
+- `listGateways()` — admin list (config didekripsi TIDAK dikirim balik, hanya masked preview `••••1234`).
+- `upsertGateway({ id?, provider, label, environment, config })` — enkripsi lalu simpan.
+- `deleteGateway({ id })`.
+- `testGateway({ id })` — untuk Midtrans: panggil endpoint status dummy order (`/v2/ping` tidak resmi, gunakan `GET /v2/{fake-order}/status` → 404 = kredensial valid, 401 = kredensial salah). Untuk provider lain: cek presence semua field wajib + return "config saved, live test not implemented".
 
-## Catatan
-- Key disimpan plaintext di `token_bank_keys` karena butuh dibaca admin, lalu di-encrypt saat masuk ke `user_tokens`. RLS admin-only + service_role = tidak bisa dibaca user biasa.
-- Untuk provider Weavy/Brain/Eleven yang formatnya array of object di localStorage user, server fn akan parse existing JSON dan append entry baru (mengikuti format masing-masing panel).
-- Transfer manual bypass pembayaran; pembelian selalu lewat checkout + approval, jadi ledger stok bank baru turun saat admin klik Approve.
+**UI** `src/routes/admin.payments.tsx`:
+- List gateway aktif (provider, label, environment, status test terakhir).
+- Tombol **Tambah** → dialog pilih provider dari katalog → form dinamis berdasarkan schema.
+- Tombol **Edit** (field secret kosong = tidak berubah), **Test koneksi**, **Aktif/Nonaktif**, **Hapus**.
+- Toast notifikasi hasil test.
+
+**Integrasi runtime**:
+- `src/lib/midtrans/midtrans.server.ts` diubah baca kredensial dari `payment_gateways` (provider='midtrans', is_active, env sesuai) sebagai fallback bila `process.env.MIDTRANS_SERVER_KEY` tidak diset. Env var tetap didahulukan agar tidak breaking.
+
+---
+
+## Catatan teknis
+- Semua server fn admin: `.middleware([requireSupabaseAuth])` + role check via `context.supabase.rpc('has_role', ...)` sebelum akses `supabaseAdmin`.
+- Enkripsi reuse `encryptString`/`decryptString` di `src/lib/tokens/crypto.server.ts` (butuh `TOKEN_ENCRYPTION_KEY` — cek `secrets--fetch_secrets` dulu, minta bila belum ada).
+- Semua migration mengikuti pola GRANT + RLS + policy admin/authenticated sesuai konvensi project.
+- Provider lain selain Midtrans: "test koneksi" hanya validasi format & simpan → beri label jelas di UI "Live charge belum diimplementasikan".
+
+## Yang TIDAK termasuk iterasi ini
+- Implementasi charge nyata untuk Xendit/DOKU/dll (schema + config saja).
+- Webhook handler baru per provider (Midtrans webhook existing tetap).
+- Migrasi data dari halaman `admin.payments` lama (upload logo QRIS/bank) — dipindah ke tab terpisah "Aset metode pembayaran" bila masih dipakai, atau dihapus. **Perlu konfirmasi**: pertahankan tab lama atau buang?

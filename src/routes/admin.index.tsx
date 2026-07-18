@@ -5,6 +5,8 @@ import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { listAdminUserStats, setUserTags } from "@/lib/admin/users.functions";
 import {
   Loader2,
   Plus,
@@ -15,6 +17,8 @@ import {
   Save,
   X,
   Search,
+  Crown,
+  Clock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -28,6 +32,7 @@ export const Route = createFileRoute("/admin/")({
 });
 
 type Role = "admin" | "editor" | "user";
+type UserTag = "vip" | "vvip";
 
 type ManagedUser = {
   id: string;
@@ -40,6 +45,9 @@ type ManagedUser = {
   route_keys: string[];
   tokens_count: number;
   bank_keys_count: number;
+  total_active_keys: number;
+  last_sign_in_at: string | null;
+  tags: UserTag[];
 };
 
 function accountAge(createdAt: string): string {
@@ -52,6 +60,22 @@ function accountAge(createdAt: string): string {
   const years = Math.floor(days / 365);
   const remMonths = Math.floor((days - years * 365) / 30);
   return remMonths > 0 ? `${years} thn ${remMonths} bln` : `${years} tahun`;
+}
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return "belum pernah";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return "baru saja";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "baru saja";
+  if (mins < 60) return `${mins} menit lalu`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} jam lalu`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} hari lalu`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} bln lalu`;
+  return `${Math.floor(days / 365)} thn lalu`;
 }
 
 function AdminPage() {
@@ -99,14 +123,18 @@ function AdminBody() {
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
+  const fetchStats = useServerFn(listAdminUserStats);
 
   async function load() {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: perms }, tokenCountsRes] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: perms }, statsRes] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("route_permissions").select("user_id, route_key"),
-      supabase.rpc("admin_user_token_counts" as never),
+      fetchStats().catch((e) => {
+        console.warn("[admin] listAdminUserStats failed", e);
+        return [] as Awaited<ReturnType<typeof listAdminUserStats>>;
+      }),
     ]);
     const rolesByUser: Record<string, Role[]> = {};
     (roles ?? []).forEach((r: any) => {
@@ -116,17 +144,31 @@ function AdminBody() {
     (perms ?? []).forEach((p: any) => {
       (permsByUser[p.user_id] ||= []).push(p.route_key);
     });
-    const tokenByUser: Record<string, { t: number; b: number }> = {};
-    ((tokenCountsRes.data ?? []) as any[]).forEach((r) => {
-      tokenByUser[r.user_id] = { t: r.tokens_count ?? 0, b: r.bank_keys_count ?? 0 };
+    const statsByUser: Record<
+      string,
+      { t: number; b: number; total: number; last: string | null; tags: UserTag[] }
+    > = {};
+    ((statsRes ?? []) as any[]).forEach((r) => {
+      statsByUser[r.id] = {
+        t: r.tokens_count ?? 0,
+        b: r.bank_keys_count ?? 0,
+        total: r.total_active_keys ?? 0,
+        last: r.last_sign_in_at ?? null,
+        tags: (r.tags ?? []) as UserTag[],
+      };
     });
     setUsers(
       ((profiles ?? []) as any[]).map((p) => ({
         ...p,
         roles: rolesByUser[p.id] ?? [],
         route_keys: permsByUser[p.id] ?? [],
-        tokens_count: tokenByUser[p.id]?.t ?? 0,
-        bank_keys_count: tokenByUser[p.id]?.b ?? 0,
+        tokens_count: statsByUser[p.id]?.t ?? 0,
+        bank_keys_count: statsByUser[p.id]?.b ?? 0,
+        total_active_keys:
+          statsByUser[p.id]?.total ??
+          (statsByUser[p.id]?.t ?? 0) + (statsByUser[p.id]?.b ?? 0),
+        last_sign_in_at: statsByUser[p.id]?.last ?? null,
+        tags: statsByUser[p.id]?.tags ?? [],
       })),
     );
     setLoading(false);
@@ -214,7 +256,8 @@ function AdminBody() {
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Akses fitur</th>
-                  <th className="px-4 py-3">Token / API Aktif</th>
+                  <th className="px-4 py-3">Total Token/API Key</th>
+                  <th className="px-4 py-3">Login terakhir</th>
                   <th className="px-4 py-3">Usia Akun</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
@@ -236,7 +279,12 @@ function AdminBody() {
                           </span>
                         )}
                         <div className="min-w-0">
-                          <div className="font-medium truncate">{u.display_name || "—"}</div>
+                          <div className="font-medium truncate flex items-center gap-1.5">
+                            <span className="truncate">{u.display_name || "—"}</span>
+                            {u.tags.map((t) => (
+                              <TagBadge key={t} tag={t} />
+                            ))}
+                          </div>
                           <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                         </div>
                       </div>
@@ -272,15 +320,19 @@ function AdminBody() {
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <div className="flex flex-col leading-tight">
-                        <span className="font-mono">
-                          <span className="text-primary">{u.tokens_count}</span>
-                          <span className="text-muted-foreground"> API</span>
-                        </span>
-                        <span className="font-mono">
-                          <span className="text-accent">{u.bank_keys_count}</span>
-                          <span className="text-muted-foreground"> bank key</span>
+                        <span className="font-mono text-sm">
+                          <span className="text-primary text-base font-semibold">
+                            {u.total_active_keys}
+                          </span>{" "}
+                          <span className="text-muted-foreground">Token/API Key</span>
                         </span>
                       </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {relativeTime(u.last_sign_in_at)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
                       {accountAge(u.created_at)}
@@ -318,7 +370,7 @@ function AdminBody() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                       Tidak ada user.
                     </td>
                   </tr>
@@ -457,6 +509,8 @@ function EditUserModal({
   const [routeKeys, setRouteKeys] = useState<string[]>(user.route_keys);
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tags, setTags] = useState<UserTag[]>(user.tags ?? []);
+  const saveTagsFn = useServerFn(setUserTags);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -493,6 +547,13 @@ function EditUserModal({
         await callAdmin({ action: "reset_password", user_id: user.id, password: newPassword });
       }
 
+      // Update label VIP/VVIP
+      const before = [...(user.tags ?? [])].sort().join(",");
+      const after = [...tags].sort().join(",");
+      if (before !== after) {
+        await saveTagsFn({ data: { userId: user.id, tags } });
+      }
+
       toast.success("Perubahan tersimpan");
       onDone();
     } catch (e) {
@@ -510,6 +571,9 @@ function EditUserModal({
         </Field>
         <Field label="Role">
           <RoleSelect value={role} onChange={setRole} />
+        </Field>
+        <Field label="Label khusus">
+          <TagPicker value={tags} onChange={setTags} />
         </Field>
         {role !== "admin" && (
           <Field label="Akses fitur (per halaman)">
@@ -544,6 +608,59 @@ function EditUserModal({
 
 const inputCls =
   "w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/60";
+
+export function TagBadge({ tag }: { tag: UserTag }) {
+  const isVvip = tag === "vvip";
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+        isVvip
+          ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+          : "border-fuchsia-400/50 text-fuchsia-200 bg-fuchsia-500/10",
+      ].join(" ")}
+    >
+      <Crown className="h-2.5 w-2.5" />
+      {tag}
+    </span>
+  );
+}
+
+function TagPicker({ value, onChange }: { value: UserTag[]; onChange: (v: UserTag[]) => void }) {
+  function toggle(t: UserTag) {
+    onChange(value.includes(t) ? value.filter((x) => x !== t) : [...value, t]);
+  }
+  const opts: { v: UserTag; label: string; desc: string }[] = [
+    { v: "vip", label: "VIP", desc: "User prioritas" },
+    { v: "vvip", label: "VVIP", desc: "Top tier / partner" },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {opts.map((o) => {
+        const on = value.includes(o.v);
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => toggle(o.v)}
+            className={[
+              "text-left rounded-2xl border px-3 py-2.5 transition flex items-center gap-2",
+              on
+                ? "border-primary/60 bg-primary/10"
+                : "border-border bg-card/40 hover:bg-card/70",
+            ].join(" ")}
+          >
+            <Crown className={on ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
+            <div>
+              <div className="text-sm font-medium">{o.label}</div>
+              <div className="text-[10px] text-muted-foreground leading-tight">{o.desc}</div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

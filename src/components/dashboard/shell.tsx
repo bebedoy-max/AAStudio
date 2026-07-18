@@ -30,47 +30,6 @@ import {
 import { usePurchaseFeed, rupiah, type PurchaseView } from "@/lib/stores/purchase-feed";
 import { PurchaseDetailDialog } from "@/components/purchase-detail-dialog";
 
-// Top-nav sub-menu mirrors sidebar section (Manage / Generate / System).
-const NAV_SECTIONS: Record<string, { label: string; url: string }[]> = {
-  "/": [],
-  "/ai-influencer": [
-    { label: "Character", url: "/ai-influencer/character" },
-    { label: "Brain", url: "/ai-influencer/brain" },
-    { label: "Content Planner", url: "/ai-influencer/planner" },
-    { label: "Content Library", url: "/ai-influencer/library" },
-    { label: "Auto Publisher", url: "/ai-influencer/publisher" },
-    { label: "Analytics", url: "/ai-influencer/analytics" },
-  ],
-  "/manage": [
-    { label: "Token / API Manager", url: "/manage/tokens" },
-    { label: "Routing Provider", url: "/manage/routing" },
-  ],
-  "/generate": [
-    { label: "Motion Control", url: "/generate/motion" },
-    { label: "Bulk Fashion Generator", url: "/generate/bulk-fashion" },
-    { label: "Image To Video", url: "/generate/image-to-video" },
-  ],
-  "/storyboard": [
-    { label: "Produk Storyboard", url: "/generate/storyboard" },
-    { label: "Naratif Video Maker", url: "/generate/naratif" },
-  ],
-  "/mixing": [
-    { label: "AI Clipper", url: "/mixing/clipper" },
-    { label: "AI Dubber", url: "/mixing/dubbing" },
-  ],
-  "/system": [
-    { label: "Analytic", url: "/system/analytic" },
-    { label: "Pengaturan", url: "/system/settings" },
-    { label: "Help", url: "/system/help" },
-  ],
-  "/admin": [
-    { label: "Kelola User", url: "/admin" },
-    { label: "Request Pembelian", url: "/admin/requests" },
-    { label: "Metode Pembayaran", url: "/admin/payments" },
-    { label: "Pengaturan Halaman", url: "/admin/access" },
-  ],
-};
-
 function formatAgo(ts: number): string {
   const diff = Math.max(0, Date.now() - ts);
   const s = Math.floor(diff / 1000);
@@ -362,13 +321,6 @@ function AccountMenu() {
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const section =
-    pathname === "/"
-      ? "/"
-      : pathname.startsWith("/generate/storyboard") || pathname.startsWith("/generate/naratif")
-        ? "/storyboard"
-        : "/" + pathname.split("/")[1];
-  const items = NAV_SECTIONS[section] || NAV_SECTIONS["/"];
   const isHome = pathname === "/";
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -427,14 +379,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="flex-1 min-w-0 flex flex-col">
-        <header
-          className={[
-            "sticky top-0 z-20",
-            isHome
-              ? "bg-transparent"
-              : "backdrop-blur-md bg-background/60 border-b border-border/50",
-          ].join(" ")}
-        >
+        <header className="sticky top-0 z-20 bg-transparent">
           <div className="flex items-center gap-2 px-3 sm:px-6 py-3">
             {/* Mobile hamburger — top-left */}
             <button
@@ -444,35 +389,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             >
               <Menu className="h-4 w-4" />
             </button>
-
-            {/* Desktop sub-nav — hidden on dashboard */}
-            {items.length > 0 && (
-              <nav className="hidden lg:flex items-center gap-6 text-sm">
-                {items.map((it) => {
-                const active = pathname === it.url;
-                return (
-                  <Link
-                    key={it.url}
-                    to={it.url}
-                    className={[
-                      "relative pb-1 transition-colors whitespace-nowrap",
-                      active
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    {it.label}
-                    {active && (
-                      <span
-                        className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full"
-                        style={{ background: "var(--gradient-neon)" }}
-                      />
-                    )}
-                  </Link>
-                );
-                })}
-              </nav>
-            )}
 
             <div className="flex-1" />
 

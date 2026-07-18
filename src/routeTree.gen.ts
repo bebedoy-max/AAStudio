@@ -23,6 +23,7 @@ import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
 import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
 import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
 import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
+import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
@@ -136,6 +137,11 @@ const ManageTokensRoute = ManageTokensRouteImport.update({
 const ManageRoutingRoute = ManageRoutingRouteImport.update({
   id: '/manage/routing',
   path: '/manage/routing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
+  id: '/generate/upscaler',
+  path: '/generate/upscaler',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateStoryboardRoute = GenerateStoryboardRouteImport.update({
@@ -388,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -446,6 +453,7 @@ export interface FileRoutesByTo {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -507,6 +515,7 @@ export interface FileRoutesById {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -569,6 +578,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/upscaler'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -627,6 +637,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/upscaler'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -687,6 +698,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/upscaler'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -736,6 +748,7 @@ export interface RootRouteChildren {
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
+  GenerateUpscalerRoute: typeof GenerateUpscalerRoute
   ManageRoutingRoute: typeof ManageRoutingRoute
   ManageTokensRoute: typeof ManageTokensRoute
   SystemAnalyticRoute: typeof SystemAnalyticRoute
@@ -865,6 +878,13 @@ declare module '@tanstack/react-router' {
       path: '/manage/routing'
       fullPath: '/manage/routing'
       preLoaderRoute: typeof ManageRoutingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/generate/upscaler': {
+      id: '/generate/upscaler'
+      path: '/generate/upscaler'
+      fullPath: '/generate/upscaler'
+      preLoaderRoute: typeof GenerateUpscalerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/storyboard': {
@@ -1251,6 +1271,7 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
+  GenerateUpscalerRoute: GenerateUpscalerRoute,
   ManageRoutingRoute: ManageRoutingRoute,
   ManageTokensRoute: ManageTokensRoute,
   SystemAnalyticRoute: SystemAnalyticRoute,

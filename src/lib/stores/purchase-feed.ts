@@ -107,7 +107,7 @@ export function usePurchaseFeed(pollMs = 20_000): {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20)
-      .then(({ data }) => {
+      .then(({ data }: { data: unknown }) => {
         setItems(((data ?? []) as PurchaseRow[]).filter(hidePendingExpired).map(classify));
       });
   };

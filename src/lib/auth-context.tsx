@@ -260,6 +260,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (event === "SIGNED_OUT") {
         const uid = session?.user.id;
         if (uid) void logActivity({ category: "auth", action: "logout", userId: uid });
+        try {
+          if (typeof sessionStorage !== "undefined") {
+            for (let i = sessionStorage.length - 1; i >= 0; i--) {
+              const k = sessionStorage.key(i);
+              if (k?.startsWith("aatools.auth.loginLogged.")) sessionStorage.removeItem(k);
+            }
+          }
+        } catch {
+          // ignore
+        }
         setSession(null);
         clearUserData();
         clearLocalTokenCache();
@@ -271,7 +281,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (s?.user) {
         if (event === "SIGNED_IN") {
-          void logActivity({ category: "auth", action: "login", userId: s.user.id });
+          // Supabase memicu SIGNED_IN pada setiap tab reload / restore sesi.
+          // Log "login" hanya sekali per browser session per user supaya
+          // tidak menumpuk puluhan entri palsu.
+          try {
+            const key = `aatools.auth.loginLogged.${s.user.id}`;
+            if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(key)) {
+              sessionStorage.setItem(key, "1");
+              void logActivity({ category: "auth", action: "login", userId: s.user.id });
+            }
+          } catch {
+            // sessionStorage tidak tersedia — abaikan, jangan log agar tidak spam.
+          }
         }
         setTimeout(() => {
           void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");

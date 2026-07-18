@@ -30,7 +30,7 @@ import {
   LineChart,
   Lock,
   SlidersHorizontal,
-  
+  Wand2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -97,6 +97,7 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Motion Control", url: "/generate/motion", icon: Move3d, permKey: "generate.motion" },
       { title: "Bulk Fashion Generator", url: "/generate/bulk-fashion", icon: Shirt, permKey: "generate.bulk-fashion" },
       { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
+      { title: "Upscaler / Enhance", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
     ],
   },
   {
