@@ -128,7 +128,7 @@ export function CheckoutDialog({
           Checkout
         </div>
         <h2 className="mt-1 font-display text-2xl font-bold">
-          Aktivasi <span className="text-gradient">via QRIS</span>
+          Aktivasi <span className="text-gradient">Fitur Premium</span>
         </h2>
 
         {loading ? (

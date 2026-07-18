@@ -9,7 +9,17 @@ import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 // Pending purchase considered stale after 1 hour (matches Midtrans QRIS expiry).
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
-type PendingRow = { id: string; route_key: string; price_idr: number; created_at: string };
+type PendingRow = { id: string; route_key: string; price_idr: number; created_at: string; note?: string | null };
+
+const FEATURES_MARKER = "[FEATURES:";
+function extraFeatureKeysFromNote(note: string | null | undefined): string[] {
+  if (!note) return [];
+  const i = note.indexOf(FEATURES_MARKER);
+  if (i < 0) return [];
+  const end = note.indexOf("]", i);
+  if (end < 0) return [];
+  return note.slice(i + FEATURES_MARKER.length, end).split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 const FULL_ACCESS_KEY = "__full_access__";
 
@@ -94,7 +104,7 @@ export function UpgradeDialog({
     const cutoff = new Date(Date.now() - PENDING_TTL_MS).toISOString();
     const { data } = await supabase
       .from("purchase_requests")
-      .select("id, route_key, price_idr, created_at")
+      .select("id, route_key, price_idr, created_at, note")
       .eq("user_id", user.id)
       .eq("status", "pending")
       .gte("created_at", cutoff)
@@ -114,7 +124,16 @@ export function UpgradeDialog({
     loadPending();
   }, [user?.id]);
 
-  const pendingKeys = useMemo(() => pendingRows.map((r) => r.route_key), [pendingRows]);
+  // A pending purchase can encode multiple feature keys via [FEATURES:...] in
+  // note. Treat every listed key as pending — not just the primary route_key.
+  const pendingKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of pendingRows) {
+      set.add(r.route_key);
+      for (const k of extraFeatureKeysFromNote(r.note)) set.add(k);
+    }
+    return Array.from(set);
+  }, [pendingRows]);
 
   // Only show features that are:
   //   - not already unlocked for this user (no permission granted)
@@ -131,7 +150,10 @@ export function UpgradeDialog({
   });
 
   const isPending = (k: string) => pendingKeys.includes(k);
-  const pendingFor = (k: string) => pendingRows.find((r) => r.route_key === k) ?? null;
+  const pendingFor = (k: string) =>
+    pendingRows.find(
+      (r) => r.route_key === k || extraFeatureKeysFromNote(r.note).includes(k),
+    ) ?? null;
 
   const bundlePrice = prices[FULL_ACCESS_KEY];
   const bundleAvailable = !!bundlePrice && availableFeatures.length > 1;
