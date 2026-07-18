@@ -1,17 +1,12 @@
-// User-facing "Beli Token" dialog: multi-provider cart. Pick any mix of
-// providers + qty, review a combined receipt, then create ONE purchase_request
-// that carries the cart items in the note field (parsed on fulfillment).
+// User-facing "Beli Token" dialog: multi-provider cart, Midtrans QRIS auto-fulfill.
+// Creates ONE purchase_request carrying the cart items in the note field,
+// then generates a dynamic QRIS via Midtrans and shows it inline. On payment
+// settlement, the Midtrans webhook auto-fulfills the order and pushes keys
+// to Token Manager without any admin approval.
 import { useEffect, useMemo, useState } from "react";
 import {
   X,
   Loader2,
-  Copy,
-  Check,
-  QrCode,
-  Landmark,
-  Wallet,
-  CircleDollarSign,
-  Clock,
   CircleCheck,
   ShoppingBag,
   Plus,
@@ -28,25 +23,7 @@ import {
   listBankPrices,
   listBankStock,
 } from "@/lib/token-bank/bank.functions";
-
-type PaymentMethod = {
-  id: string;
-  type: "qris" | "bank" | "ewallet" | "custom";
-  name: string;
-  instructions: string | null;
-  account_number: string | null;
-  account_holder: string | null;
-  image_url: string | null;
-  is_active: boolean;
-  sort_order: number;
-};
-
-const iconByType = {
-  qris: QrCode,
-  bank: Landmark,
-  ewallet: Wallet,
-  custom: CircleDollarSign,
-} as const;
+import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -89,27 +66,20 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   const [prices, setPrices] = useState<Record<string, { price_idr: number; is_active: boolean }>>({});
   const [stock, setStock] = useState<Record<string, number>>({});
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [methodId, setMethodId] = useState("");
-  const [signedImage, setSignedImage] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<OrderInfo | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [prSettled, stSettled, pmRes] = await Promise.all([
+        const [prSettled, stSettled] = await Promise.all([
           listBankPrices().catch(() => [] as Awaited<ReturnType<typeof listBankPrices>>),
           listBankStock().catch(() => ({}) as Record<string, number>),
-          supabase.from("payment_methods").select("*").eq("is_active", true).order("sort_order"),
         ]);
         const priceMap: Record<string, { price_idr: number; is_active: boolean }> = {};
         for (const p of prSettled) priceMap[p.provider] = { price_idr: p.price_idr, is_active: p.is_active };
         setPrices(priceMap);
         setStock(stSettled);
-        setMethods((pmRes.data ?? []) as PaymentMethod[]);
-        if ((pmRes.data ?? []).length > 0) setMethodId((pmRes.data as PaymentMethod[])[0].id);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Gagal memuat katalog");
       } finally {
@@ -142,32 +112,6 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   }, [cartItems, prices]);
   const totalKeys = cartItems.reduce((a, x) => a + x.qty, 0);
 
-  const selectedMethod = useMemo(
-    () => methods.find((m) => m.id === methodId) ?? null,
-    [methods, methodId],
-  );
-
-  useEffect(() => {
-    setSignedImage(null);
-    if (!selectedMethod?.image_url) return;
-    (async () => {
-      const { data } = await supabase.storage
-        .from("payment-assets")
-        .createSignedUrl(selectedMethod.image_url!, 3600);
-      setSignedImage(data?.signedUrl ?? null);
-    })();
-  }, [selectedMethod?.image_url]);
-
-  async function copy(text: string, key: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied(null), 1500);
-    } catch {
-      toast.error("Gagal menyalin");
-    }
-  }
-
   function bumpQty(p: BankProvider, delta: number) {
     setCart((c) => {
       const max = stock[p] ?? 0;
@@ -185,16 +129,12 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   async function createOrder() {
     if (!user) return;
     if (cartItems.length === 0) return toast.error("Pilih minimal 1 token");
-    if (!selectedMethod) return toast.error("Pilih metode pembayaran");
     for (const item of cartItems) {
       const s = stock[item.provider] ?? 0;
       if (item.qty > s) return toast.error(`Stok ${PROVIDER_LABELS[item.provider]} tinggal ${s}`);
     }
     setSubmitting(true);
     try {
-      // Keep token_provider/token_qty set to the primary item for backward
-      // compatibility. The full cart is embedded in `note` via CART_MARKER and
-      // parsed by fulfillTokenPurchase server-side.
       const primary = cartItems[0];
       const label = cartItems
         .map((c) => `${c.qty}× ${PROVIDER_LABELS[c.provider]}`)
@@ -203,8 +143,8 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
         user_id: user.id,
         route_key: `token_bank.cart`,
         price_idr: total,
-        payment_method_id: selectedMethod.id,
-        payment_method_name: selectedMethod.name,
+        payment_method_id: null,
+        payment_method_name: "QRIS (Midtrans)",
         note: encodeCartInNote(cartItems, `[TOKEN BANK] ${label}`),
         status: "pending" as const,
         request_kind: "token_bank",
@@ -219,7 +159,6 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
       if (error) throw error;
       const inserted = data as { id: string; status: OrderInfo["status"] };
       setOrder({ id: inserted.id, items: cartItems, total, status: inserted.status });
-      toast.success("Pesanan dibuat! Silakan lakukan pembayaran.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal membuat pesanan");
     } finally {
@@ -227,22 +166,17 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  useEffect(() => {
-    if (!order || order.status !== "pending") return;
-    const t = setInterval(async () => {
-      const { data } = await supabase
-        .from("purchase_requests")
-        .select("status")
-        .eq("id", order.id)
-        .maybeSingle();
-      const st = (data as { status?: OrderInfo["status"] } | null)?.status;
-      if (st && st !== order.status) {
-        setOrder({ ...order, status: st });
-        if (st === "approved") toast.success("Pembayaran terdeteksi — token dikirim ke Token Manager!");
-      }
-    }, 5000);
-    return () => clearInterval(t);
-  }, [order]);
+  // Refresh row status when panel signals approval (also drives close-button label).
+  async function refreshStatus() {
+    if (!order) return;
+    const { data } = await supabase
+      .from("purchase_requests")
+      .select("status")
+      .eq("id", order.id)
+      .maybeSingle();
+    const st = (data as { status?: OrderInfo["status"] } | null)?.status;
+    if (st && st !== order.status) setOrder({ ...order, status: st });
+  }
 
   return (
     <div
@@ -266,7 +200,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
           Beli <span className="text-gradient">API token</span>
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Pilih beberapa provider sekaligus. Set jumlah pada masing-masing baris, semua dibayar dalam satu transaksi.
+          Pilih beberapa provider sekaligus. Bayar sekali lewat QRIS — token dikirim otomatis.
         </p>
 
         {loading ? (
@@ -274,7 +208,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : order ? (
-          <OrderStatusView order={order} onClose={onClose} />
+          <OrderStatusView order={order} onClose={onClose} onApproved={refreshStatus} />
         ) : catalog.length === 0 ? (
           <div className="mt-6 p-6 text-center rounded-2xl border border-border bg-card/40 text-sm text-muted-foreground">
             Belum ada token yang dijual saat ini. Hubungi admin.
@@ -392,98 +326,17 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            <div className="mt-5">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                Metode pembayaran
-              </div>
-              {methods.length === 0 ? (
-                <div className="text-sm text-muted-foreground p-4 border border-border rounded-xl">
-                  Belum ada metode pembayaran aktif. Hubungi admin.
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {methods.map((m) => {
-                    const active = m.id === methodId;
-                    const Icon = iconByType[m.type];
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => setMethodId(m.id)}
-                        className={[
-                          "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition",
-                          active
-                            ? "border-primary/60 bg-primary/[0.08]"
-                            : "border-border bg-card/40 hover:bg-sidebar-accent/40",
-                        ].join(" ")}
-                      >
-                        <Icon className="h-4 w-4 text-primary shrink-0" />
-                        <span className="text-sm truncate">{m.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
+              Pembayaran diproses otomatis via <b className="text-foreground">QRIS Midtrans</b>.
+              Setelah lanjut, kamu akan mendapat kode QR untuk dibayar via GoPay, ShopeePay, Dana,
+              OVO, BCA Mobile, atau aplikasi e-wallet/bank lainnya yang mendukung QRIS. Token
+              langsung masuk ke Token Manager setelah pembayaran terkonfirmasi.
             </div>
-
-            {selectedMethod && (
-              <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4">
-                {selectedMethod.type === "qris" && signedImage && (
-                  <div className="flex flex-col items-center gap-2">
-                    <img
-                      src={signedImage}
-                      alt="QRIS"
-                      className="max-h-64 rounded-xl border border-border bg-white p-2"
-                    />
-                    <div className="text-xs text-muted-foreground">Scan QRIS di atas untuk membayar</div>
-                  </div>
-                )}
-                {selectedMethod.type !== "qris" && (
-                  <div className="flex flex-col gap-2">
-                    {selectedMethod.account_number && (
-                      <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2.5">
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                            Nomor
-                          </div>
-                          <div className="font-mono text-sm truncate">
-                            {selectedMethod.account_number}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => copy(selectedMethod.account_number!, "num")}
-                          className="ml-3 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-card"
-                        >
-                          {copied === "num" ? (
-                            <Check className="h-3.5 w-3.5" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5" />
-                          )}
-                          Salin
-                        </button>
-                      </div>
-                    )}
-                    {selectedMethod.account_holder && (
-                      <div className="rounded-xl border border-border bg-background/40 px-3 py-2.5">
-                        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                          Atas nama
-                        </div>
-                        <div className="text-sm">{selectedMethod.account_holder}</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {selectedMethod.instructions && (
-                  <div className="mt-3 text-xs text-muted-foreground whitespace-pre-line">
-                    {selectedMethod.instructions}
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
               <button
                 onClick={createOrder}
-                disabled={submitting || !selectedMethod || cartItems.length === 0 || total === 0}
+                disabled={submitting || cartItems.length === 0 || total === 0}
                 className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                 style={{ background: "var(--gradient-neon)" }}
               >
@@ -492,7 +345,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                 ) : (
                   <ShoppingBag className="h-4 w-4" />
                 )}
-                Buat pesanan · {rupiah(total)}
+                Lanjut ke QRIS · {rupiah(total)}
               </button>
             </div>
           </>
@@ -502,20 +355,16 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function OrderStatusView({ order, onClose }: { order: OrderInfo; onClose: () => void }) {
+function OrderStatusView({
+  order,
+  onClose,
+  onApproved,
+}: {
+  order: OrderInfo;
+  onClose: () => void;
+  onApproved: () => void;
+}) {
   const paid = order.status === "approved";
-  const rejected = order.status === "rejected";
-  const label = paid
-    ? "Pembayaran Sukses"
-    : rejected
-      ? "Pembayaran Ditolak"
-      : "Belum di bayar";
-  const tone = paid
-    ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
-    : rejected
-      ? "border-rose-400/50 text-rose-300 bg-rose-400/10"
-      : "border-amber-400/50 text-amber-300 bg-amber-400/10";
-  const Icon = paid ? CircleCheck : Clock;
   return (
     <div className="mt-5 flex flex-col gap-4">
       <div className="rounded-2xl border border-border bg-card/40 p-4">
@@ -536,39 +385,30 @@ function OrderStatusView({ order, onClose }: { order: OrderInfo; onClose: () => 
           </span>
           <span className="font-display text-lg text-gradient">{rupiah(order.total)}</span>
         </div>
-        <div className="mt-2 text-[10px] font-mono text-muted-foreground">
-          Order ID: {order.id.slice(0, 8)}
-        </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card/40 p-4">
-        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-          Status Pembayaran
+      {paid ? (
+        <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/5 p-6 flex flex-col items-center gap-2 text-emerald-200">
+          <CircleCheck className="h-8 w-8" />
+          <div className="font-semibold">Pembayaran diterima</div>
+          <div className="text-xs opacity-80">
+            Token sudah dikirim ke Manage → Token / API Manager.
+          </div>
         </div>
-        <div
-          className={[
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-full border font-medium text-sm",
-            tone,
-          ].join(" ")}
-        >
-          <Icon className="h-4 w-4" />
-          {label}
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
-          {paid
-            ? "Semua token sudah dikirim otomatis ke Token Manager kamu."
-            : rejected
-              ? "Pesanan ditolak. Hubungi admin untuk detail."
-              : "Sistem QRIS dinamis akan mendeteksi pembayaran otomatis. Halaman ini akan update sendiri saat pembayaran diterima."}
-        </p>
-      </div>
+      ) : (
+        <MidtransQrisPanel
+          purchaseRequestId={order.id}
+          amount={order.total}
+          onApproved={onApproved}
+        />
+      )}
 
       <div className="flex justify-end">
         <button
           onClick={onClose}
           className="rounded-full border border-border bg-card/50 px-4 py-2 text-sm hover:bg-sidebar-accent/60"
         >
-          Tutup
+          {paid ? "Selesai" : "Tutup"}
         </button>
       </div>
     </div>

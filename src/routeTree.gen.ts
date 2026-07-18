@@ -65,6 +65,7 @@ import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
+import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -348,6 +349,12 @@ const ApiPublicClipperBrainRoute = ApiPublicClipperBrainRouteImport.update({
   path: '/api/public/clipper-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMidtransNotificationRoute =
+  ApiPublicMidtransNotificationRouteImport.update({
+    id: '/api/public/midtrans/notification',
+    path: '/api/public/midtrans/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -406,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -462,6 +470,7 @@ export interface FileRoutesByTo {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -521,6 +530,7 @@ export interface FileRoutesById {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -581,6 +591,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/midtrans/notification'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -637,6 +648,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/midtrans/notification'
   id:
     | '__root__'
     | '/'
@@ -695,6 +707,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/midtrans/notification'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -739,6 +752,7 @@ export interface RootRouteChildren {
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
   ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
+  ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1135,6 +1149,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicClipperBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/midtrans/notification': {
+      id: '/api/public/midtrans/notification'
+      path: '/api/public/midtrans/notification'
+      fullPath: '/api/public/midtrans/notification'
+      preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1237,6 +1258,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
   ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
+  ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

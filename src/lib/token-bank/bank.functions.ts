@@ -211,6 +211,52 @@ export const deleteAllBankKeys = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const restoreAssignedBankKeys = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { provider: string; keys: string[] }) => {
+    assertProvider(data.provider);
+    const keys = Array.from(new Set((data.keys ?? []).map((k) => String(k).trim()).filter(Boolean)));
+    if (keys.length === 0) throw new Error("keys required");
+    return { provider: data.provider as BankProvider, keys };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+
+    const { data: assignedRaw, error: readErr } = await db
+      .from("token_bank_keys")
+      .select("id, key_value")
+      .eq("provider", data.provider)
+      .eq("status", "assigned")
+      .in("key_value", data.keys)
+      .order("created_at", { ascending: false });
+    if (readErr) throw new Error(readErr.message);
+
+    const assigned = (assignedRaw ?? []) as { id: string; key_value: string }[];
+    const keepByKey = new Map<string, { id: string; key_value: string }>();
+    const duplicateIds: string[] = [];
+    for (const row of assigned) {
+      if (keepByKey.has(row.key_value)) duplicateIds.push(row.id);
+      else keepByKey.set(row.key_value, row);
+    }
+
+    if (duplicateIds.length > 0) {
+      const { error: delErr } = await db.from("token_bank_keys").delete().in("id", duplicateIds);
+      if (delErr) throw new Error(delErr.message);
+    }
+
+    const keepIds = Array.from(keepByKey.values()).map((r) => r.id);
+    if (keepIds.length === 0) return { ok: true, restored: [] as { id: string; key_value: string }[] };
+
+    const { data: restored, error } = await db
+      .from("token_bank_keys")
+      .update({ status: "available", assigned_to: null, assigned_at: null })
+      .in("id", keepIds)
+      .select("id, key_value");
+    if (error) throw new Error(error.message);
+    return { ok: true, restored: (restored ?? []) as { id: string; key_value: string }[] };
+  });
+
 export const listBankPrices = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

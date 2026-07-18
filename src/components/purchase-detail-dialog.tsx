@@ -1,11 +1,10 @@
 // Popup showing purchase detail + live payment status. Opened from the
 // notification bell when a user clicks a purchase row.
-import { useEffect, useState } from "react";
-import { X, Clock, CircleCheck, CircleAlert, QrCode, Landmark, Wallet, CircleDollarSign, Copy, Check } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { X, Clock, CircleCheck, CircleAlert, QrCode, Landmark, Wallet, CircleDollarSign } from "lucide-react";
 import { PROVIDER_LABELS } from "@/lib/token-bank/bank.functions";
 import type { PurchaseView } from "@/lib/stores/purchase-feed";
 import { rupiah } from "@/lib/stores/purchase-feed";
+import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 
 const statusMeta = {
   pending: {
@@ -47,49 +46,6 @@ export function PurchaseDetailDialog({
   const dt = new Date(purchase.created_at);
   const reviewedAt = purchase.reviewed_at ? new Date(purchase.reviewed_at) : null;
 
-  const [method, setMethod] = useState<{
-    type: string;
-    image_url: string | null;
-    account_number: string | null;
-    account_holder: string | null;
-    instructions: string | null;
-  } | null>(null);
-  const [qrUrl, setQrUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    if (purchase.status !== "pending" || !purchase.payment_method_id) {
-      setMethod(null);
-      setQrUrl(null);
-      return;
-    }
-    (async () => {
-      const { data } = await supabase
-        .from("payment_methods")
-        .select("type, image_url, account_number, account_holder, instructions")
-        .eq("id", purchase.payment_method_id!)
-        .maybeSingle();
-      if (!alive || !data) return;
-      setMethod(data as NonNullable<typeof method>);
-      if (data.type === "qris" && data.image_url) {
-        const { data: signed } = await supabase.storage
-          .from("payment-assets")
-          .createSignedUrl(data.image_url, 3600);
-        if (alive) setQrUrl(signed?.signedUrl ?? null);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [purchase.status, purchase.payment_method_id]);
-
-  const copyNum = async () => {
-    if (!method?.account_number) return;
-    await navigator.clipboard.writeText(method.account_number);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
 
   return (
     <div
@@ -175,55 +131,12 @@ export function PurchaseDetailDialog({
         </div>
 
         {purchase.status === "pending" && (
-          <>
-            {method?.type === "qris" && qrUrl && (
-              <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4 flex flex-col items-center gap-2">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Scan QRIS untuk membayar
-                </div>
-                <img
-                  src={qrUrl}
-                  alt="QRIS"
-                  className="max-h-64 rounded-xl border border-border bg-white p-2"
-                />
-                <div className="text-xs text-muted-foreground text-center">
-                  Setelah bayar, upload bukti via tombol beli ulang atau tunggu verifikasi admin.
-                </div>
-              </div>
-            )}
-            {method && method.type !== "qris" && method.account_number && (
-              <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4 flex flex-col gap-2">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Transfer ke
-                </div>
-                <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2.5">
-                  <div className="min-w-0">
-                    <div className="font-mono text-sm truncate">{method.account_number}</div>
-                    {method.account_holder && (
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        a.n. {method.account_holder}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={copyNum}
-                    className="ml-3 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-card"
-                  >
-                    {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                    {copied ? "Tersalin" : "Salin"}
-                  </button>
-                </div>
-                {method.instructions && (
-                  <div className="text-[11px] text-muted-foreground whitespace-pre-line">
-                    {method.instructions}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs text-amber-200/90">
-              Selesaikan pembayaran melalui metode di atas. Status otomatis diperbarui setelah admin memverifikasi bukti pembayaran Anda.
-            </div>
-          </>
+          <div className="mt-4">
+            <MidtransQrisPanel
+              purchaseRequestId={purchase.id}
+              amount={purchase.price_idr}
+            />
+          </div>
         )}
         {purchase.status === "approved" && purchase.kind === "token_bank" && (
           <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-xs text-emerald-200/90">
