@@ -56,12 +56,15 @@ export function CheckoutDialog({
     if (total <= 0) return toast.error("Total pembayaran belum valid");
     setSubmitting(true);
     try {
-      const primaryKey = prices[0]?.route_key ?? featureKeys[0];
-      const extraKeys = prices
-        .map((p) => p.route_key)
-        .filter((k) => k !== primaryKey);
+      // Encode EVERY selected feature key in the FEATURES marker so the
+      // server fulfiller grants route_permissions for the whole set — the
+      // primary route_key alone would only unlock one feature.
+      const allKeys = Array.from(
+        new Set([...(prices.map((p) => p.route_key)), ...featureKeys]),
+      );
+      const primaryKey = allKeys[0];
       const featuresMarker =
-        extraKeys.length > 0 ? ` [FEATURES:${extraKeys.join(",")}]` : "";
+        allKeys.length > 0 ? ` [FEATURES:${allKeys.join(",")}]` : "";
       const labelList = prices.map((p) => p.label).join(", ");
       const bundleTag = isBundle ? `[BUNDLE: ${bundleLabel}] ` : "";
       const note = `${bundleTag}${labelList}${featuresMarker}`.trim();

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { syncTokensForUser, resetTokenSync, clearLocalTokenCache } from "@/lib/tokens/sync";
+import { startGlobalTokenRefresh } from "@/lib/tokens/refresh";
 import {
   claimExclusiveSession,
   clearLocalExclusiveSession,
@@ -56,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [routePermissions, setRoutePermissions] = useState<string[]>([]);
   const [featureAccess, setFeatureAccess] = useState<Record<string, FeatureAccessEntry>>({});
   const [loading, setLoading] = useState(true);
+
+  // Kick off global 1-hour token refresh loop (brain/weavy/wavespeed) once.
+  useEffect(() => {
+    startGlobalTokenRefresh();
+  }, []);
 
   // Global per-feature access settings (public / subscription / trial), managed by admin.
   useEffect(() => {

@@ -7,6 +7,7 @@ import { Card } from "@/components/dashboard/ui";
 import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX } from "lucide-react";
 import { toast } from "sonner";
 import { fulfillTokenPurchase } from "@/lib/token-bank/bank.functions";
+import { promptDialog } from "@/components/ui-prompt";
 
 export const Route = createFileRoute("/admin/requests")({
   head: () => ({
@@ -37,6 +38,13 @@ type Req = {
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
+}
+
+function parseFeaturesFromNote(note: string | null): string[] {
+  if (!note) return [];
+  const m = note.match(/\[FEATURES:([^\]]+)\]/);
+  if (!m) return [];
+  return m[1].split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 function AdminRequestsPage() {
@@ -123,11 +131,21 @@ function Body() {
   }
 
   async function decide(row: Req, status: "approved" | "rejected") {
+    let admin_note: string | null = null;
+    if (status === "rejected") {
+      const reason = await promptDialog({
+        title: "Tolak permintaan ini?",
+        description: "Berikan alasan penolakan (opsional). User akan melihat catatan ini pada notifikasinya.",
+        placeholder: "Alasan penolakan…",
+        confirmLabel: "Tolak permintaan",
+        cancelLabel: "Batal",
+        multiline: true,
+        allowEmpty: true,
+      });
+      if (reason === null) return; // user cancelled
+      admin_note = reason;
+    }
     setBusy(row.id);
-    const admin_note =
-      status === "rejected"
-        ? window.prompt("Alasan penolakan (opsional):", "") ?? ""
-        : null;
     const { error } = await supabase
       .from("purchase_requests")
       .update({ status, admin_note, reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
@@ -145,10 +163,33 @@ function Body() {
       } catch (e) {
         toast.error("Approve OK tapi gagal kirim token: " + (e instanceof Error ? e.message : ""));
       }
+    } else if (status === "approved") {
+      // Bundle checkouts encode ALL feature route_keys in the note. Grant
+      // route_permissions for every listed extra key so the whole bundle
+      // activates, not just pr.route_key (which the DB trigger handles).
+      const extras = parseFeaturesFromNote((row as unknown as { note?: string | null }).note ?? null)
+        .filter((rk: string) => rk && rk !== row.route_key);
+      if (extras.length > 0) {
+        const until = new Date();
+        until.setDate(until.getDate() + 30);
+        const rpRows = extras.map((rk: string) => ({
+          user_id: row.user_id,
+          route_key: rk,
+          expires_at: until.toISOString(),
+        }));
+        const { error: rpErr } = await supabase
+          .from("route_permissions")
+          .upsert(rpRows, { onConflict: "user_id,route_key" });
+        if (rpErr) {
+          toast.error("Approve OK tapi gagal aktifkan fitur bundle: " + rpErr.message);
+        } else {
+          toast.success(`Disetujui — ${extras.length + 1} fitur aktif 30 hari`);
+        }
+      } else {
+        toast.success("Disetujui — fitur aktif 30 hari");
+      }
     } else {
-      toast.success(
-        status === "approved" ? "Disetujui — fitur aktif 30 hari" : "Ditolak",
-      );
+      toast.success("Ditolak");
     }
     setBusy(null);
     load();

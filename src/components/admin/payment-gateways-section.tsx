@@ -24,6 +24,7 @@ import {
   type GatewayListItem,
 } from "@/lib/payments/gateways.functions";
 import { PAYMENT_PROVIDERS, getProviderDef, type ProviderDef } from "@/lib/payments/providers-catalog";
+import { confirmDialog } from "@/components/ui-confirm";
 
 export function PaymentGatewaysSection() {
   const [items, setItems] = useState<GatewayListItem[]>([]);
@@ -53,7 +54,13 @@ export function PaymentGatewaysSection() {
   }, []);
 
   async function handleDelete(row: GatewayListItem) {
-    if (!confirm(`Hapus konfigurasi "${row.label}"?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus konfigurasi "${row.label}"?`,
+      description: "Konfigurasi gateway akan dihapus permanen.",
+      confirmLabel: "Ya, hapus",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await remove({ data: { id: row.id } });
       toast.success("Gateway dihapus");

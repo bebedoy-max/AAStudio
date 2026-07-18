@@ -27,6 +27,7 @@ import {
 import { createRunStore } from "@/lib/stores/run-store";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { confirmDialog } from "@/components/ui-confirm";
 
 
 export const Route = createFileRoute("/generate/storyboard")({
@@ -275,9 +276,15 @@ function StoryboardPage() {
     if (rows.length >= SB_MAX_ROWS) return;
     setRows((prev) => [...prev, newRow()]);
   };
-  const clearAllRows = () => {
+  const clearAllRows = async () => {
     if (rows.length === 0) return;
-    if (!window.confirm(`Hapus semua ${rows.length} link produk?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus semua ${rows.length} link produk?`,
+      description: "Semua baris akan direset ke satu baris kosong.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     setRows([newRow()]);
   };
 

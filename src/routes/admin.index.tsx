@@ -20,6 +20,7 @@ import {
   Crown,
   Clock,
 } from "lucide-react";
+import { confirmDialog } from "@/components/ui-confirm";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -39,7 +40,6 @@ type ManagedUser = {
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
-  is_active: boolean;
   created_at: string;
   roles: Role[];
   route_keys: string[];
@@ -48,6 +48,7 @@ type ManagedUser = {
   total_active_keys: number;
   last_sign_in_at: string | null;
   tags: UserTag[];
+  is_paid: boolean;
 };
 
 function accountAge(createdAt: string): string {
@@ -121,6 +122,13 @@ function AdminBody() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [filterRole, setFilterRole] = useState<"all" | Role>("all");
+  const [filterFeatureMin, setFilterFeatureMin] = useState<string>("");
+  const [filterKeyMin, setFilterKeyMin] = useState<string>("");
+  const [filterLoginFrom, setFilterLoginFrom] = useState<string>("");
+  const [filterLoginTo, setFilterLoginTo] = useState<string>("");
+  const [filterAgeMin, setFilterAgeMin] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "free" | "paid">("all");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
   const fetchStats = useServerFn(listAdminUserStats);
@@ -146,7 +154,7 @@ function AdminBody() {
     });
     const statsByUser: Record<
       string,
-      { t: number; b: number; total: number; last: string | null; tags: UserTag[] }
+      { t: number; b: number; total: number; last: string | null; tags: UserTag[]; is_paid: boolean }
     > = {};
     ((statsRes ?? []) as any[]).forEach((r) => {
       statsByUser[r.id] = {
@@ -155,6 +163,7 @@ function AdminBody() {
         total: r.total_active_keys ?? 0,
         last: r.last_sign_in_at ?? null,
         tags: (r.tags ?? []) as UserTag[],
+        is_paid: Boolean(r.is_paid),
       };
     });
     setUsers(
@@ -169,6 +178,7 @@ function AdminBody() {
           (statsByUser[p.id]?.t ?? 0) + (statsByUser[p.id]?.b ?? 0),
         last_sign_in_at: statsByUser[p.id]?.last ?? null,
         tags: statsByUser[p.id]?.tags ?? [],
+        is_paid: statsByUser[p.id]?.is_paid ?? false,
       })),
     );
     setLoading(false);
@@ -180,12 +190,46 @@ function AdminBody() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q),
-    );
-  }, [users, query]);
+    const featMin = Number(filterFeatureMin) || 0;
+    const keyMin = Number(filterKeyMin) || 0;
+    const ageMinDays = Number(filterAgeMin) || 0;
+    const loginFromMs = filterLoginFrom ? new Date(filterLoginFrom).getTime() : null;
+    const loginToMs = filterLoginTo ? new Date(filterLoginTo).getTime() + 86_400_000 : null;
+    return users.filter((u) => {
+      if (q && !(u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q))) return false;
+      if (filterRole !== "all") {
+        if (filterRole === "user" ? u.roles.length > 0 && !u.roles.includes("user") : !u.roles.includes(filterRole))
+          return false;
+      }
+      const featCount = u.roles.includes("admin") ? ALL_ROUTE_KEYS.length : u.route_keys.length;
+      if (featCount < featMin) return false;
+      if (u.total_active_keys < keyMin) return false;
+      if (loginFromMs !== null) {
+        if (!u.last_sign_in_at || new Date(u.last_sign_in_at).getTime() < loginFromMs) return false;
+      }
+      if (loginToMs !== null) {
+        if (!u.last_sign_in_at || new Date(u.last_sign_in_at).getTime() > loginToMs) return false;
+      }
+      if (ageMinDays > 0) {
+        const days = Math.floor((Date.now() - new Date(u.created_at).getTime()) / 86_400_000);
+        if (days < ageMinDays) return false;
+      }
+      if (filterStatus === "paid" && !u.is_paid) return false;
+      if (filterStatus === "free" && u.is_paid) return false;
+      return true;
+    });
+  }, [users, query, filterRole, filterFeatureMin, filterKeyMin, filterLoginFrom, filterLoginTo, filterAgeMin, filterStatus]);
+
+  const resetFilters = () => {
+    setQuery("");
+    setFilterRole("all");
+    setFilterFeatureMin("");
+    setFilterKeyMin("");
+    setFilterLoginFrom("");
+    setFilterLoginTo("");
+    setFilterAgeMin("");
+    setFilterStatus("all");
+  };
 
   async function callAdmin(body: Record<string, unknown>) {
     const { data: sess } = await supabase.auth.getSession();
@@ -199,18 +243,14 @@ function AdminBody() {
     return res.data;
   }
 
-  async function toggleActive(u: ManagedUser) {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_active: !u.is_active })
-      .eq("id", u.id);
-    if (error) return toast.error(error.message);
-    toast.success(u.is_active ? "User dinonaktifkan" : "User diaktifkan");
-    load();
-  }
-
   async function removeUser(u: ManagedUser) {
-    if (!confirm(`Hapus user ${u.email}?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus user ${u.email}?`,
+      description: "User dan seluruh data terkait akan dihapus permanen.",
+      confirmLabel: "Ya, hapus user",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await callAdmin({ action: "delete", user_id: u.id });
       toast.success("User dihapus");
@@ -223,23 +263,109 @@ function AdminBody() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <div className="p-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-2 flex-1 min-w-64">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder="Cari email / nama…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-2 flex-1 min-w-64">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                placeholder="Cari email / nama…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <button
+              onClick={resetFilters}
+              className="rounded-full border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Reset filter
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
+              style={{ background: "var(--gradient-neon)" }}
+            >
+              <Plus className="h-4 w-4" /> Tambah user
+            </button>
           </div>
-          <button
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--gradient-neon)" }}
-          >
-            <Plus className="h-4 w-4" /> Tambah user
-          </button>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Role</span>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value as "all" | Role)}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              >
+                <option value="all">Semua</option>
+                <option value="admin">Admin</option>
+                <option value="editor">Editor</option>
+                <option value="user">User</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Fitur min.</span>
+              <input
+                type="number"
+                min={0}
+                value={filterFeatureMin}
+                onChange={(e) => setFilterFeatureMin(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Total key min.</span>
+              <input
+                type="number"
+                min={0}
+                value={filterKeyMin}
+                onChange={(e) => setFilterKeyMin(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login dari</span>
+              <input
+                type="date"
+                value={filterLoginFrom}
+                onChange={(e) => setFilterLoginFrom(e.target.value)}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login s/d</span>
+              <input
+                type="date"
+                value={filterLoginTo}
+                onChange={(e) => setFilterLoginTo(e.target.value)}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Usia (hari) min.</span>
+              <input
+                type="number"
+                min={0}
+                value={filterAgeMin}
+                onChange={(e) => setFilterAgeMin(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1 col-span-2 md:col-span-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status</span>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as "all" | "free" | "paid")}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              >
+                <option value="all">Semua</option>
+                <option value="free">Free User</option>
+                <option value="paid">Paid User</option>
+              </select>
+            </label>
+          </div>
         </div>
       </Card>
 
@@ -338,17 +464,25 @@ function AdminBody() {
                       {accountAge(u.created_at)}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleActive(u)}
+                      <span
                         className={[
-                          "text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border",
-                          u.is_active
-                            ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
-                            : "border-rose-400/50 text-rose-300 bg-rose-400/10",
+                          "inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border w-fit",
+                          u.is_paid
+                            ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+                            : "border-border text-muted-foreground bg-card/40",
                         ].join(" ")}
+                        title={u.is_paid ? "User pernah membayar & masa aktif fitur premium masih tersedia" : "Belum ada pembayaran aktif"}
                       >
-                        {u.is_active ? "aktif" : "nonaktif"}
-                      </button>
+                        <span
+                          className={[
+                            "h-2.5 w-2.5 rounded-full border",
+                            u.is_paid
+                              ? "bg-amber-300 border-amber-200 shadow-[0_0_8px_rgba(252,211,77,0.7)]"
+                              : "bg-white border-white/70",
+                          ].join(" ")}
+                        />
+                        {u.is_paid ? "Paid User" : "Free User"}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">

@@ -15,6 +15,7 @@ import {
 } from "@/lib/providers/upscaler";
 import { logGenerate } from "@/lib/activity/log";
 import { useAuth } from "@/lib/auth-context";
+import { confirmDialog } from "@/components/ui-confirm";
 
 export const Route = createFileRoute("/generate/upscaler")({
   head: () => ({
@@ -218,9 +219,15 @@ function UpscalerPage() {
     }
   };
 
-  const clearResults = () => {
+  const clearResults = async () => {
     if (results.length === 0) return;
-    if (!window.confirm(`Hapus semua ${results.length} hasil dari gallery?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus semua ${results.length} hasil dari gallery?`,
+      description: "Semua item akan dihapus dari gallery ini. Tindakan tidak bisa dibatalkan.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     persistResults([]);
   };
 

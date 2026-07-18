@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
+import { confirmDialog } from "@/components/ui-confirm";
 
 export const Route = createFileRoute("/admin/payments")({
   head: () => ({
@@ -364,7 +365,13 @@ function MethodsSection() {
   }, []);
 
   async function remove(m: Method) {
-    if (!confirm(`Hapus metode "${m.name}"?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus metode "${m.name}"?`,
+      description: "Metode pembayaran ini akan dihapus permanen dari daftar.",
+      confirmLabel: "Ya, hapus",
+      tone: "danger",
+    });
+    if (!ok) return;
     const { error } = await supabase.from("payment_methods").delete().eq("id", m.id);
     if (error) return toast.error(error.message);
     toast.success("Metode dihapus");

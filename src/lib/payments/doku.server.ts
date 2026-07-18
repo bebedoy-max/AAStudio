@@ -98,6 +98,16 @@ export type DokuCheckoutResult = {
   raw: unknown;
 };
 
+// DOKU membatasi karakter di beberapa field (mis. line_items.name) ke
+// a-z A-Z 0-9 . - / + , = _ : ' @ % dan spasi. Ganti sisanya jadi spasi.
+function sanitizeDokuText(input: string): string {
+  return (input ?? "")
+    .replace(/[^a-zA-Z0-9.\-/+,=_:'@% ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
 export async function createDokuCheckout(params: {
   cfg: DokuConfig;
   invoiceNumber: string;
@@ -112,9 +122,9 @@ export async function createDokuCheckout(params: {
     order: {
       amount: Math.round(params.amountIdr),
       invoice_number: params.invoiceNumber,
-      line_items: [
+    line_items: [
         {
-          name: (params.itemName || params.invoiceNumber).slice(0, 60),
+          name: sanitizeDokuText(params.itemName || params.invoiceNumber).slice(0, 60) || "Payment",
           price: Math.round(params.amountIdr),
           quantity: 1,
         },

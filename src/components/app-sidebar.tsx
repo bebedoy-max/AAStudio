@@ -359,11 +359,15 @@ function SortableEntry({
   currentPath,
   onNavigate,
   inline = false,
+  openGroupKey,
+  setOpenGroupKey,
 }: {
   entry: NavEntry;
   currentPath: string;
   onNavigate?: () => void;
   inline?: boolean;
+  openGroupKey?: string | null;
+  setOpenGroupKey?: (k: string | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.key });
   const style = {
@@ -381,13 +385,17 @@ function SortableEntry({
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [hoverOpen, setHoverOpen] = useState(false);
   const [anchorTop, setAnchorTop] = useState(0);
-  const [inlineOpen, setInlineOpen] = useState(false);
+  const inlineOpen = inline && entry.kind === "group" && openGroupKey === entry.key;
   const closeTimer = useRef<number | null>(null);
 
   // Auto-open inline group if a child route is active
   useEffect(() => {
-    if (inline && entry.kind === "group" && activeUrl) setInlineOpen(true);
+    if (inline && entry.kind === "group" && activeUrl && openGroupKey !== entry.key) {
+      setOpenGroupKey?.(entry.key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inline, entry.kind, activeUrl]);
+
 
   const scheduleClose = () => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
@@ -468,7 +476,7 @@ function SortableEntry({
         ) : inline ? (
           <button
             type="button"
-            onClick={() => setInlineOpen((v) => !v)}
+            onClick={() => setOpenGroupKey?.(inlineOpen ? null : entry.key)}
             className={rowClasses}
             style={activeUrl ? { background: "var(--gradient-neon)" } : undefined}
             aria-expanded={inlineOpen}
@@ -550,6 +558,8 @@ export function AppSidebar({
 
   const defaultOrder = visible.map((e) => e.key);
   const [order, setOrder] = useState<string[]>(defaultOrder);
+  const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
+
 
   useEffect(() => {
     setOrder(loadOrder(defaultOrder));
@@ -621,7 +631,7 @@ export function AppSidebar({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             {ordered.map((e) => (
-              <SortableEntry key={e.key} entry={e} currentPath={currentPath} onNavigate={onNavigate} inline={inline} />
+              <SortableEntry key={e.key} entry={e} currentPath={currentPath} onNavigate={onNavigate} inline={inline} openGroupKey={openGroupKey} setOpenGroupKey={setOpenGroupKey} />
             ))}
           </SortableContext>
         </DndContext>

@@ -19,6 +19,7 @@ export type AdminUserStat = {
   bank_keys_count: number;
   total_active_keys: number;
   tags: ("vip" | "vvip")[];
+  is_paid: boolean;
 };
 
 /**
@@ -67,6 +68,24 @@ export const listAdminUserStats = createServerFn({ method: "GET" })
       tagsByUser.set(row.user_id, arr);
     }
 
+    // 4. Paid user detection: has any approved purchase + still has an
+    //    active (unexpired) route_permission.
+    const nowIso = new Date().toISOString();
+    const { data: paidPurchases } = await admin
+      .from("purchase_requests")
+      .select("user_id")
+      .eq("status", "approved");
+    const paidPurchaseUsers = new Set<string>(
+      ((paidPurchases ?? []) as Array<{ user_id: string }>).map((r) => r.user_id).filter(Boolean),
+    );
+    const { data: activePerms } = await admin
+      .from("route_permissions")
+      .select("user_id, expires_at")
+      .or(`expires_at.is.null,expires_at.gt.${nowIso}`);
+    const activePermUsers = new Set<string>(
+      ((activePerms ?? []) as Array<{ user_id: string }>).map((r) => r.user_id).filter(Boolean),
+    );
+
     return authUsers.map((u) => {
       const c = counts.get(u.id);
       const t = c?.t ?? 0;
@@ -78,6 +97,7 @@ export const listAdminUserStats = createServerFn({ method: "GET" })
         bank_keys_count: b,
         total_active_keys: t + b,
         tags: tagsByUser.get(u.id) ?? [],
+        is_paid: paidPurchaseUsers.has(u.id) && activePermUsers.has(u.id),
       };
     });
   });

@@ -10,6 +10,7 @@ import { checkElevenKey } from "@/lib/providers/eleven";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useAuth } from "@/lib/auth-context";
 import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
+import { confirmDialog } from "@/components/ui-confirm";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
 export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
@@ -218,30 +219,55 @@ function TokensPage() {
 
         <Card>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            {providers.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => setTab(p.key)}
-                className={[
-                  "px-4 py-2 rounded-full text-sm font-medium transition",
-                  tab === p.key
-                    ? "text-primary-foreground glow-pink"
-                    : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
-                ].join(" ")}
-                style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
-              >
-                {p.label}
-              </button>
-            ))}
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => setBuyOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold hover:bg-primary/20"
-                title="Beli token dari Token Bank"
-              >
-                <ShoppingCart className="h-3.5 w-3.5" />
-                Beli Token
-              </button>
+            {/* Mobile: dropdown provider picker */}
+            <div className="w-full md:hidden">
+              <Select
+                value={tab}
+                onChange={(e) => setTab(e.target.value as ProviderKey)}
+                options={providers.map((p) => ({ value: p.key, label: p.label }))}
+              />
+            </div>
+
+
+            {/* Desktop: pill tabs */}
+            <div className="hidden md:flex flex-wrap items-center gap-2">
+              {providers.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setTab(p.key)}
+                  className={[
+                    "px-4 py-2 rounded-full text-sm font-medium transition",
+                    tab === p.key
+                      ? "text-primary-foreground glow-pink"
+                      : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
+                  ].join(" ")}
+                  style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2 w-full md:w-auto justify-end">
+              <div className="relative">
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-2 rounded-full blur-lg opacity-80 animate-pulse"
+                  style={{ background: "radial-gradient(circle, rgba(239,68,68,0.75) 0%, rgba(239,68,68,0.35) 45%, rgba(0,0,0,0) 72%)" }}
+                />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-red-500/70 animate-pulse"
+                />
+                <button
+                  onClick={() => setBuyOpen(true)}
+                  className="relative inline-flex items-center gap-2 rounded-full border-2 border-red-500/80 bg-gradient-to-r from-red-500/20 via-red-500/10 to-red-500/20 text-red-100 px-5 py-2.5 text-sm font-bold shadow-[0_0_24px_rgba(239,68,68,0.55)] hover:shadow-[0_0_32px_rgba(239,68,68,0.8)] hover:scale-[1.03] transition-all"
+                  title="Beli token dari Token Bank"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Beli Token
+                </button>
+              </div>
               <button
                 onClick={() => setShowKeys((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs font-medium hover:bg-sidebar-accent/40"
@@ -252,6 +278,7 @@ function TokensPage() {
               </button>
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 flex flex-col gap-4">
@@ -1942,8 +1969,14 @@ function MiniKeyPane({
     persist(next);
     setStatus(next.length === 0 ? "🗑 Semua key dihapus" : `${next.length} key tersimpan`);
   };
-  const clearAll = () => {
-    if (!confirm(`Hapus semua ${title} key?`)) return;
+  const clearAll = async () => {
+    const ok = await confirmDialog({
+      title: `Hapus semua ${title} key?`,
+      description: "Semua key pada slot ini akan dihapus.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     persist([]);
     setStatus("🗑 Semua key dihapus");
   };

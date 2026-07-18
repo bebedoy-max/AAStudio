@@ -28,6 +28,7 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { useAuth } from "@/lib/auth-context";
 import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
+import { confirmDialog } from "@/components/ui-confirm";
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -217,9 +218,15 @@ function MotionControl() {
     }
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (results.length === 0) return;
-    if (!window.confirm(`Hapus semua ${results.length} video dari gallery?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus semua ${results.length} video dari gallery?`,
+      description: "Semua video di gallery ini akan dihapus permanen.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     persistResults([]);
   };
 
