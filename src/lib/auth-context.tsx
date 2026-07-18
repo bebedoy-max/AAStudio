@@ -12,6 +12,7 @@ import {
   verifyExclusiveSession,
 } from "@/lib/auth/single-session";
 import { hasRunningTasks } from "@/lib/stores/notifications";
+import { logActivity } from "@/lib/activity/log";
 
 type Role = "admin" | "editor" | "user";
 
@@ -257,6 +258,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (event === "SIGNED_OUT") {
+        const uid = session?.user.id;
+        if (uid) void logActivity({ category: "auth", action: "logout", userId: uid });
         setSession(null);
         clearUserData();
         clearLocalTokenCache();
@@ -267,6 +270,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (s?.user) {
+        if (event === "SIGNED_IN") {
+          void logActivity({ category: "auth", action: "login", userId: s.user.id });
+        }
         setTimeout(() => {
           void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");
         }, 0);

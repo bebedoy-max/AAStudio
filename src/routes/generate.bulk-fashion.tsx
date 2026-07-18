@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Rocket, Trash2, Plus, RefreshCw, X, Square } from "lucide-react";
+import { logGenerate } from "@/lib/activity/log";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -205,6 +206,7 @@ function BulkFashion() {
 
   const generate = async () => {
     if (!charFile || outfitFiles.length === 0) return;
+    logGenerate("bulk_fashion", { outfits: outfitFiles.length });
     const ac = new AbortController();
     abortRef.current = ac;
     setRunning(true);

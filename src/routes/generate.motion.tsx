@@ -23,6 +23,7 @@ import {
   GalleryEmpty,
 } from "@/components/dashboard/ui";
 import { generateMotionAll, type MotionProvider } from "@/lib/providers/generate-motion";
+import { logGenerate } from "@/lib/activity/log";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { useAuth } from "@/lib/auth-context";
@@ -253,6 +254,7 @@ function MotionControl() {
       .map((s, i) => ({ s, i }))
       .filter(({ s }) => s.image && s.video);
     if (ready.length === 0) return;
+    logGenerate("motion", { count: ready.length });
     setGenerating(true);
     setLogs([]);
     // Reset statuses on ready slots

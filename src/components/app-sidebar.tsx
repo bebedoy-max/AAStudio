@@ -145,6 +145,7 @@ const ADMIN_GROUP: NavEntry = {
     { title: "Token Bank", url: "/admin/token-bank", icon: KeyRound },
     { title: "Laporan Transaksi", url: "/admin/transactions", icon: LineChart },
     { title: "Pengaturan Halaman", url: "/admin/access", icon: SlidersHorizontal },
+    { title: "Log Aktivitas", url: "/admin/activity-log", icon: BookText },
   ],
 };
 

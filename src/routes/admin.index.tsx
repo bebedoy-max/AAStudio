@@ -38,7 +38,21 @@ type ManagedUser = {
   created_at: string;
   roles: Role[];
   route_keys: string[];
+  tokens_count: number;
+  bank_keys_count: number;
 };
+
+function accountAge(createdAt: string): string {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const days = Math.max(0, Math.floor(diff / 86_400_000));
+  if (days < 1) return "hari ini";
+  if (days < 30) return `${days} hari`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} bulan`;
+  const years = Math.floor(days / 365);
+  const remMonths = Math.floor((days - years * 365) / 30);
+  return remMonths > 0 ? `${years} thn ${remMonths} bln` : `${years} tahun`;
+}
 
 function AdminPage() {
   return (
@@ -88,10 +102,11 @@ function AdminBody() {
 
   async function load() {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: perms }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: perms }, tokenCountsRes] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("route_permissions").select("user_id, route_key"),
+      supabase.rpc("admin_user_token_counts" as never),
     ]);
     const rolesByUser: Record<string, Role[]> = {};
     (roles ?? []).forEach((r: any) => {
@@ -101,11 +116,17 @@ function AdminBody() {
     (perms ?? []).forEach((p: any) => {
       (permsByUser[p.user_id] ||= []).push(p.route_key);
     });
+    const tokenByUser: Record<string, { t: number; b: number }> = {};
+    ((tokenCountsRes.data ?? []) as any[]).forEach((r) => {
+      tokenByUser[r.user_id] = { t: r.tokens_count ?? 0, b: r.bank_keys_count ?? 0 };
+    });
     setUsers(
       ((profiles ?? []) as any[]).map((p) => ({
         ...p,
         roles: rolesByUser[p.id] ?? [],
         route_keys: permsByUser[p.id] ?? [],
+        tokens_count: tokenByUser[p.id]?.t ?? 0,
+        bank_keys_count: tokenByUser[p.id]?.b ?? 0,
       })),
     );
     setLoading(false);
@@ -193,6 +214,8 @@ function AdminBody() {
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Akses fitur</th>
+                  <th className="px-4 py-3">Token / API Aktif</th>
+                  <th className="px-4 py-3">Usia Akun</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
@@ -247,6 +270,21 @@ function AdminBody() {
                         `${u.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
                       )}
                     </td>
+                    <td className="px-4 py-3 text-xs">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-mono">
+                          <span className="text-primary">{u.tokens_count}</span>
+                          <span className="text-muted-foreground"> API</span>
+                        </span>
+                        <span className="font-mono">
+                          <span className="text-accent">{u.bank_keys_count}</span>
+                          <span className="text-muted-foreground"> bank key</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                      {accountAge(u.created_at)}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => toggleActive(u)}
@@ -280,7 +318,7 @@ function AdminBody() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                       Tidak ada user.
                     </td>
                   </tr>

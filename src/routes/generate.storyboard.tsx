@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
+import { logGenerate } from "@/lib/activity/log";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
@@ -358,6 +359,7 @@ function StoryboardPage() {
   async function generateAll() {
     const ok = rows.filter((r) => r.status === "ok" && r.info);
     if (!ok.length) return;
+    logGenerate("storyboard", { rows: ok.length });
     setBusy(true);
     setLogs([]);
     setResults(

@@ -5,6 +5,7 @@ import { Loader2, ShieldCheck, Crown, Check, Users } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activity/log";
 
 
 export const Route = createFileRoute("/profile")({
@@ -58,6 +59,11 @@ function ProfilePage() {
       if (uErr) throw uErr;
 
       await refresh();
+      void logActivity({
+        category: "profile",
+        action: "profile_update",
+        details: { changed: ["display_name", "avatar_url", "phone"] },
+      });
       toast.success("Profil berhasil disimpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan profil");
@@ -100,6 +106,7 @@ function ProfilePage() {
       if (error) throw error;
       setPassword("");
       setPassword2("");
+      void logActivity({ category: "profile", action: "password_change" });
       toast.success("Password berhasil diubah");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal mengubah password");

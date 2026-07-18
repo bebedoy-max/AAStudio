@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Rocket, Trash2, Plus, RefreshCw, X } from "lucide-react";
+import { logGenerate } from "@/lib/activity/log";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -131,6 +132,7 @@ function ImageToVideo() {
 
   const generate = async () => {
     if (!imgFile || !prompt.trim()) return;
+    logGenerate("image_to_video");
     const start = Date.now();
     setStatus({ show: true, text: "Memulai...", pct: 5, time: "0:00" });
     const tick = setInterval(() => {

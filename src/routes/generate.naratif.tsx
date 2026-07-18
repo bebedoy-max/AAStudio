@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { logGenerate } from "@/lib/activity/log";
 import { Rocket, Play, Search, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
@@ -436,6 +437,7 @@ function NaratifPage() {
 
   const genAllImages = async () => {
     if (bulkBusy.img) return;
+    logGenerate("naratif_images", { scenes: scenes.length });
     setBusy("img", true);
     setBrainStatus("🖼️ Generate semua gambar…");
     try {
@@ -453,6 +455,7 @@ function NaratifPage() {
 
   const genAllVO = async () => {
     if (bulkBusy.vo) return;
+    logGenerate("naratif_voice_over", { scenes: scenes.length });
     setBusy("vo", true);
     setBrainStatus("🎙️ Generate semua voice-over…");
     try {
@@ -470,6 +473,7 @@ function NaratifPage() {
 
   const genAllVideos = async () => {
     if (bulkBusy.vid) return;
+    logGenerate("naratif_videos", { scenes: scenes.length });
     setBusy("vid", true);
     setBrainStatus("🎬 Generate semua image→video…");
     try {

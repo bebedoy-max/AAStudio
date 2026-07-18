@@ -41,6 +41,7 @@ import { Route as AdminTransactionsRouteImport } from './routes/admin.transactio
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
 import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
@@ -227,6 +228,11 @@ const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminActivityLogRoute = AdminActivityLogRouteImport.update({
+  id: '/activity-log',
+  path: '/activity-log',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAccessRoute = AdminAccessRouteImport.update({
   id: '/access',
   path: '/access',
@@ -363,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
@@ -420,6 +427,7 @@ export interface FileRoutesByTo {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
@@ -480,6 +488,7 @@ export interface FileRoutesById {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
@@ -541,6 +550,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
@@ -598,6 +608,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
@@ -657,6 +668,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
@@ -981,6 +993,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPaymentsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/activity-log': {
+      id: '/admin/activity-log'
+      path: '/activity-log'
+      fullPath: '/admin/activity-log'
+      preLoaderRoute: typeof AdminActivityLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/access': {
       id: '/admin/access'
       path: '/access'
@@ -1161,6 +1180,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
+  AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminTokenBankRoute: typeof AdminTokenBankRoute
@@ -1170,6 +1190,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
+  AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminTokenBankRoute: AdminTokenBankRoute,
