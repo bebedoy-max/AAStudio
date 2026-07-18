@@ -367,11 +367,9 @@ function MotionControl() {
             }
           >
             <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(Math.max(slots.length, 1), 3)}, minmax(0, 1fr))`,
-              }}
+              className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
             >
+
               {slots.map((s, idx) => (
                 <RefCard
                   key={s.id}
@@ -717,16 +715,17 @@ function MediaUpload({
         {has ? (
           <>
             {kind === "image" ? (
-              <img src={previewUrl!} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={previewUrl!} alt="" className="absolute inset-0 h-full w-full object-contain bg-black/40" />
             ) : (
               <video
                 src={previewUrl!}
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-contain bg-black/40"
                 muted
                 playsInline
               />
             )}
-            <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 flex items-center justify-between text-[11px]">
+
+            <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 flex items-center justify-between text-[11px] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 group-active:opacity-100 md:opacity-100 transition-opacity">
               <span className="truncate text-foreground/95 max-w-[70%]">{file!.name}</span>
               <span className="font-mono text-muted-foreground">{sizeLabel}</span>
             </div>
@@ -736,10 +735,10 @@ function MediaUpload({
                 onChange(null);
                 if (inputRef.current) inputRef.current.value = "";
               }}
-              className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 backdrop-blur px-2.5 py-1 text-[11px] text-white hover:text-destructive transition"
+              className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 backdrop-blur px-2 py-1 text-[11px] text-white hover:text-destructive transition md:px-2.5"
               title="Ganti file"
             >
-              <X className="h-3.5 w-3.5" /> Ganti
+              <X className="h-3.5 w-3.5" /> <span className="hidden md:inline">Ganti</span>
             </button>
           </>
         ) : (

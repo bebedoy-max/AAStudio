@@ -136,6 +136,31 @@ export function UpgradeDialog({
   const bundlePrice = prices[FULL_ACCESS_KEY];
   const bundleAvailable = !!bundlePrice && availableFeatures.length > 1;
 
+  // Full price of every paid premium feature (owned + not owned).
+  const fullFeaturesTotal = useMemo(
+    () =>
+      ALL_ROUTE_KEYS.reduce((s, f) => {
+        const mode = featureAccess[f.key]?.mode ?? "subscription";
+        if (mode !== "subscription") return s;
+        return s + (prices[f.key]?.price_idr ?? 0);
+      }, 0),
+    [prices, featureAccess],
+  );
+
+  const individualTotal = useMemo(
+    () => availableFeatures.reduce((s, f) => s + (prices[f.key]?.price_idr ?? 0), 0),
+    [availableFeatures, prices],
+  );
+
+  // If the user already owns some premium features, discount the bundle
+  // proportionally so they only pay for the remaining ones.
+  const effectiveBundlePrice = useMemo(() => {
+    if (!bundlePrice) return 0;
+    if (fullFeaturesTotal <= 0) return bundlePrice.price_idr;
+    const ratio = individualTotal / fullFeaturesTotal;
+    return Math.max(0, Math.round(bundlePrice.price_idr * ratio));
+  }, [bundlePrice, fullFeaturesTotal, individualTotal]);
+
   const toggle = (key: string) => {
     if (isPending(key)) {
       const row = pendingFor(key);
@@ -154,17 +179,14 @@ export function UpgradeDialog({
 
   const total = useMemo(
     () =>
-      bundle && bundlePrice
-        ? bundlePrice.price_idr
+      bundle
+        ? effectiveBundlePrice
         : selected.reduce((sum, k) => sum + (prices[k]?.price_idr ?? 0), 0),
-    [selected, prices, bundle, bundlePrice],
+    [selected, prices, bundle, effectiveBundlePrice],
   );
 
-  const individualTotal = useMemo(
-    () => availableFeatures.reduce((s, f) => s + (prices[f.key]?.price_idr ?? 0), 0),
-    [availableFeatures, prices],
-  );
-  const savings = bundlePrice ? Math.max(0, individualTotal - bundlePrice.price_idr) : 0;
+  const savings = Math.max(0, individualTotal - effectiveBundlePrice);
+
 
   const handleContinue = () => {
     if (selected.length === 0) return;
@@ -176,7 +198,7 @@ export function UpgradeDialog({
       <CheckoutDialog
         featureKeys={selected}
         bundleLabel={bundle ? bundlePrice?.label ?? null : null}
-        bundlePrice={bundle ? bundlePrice?.price_idr ?? null : null}
+        bundlePrice={bundle ? effectiveBundlePrice : null}
         onClose={() => setCheckout(false)}
         onSubmitted={() => {
           // Refresh pending list but DO NOT close the upgrade dialog — the
@@ -266,16 +288,22 @@ export function UpgradeDialog({
                 <div className="text-xs text-muted-foreground mt-0.5">
                   Semua fitur premium aktif 30 hari dengan satu harga diskon.
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
+                <div className="mt-2 flex items-baseline gap-2 flex-wrap">
                   <span className="font-display text-xl text-gradient">
-                    {formatRupiah(bundlePrice?.price_idr ?? 0)}
+                    {formatRupiah(effectiveBundlePrice)}
                   </span>
-                  {individualTotal > 0 && (
+                  {effectiveBundlePrice < (bundlePrice?.price_idr ?? 0) && (
                     <span className="text-xs text-muted-foreground line-through">
-                      {formatRupiah(individualTotal)}
+                      {formatRupiah(bundlePrice?.price_idr ?? 0)}
+                    </span>
+                  )}
+                  {individualTotal > effectiveBundlePrice && (
+                    <span className="text-[10px] text-muted-foreground">
+                      (satuan {formatRupiah(individualTotal)})
                     </span>
                   )}
                 </div>
+
               </div>
               <span
                 className={[

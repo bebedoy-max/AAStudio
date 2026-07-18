@@ -80,6 +80,7 @@ function Body() {
   const [to, setTo] = useState("");
   const [limit] = useState(500);
   const [exportOpen, setExportOpen] = useState(false);
+  const [mobileRow, setMobileRow] = useState<LogRow | null>(null);
 
   async function load() {
     setLoading(true);
@@ -312,62 +313,158 @@ th{background:#f2f2f2}
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                <tr className="border-b border-border/60">
-                  <th className="px-4 py-3">Waktu</th>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Kategori</th>
-                  <th className="px-4 py-3">Aksi</th>
-                  <th className="px-4 py-3">Detail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => {
-                  const p = r.user_id ? profiles[r.user_id] : null;
-                  return (
-                    <tr key={r.id} className="border-b border-border/40 align-top">
-                      <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">
-                        {new Date(r.created_at).toLocaleString("id-ID", {
-                          dateStyle: "short",
-                          timeStyle: "medium",
-                        })}
-                      </td>
-                      <td className="px-4 py-2 text-xs">
-                        <div className="font-medium">{p?.display_name || "—"}</div>
-                        <div className="text-muted-foreground">{p?.email ?? r.user_id?.slice(0, 8)}</div>
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                          {r.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 font-mono text-xs">{r.action}</td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground max-w-md">
-                        {r.details ? (
-                          <pre className="whitespace-pre-wrap break-words font-mono text-[10px]">
-                            {JSON.stringify(r.details)}
-                          </pre>
-                        ) : (
-                          "—"
-                        )}
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  <tr className="border-b border-border/60">
+                    <th className="px-4 py-3">Waktu</th>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Kategori</th>
+                    <th className="px-4 py-3">Aksi</th>
+                    <th className="px-4 py-3">Detail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((r) => {
+                    const p = r.user_id ? profiles[r.user_id] : null;
+                    return (
+                      <tr key={r.id} className="border-b border-border/40 align-top">
+                        <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">
+                          {new Date(r.created_at).toLocaleString("id-ID", {
+                            dateStyle: "short",
+                            timeStyle: "medium",
+                          })}
+                        </td>
+                        <td className="px-4 py-2 text-xs">
+                          <div className="font-medium">{p?.display_name || "—"}</div>
+                          <div className="text-muted-foreground">{p?.email ?? r.user_id?.slice(0, 8)}</div>
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                            {r.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 font-mono text-xs">{r.action}</td>
+                        <td className="px-4 py-2 text-xs text-muted-foreground max-w-md">
+                          {r.details ? (
+                            <pre className="whitespace-pre-wrap break-words font-mono text-[10px]">
+                              {JSON.stringify(r.details)}
+                            </pre>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        Tidak ada log yang cocok dengan filter.
                       </td>
                     </tr>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                      Tidak ada log yang cocok dengan filter.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: hanya waktu + user, tap untuk lihat detail */}
+            <div className="md:hidden">
+              {filtered.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  Tidak ada log yang cocok dengan filter.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border/40">
+                  {filtered.map((r) => {
+                    const p = r.user_id ? profiles[r.user_id] : null;
+                    const time = new Date(r.created_at).toLocaleString("id-ID", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    });
+                    return (
+                      <li key={r.id}>
+                        <button
+                          onClick={() => setMobileRow(r)}
+                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-sidebar-accent/30"
+                        >
+                          <div className="font-mono text-[11px] text-muted-foreground shrink-0 min-w-[6.5rem]">
+                            {time}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm truncate">{p?.display_name || p?.email || "—"}</div>
+                            {p?.display_name && p?.email && (
+                              <div className="text-[11px] text-muted-foreground truncate">{p.email}</div>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </>
         )}
       </Card>
+
+      {mobileRow && (() => {
+        const p = mobileRow.user_id ? profiles[mobileRow.user_id] : null;
+        return (
+          <div
+            className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4"
+            onClick={() => setMobileRow(null)}
+          >
+            <div
+              className="neumorph w-full max-w-md max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 py-4 border-b border-border/60">
+                <div className="font-display text-base">Detail Aktivitas</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(mobileRow.created_at).toLocaleString("id-ID", { dateStyle: "long", timeStyle: "medium" })}
+                </div>
+              </div>
+              <div className="p-5 space-y-3 text-sm">
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">User</div>
+                  <div className="font-medium">{p?.display_name || "—"}</div>
+                  <div className="text-xs text-muted-foreground break-all">{p?.email || mobileRow.user_id || "—"}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Kategori</div>
+                  <div>{mobileRow.category}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Aksi</div>
+                  <div className="font-mono text-xs">{mobileRow.action}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Detail</div>
+                  {mobileRow.details ? (
+                    <pre className="whitespace-pre-wrap break-words font-mono text-[10px] mt-1 bg-card/40 border border-border/50 rounded-lg p-2">
+                      {JSON.stringify(mobileRow.details, null, 2)}
+                    </pre>
+                  ) : (
+                    <div className="text-muted-foreground">—</div>
+                  )}
+                </div>
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => setMobileRow(null)}
+                    className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground"
+                    style={{ background: "var(--gradient-neon)" }}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

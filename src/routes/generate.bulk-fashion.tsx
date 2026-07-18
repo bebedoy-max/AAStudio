@@ -287,8 +287,8 @@ function BulkFashion() {
           ) : (
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden border border-border">
               <img src={char} alt="karakter" className="w-full h-full object-cover" />
-              <button onClick={() => charInput.current?.click()} className="absolute top-2 right-2 rounded-full px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
-                <RefreshCw className="h-3 w-3" /> Ganti
+              <button onClick={() => charInput.current?.click()} className="absolute top-2 right-2 rounded-full px-2 md:px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
+                <RefreshCw className="h-3 w-3" /> <span className="hidden md:inline">Ganti</span>
               </button>
             </div>
           )}

@@ -284,53 +284,6 @@ function ProfilePage() {
             </div>
           </div>
 
-          <div className="neumorph p-5">
-            <div className="flex items-center gap-2">
-              {hasFullAccess ? (
-                <Crown className="h-4 w-4 text-primary" />
-              ) : (
-                <ShieldCheck className="h-4 w-4 text-primary" />
-              )}
-              <div className="font-display text-lg text-foreground">Akses yang Diberikan</div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Daftar fitur yang bisa Anda akses dalam aplikasi.
-            </p>
-            {hasFullAccess ? (
-              <div className="mt-3 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3">
-                <div className="font-display text-base text-gradient">FULL AKSES</div>
-                <div className="text-xs text-muted-foreground">
-                  Semua fitur premium dan area admin terbuka untuk akun Anda.
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                  Sebagian / Tertentu — {grantedFeatures.length} fitur
-                </div>
-                {grantedFeatures.length === 0 ? (
-                  <div className="text-sm text-muted-foreground rounded-xl border border-border px-4 py-3">
-                    Belum ada fitur premium yang dibuka. Silakan lakukan upgrade.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {grantedFeatures.map((f) => (
-                      <div
-                        key={f.key}
-                        className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-sm"
-                      >
-                        <Check className="h-4 w-4 text-primary" />
-                        <span className="flex-1 truncate">{f.label}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                          {f.group}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
           <div className="neumorph p-5">
             <div className="font-display text-lg text-foreground">Ganti Password</div>

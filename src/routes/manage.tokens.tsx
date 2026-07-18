@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart, ChevronDown } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
@@ -87,13 +87,14 @@ export const Route = createFileRoute("/manage/tokens")({
 type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "eleven" | "render";
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
-  { key: "brain", label: "🧠 Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
+  { key: "brain", label: "Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
   { key: "weavy", label: "Weavy", desc: "Provider utama Kling Motion Control, Wan, Sora, Seedance." },
   { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
   { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
-  { key: "eleven", label: "🎙️ ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
-  { key: "render", label: "🎬 Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
+  { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
+  { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
+
 
 // ---- localStorage helpers ----
 type WeavyTok = { id: string; token: string; user?: string; email?: string; credits: number | null; status: "active" | "empty" | "pending" | "failed" };
@@ -143,6 +144,7 @@ const writeJSON = (k: string, v: unknown) => {
 function TokensPage() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState<ProviderKey>("brain");
+  const [tabOpen, setTabOpen] = useState(false);
   const active = providers.find((p) => p.key === tab)!;
   const [showImport, setShowImport] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
@@ -219,13 +221,63 @@ function TokensPage() {
 
         <Card>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            {/* Mobile: dropdown provider picker */}
-            <div className="w-full md:hidden">
-              <Select
-                value={tab}
-                onChange={(e) => setTab(e.target.value as ProviderKey)}
-                options={providers.map((p) => ({ value: p.key, label: p.label }))}
-              />
+            {/* Mobile: custom dropdown provider picker — bigger & more prominent than Beli Token */}
+            <div className="w-full md:hidden relative">
+              <button
+                type="button"
+                onClick={() => setTabOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-3 rounded-2xl border border-primary/50 bg-card/60 px-4 py-4 text-base font-extrabold shadow-[0_0_22px_rgba(236,72,153,0.28)] hover:shadow-[0_0_28px_rgba(236,72,153,0.45)] transition"
+                aria-haspopup="listbox"
+                aria-expanded={tabOpen}
+              >
+                <span
+                  className="bg-clip-text text-transparent tracking-wide"
+                  style={{ backgroundImage: "linear-gradient(90deg,#f8fafc 0%,#cbd5e1 45%,#94a3b8 100%)" }}
+                >
+                  {providers.find((p) => p.key === tab)?.label ?? "Pilih provider"}
+                </span>
+                <ChevronDown className={["h-5 w-5 text-muted-foreground transition-transform", tabOpen ? "rotate-180" : ""].join(" ")} />
+              </button>
+              {tabOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setTabOpen(false)} aria-hidden="true" />
+                  <ul
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full mt-2 z-40 rounded-2xl border border-border bg-[oklch(0.19_0.055_275)] shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto divide-y divide-border/40"
+                  >
+                    {providers.map((p) => {
+                      const active = p.key === tab;
+                      return (
+                        <li key={p.key}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTab(p.key);
+                              setTabOpen(false);
+                            }}
+                            className={[
+                              "w-full text-left px-4 py-3 text-sm font-semibold transition",
+                              active ? "text-primary-foreground" : "text-foreground/85 hover:bg-sidebar-accent/40",
+                            ].join(" ")}
+                            style={active ? { background: "var(--gradient-neon)" } : undefined}
+                          >
+                            {active ? (
+                              <span
+                                className="bg-clip-text text-transparent"
+                                style={{ backgroundImage: "linear-gradient(90deg,#f8fafc 0%,#cbd5e1 45%,#94a3b8 100%)" }}
+                              >
+                                {p.label}
+                              </span>
+                            ) : (
+                              p.label
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
             </div>
 
 
@@ -249,25 +301,15 @@ function TokensPage() {
             </div>
 
             <div className="ml-auto flex items-center gap-2 w-full md:w-auto justify-end">
-              <div className="relative">
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-2 rounded-full blur-lg opacity-80 animate-pulse"
-                  style={{ background: "radial-gradient(circle, rgba(239,68,68,0.75) 0%, rgba(239,68,68,0.35) 45%, rgba(0,0,0,0) 72%)" }}
-                />
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -inset-1 rounded-full ring-2 ring-red-500/70 animate-pulse"
-                />
-                <button
-                  onClick={() => setBuyOpen(true)}
-                  className="relative inline-flex items-center gap-2 rounded-full border-2 border-red-500/80 bg-gradient-to-r from-red-500/20 via-red-500/10 to-red-500/20 text-red-100 px-5 py-2.5 text-sm font-bold shadow-[0_0_24px_rgba(239,68,68,0.55)] hover:shadow-[0_0_32px_rgba(239,68,68,0.8)] hover:scale-[1.03] transition-all"
-                  title="Beli token dari Token Bank"
-                >
-                  <ShoppingCart className="h-4 w-4" />
-                  Beli Token
-                </button>
-              </div>
+              <button
+                onClick={() => setBuyOpen(true)}
+                className="relative inline-flex items-center gap-1.5 rounded-full border border-red-500/50 bg-gradient-to-r from-red-500/20 via-red-500/10 to-red-500/20 text-red-100 px-3.5 py-2 text-xs md:text-sm font-semibold md:font-bold md:px-5 md:py-2.5 shadow-[0_0_14px_rgba(239,68,68,0.35)] md:shadow-[0_0_20px_rgba(239,68,68,0.55)] hover:shadow-[0_0_28px_rgba(239,68,68,0.75)] hover:scale-[1.02] transition-all"
+                title="Beli token dari Token Bank"
+              >
+                <ShoppingCart className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                Beli Token
+              </button>
+
               <button
                 onClick={() => setShowKeys((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs font-medium hover:bg-sidebar-accent/40"

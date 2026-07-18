@@ -131,6 +131,7 @@ function AdminBody() {
   const [filterStatus, setFilterStatus] = useState<"all" | "free" | "paid">("all");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
+  const [mobileDetail, setMobileDetail] = useState<ManagedUser | null>(null);
   const fetchStats = useServerFn(listAdminUserStats);
 
   async function load() {
@@ -369,6 +370,7 @@ function AdminBody() {
         </div>
       </Card>
 
+      <div className="hidden md:block">
       <Card>
         {loading ? (
           <div className="p-8 flex items-center justify-center">
@@ -514,6 +516,101 @@ function AdminBody() {
           </div>
         )}
       </Card>
+      </div>
+
+      {/* Mobile-only compact user list. Detail info is dibuka via modal saat nama diklik. */}
+      <Card>
+        <div className="md:hidden">
+          {loading ? (
+            <div className="p-8 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Tidak ada user.</div>
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {filtered.map((u) => (
+                <li key={u.id} className="flex items-center gap-2 px-3 py-3">
+                  <button
+                    onClick={() => setMobileDetail(u)}
+                    className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
+                    title="Lihat detail user"
+                  >
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span
+                        className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm shrink-0"
+                        style={{ background: "var(--gradient-neon)" }}
+                      >
+                        {(u.display_name || u.email || "U")[0]?.toUpperCase()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <span className="truncate">{u.display_name || u.email || "—"}</span>
+                        {u.tags.map((t) => (
+                          <TagBadge key={t} tag={t} />
+                        ))}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setEditing(u)}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-2.5 py-1.5 text-[11px] font-medium"
+                    title="Kelola user"
+                  >
+                    <UserCog className="h-3.5 w-3.5" />
+                    Kelola
+                  </button>
+                  <button
+                    onClick={() => removeUser(u)}
+                    className="shrink-0 inline-flex items-center rounded-full border border-rose-400/40 text-rose-300 px-2 py-1.5"
+                    title="Hapus user"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Card>
+
+      {mobileDetail && (
+        <Modal title={mobileDetail.email || mobileDetail.display_name || "Detail user"} onClose={() => setMobileDetail(null)}>
+          <div className="p-5 space-y-3 text-sm">
+            <DetailRow label="Nama" value={mobileDetail.display_name || "—"} />
+            <DetailRow label="Email" value={mobileDetail.email || "—"} />
+            <DetailRow label="Role" value={mobileDetail.roles.join(", ") || "—"} />
+            <DetailRow
+              label="Akses fitur"
+              value={
+                mobileDetail.roles.includes("admin")
+                  ? "Semua fitur"
+                  : `${mobileDetail.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
+              }
+            />
+            <DetailRow label="Total Token/API Key" value={String(mobileDetail.total_active_keys)} />
+            <DetailRow label="Login terakhir" value={relativeTime(mobileDetail.last_sign_in_at)} />
+            <DetailRow label="Usia akun" value={accountAge(mobileDetail.created_at)} />
+            <DetailRow label="Status" value={mobileDetail.is_paid ? "Paid User" : "Free User"} />
+            {mobileDetail.tags.length > 0 && (
+              <DetailRow label="Tag" value={mobileDetail.tags.join(", ")} />
+            )}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setMobileDetail(null)}
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground"
+                style={{ background: "var(--gradient-neon)" }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {creating && (
         <CreateUserModal
@@ -536,6 +633,15 @@ function AdminBody() {
           callAdmin={callAdmin}
         />
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/40 pb-1.5">
+      <span className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-sm text-foreground/95 text-right break-words">{value}</span>
     </div>
   );
 }

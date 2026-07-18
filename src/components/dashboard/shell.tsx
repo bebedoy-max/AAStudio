@@ -30,6 +30,31 @@ import {
 import { usePurchaseFeed, rupiah, type PurchaseView } from "@/lib/stores/purchase-feed";
 import { PurchaseDetailDialog } from "@/components/purchase-detail-dialog";
 
+// Local dismissal for finished (approved/rejected) purchase notifications.
+// Pending purchases are never dismissible — they represent an active,
+// user-initiated flow that still needs attention.
+const DISMISS_KEY = "aatools.notif.purchases.dismissed";
+function loadDismissedPurchases(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+function saveDismissedPurchases(set: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DISMISS_KEY, JSON.stringify(Array.from(set)));
+    window.dispatchEvent(new Event("aatools:purchases-dismissed-changed"));
+  } catch {
+    /* ignore */
+  }
+}
+
 function formatAgo(ts: number): string {
   const diff = Math.max(0, Date.now() - ts);
   const s = Math.floor(diff / 1000);
@@ -58,12 +83,14 @@ function NotifPanel({
   onClose,
   onNavigate,
   onPickPurchase,
+  onClearFinished,
 }: {
   items: AppNotification[];
   purchases: PurchaseView[];
   onClose: () => void;
   onNavigate: (n: AppNotification) => void;
   onPickPurchase: (p: PurchaseView) => void;
+  onClearFinished: () => void;
 }) {
   const empty = items.length === 0 && purchases.length === 0;
   return (
@@ -76,9 +103,9 @@ function NotifPanel({
           </div>
         </div>
         <button
-          onClick={clearFinished}
+          onClick={onClearFinished}
           className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          title="Hapus notifikasi selesai"
+          title="Hapus notifikasi selesai (proses berjalan & pending tetap ditampilkan)"
         >
           <Trash2 className="h-3 w-3" /> Bersihkan
         </button>
@@ -328,7 +355,23 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [pickedPurchase, setPickedPurchase] = useState<PurchaseView | null>(null);
   const navigate = useNavigate();
   const { items: notifs } = useNotifications();
-  const { items: purchases } = usePurchaseFeed();
+  const { items: allPurchases } = usePurchaseFeed();
+  const [dismissedPurchases, setDismissedPurchases] = useState<Set<string>>(() => loadDismissedPurchases());
+  useEffect(() => {
+    const sync = () => setDismissedPurchases(loadDismissedPurchases());
+    window.addEventListener("aatools:purchases-dismissed-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("aatools:purchases-dismissed-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  const purchases = useMemo(
+    // Pending purchases are always visible (belum sukses bayar → user butuh
+    // aksi lanjutan). Approved/rejected bisa disembunyikan lewat Bersihkan.
+    () => allPurchases.filter((p) => p.status === "pending" || !dismissedPurchases.has(p.id)),
+    [allPurchases, dismissedPurchases],
+  );
   const pendingPurchases = useMemo(
     () => purchases.filter((p) => p.status === "pending").length,
     [purchases],
@@ -336,6 +379,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const unread = notifs.filter((n) => !n.read).length;
   const running = notifs.filter((n) => n.status === "running").length;
   const badgeCount = running + pendingPurchases;
+
+  function handleClearFinished() {
+    // Hapus notifikasi generate yang sudah selesai.
+    clearFinished();
+    // Sembunyikan purchase card berstatus approved / rejected. Yang pending
+    // dibiarkan karena masih menunggu pembayaran user.
+    const next = new Set(dismissedPurchases);
+    for (const p of allPurchases) {
+      if (p.status === "approved" || p.status === "rejected") next.add(p.id);
+    }
+    setDismissedPurchases(next);
+    saveDismissedPurchases(next);
+  }
 
   // Close drawer on route change
   useEffect(() => {
@@ -434,6 +490,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       if (n.route) navigate({ to: n.route });
                     }}
                     onPickPurchase={(p) => setPickedPurchase(p)}
+                    onClearFinished={handleClearFinished}
                   />
                 </>
               )}
