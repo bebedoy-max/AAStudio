@@ -56,9 +56,12 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     name: "DOKU (Jokul)",
     category: "aggregator",
     docsUrl: "https://developers.doku.com/",
+    description:
+      "Checkout unified: VA (BCA/Mandiri/BRI/BNI/CIMB/Permata), QRIS, e-wallet (OVO/DANA/ShopeePay/LinkAja), Alfamart, kartu kredit. Test koneksi live tersedia.",
+    liveTestSupported: true,
     fields: [
-      { key: "client_id",  label: "Client ID",  required: true },
-      { key: "secret_key", label: "Secret Key", required: true, secret: true },
+      { key: "client_id",  label: "Client ID (MCH-...)",  required: true, placeholder: "MCH-0001-XXXXXX" },
+      { key: "secret_key", label: "Secret Key", required: true, secret: true, placeholder: "SK-..." },
     ],
   },
   {

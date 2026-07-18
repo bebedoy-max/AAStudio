@@ -23,7 +23,7 @@ import {
   listBankPrices,
   listBankStock,
 } from "@/lib/token-bank/bank.functions";
-import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
+import { PaymentPicker } from "@/components/payments/payment-picker";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -144,7 +144,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
         route_key: `token_bank.cart`,
         price_idr: total,
         payment_method_id: null,
-        payment_method_name: "QRIS (Midtrans)",
+        payment_method_name: null,
         note: encodeCartInNote(cartItems, `[TOKEN BANK] ${label}`),
         status: "pending" as const,
         request_kind: "token_bank",
@@ -327,10 +327,10 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-              Pembayaran diproses otomatis via <b className="text-foreground">QRIS Midtrans</b>.
-              Setelah lanjut, kamu akan mendapat kode QR untuk dibayar via GoPay, ShopeePay, Dana,
-              OVO, BCA Mobile, atau aplikasi e-wallet/bank lainnya yang mendukung QRIS. Token
-              langsung masuk ke Token Manager setelah pembayaran terkonfirmasi.
+              Setelah <b className="text-foreground">Lanjut</b>, kamu akan memilih metode pembayaran
+              (QRIS Midtrans / DOKU, VA bank BCA·Mandiri·BRI·BNI·CIMB·Permata, OVO, DANA,
+              ShopeePay, LinkAja, Alfamart, dsb.). Token masuk otomatis ke Token Manager setelah
+              pembayaran terkonfirmasi.
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
@@ -345,7 +345,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                 ) : (
                   <ShoppingBag className="h-4 w-4" />
                 )}
-                Lanjut ke QRIS · {rupiah(total)}
+                Lanjut · {rupiah(total)}
               </button>
             </div>
           </>
@@ -396,7 +396,7 @@ function OrderStatusView({
           </div>
         </div>
       ) : (
-        <MidtransQrisPanel
+        <PaymentPicker
           purchaseRequestId={order.id}
           amount={order.total}
           onApproved={onApproved}

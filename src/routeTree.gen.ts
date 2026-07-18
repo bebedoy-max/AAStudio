@@ -68,6 +68,7 @@ import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/d
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
+import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -367,6 +368,12 @@ const ApiPublicMidtransNotificationRoute =
     path: '/api/public/midtrans/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicDokuNotificationRoute =
+  ApiPublicDokuNotificationRouteImport.update({
+    id: '/api/public/doku/notification',
+    path: '/api/public/doku/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -427,6 +434,7 @@ export interface FileRoutesByFullPath {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesByTo {
@@ -486,6 +494,7 @@ export interface FileRoutesByTo {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesById {
@@ -548,6 +557,7 @@ export interface FileRoutesById {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRouteTypes {
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -670,6 +681,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
   id:
     | '__root__'
@@ -731,6 +743,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
   fileRoutesById: FileRoutesById
 }
@@ -777,6 +790,7 @@ export interface RootRouteChildren {
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
   ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
+  ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
 }
 
@@ -1195,6 +1209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/doku/notification': {
+      id: '/api/public/doku/notification'
+      path: '/api/public/doku/notification'
+      fullPath: '/api/public/doku/notification'
+      preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1300,6 +1321,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
   ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
+  ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
 }
 export const routeTree = rootRouteImport

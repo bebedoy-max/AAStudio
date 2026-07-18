@@ -250,6 +250,15 @@ async function testMidtrans(config: Record<string, string>, env: "sandbox" | "pr
   return { ok: false, message: `Midtrans HTTP ${res.status}: ${body.slice(0, 160)}` };
 }
 
+async function testDoku(config: Record<string, string>, env: "sandbox" | "production"): Promise<GatewayTestResult> {
+  const clientId = config.client_id;
+  const secretKey = config.secret_key;
+  if (!clientId || !secretKey) return { ok: false, message: "client_id / secret_key kosong" };
+  const { pingDoku } = await import("./doku.server");
+  const r = await pingDoku({ clientId, secretKey, environment: env });
+  return { ok: r.ok, message: r.message };
+}
+
 export const testPaymentGateway = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
@@ -275,6 +284,8 @@ export const testPaymentGateway = createServerFn({ method: "POST" })
     try {
       if (row.provider === "midtrans") {
         result = await testMidtrans(config, row.environment);
+      } else if (row.provider === "doku") {
+        result = await testDoku(config, row.environment);
       } else {
         const def = getProviderDef(row.provider);
         const missing = def?.fields.filter((f) => f.required && !config[f.key]).map((f) => f.label) ?? [];
