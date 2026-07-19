@@ -110,19 +110,56 @@ type ResultItem = { id: string; url: string; provider: Provider; modelKey: strin
 const LS_RESULTS_BASE = "aatools.motion.results";
 const lsResultsKey = (uid: string | null) => (uid ? `${LS_RESULTS_BASE}.${uid}` : `${LS_RESULTS_BASE}.anon`);
 
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedMotionProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { motion?: string };
+    const p = obj?.motion as Provider | undefined;
+    return p && MOTION_MODELS[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
+
 function MotionControl() {
   const { user } = useAuth();
   const uid = user?.id ?? null;
 
-  // Provider aktif — legacy menyimpan di localStorage key 'aatools:activeProvider'
-  const [provider, setProvider] = useSticky<Provider>("motion.provider", "weavy");
-  useEffect(() => {
+  // Provider aktif — SELALU ikut Routing Provider (manage/routing).
+  // Fallback ke legacy key 'aatools:activeProvider' lalu 'weavy'.
+  const [provider, setProvider] = useState<Provider>(() => {
+    if (typeof window === "undefined") return "weavy";
+    const routed = readRoutedMotionProvider();
+    if (routed) return routed;
     try {
-      const p = localStorage.getItem("aatools:activeProvider") as Provider | null;
-      if (p && MOTION_MODELS[p]) setProvider(p);
+      const legacy = localStorage.getItem("aatools:activeProvider") as Provider | null;
+      if (legacy && MOTION_MODELS[legacy]) return legacy;
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return "weavy";
+  });
+
+  // Live-sync bila user mengubah routing di tab yg sama (custom event) atau
+  // tab lain (storage event), juga saat window mendapat focus kembali.
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedMotionProvider();
+      if (routed && routed !== provider) setProvider(routed);
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === LS_ROUTING || e.key === null) sync();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider]);
 
   const models = MOTION_MODELS[provider];
   const [modelKey, setModelKey] = useSticky<string>("motion.modelKey", models[0].key);

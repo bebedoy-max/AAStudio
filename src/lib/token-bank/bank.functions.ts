@@ -11,13 +11,15 @@ export type BankProvider =
   | "magnific"
   | "eleven"
   | "shotstack"
-  | "creatomate";
+  | "creatomate"
+  | "roboneo";
 
 const PROVIDERS: readonly BankProvider[] = [
   "brain",
   "weavy",
   "wavespeed",
   "magnific",
+  "roboneo",
   "eleven",
   "shotstack",
   "creatomate",
@@ -33,6 +35,7 @@ export const BANK_STORAGE_KEY: Record<BankProvider, string> = {
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
   eleven: "aatools.eleven",
   shotstack: "aatools.shotstack.keys",
   creatomate: "aatools.creatomate.keys",
@@ -59,7 +62,8 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
     case "wavespeed":
     case "magnific":
     case "shotstack":
-    case "creatomate": {
+    case "creatomate":
+    case "roboneo": {
       type T = { id: string; key: string; balance: number | null; status: string };
       const arr: T[] = currentJson ? (JSON.parse(currentJson) as T[]) : [];
       if (!arr.some((k) => k.key === keyValue))
@@ -640,6 +644,7 @@ export const PROVIDER_LABELS: Record<BankProvider, string> = {
   weavy: "Weavy",
   wavespeed: "Wavespeed",
   magnific: "Magnific",
+  roboneo: "Roboneo",
   eleven: "ElevenLabs",
   shotstack: "Shotstack",
   creatomate: "Creatomate",

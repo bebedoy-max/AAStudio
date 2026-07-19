@@ -22,6 +22,7 @@ import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
   BANK_PROVIDERS,
@@ -675,6 +676,22 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
           return { label: `HTTP ${r.status}`, tone: "bad" };
         } catch {
           return { label: "Gagal cek jaringan", tone: "bad" };
+        }
+      }
+      case "roboneo": {
+        const chk = await checkRoboneoToken(key);
+        if (!chk.ok) return { label: chk.message || "Invalid", tone: "bad" };
+        try {
+          const bal = await fetchRoboneoBalance(key);
+          if (bal.ok && bal.balance != null) {
+            return {
+              label: `${bal.balance} cr`,
+              tone: bal.balance <= 0 ? "bad" : bal.balance < 5 ? "warn" : "ok",
+            };
+          }
+          return { label: chk.message || "Aktif", tone: "ok" };
+        } catch {
+          return { label: chk.message || "Aktif", tone: "ok" };
         }
       }
       case "shotstack":

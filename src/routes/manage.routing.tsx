@@ -209,7 +209,14 @@ function RoutingPage() {
   const setCap = (cap: CapKey, id: string) => {
     const next = { ...routing, [cap]: id };
     setRouting(next);
-    if (typeof window !== "undefined") localStorage.setItem(LS_ROUTING, JSON.stringify(next));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LS_ROUTING, JSON.stringify(next));
+      // Notify halaman lain (mis. /generate/motion) supaya provider aktif
+      // segera menyesuaikan tanpa perlu reload.
+      window.dispatchEvent(
+        new CustomEvent("aatools:routing-changed", { detail: { cap, id, routing: next } }),
+      );
+    }
     setSavedAt(new Date().toLocaleTimeString());
   };
 
