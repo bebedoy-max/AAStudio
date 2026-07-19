@@ -58,6 +58,7 @@ import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/u
 import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
 import { Route as ApiPublicScrapeArticleRouteImport } from './routes/api/public/scrape-article'
+import { Route as ApiPublicRoboneoRouteImport } from './routes/api/public/roboneo'
 import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/proxy-image'
 import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
@@ -317,6 +318,11 @@ const ApiPublicScrapeArticleRoute = ApiPublicScrapeArticleRouteImport.update({
   path: '/api/public/scrape-article',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRoboneoRoute = ApiPublicRoboneoRouteImport.update({
+  id: '/api/public/roboneo',
+  path: '/api/public/roboneo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProxyImageRoute = ApiPublicProxyImageRouteImport.update({
   id: '/api/public/proxy-image',
   path: '/api/public/proxy-image',
@@ -427,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
+  '/api/public/roboneo': typeof ApiPublicRoboneoRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -488,6 +495,7 @@ export interface FileRoutesByTo {
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
+  '/api/public/roboneo': typeof ApiPublicRoboneoRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -552,6 +560,7 @@ export interface FileRoutesById {
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
+  '/api/public/roboneo': typeof ApiPublicRoboneoRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -617,6 +626,7 @@ export interface FileRouteTypes {
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
     | '/api/public/proxy-image'
+    | '/api/public/roboneo'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -678,6 +688,7 @@ export interface FileRouteTypes {
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
     | '/api/public/proxy-image'
+    | '/api/public/roboneo'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -741,6 +752,7 @@ export interface FileRouteTypes {
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
     | '/api/public/proxy-image'
+    | '/api/public/roboneo'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -789,6 +801,7 @@ export interface RootRouteChildren {
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
   ApiPublicProxyImageRoute: typeof ApiPublicProxyImageRoute
+  ApiPublicRoboneoRoute: typeof ApiPublicRoboneoRoute
   ApiPublicScrapeArticleRoute: typeof ApiPublicScrapeArticleRoute
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
   ApiPublicStoryboardBrainRoute: typeof ApiPublicStoryboardBrainRoute
@@ -1152,6 +1165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicScrapeArticleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/roboneo': {
+      id: '/api/public/roboneo'
+      path: '/api/public/roboneo'
+      fullPath: '/api/public/roboneo'
+      preLoaderRoute: typeof ApiPublicRoboneoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/proxy-image': {
       id: '/api/public/proxy-image'
       path: '/api/public/proxy-image'
@@ -1328,6 +1348,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
   ApiPublicProxyImageRoute: ApiPublicProxyImageRoute,
+  ApiPublicRoboneoRoute: ApiPublicRoboneoRoute,
   ApiPublicScrapeArticleRoute: ApiPublicScrapeArticleRoute,
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,
   ApiPublicStoryboardBrainRoute: ApiPublicStoryboardBrainRoute,

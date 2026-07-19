@@ -68,12 +68,16 @@ const MOTION_MODELS: Record<Provider, ModelOpt[]> = {
     { key: "mag:kling-v2-6-motion-control-pro", label: "Kling V2.6 Pro (Magnific)", cr: 56 },
     { key: "mag:kling-v2-6-motion-control-std", label: "Kling V2.6 Standard (Magnific)", cr: 21 },
   ],
+  roboneo: [
+    { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 0 },
+  ],
 };
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   weavy: "Weavy",
   wavespeed: "Wavespeed",
   magnific: "Magnific",
+  roboneo: "Roboneo",
 };
 
 const MAX_REFS = 12;
@@ -402,6 +406,8 @@ function MotionControl() {
         <div className="flex flex-col gap-5" style={{ gridArea: "settings" }}>
           <Card title="Pengaturan" sub={`Provider aktif: ${PROVIDER_LABEL[provider]}`}>
             <div className="flex flex-col gap-4">
+
+
               <Field
                 label="Model"
                 hint={
@@ -420,6 +426,7 @@ function MotionControl() {
                 }))}
                 />
               </Field>
+
 
               <Field label="Character Orientation">
                 <Select

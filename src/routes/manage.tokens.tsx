@@ -7,6 +7,7 @@ import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from
 import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
+import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useAuth } from "@/lib/auth-context";
@@ -85,13 +86,14 @@ export const Route = createFileRoute("/manage/tokens")({
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "eleven" | "render";
+type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "eleven" | "render";
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "brain", label: "Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
   { key: "weavy", label: "Weavy", desc: "Provider utama Kling Motion Control, Wan, Sora, Seedance." },
   { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
   { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
+  { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
   { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
   { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
@@ -109,6 +111,7 @@ const LS = {
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
@@ -178,9 +181,11 @@ function TokensPage() {
               ? LS.wavespeed
               : tab === "magnific"
                 ? LS.magnific
-                : tab === "eleven"
-                  ? LS.eleven
-                  : LS.shotstack;
+                : tab === "roboneo"
+                  ? LS.roboneo
+                  : tab === "eleven"
+                    ? LS.eleven
+                    : LS.shotstack;
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -355,6 +360,16 @@ function TokensPage() {
                       helper="Magnific dipakai untuk Motion Control (Kling motion transfer via api.magnific.com)."
                     />
                   )}
+                  {tab === "roboneo" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="roboneo"
+                      lsKey={LS.roboneo}
+                      singlePlaceholder="_v2NGMz... (Roboneo access-token)"
+                      bulkPlaceholder={"_v2NGMzMThk...\n_v2ABCDEF..."}
+                      helper="Roboneo access-token diambil dari cookie/localStorage roboneo.com (key: access-token). Multi-token akan auto-rotate saat quota habis."
+                    />
+                  )}
                   {tab === "eleven" && <ElevenPane key={paneKey} />}
                   {tab === "render" && <RenderPane key={paneKey} />}
                 </>
@@ -405,9 +420,11 @@ function CompactSummary({
               ? LS.wavespeed
               : provider === "magnific"
                 ? LS.magnific
-                : provider === "eleven"
-                  ? LS.eleven
-                  : LS.shotstack,
+                : provider === "roboneo"
+                  ? LS.roboneo
+                  : provider === "eleven"
+                    ? LS.eleven
+                    : LS.shotstack,
       );
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -506,6 +523,19 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Paste key ke input di sebelah, klik Cek Saldo untuk verifikasi balance USD." },
     ],
     tip: "1 klip 5 detik Kling v2.1 Standard ≈ $0.25. Saldo $5 = ±20 klip.",
+  },
+  roboneo: {
+    url: "https://www.roboneo.com/ai_flow",
+    urlLabel: "roboneo.com",
+    prefix: "_v2… (access-token)",
+    steps: [
+      { text: "Login di roboneo.com (via Google / email)." },
+      { text: "Buka DevTools (F12) → tab Application → Storage → Local Storage → https://www.roboneo.com." },
+      { text: 'Cari key "access-token" — copy value (format _v2… panjang).' },
+      { text: "Paste ke input di sebelah. Multi-token akan auto-rotate saat quota habis." },
+      { text: "⚠️ Catatan: request ke gateway Roboneo mungkin diblok CORS di browser — kalau gagal, kita perlu proxy server." },
+    ],
+    tip: "Model yang didukung sekarang hanya Kling V2.6 Standard (video_bonbon_motioncontrol_v26 quality=std).",
   },
   magnific: {
     url: "https://www.magnific.com/api",
@@ -1270,7 +1300,7 @@ function ProviderKeyPane({
   singlePlaceholder: string;
   bulkPlaceholder: string;
   helper: string;
-  provider: "wavespeed" | "magnific";
+  provider: "wavespeed" | "magnific" | "roboneo";
 }) {
   const [k, setK] = useState("");
   const [bulk, setBulk] = useState("");
@@ -1302,6 +1332,20 @@ function ProviderKeyPane({
               balance: res.balance,
               status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
             };
+          } else if (provider === "roboneo") {
+            const chk = await checkRoboneoToken(x.key);
+            if (!chk.ok) {
+              updated = { ...x, balance: null, status: "failed", note: chk.message };
+            } else {
+              const bal = await fetchRoboneoBalance(x.key);
+              updated = {
+                ...x,
+                balance: bal.balance,
+                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+                note: bal.ok ? undefined : bal.message,
+              };
+            }
+
           } else {
             const res = await checkMagnificKey(x.key);
             updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
@@ -1330,7 +1374,9 @@ function ProviderKeyPane({
   const isValidFormat = (key: string) =>
     provider === "wavespeed"
       ? /^wsk_[A-Za-z0-9_-]{8,}$/i.test(key) || /^ws_[A-Za-z0-9_-]{8,}$/i.test(key)
-      : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
+      : provider === "roboneo"
+        ? /^_v2[A-Za-z0-9+/=_-]{20,}$/i.test(key)
+        : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
   const probe = async (key: string): Promise<SimpleKey> => {
     if (provider === "wavespeed") {
@@ -1342,6 +1388,19 @@ function ProviderKeyPane({
         status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
       };
     }
+    if (provider === "roboneo") {
+      const chk = await checkRoboneoToken(key);
+      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
+      const bal = await fetchRoboneoBalance(key);
+      return {
+        id: uid(),
+        key,
+        balance: bal.balance,
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+        note: bal.ok ? undefined : bal.message,
+      };
+    }
+
     const res = await checkMagnificKey(key);
     return { id: uid(), key, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
   };
@@ -1382,7 +1441,7 @@ function ProviderKeyPane({
     setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
@@ -1414,6 +1473,20 @@ function ProviderKeyPane({
       if (provider === "wavespeed") {
         const res = await checkWavespeedBalance(x.key);
         updated = { ...x, balance: res.balance, status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed" };
+      } else if (provider === "roboneo") {
+        const chk = await checkRoboneoToken(x.key);
+        if (!chk.ok) {
+          updated = { ...x, balance: null, status: "failed", note: chk.message };
+        } else {
+          const bal = await fetchRoboneoBalance(x.key);
+          updated = {
+            ...x,
+            balance: bal.balance,
+            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+            note: bal.ok ? undefined : bal.message,
+          };
+        }
+
       } else {
         const res = await checkMagnificKey(x.key);
         updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
@@ -1429,16 +1502,22 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
         { label: "Total key dicek", value: working.length },
         {
           label: "Aktif",
-          value: provider === "wavespeed" ? `${active}  ($${totBal.toFixed(2)})` : active,
+          value:
+            provider === "wavespeed"
+              ? `${active}  ($${totBal.toFixed(2)})`
+              : provider === "roboneo"
+                ? `${active}  (${totBal} credit)`
+                : active,
           tone: "ok",
         },
+
         { label: "Saldo kosong", value: emp, tone: emp ? "warn" : "muted" },
         { label: "Invalid / gagal", value: failed, tone: failed ? "bad" : "muted" },
       ],
@@ -1494,13 +1573,15 @@ function ProviderKeyPane({
               className="font-mono text-xs"
             />
           </Field>
-          <PrimaryButton onClick={tambah} disabled={!canAdd}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
         </>
       )}
 
       <div className="flex gap-2 flex-wrap">
+        {mode === "bulk" && (
+          <PrimaryButton onClick={tambah} disabled={!canAdd}>
+            <Plus className="h-3.5 w-3.5" /> Tambah
+          </PrimaryButton>
+        )}
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
           <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
         </GhostButton>

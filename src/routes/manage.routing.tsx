@@ -164,6 +164,21 @@ const CAPS: Cap[] = [
         models: [{ name: "Kling Motion Control", cost: "~35 cr / clip 5s" }],
       },
       {
+        id: "wavespeed",
+        name: "Wavespeed",
+        desc: "Kling Motion Control via Wavespeed API. Support V2.6 & V3.0 (Pro/Std).",
+        models: [
+          { name: "Kling V3.0 Pro / Std", cost: "84 / 63 cr per clip" },
+          { name: "Kling V2.6 Pro / Std", cost: "56 / 21 cr per clip" },
+        ],
+      },
+      {
+        id: "roboneo",
+        name: "Roboneo",
+        desc: "Kling Motion Control via Roboneo (Meitu gateway). Hanya Kling V2.6 Standard.",
+        models: [{ name: "Kling V2.6 Standard", cost: "Gratis (kuota akun Roboneo)" }],
+      },
+      {
         id: "magnific",
         name: "Magnific",
         desc: "Kling Motion Control langsung via api.magnific.com. Butuh Freepik/Magnific API key (FPSX…).",

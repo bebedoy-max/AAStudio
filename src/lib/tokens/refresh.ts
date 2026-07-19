@@ -6,15 +6,18 @@
 import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "eleven" | "brain";
+export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "eleven" | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,
   wavespeed: 0.01, // USD — token dianggap habis kalau <= $0.01
   eleven: 50,
+  roboneo: 1,
 } as const;
+
 
 const LS_KEYS = {
   brain: "aatools.brain.geminiKeys",
@@ -23,9 +26,11 @@ const LS_KEYS = {
   weavyActive: "aatools.weavy.activeId",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
 } as const;
+
 
 type BrainKeyStatus = {
   key: string;
@@ -144,6 +149,30 @@ async function refreshWavespeed(): Promise<void> {
   }
 }
 
+async function refreshRoboneo(): Promise<void> {
+  const list = readJSON<SimpleKey[]>(LS_KEYS.roboneo, []);
+  if (list.length === 0) return;
+  const kept: SimpleKey[] = [];
+  for (const x of list) {
+    const r = await fetchRoboneoBalance(x.key);
+    if (!r.ok) {
+      kept.push(x); // keep, network/gateway issue
+      continue;
+    }
+    const bal = r.balance;
+    if (bal !== null && bal < MIN_CREDITS.roboneo) continue; // habis → drop
+    kept.push({
+      ...x,
+      balance: bal,
+      status: bal === null ? "active" : bal <= 0 ? "empty" : "active",
+    });
+  }
+  if (kept.length !== list.length || kept.some((k, i) => k.balance !== list[i]?.balance)) {
+    writeJSON(LS_KEYS.roboneo, kept);
+  }
+}
+
+
 async function refreshEleven(): Promise<void> {
   const cfg = readJSON<ElevenCfg>(LS_KEYS.eleven, { keys: [], voice: "", customVoice: "" });
   if (!cfg.keys || cfg.keys.length === 0) return;
@@ -181,8 +210,10 @@ export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<
     try {
       if (provider === "weavy") await refreshWeavy();
       else if (provider === "wavespeed") await refreshWavespeed();
+      else if (provider === "roboneo") await refreshRoboneo();
       else if (provider === "eleven") await refreshEleven();
       else if (provider === "brain") await refreshBrain();
+
       notifyPanes();
     } catch (e) {
       console.warn("[tokens/refresh] failed", provider, e);
