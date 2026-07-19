@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { flushSync } from "react-dom";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart, ChevronDown } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -207,7 +208,11 @@ function TokensPage() {
     return () => window.clearInterval(refreshRemoteTokens);
   }, [loading, user?.id]);
 
-  const paneKey = `${tab}-${syncTick}`;
+  // Do NOT include syncTick in the pane key — remounting the pane every time
+  // remote sync fires (every 20s) wipes local input state, causing the user's
+  // freshly pasted keys to "disappear". Panes already listen to storage/sync
+  // events themselves to refresh the saved list.
+  const paneKey = tab;
 
   return (
     <SummaryCtx.Provider value={setSummary}>
@@ -694,8 +699,8 @@ function BrainPane() {
       const r = await checkGeminiKey(goodFormat[i]);
       results.push(r);
       if (r.state === "active" || r.state === "limited") accepted.push(goodFormat[i]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / goodFormat.length) * 100), text: `Cek ${i + 1}/${goodFormat.length}` });
-      await new Promise((res) => setTimeout(res, 120));
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / goodFormat.length) * 100), text: `Cek ${i + 1}/${goodFormat.length}` }));
+      await new Promise((res) => setTimeout(res, 15));
     }
     const merged = Array.from(new Set([...stored, ...accepted]));
     writeJSON(LS.brain, merged);
@@ -749,8 +754,8 @@ function BrainPane() {
       const r = await checkGeminiKey(stored[i]);
       results.push(r);
       saveChecks([...results, ...stored.slice(i + 1).map((k) => ({ key: k, state: "checking" as const }))]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / stored.length) * 100), text: `Cek ${i + 1}/${stored.length}` });
-      await new Promise((res) => setTimeout(res, 120));
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / stored.length) * 100), text: `Cek ${i + 1}/${stored.length}` }));
+      await new Promise((res) => setTimeout(res, 15));
     }
     saveChecks(results);
     setProgress({ show: false, pct: 0, text: "" });
@@ -1019,7 +1024,7 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       } else {
         invalidToken++;
       }
-      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
       await new Promise((r) => setTimeout(r, 150));
     }
     const merged = [...list, ...added];
@@ -1097,11 +1102,11 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
         : { ...t, status: "failed", credits: null };
       working = working.map((x) => (x.id === t.id ? updated : x));
       persist(working);
-      setProgress({
+      flushSync(() => setProgress({
         show: true,
         pct: Math.round(((i + 1) / working.length) * 100),
         text: `Checking ${i + 1}/${working.length} — ${res.ok ? (res.credits ?? "?") + " cr" : "gagal"}`,
-      });
+      }));
       // small delay to avoid hammering Firebase
       await new Promise((r) => setTimeout(r, 150));
     }
@@ -1363,7 +1368,7 @@ function ProviderKeyPane({
       if (item.status === "active") added.push(item);
       else if (item.status === "empty") { empty++; added.push(item); }
       else failed++;
-      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
       await new Promise((r) => setTimeout(r, 120));
     }
     const merged = [...list, ...added];
@@ -1415,7 +1420,7 @@ function ProviderKeyPane({
       }
       working = working.map((y) => (y.id === x.id ? updated : y));
       persist(working);
-      setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` }));
       await new Promise((r) => setTimeout(r, 120));
     }
     setBusy(false);
@@ -1656,8 +1661,8 @@ function ElevenPane() {
         reason: !r.ok ? "tes suara gagal" : !canSave ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
       });
       if (canSave) accepted.push(k);
-      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
-      await new Promise((res) => setTimeout(res, 120));
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
+      await new Promise((res) => setTimeout(res, 15));
     }
     const merged = Array.from(new Set([...cfg.keys, ...accepted]));
     const next = { ...cfg, keys: merged };
@@ -1751,7 +1756,7 @@ function ElevenPane() {
         reason: !r.ok ? "tes suara gagal" : !canUse ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
       });
       saveStatuses([...results]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / cfg.keys.length) * 100), text: `Cek ${i + 1}/${cfg.keys.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / cfg.keys.length) * 100), text: `Cek ${i + 1}/${cfg.keys.length}` }));
       await new Promise((r) => setTimeout(r, 120));
     }
     const okCount = results.filter((r) => r.ok).length;

@@ -207,6 +207,10 @@ function BulkFashion() {
   const generate = async () => {
     if (!charFile || outfitFiles.length === 0) return;
     logGenerate("bulk_fashion", { outfits: outfitFiles.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      trackGeneration({ kind: "bulk-fashion", title: `Bulk Fashion · ${outfitFiles.length} outfit`, counts: { images: outfitFiles.length } });
+    } catch { /* ignore */ }
     const ac = new AbortController();
     abortRef.current = ac;
     setRunning(true);

@@ -123,10 +123,9 @@ export const Route = createFileRoute("/api/public/elevenlabs-validate")({
               note: "Valid via /v1/user; saldo tidak tersedia dari endpoint ini.",
             });
           }
-          // 401 = key betul-betul invalid → langsung tolak, jangan TTS probe (buang kuota).
-          if (userRes.status === 401) {
-            return json({ ok: false, method: "user", error: `ElevenLabs 401 (invalid key)` }, 401);
-          }
+          // NOTE: jangan short-circuit di 401 /v1/user — banyak key modern
+          // (restricted scope, hanya text-to-speech) memang tidak punya akses
+          // ke /v1/user tapi valid untuk TTS. Biarkan TTS probe menentukan.
         } catch {
           /* lanjut ke TTS probe */
         }

@@ -59,6 +59,7 @@ import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/publi
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
 import { Route as ApiPublicScrapeArticleRouteImport } from './routes/api/public/scrape-article'
 import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/proxy-image'
+import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
@@ -321,6 +322,11 @@ const ApiPublicProxyImageRoute = ApiPublicProxyImageRouteImport.update({
   path: '/api/public/proxy-image',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicNewsFeedRoute = ApiPublicNewsFeedRouteImport.update({
+  id: '/api/public/news-feed',
+  path: '/api/public/news-feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicNaratifBrainRoute = ApiPublicNaratifBrainRouteImport.update({
   id: '/api/public/naratif-brain',
   path: '/api/public/naratif-brain',
@@ -419,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
+  '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
@@ -479,6 +486,7 @@ export interface FileRoutesByTo {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
+  '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
@@ -542,6 +550,7 @@ export interface FileRoutesById {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
+  '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
@@ -606,6 +615,7 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
+    | '/api/public/news-feed'
     | '/api/public/proxy-image'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
@@ -666,6 +676,7 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
+    | '/api/public/news-feed'
     | '/api/public/proxy-image'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
@@ -728,6 +739,7 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
+    | '/api/public/news-feed'
     | '/api/public/proxy-image'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
@@ -775,6 +787,7 @@ export interface RootRouteChildren {
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
+  ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
   ApiPublicProxyImageRoute: typeof ApiPublicProxyImageRoute
   ApiPublicScrapeArticleRoute: typeof ApiPublicScrapeArticleRoute
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
@@ -1146,6 +1159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProxyImageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/news-feed': {
+      id: '/api/public/news-feed'
+      path: '/api/public/news-feed'
+      fullPath: '/api/public/news-feed'
+      preLoaderRoute: typeof ApiPublicNewsFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/naratif-brain': {
       id: '/api/public/naratif-brain'
       path: '/api/public/naratif-brain'
@@ -1306,6 +1326,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
+  ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
   ApiPublicProxyImageRoute: ApiPublicProxyImageRoute,
   ApiPublicScrapeArticleRoute: ApiPublicScrapeArticleRoute,
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,

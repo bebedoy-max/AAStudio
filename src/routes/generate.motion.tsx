@@ -262,6 +262,10 @@ function MotionControl() {
       .filter(({ s }) => s.image && s.video);
     if (ready.length === 0) return;
     logGenerate("motion", { count: ready.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      trackGeneration({ kind: "motion", title: `Motion · ${ready.length} slot`, counts: { videos: ready.length } });
+    } catch { /* ignore */ }
     setGenerating(true);
     setLogs([]);
     // Reset statuses on ready slots
@@ -367,7 +371,14 @@ function MotionControl() {
             }
           >
             <div
-              className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              className={
+                "grid gap-3 grid-cols-1 " +
+                (slots.length === 1
+                  ? "lg:grid-cols-1"
+                  : slots.length === 2
+                    ? "lg:grid-cols-2"
+                    : "lg:grid-cols-3")
+              }
             >
 
               {slots.map((s, idx) => (

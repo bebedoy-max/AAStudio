@@ -133,6 +133,10 @@ function ImageToVideo() {
   const generate = async () => {
     if (!imgFile || !prompt.trim()) return;
     logGenerate("image_to_video");
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      trackGeneration({ kind: "image-to-video", title: prompt.slice(0, 60) || "Image → Video", counts: { videos: 1 } });
+    } catch { /* ignore */ }
     const start = Date.now();
     setStatus({ show: true, text: "Memulai...", pct: 5, time: "0:00" });
     const tick = setInterval(() => {

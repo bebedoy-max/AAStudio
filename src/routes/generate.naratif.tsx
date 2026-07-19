@@ -193,6 +193,14 @@ function NaratifPage() {
     // consume handoff dari Creative Dashboard (mis. dari kartu berita / idea card)
     const h = consumeHandoff();
     if (h && h.workflow === "narrative-video") {
+      // Reset semua hasil analisa lama supaya materi/extra prompt/scenes tidak
+      // bercampur dengan konten sebelumnya.
+      setScenes([]);
+      setBrainStatus("");
+      setMergeStatus("");
+      setFinalUrl(null);
+      setExtra("");
+      setMaterial(null);
       if (h.sourceUrl) {
         const src = h.sourceUrl;
         setUrl(src);
@@ -200,8 +208,14 @@ function NaratifPage() {
           setTimeout(() => { void scrapeRef.current?.(src); }, 0);
         }
       } else {
+        const body = [h.hook, h.description].filter(Boolean).join("\n\n");
+        setMaterial({
+          title: h.title || "",
+          desc: h.description || h.hook || "",
+          body: body || h.title || "",
+        });
         const seed = [h.title, h.hook, h.description].filter(Boolean).join(" — ");
-        if (seed) setExtra((prev) => (prev && prev.trim() ? prev : seed));
+        if (seed) setExtra(seed);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,6 +291,14 @@ function NaratifPage() {
   const scrape = async (overrideUrl?: string) => {
     const target = (overrideUrl ?? url).trim();
     if (!target) return;
+    // Materi baru → reset hasil analisa/scene/video final sebelumnya supaya
+    // Extra Prompt & scene tidak tercampur dengan riset lama.
+    setScenes([]);
+    setBrainStatus("");
+    setMergeStatus("");
+    setFinalUrl(null);
+    setExtra("");
+    setMaterial(null);
     setScraping(true);
     setScrapeStatus("Mengambil materi…");
     try {
@@ -295,6 +317,9 @@ function NaratifPage() {
         hero: images[0],
         images,
       });
+      // Seed extra prompt dari materi baru — bukan sisa research lama.
+      const seed = [j.title, j.description].filter(Boolean).join(" — ");
+      if (seed) setExtra(seed);
       setScrapeStatus(`✅ Materi terambil${images.length ? ` (${images.length} gambar)` : " (0 gambar — cek URL)"}`);
     } catch (e) {
       setScrapeStatus("❌ " + ((e as Error).message || String(e)));
@@ -438,6 +463,11 @@ function NaratifPage() {
   const genAllImages = async () => {
     if (bulkBusy.img) return;
     logGenerate("naratif_images", { scenes: scenes.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      const title = (extra || url || "Naratif Video").slice(0, 60);
+      trackGeneration({ kind: "narrative", title, counts: { images: scenes.length } });
+    } catch { /* ignore */ }
     setBusy("img", true);
     setBrainStatus("🖼️ Generate semua gambar…");
     try {
@@ -474,6 +504,11 @@ function NaratifPage() {
   const genAllVideos = async () => {
     if (bulkBusy.vid) return;
     logGenerate("naratif_videos", { scenes: scenes.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      const title = (extra || url || "Naratif Video").slice(0, 60);
+      trackGeneration({ kind: "narrative", title, counts: { videos: scenes.length }, progress: 60 });
+    } catch { /* ignore */ }
     setBusy("vid", true);
     setBrainStatus("🎬 Generate semua image→video…");
     try {

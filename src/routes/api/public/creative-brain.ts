@@ -92,11 +92,13 @@ ${extra ? `EXTRA CONTEXT:\n${extra}\n` : ""}
 Do the full reasoning pipeline: intent → topic expansion → audience analysis → trend analysis → content gaps → creative angles → 20 concrete video ideas → thumbnail prompt for each.
 
 For each idea, pick the best "workflow" from:
-- "narrative-video" — storytelling / educational / news / documentary
-- "motion" — motion transfer / character animation
-- "storyboard" — product-driven multi-scene ad / commerce
-- "bulk-fashion" — fashion/apparel model shots
-- "image-to-video" — single image → short animated clip
+- "narrative-video" — storytelling / educational / news / documentary / what-if / faceless / listicle. THIS IS THE DEFAULT for most non-product topics.
+- "motion" — motion transfer / dance / character animation from a source clip
+- "storyboard" — product-driven multi-scene ad / commerce / affiliate review with a specific product
+- "bulk-fashion" — ONLY when the keyword is explicitly about apparel/clothing/fashion model shoots (dress, outfit, lookbook, model wearing). Do NOT use for tech, gadget, food, generic lifestyle, or any non-apparel niche.
+- "image-to-video" — single hero image → short animated clip (portraits, product hero, single frame animation)
+
+If unsure, default to "narrative-video".
 
 Return ONLY this JSON shape (no extra keys, no commentary):
 ${schema}`;

@@ -367,6 +367,11 @@ function StoryboardPage() {
     const ok = rows.filter((r) => r.status === "ok" && r.info);
     if (!ok.length) return;
     logGenerate("storyboard", { rows: ok.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      const firstTitle = ok[0]?.info?.title || `Storyboard · ${ok.length} produk`;
+      trackGeneration({ kind: "storyboard", title: firstTitle, counts: { storyboards: ok.length } });
+    } catch { /* ignore */ }
     setBusy(true);
     setLogs([]);
     setResults(

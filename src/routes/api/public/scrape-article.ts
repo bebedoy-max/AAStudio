@@ -94,12 +94,14 @@ export const Route = createFileRoute("/api/public/scrape-article")({
           }
         } catch { /* */ }
 
-        // Detect JS-shell pages (MSN, SPA news sites) where direct HTML is nearly empty.
+        // Detect JS-shell pages (MSN, Google News redirects, SPA news sites)
+        // where direct HTML is nearly empty OR is a wrapper page for another URL.
         const quickText = directOk ? stripHtmlToText(html) : "";
         const quickTitle = directOk ? pickMeta(html, [/<title[^>]*>([^<]+)<\/title>/i]) : "";
-        const looksEmpty = !directOk || quickText.length < 400 || /^(msn|home|loading)\.?$/i.test(quickTitle.trim());
+        const isGoogleNewsWrapper = /(^|\.)news\.google\.com$/i.test(new URL(target).hostname);
+        const looksEmpty = !directOk || quickText.length < 400 || /^(msn|home|loading|google\s*berita|google\s*news)\.?$/i.test(quickTitle.trim()) || isGoogleNewsWrapper;
 
-        // Jina Reader fallback for clean article text
+        // Jina Reader fallback for clean article text (handles JS SPAs + Google News redirects)
         let jinaMd = "";
         if (looksEmpty && !msnBody) {
           try {
@@ -127,14 +129,15 @@ export const Route = createFileRoute("/api/public/scrape-article")({
         ]);
 
         const imgs: string[] = [];
-        const ogImgRe = /<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image)["'][^>]+content=["']([^"']+)["']/gi;
-        let m: RegExpExecArray | null;
-        while ((m = ogImgRe.exec(html))) imgs.push(absolutize(m[1], base));
-        // <img src=...> di article
-        const artMatch = html.match(/<article[\s\S]*?<\/article>/i);
-        const scope = artMatch ? artMatch[0] : html;
-        const imgSrc = /<img[^>]+src=["']([^"']+)["']/gi;
-        while ((m = imgSrc.exec(scope))) imgs.push(absolutize(m[1], base));
+        if (!isGoogleNewsWrapper) {
+          const ogImgRe = /<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image)["'][^>]+content=["']([^"']+)["']/gi;
+          let m: RegExpExecArray | null;
+          while ((m = ogImgRe.exec(html))) imgs.push(absolutize(m[1], base));
+          const artMatch = html.match(/<article[\s\S]*?<\/article>/i);
+          const scope = artMatch ? artMatch[0] : html;
+          const imgSrc = /<img[^>]+src=["']([^"']+)["']/gi;
+          while ((m = imgSrc.exec(scope))) imgs.push(absolutize(m[1], base));
+        }
 
         // Jina markdown → title/desc/body/images
         let jinaTitle = "", jinaDesc = "", jinaBody = "";
@@ -153,12 +156,15 @@ export const Route = createFileRoute("/api/public/scrape-article")({
         }
 
         const htmlText = stripHtmlToText(html);
-        const bodyText = msnBody
-          || ((jinaBody && jinaBody.length > 200) ? jinaBody : (htmlText || jinaBody));
-        const brandOnly = (v: string) => /^(msn|home|loading)\.?$/i.test((v || "").trim());
-        const pickTitle = brandOnly(ogTitle) ? "" : ogTitle;
-        const pickHtmlTitle = brandOnly(htmlTitle) ? "" : htmlTitle;
-        const pickDesc = brandOnly(ogDesc) ? "" : ogDesc;
+        // For Google News wrapper URLs, ignore direct HTML (Google shell) —
+        // use only Jina's resolved-target markdown so we get the real article.
+        const bodyText = isGoogleNewsWrapper
+          ? (jinaBody || msnBody || "")
+          : (msnBody || ((jinaBody && jinaBody.length > 200) ? jinaBody : (htmlText || jinaBody)));
+        const brandOnly = (v: string) => /^(msn|home|loading|google\s*berita|google\s*news)\.?$/i.test((v || "").trim());
+        const pickTitle = isGoogleNewsWrapper || brandOnly(ogTitle) ? "" : ogTitle;
+        const pickHtmlTitle = isGoogleNewsWrapper || brandOnly(htmlTitle) ? "" : htmlTitle;
+        const pickDesc = isGoogleNewsWrapper || brandOnly(ogDesc) ? "" : ogDesc;
         const finalTitle = decodeEntities(msnTitle || pickTitle || jinaTitle || pickHtmlTitle || titleFromUrl(target) || "");
         const finalDesc = decodeEntities(msnDesc || pickDesc || jinaDesc || bodyText.slice(0, 300));
         const finalBody = bodyText.slice(0, 6000);
