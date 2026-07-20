@@ -5,7 +5,7 @@
 //   POST https://ai-engine-gateway-roboneo.meitu.com/roboneo/sync/request
 //   path_scene=nodeexecute / nodeexecutequery / vipshow di dalam body.parameter
 //
-// Auth: header `access-token: _v2...` + `client-id: 1189857647` (Origin/Referer=https://www.roboneo.com).
+// Auth: header `access-token: _v2...` + `client-id: 1189857684` (Origin/Referer=https://www.roboneo.com).
 // WARNING: Endpoint memerlukan Origin=https://www.roboneo.com; call langsung dari
 // browser aplikasi ini (origin lain) akan diblok oleh CORS. Kalau gagal preflight,
 // pindah ke server proxy (src/routes/api/public/roboneo.ts).
@@ -14,7 +14,7 @@
 // parameters = { quality: "std" }, dengan image_url + video_url + optional prompt.
 
 export const ROBONEO_GATEWAY = "https://ai-engine-gateway-roboneo.meitu.com";
-export const ROBONEO_CLIENT_ID = "1189857647";
+export const ROBONEO_CLIENT_ID = "1189857684";
 export const LS_ROBONEO_KEYS = "aatools.roboneo.keys";
 
 export type RoboneoKey = {
@@ -258,8 +258,22 @@ export async function submitRoboneoMotion(opts: {
 
 export type RoboneoTask = {
   status?: string;
+  state?: string;
   progress?: number;
   media_info_list?: Array<{ url?: string; media_url?: string }>;
+  last_image_url?: string;
+  last_image_urls?: string[];
+  initial_transferred_urls?: string[];
+  media_meta?: unknown;
+  steps?: Array<{
+    state?: string;
+    status?: string;
+    output?: string;
+    error_message?: string;
+    error_msg?: string;
+    fail_code?: string;
+  }>;
+  error_message?: string;
   error_code?: number;
   error_msg?: string;
 };
@@ -274,26 +288,123 @@ export async function pollRoboneoTask(opts: {
   const start = Date.now();
   const tm = opts.timeoutMs ?? 1_800_000;
   const roomId = ROBONEO_TASK_ROOMS.get(opts.taskId);
-  const findMediaUrl = (value: unknown): string | null => {
-    if (!value || typeof value !== "object") return null;
+  const parseMaybeJson = (value: unknown): unknown => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    if (!trimmed) return value;
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[") && !trimmed.startsWith('"')) return value;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return typeof parsed === "string" && parsed !== value ? parseMaybeJson(parsed) : parsed;
+    } catch {
+      return value;
+    }
+  };
+  const collectUrlsFromText = (text: string): string[] => {
+    const normalized = text
+      .replace(/\\\//g, "/")
+      .replace(/\\u002F/gi, "/")
+      .replace(/&amp;/g, "&");
+    const matches = normalized.match(/(?:https?:)?\/\/[^\s"'<>\\]+/gi) || [];
+    return matches.map((url) => (url.startsWith("//") ? `https:${url}` : url).replace(/[),.;\]]+$/g, ""));
+  };
+  const collectMediaUrls = (value: unknown, acc: string[] = []): string[] => {
+    value = parseMaybeJson(value);
+    if (typeof value === "string") {
+      if (/^https?:\/\//i.test(value)) acc.push(value);
+      for (const url of collectUrlsFromText(value)) acc.push(url);
+      return acc;
+    }
+    if (!value || typeof value !== "object") return acc;
     if (Array.isArray(value)) {
       for (const item of value) {
-        const found = findMediaUrl(item);
-        if (found) return found;
+        collectMediaUrls(item, acc);
       }
-      return null;
+      return acc;
     }
     const obj = value as Record<string, unknown>;
-    for (const key of ["url", "media_url", "video_url", "output_url", "download_url"]) {
+    for (const key of [
+      "url",
+      "uri",
+      "src",
+      "href",
+      "last_image_url",
+      "lastImageUrl",
+      "media_url",
+      "mediaUrl",
+      "image_url",
+      "imageUrl",
+      "video_url",
+      "videoUrl",
+      "file_url",
+      "fileUrl",
+      "asset_url",
+      "assetUrl",
+      "origin_url",
+      "originUrl",
+      "original_url",
+      "originalUrl",
+      "preview_url",
+      "previewUrl",
+      "source_url",
+      "sourceUrl",
+      "output_url",
+      "outputUrl",
+      "download_url",
+      "downloadUrl",
+      "signed_url",
+      "signedUrl",
+      "play_url",
+      "playUrl",
+      "cover_url",
+      "coverUrl",
+    ]) {
       const candidate = obj[key];
-      if (typeof candidate === "string" && /^https?:\/\//i.test(candidate)) return candidate;
+      if (typeof candidate === "string") {
+        if (/^https?:\/\//i.test(candidate)) acc.push(candidate);
+        else if (/^\/\//.test(candidate)) acc.push(`https:${candidate}`);
+        else for (const url of collectUrlsFromText(candidate)) acc.push(url);
+      }
     }
     for (const nested of Object.values(obj)) {
-      const found = findMediaUrl(nested);
-      if (found) return found;
+      collectMediaUrls(nested, acc);
+    }
+    return acc;
+  };
+  const firstVideoLikeUrl = (...values: unknown[]): string | null => {
+    const urls = Array.from(new Set(values.flatMap((value) => collectMediaUrls(value))));
+    return (
+      urls.find((url) => /\.(mp4|mov|webm|m4v)(\?|#|$)/i.test(url)) ||
+      urls.find((url) => /video|mp4|mov|webm|m4v|vod|tos|myqcloud|aliyun|oss/i.test(url)) ||
+      urls[0] ||
+      null
+    );
+  };
+  // Recursively scan for a numeric "progress-like" field. Meitu gateway
+  // has used `progress`, `percent`, `rate`, `schedule`, `process_rate` etc.
+  const PROGRESS_HINTS = ["progress", "percent", "rate", "schedule", "process"];
+  const findProgress = (value: unknown, depth = 0): number | null => {
+    value = parseMaybeJson(value);
+    if (depth > 6 || !value || typeof value !== "object") return null;
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const lk = k.toLowerCase();
+      if (PROGRESS_HINTS.some((h) => lk.includes(h))) {
+        const n = typeof v === "number" ? v : typeof v === "string" && /^\d+(\.\d+)?$/.test(v) ? Number(v) : NaN;
+        if (Number.isFinite(n)) {
+          // Normalize 0-1 to 0-100.
+          const pct = n <= 1 ? n * 100 : n;
+          if (pct >= 0 && pct <= 100) return pct;
+        }
+      }
+    }
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      const r = findProgress(v, depth + 1);
+      if (r !== null) return r;
     }
     return null;
   };
+
+  let loggedShape = false;
   while (Date.now() - start < tm) {
     await new Promise((r) => setTimeout(r, 4000));
     const res = await rnCall<{
@@ -304,22 +415,78 @@ export async function pollRoboneoTask(opts: {
       ...(roomId ? { room_id: roomId } : {}),
     });
     const t = res?.tasks?.[opts.taskId] || ({} as RoboneoTask);
-    const status = String(t.status || "").toLowerCase();
-    const pct = Math.min(94, 20 + Math.round(((Date.now() - start) / tm) * 74));
+    const steps = Array.isArray(t.steps) ? t.steps : [];
+    const step = steps.find((item) => /success|succeeded|completed|done|finished/i.test(String(item.status || item.state || ""))) || steps[0];
+    const stepOutputs = steps.map((item) => parseMaybeJson(item.output));
+    const stepOutput = parseMaybeJson(step?.output);
+    const status = String(t.status || t.state || step?.status || step?.state || "").toLowerCase();
+    // Prefer real progress field from the API; fall back to elapsed-time estimate.
+    const realPct = findProgress(t) ?? findProgress(stepOutput) ?? findProgress(res);
+    const fakePct = Math.min(94, 20 + Math.round(((Date.now() - start) / tm) * 74));
+    const pct = realPct !== null ? Math.round(realPct) : fakePct;
+    if (!loggedShape && typeof console !== "undefined") {
+      loggedShape = true;
+      try {
+        // eslint-disable-next-line no-console
+        console.debug("[roboneo] first poll payload", {
+          taskKeys: Object.keys(t),
+          stepKeys: steps.map((item) => Object.keys(item)),
+          resKeys: Object.keys(res || {}),
+          realPct,
+          status,
+          urlCount: collectMediaUrls({ task: t, output: stepOutputs, response: res }).length,
+          sample: JSON.stringify({ task: t, output: stepOutputs }).slice(0, 600),
+        });
+      } catch {
+        /* ignore */
+      }
+    }
     opts.onProgress?.(pct, status || "processing");
     const media = t.media_info_list?.[0] || res?.media_info_list?.[0];
-    const outputUrl = media?.url || media?.media_url || findMediaUrl(t) || findMediaUrl(res);
+    const isSuccess = ["success", "succeeded", "completed", "done", "finished"].includes(status);
+    const outputUrl = isSuccess
+      ? firstVideoLikeUrl(
+          t.last_image_url,
+          t.last_image_urls,
+          t.initial_transferred_urls,
+          t.media_meta,
+          media?.url,
+          media?.media_url,
+          stepOutputs,
+          stepOutput,
+          t,
+          res,
+        )
+      : firstVideoLikeUrl(media?.url, media?.media_url);
     if (outputUrl) {
       ROBONEO_TASK_ROOMS.delete(opts.taskId);
       return outputUrl;
     }
-    if (["success", "completed", "done", "finished"].includes(status) && !media) {
+    if (isSuccess) {
       ROBONEO_TASK_ROOMS.delete(opts.taskId);
-      throw new Error("Roboneo: task selesai tapi tidak ada media_info_list");
+      const debugKeys = JSON.stringify({
+        taskKeys: Object.keys(t),
+        stepKeys: steps.map((item) => Object.keys(item)),
+        responseKeys: Object.keys(res || {}),
+        urlCount: collectMediaUrls({ task: t, output: stepOutputs, response: res }).length,
+        hasLastImageUrl: Boolean(t.last_image_url),
+        hasMediaMeta: Boolean(t.media_meta),
+      });
+      throw new Error(`Roboneo: task selesai tapi URL output tidak ditemukan (${debugKeys.slice(0, 300)})`);
     }
-    if (["failed", "error", "cancelled", "canceled"].includes(status)) {
+    if (["fail", "failed", "error", "cancelled", "canceled"].includes(status)) {
       ROBONEO_TASK_ROOMS.delete(opts.taskId);
-      throw new Error("Roboneo failed: " + (t.error_msg || "unknown"));
+      const parsedOutput = stepOutput && typeof stepOutput === "object" ? (stepOutput as Record<string, unknown>) : null;
+      const message =
+        t.error_message ||
+        t.error_msg ||
+        step?.error_message ||
+        step?.error_msg ||
+        (typeof parsedOutput?.error_message === "string" ? parsedOutput.error_message : undefined) ||
+        (typeof parsedOutput?.error_msg === "string" ? parsedOutput.error_msg : undefined) ||
+        step?.fail_code ||
+        "unknown";
+      throw new Error("Roboneo failed: " + message);
     }
   }
   throw new Error("Roboneo timeout");

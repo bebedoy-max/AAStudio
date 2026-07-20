@@ -4,7 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 const GATEWAY = "https://ai-engine-gateway-roboneo.meitu.com";
-const CLIENT_ID = "1189857647";
+const CLIENT_ID = "1189857684";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
