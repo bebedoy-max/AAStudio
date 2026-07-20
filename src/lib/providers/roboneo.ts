@@ -68,9 +68,10 @@ const genGid = () => {
   return `${rnd(14)}-${rnd(15)}-${rnd(7)}-${rnd(7)}-${rnd(14)}`;
 };
 
-/** Roboneo access-tokens embed a uid in a base64 payload after the `_v2` prefix,
- * shape: `<hash>#<ts>#<uid>#<n>#<hash>#ALI_YUN#BJ_HW#<sig>`. Gateway rejects the
- * request (error_code 98 "token error") unless parameter.uid matches. */
+/** Roboneo access-tokens embed a numeric field in a base64 payload after the
+ * `_v2` prefix, shape: `<hash>#<ts>#<uid-or-session-field>#<n>#<hash>#ALI_YUN#BJ_HW#<sig>`.
+ * Older authenticated tokens exposed a real uid here; current Roboneo sessions
+ * can legitimately expose `0`, so we only mirror the value instead of rejecting it. */
 function extractUid(accessToken: string): string {
   try {
     let b64 = accessToken.replace(/^_v\d+/, "");
@@ -126,36 +127,76 @@ async function rnCall<T = unknown>(
   accessToken: string,
   parameterExtras: Record<string, unknown>,
 ): Promise<T> {
-
   const base = baseParameter(accessToken, path, parameterExtras.room_id as string | undefined);
   const { _access_token: _at, ...cleanBase } = base;
   const parameter = { ...cleanBase, ...parameterExtras };
-  // Route through our edge proxy — Meitu gateway rejects Origin != roboneo.com.
-  const r = await fetch(`/api/public/roboneo`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Roboneo-Token": accessToken,
-    },
-    body: JSON.stringify({ path, parameter }),
-  });
-  const wrap = (await r.json().catch(() => null)) as {
-    ok?: boolean;
-    status?: number;
-    data?: { error_code?: number; error_msg?: string; parameter?: unknown } | null;
-    raw?: string;
-  } | null;
-  const obj = wrap?.data ?? {};
-  if (!wrap?.ok || (obj.error_code && obj.error_code !== 0)) {
-    const message = obj.error_msg || `HTTP ${wrap?.status ?? r.status}`;
-    throw new Error(
-      `Roboneo ${path}: ${message}` +
-        (message === "Please log in first" ? " — access-token Roboneo perlu login ulang" : "") +
-        (wrap?.raw ? ` — ${wrap.raw.slice(0, 200)}` : ""),
-    );
-  }
-  return obj.parameter as T;
 
+  // Meitu gateway occasionally responds with 5xx / connection reset
+  // (Envoy "upstream connect error"). Retry a few times with backoff before
+  // giving up so a single blip doesn't kill an in-flight generation.
+  const MAX_ATTEMPTS = 5;
+  let lastErr = "";
+  let lastStatus = 0;
+  let lastRaw: string | undefined;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let r: Response;
+    try {
+      r = await fetch(`/api/public/roboneo`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Roboneo-Token": accessToken,
+        },
+        body: JSON.stringify({ path, parameter }),
+      });
+    } catch (e) {
+      lastErr = `network: ${(e as Error).message}`;
+      lastStatus = 0;
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((res) => setTimeout(res, 1500 * attempt));
+        continue;
+      }
+      break;
+    }
+    const wrap = (await r.json().catch(() => null)) as {
+      ok?: boolean;
+      status?: number;
+      data?: { error_code?: number; error_msg?: string; parameter?: unknown } | null;
+      raw?: string;
+    } | null;
+    const upstreamStatus = wrap?.status ?? r.status;
+    const obj = wrap?.data ?? {};
+    lastStatus = upstreamStatus;
+    lastRaw = wrap?.raw;
+
+    // Transient upstream failure — retry.
+    const isTransient =
+      !wrap?.ok &&
+      (upstreamStatus === 502 ||
+        upstreamStatus === 503 ||
+        upstreamStatus === 504 ||
+        upstreamStatus === 429 ||
+        upstreamStatus === 0);
+    if (isTransient && attempt < MAX_ATTEMPTS) {
+      lastErr = `HTTP ${upstreamStatus}`;
+      await new Promise((res) => setTimeout(res, 1500 * attempt));
+      continue;
+    }
+
+    if (!wrap?.ok || (obj.error_code && obj.error_code !== 0)) {
+      const message = obj.error_msg || `HTTP ${upstreamStatus}`;
+      throw new Error(
+        `Roboneo ${path}: ${message}` +
+          (message === "Please log in first" ? " — access-token Roboneo perlu login ulang" : "") +
+          (wrap?.raw ? ` — ${wrap.raw.slice(0, 200)}` : ""),
+      );
+    }
+    return obj.parameter as T;
+  }
+  throw new Error(
+    `Roboneo ${path}: ${lastErr || `HTTP ${lastStatus}`} setelah ${MAX_ATTEMPTS} percobaan` +
+      (lastRaw ? ` — ${lastRaw.slice(0, 200)}` : ""),
+  );
 }
 
 /* --------------------------------- calls ----------------------------------- */
@@ -186,9 +227,7 @@ export async function checkRoboneoToken(
     if (parts.length < 6 || !/^\d+$/.test(parts[2] ?? "")) {
       return { ok: false, message: "Payload token tidak valid" };
     }
-    if (parts[2] === "0") {
-      return { ok: false, message: "Token Roboneo belum login (uid=0). Login ulang di roboneo.com lalu ambil access-token baru." };
-    }
+    const hasZeroUidField = parts[2] === "0";
     const ts = Number(parts[1]);
     if (Number.isFinite(ts) && ts > 0) {
       // Meitu timestamps observed as seconds; treat >180 days as likely expired.
@@ -197,7 +236,12 @@ export async function checkRoboneoToken(
         return { ok: true, message: `Umur token ~${Math.round(ageDays)} hari — kemungkinan expired` };
       }
     }
-    return { ok: true };
+    return {
+      ok: true,
+      message: hasZeroUidField
+        ? "Struktur token valid; payload berisi uid=0 (format resmi Roboneo terbaru). Jika generate gagal 'Please log in first', ambil token dari request Network setelah benar-benar login."
+        : undefined,
+    };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
@@ -405,15 +449,34 @@ export async function pollRoboneoTask(opts: {
   };
 
   let loggedShape = false;
+  let transientPollErrors = 0;
   while (Date.now() - start < tm) {
     await new Promise((r) => setTimeout(r, 4000));
-    const res = await rnCall<{
+    let res: {
       tasks?: Record<string, RoboneoTask>;
       media_info_list?: Array<{ url?: string; media_url?: string }>;
-    }>("nodeexecutequery", opts.accessToken, {
-      task_ids: [opts.taskId],
-      ...(roomId ? { room_id: roomId } : {}),
-    });
+    };
+    try {
+      res = await rnCall<{
+        tasks?: Record<string, RoboneoTask>;
+        media_info_list?: Array<{ url?: string; media_url?: string }>;
+      }>("nodeexecutequery", opts.accessToken, {
+        task_ids: [opts.taskId],
+        ...(roomId ? { room_id: roomId } : {}),
+      });
+      transientPollErrors = 0;
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      // Transient upstream (5xx / reset) — keep polling; the task is still
+      // running on Meitu's side. Give up after several consecutive failures.
+      if (/HTTP (502|503|504|429)|upstream|connection termination|network/i.test(msg)) {
+        transientPollErrors++;
+        opts.onProgress?.(0, `retrying (${transientPollErrors})`);
+        if (transientPollErrors >= 8) throw e;
+        continue;
+      }
+      throw e;
+    }
     const t = res?.tasks?.[opts.taskId] || ({} as RoboneoTask);
     const steps = Array.isArray(t.steps) ? t.steps : [];
     const step = steps.find((item) => /success|succeeded|completed|done|finished/i.test(String(item.status || item.state || ""))) || steps[0];
