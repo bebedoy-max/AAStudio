@@ -366,7 +366,7 @@ function StoryboardPage() {
   async function generateAll() {
     const ok = rows.filter((r) => r.status === "ok" && r.info);
     if (!ok.length) return;
-    logGenerate("storyboard", { rows: ok.length });
+    logGenerate("storyboard", { provider, modelKey, status: "started", rows: ok.length });
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       const firstTitle = ok[0]?.info?.title || `Storyboard · ${ok.length} produk`;
@@ -397,6 +397,8 @@ function StoryboardPage() {
       pushLog("⚠️ Tidak ada Gemini API key di Kelola Token → tab Brain. Brain tidak akan jalan.");
     }
 
+    let successCount = 0;
+    let errorCount = 0;
     for (const row of ok) {
       const info = row.info!;
       const title = info.title || "(tanpa judul)";
@@ -457,13 +459,20 @@ function StoryboardPage() {
         void ratioToImageSize;
         patchResult(row.rowId, { status: "done", imgUrl });
         pushLog(`✅ [${title.slice(0, 40)}] Storyboard selesai`);
+        successCount++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         patchResult(row.rowId, { status: "err", error: msg });
         pushLog(`❌ [${title.slice(0, 40)}] ${msg}`);
+        errorCount++;
       }
     }
     pushLog("🏁 Semua produk selesai diproses");
+    logGenerate("storyboard", {
+      provider, modelKey,
+      status: errorCount === 0 ? "success" : successCount === 0 ? "error" : "partial",
+      success: successCount, failed: errorCount,
+    });
     setBusy(false);
   }
 

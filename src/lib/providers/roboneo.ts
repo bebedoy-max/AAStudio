@@ -300,6 +300,126 @@ export async function submitRoboneoMotion(opts: {
   return ids[0]!;
 }
 
+/**
+ * Submit Roboneo image-to-video job. Parameter & apiName per model diambil
+ * dari recipe flow_share resmi:
+ *  - "rn:seedance-pro" → apiName `api_v1_outsourcing_img_to_video`
+ *      params: ratio, resolution (480p/720p/1080p), video_duration (5/10/12)
+ *      recipe: d56CL0CD7eVX
+ *  - "rn:google-omni"  → apiName `video_barley_i2v_omni_flash`
+ *      params: ratio, video_duration (5/10)  — tidak ada resolusi/sound
+ *      recipe: 2mXIxsFvbfXw
+ *  - "rn:kling-v26"    → apiName `video_bonbon_img2vid_v26`
+ *      params: sound (on/off), video_duration (5/10) — tidak ada ratio
+ *      recipe: xd_pUp8JDcE0
+ */
+export async function submitRoboneoI2V(opts: {
+  accessToken: string;
+  imageUrl: string;
+  prompt?: string;
+  modelKey?: string;            // preferred: full modelKey ("rn:seedance-pro" dst)
+  modelVersion?: "v26" | "v21"; // legacy
+  quality?: "std" | "pro";      // legacy — hanya untuk apiName kling lama
+  ratio?: string;
+  duration?: number;
+  resolution?: string;          // seedance-pro only
+  sound?: "on" | "off";         // kling-v26 only
+}): Promise<string> {
+  const roomId = genRoomId();
+  const nodeId = uuid();
+
+  const mk = (opts.modelKey || "").toLowerCase();
+  type Spec = { apiName: string; recipeCode?: string; toolLabel: string };
+  const specs: Record<string, Spec> = {
+    "rn:seedance-pro": {
+      apiName: "api_v1_outsourcing_img_to_video",
+      recipeCode: "d56CL0CD7eVX",
+      toolLabel: "Seedance Pro",
+    },
+    "rn:google-omni": {
+      apiName: "video_barley_i2v_omni_flash",
+      recipeCode: "2mXIxsFvbfXw",
+      toolLabel: "Google Omni",
+    },
+    "rn:kling-v26:std": {
+      apiName: "video_bonbon_img2vid_v26",
+      recipeCode: "xd_pUp8JDcE0",
+      toolLabel: "Kling 2.6",
+    },
+    "rn:kling-v26": {
+      apiName: "video_bonbon_img2vid_v26",
+      recipeCode: "xd_pUp8JDcE0",
+      toolLabel: "Kling 2.6",
+    },
+    // legacy fallbacks (nama apiName lama — mungkin sudah tidak dilayani gateway)
+    "rn:kling-v21": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" },
+    "rn:kling-v21:std": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" },
+  };
+  const legacyFallback: Spec =
+    opts.modelVersion === "v21"
+      ? { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" }
+      : {
+          apiName: "video_bonbon_img2vid_v26",
+          recipeCode: "xd_pUp8JDcE0",
+          toolLabel: "Kling 2.6",
+        };
+  const spec = specs[mk] || legacyFallback;
+
+  const params: Record<string, unknown> = {
+    image_url: opts.imageUrl,
+    prompt: opts.prompt ?? "",
+    random: `${Date.now()}-${Math.floor(10_000_000 + Math.random() * 89_999_999)}`,
+  };
+
+  const dur = opts.duration ?? 5;
+  if (spec.apiName === "api_v1_outsourcing_img_to_video") {
+    // Seedance Pro
+    params.ratio = opts.ratio ?? "9:16";
+    params.resolution = opts.resolution ?? "720p";
+    params.video_duration = dur;
+  } else if (spec.apiName === "video_barley_i2v_omni_flash") {
+    // Google Omni
+    params.ratio = opts.ratio ?? "9:16";
+    params.video_duration = dur;
+  } else if (spec.apiName === "video_bonbon_img2vid_v26") {
+    // Kling 2.6 (recipe hanya expose sound + video_duration)
+    params.sound = opts.sound ?? "off";
+    params.video_duration = dur;
+  } else {
+    // Legacy kling v21
+    params.ratio = opts.ratio ?? "9:16";
+    params.duration = dur;
+    params.quality = opts.quality ?? "std";
+  }
+  if (spec.recipeCode) params.recipe_code = spec.recipeCode;
+
+  const node = {
+    tool_abstract_name: { cn: spec.toolLabel, en: spec.toolLabel },
+    node_id: nodeId,
+    name: spec.apiName,
+    parameters: params,
+  };
+  const result = await rnCall<{
+    tasks?: Record<string, unknown> | Array<{ task_id?: string }>;
+    task_ids?: string[];
+  }>("nodeexecute", opts.accessToken, {
+    room_id: roomId,
+    node_id: nodeId,
+    need_node_name: true,
+    workflow_version: "v2",
+    node_list_array: [[node]],
+  });
+  const ids = result?.task_ids?.length
+    ? result.task_ids
+    : Array.isArray(result?.tasks)
+      ? result.tasks.map((task) => task.task_id).filter((id): id is string => Boolean(id))
+      : Object.keys(result?.tasks || {});
+  if (!ids.length) throw new Error("Roboneo: submit sukses tapi task_id tidak ditemukan");
+  ROBONEO_TASK_ROOMS.set(ids[0]!, roomId);
+  return ids[0]!;
+}
+
+
 export type RoboneoTask = {
   status?: string;
   state?: string;
@@ -485,7 +605,15 @@ export async function pollRoboneoTask(opts: {
     const status = String(t.status || t.state || step?.status || step?.state || "").toLowerCase();
     // Prefer real progress field from the API; fall back to elapsed-time estimate.
     const realPct = findProgress(t) ?? findProgress(stepOutput) ?? findProgress(res);
-    const fakePct = Math.min(94, 20 + Math.round(((Date.now() - start) / tm) * 74));
+    // Estimasi progres berdasar durasi rata-rata job Roboneo (~8 menit), bukan
+    // timeout total. Pakai kurva log agar mendekati (tapi tidak mencapai) 94%
+    // saat mendekati durasi ekspektasi, lalu melambat setelahnya.
+    const EXPECTED_MS = 8 * 60_000;
+    const elapsed = Date.now() - start;
+    const ratio = elapsed / EXPECTED_MS;
+    // easing: 1 - 1/(1+ratio) → 0..~0.9 dalam durasi ekspektasi, cap di 0.94.
+    const eased = Math.min(0.94, 1 - 1 / (1 + ratio * 1.6));
+    const fakePct = Math.round(5 + eased * 89);
     const pct = realPct !== null ? Math.round(realPct) : fakePct;
     if (!loggedShape && typeof console !== "undefined") {
       loggedShape = true;
@@ -527,6 +655,29 @@ export async function pollRoboneoTask(opts: {
     }
     if (isSuccess) {
       ROBONEO_TASK_ROOMS.delete(opts.taskId);
+      // Meitu sometimes marks the outer task "success" while an inner step
+      // actually failed (e.g. per-account concurrent-job limit, transient
+      // upstream error). Surface that step error so the caller can rotate
+      // tokens instead of showing a confusing "no URL" message.
+      const stepErr = steps
+        .map((item) => {
+          const out = parseMaybeJson(item.output);
+          const outObj = out && typeof out === "object" ? (out as Record<string, unknown>) : null;
+          return (
+            item.error_message ||
+            item.error_msg ||
+            (typeof outObj?.error_message === "string" ? outObj.error_message : undefined) ||
+            (typeof outObj?.error_msg === "string" ? outObj.error_msg : undefined) ||
+            item.fail_code
+          );
+        })
+        .find((v): v is string => Boolean(v));
+      if (stepErr) {
+        // Prefix with "quota" so isRoboneoRotatableError picks it up — most
+        // real causes here (concurrency cap, credit, temporary account block)
+        // benefit from switching to the next token.
+        throw new Error(`Roboneo failed (quota/step): ${stepErr}`);
+      }
       const debugKeys = JSON.stringify({
         taskKeys: Object.keys(t),
         stepKeys: steps.map((item) => Object.keys(item)),

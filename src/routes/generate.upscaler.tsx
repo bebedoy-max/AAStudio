@@ -155,6 +155,7 @@ function UpscalerPage() {
     setLogs([]);
     setProgress({ done: 0, total: rows.length });
     setRows((prev) => prev.map((r) => ({ ...r, status: "queued", url: undefined, error: undefined })));
+    logGenerate("upscaler", { provider, status: "started", count: rows.length, mode });
     const jobs = rows.map((r, i) => ({ index: i, file: r.file }));
     const snapshot = rows.map((r) => ({ name: r.file.name }));
     try {
@@ -194,7 +195,10 @@ function UpscalerPage() {
           }
         },
       });
-      logGenerate("upscaler", { provider, count: rows.length, mode });
+      logGenerate("upscaler", { provider, status: "success", count: rows.length, mode });
+    } catch (e) {
+      logGenerate("upscaler", { provider, status: "error", count: rows.length, mode, error: (e as Error).message });
+      pushLog(`Fatal: ${(e as Error).message}`, "error");
     } finally {
       setRunning(false);
     }

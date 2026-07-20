@@ -206,7 +206,7 @@ function BulkFashion() {
 
   const generate = async () => {
     if (!charFile || outfitFiles.length === 0) return;
-    logGenerate("bulk_fashion", { outfits: outfitFiles.length });
+    logGenerate("bulk_fashion", { provider, modelKey: model, status: "started", outfits: outfitFiles.length });
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       trackGeneration({ kind: "bulk-fashion", title: `Bulk Fashion · ${outfitFiles.length} outfit`, counts: { images: outfitFiles.length } });
@@ -247,10 +247,18 @@ function BulkFashion() {
       });
       if (!ac.signal.aborted) {
         setStatus((s) => ({ ...s, pct: 100, text: `✅ Selesai — ${urls.length}/${outfitFiles.length} sukses` }));
+        const failed = outfitFiles.length - urls.length;
+        logGenerate("bulk_fashion", {
+          provider, modelKey: model,
+          status: failed === 0 ? "success" : urls.length === 0 ? "error" : "partial",
+          success: urls.length, failed,
+        });
       }
     } catch (e) {
       if (!ac.signal.aborted) {
-        setStatus((s) => ({ ...s, pct: 100, text: "❌ " + ((e as Error).message || String(e)) }));
+        const msg = (e as Error).message || String(e);
+        setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
+        logGenerate("bulk_fashion", { provider, modelKey: model, status: "error", error: msg });
       }
     } finally {
       clearInterval(tick);

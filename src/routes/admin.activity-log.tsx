@@ -30,6 +30,22 @@ type Profile = { id: string; email: string | null; display_name: string | null }
 
 const CATEGORIES = ["", "auth", "profile", "generate", "payment", "admin", "system"];
 
+function StatusBadge({ status }: { status: string }) {
+  if (!status) return <span className="text-muted-foreground">—</span>;
+  const map: Record<string, string> = {
+    success: "border-emerald-500/40 text-emerald-400 bg-emerald-500/10",
+    error: "border-rose-500/40 text-rose-400 bg-rose-500/10",
+    partial: "border-amber-500/40 text-amber-400 bg-amber-500/10",
+    started: "border-sky-500/40 text-sky-400 bg-sky-500/10",
+  };
+  const cls = map[status] || "border-border text-muted-foreground";
+  return (
+    <span className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+      {status}
+    </span>
+  );
+}
+
 function Page() {
   return (
     <DashboardShell>
@@ -322,6 +338,7 @@ th{background:#f2f2f2}
                     <th className="px-4 py-3">Waktu</th>
                     <th className="px-4 py-3">User</th>
                     <th className="px-4 py-3">Kategori</th>
+                    <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Aksi</th>
                     <th className="px-4 py-3">Detail</th>
                   </tr>
@@ -329,6 +346,7 @@ th{background:#f2f2f2}
                 <tbody>
                   {filtered.map((r) => {
                     const p = r.user_id ? profiles[r.user_id] : null;
+                    const status = (r.details?.status as string | undefined) ?? "";
                     return (
                       <tr key={r.id} className="border-b border-border/40 align-top">
                         <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">
@@ -346,6 +364,9 @@ th{background:#f2f2f2}
                             {r.category}
                           </span>
                         </td>
+                        <td className="px-4 py-2">
+                          <StatusBadge status={status} />
+                        </td>
                         <td className="px-4 py-2 font-mono text-xs">{r.action}</td>
                         <td className="px-4 py-2 text-xs text-muted-foreground max-w-md">
                           {r.details ? (
@@ -361,7 +382,7 @@ th{background:#f2f2f2}
                   })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
                         Tidak ada log yang cocok dengan filter.
                       </td>
                     </tr>

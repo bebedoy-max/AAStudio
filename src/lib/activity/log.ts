@@ -42,6 +42,27 @@ export async function logActivity(input: ActivityInput): Promise<void> {
   }
 }
 
-export function logGenerate(kind: string, details?: Record<string, unknown>): void {
-  void logActivity({ category: "generate", action: `generate_${kind}`, details });
+export type GenerateStatus = "started" | "success" | "error" | "partial";
+
+export type GenerateLogOpts = {
+  provider?: string;
+  status?: GenerateStatus;
+  [k: string]: unknown;
+};
+
+/**
+ * Log a generate event. When `provider` is set, action becomes
+ * `generate_<kind>/<provider>` so the admin log shows which engine ran.
+ * `status` (started/success/error/partial) is stored in details.status.
+ */
+export function logGenerate(kind: string, opts?: GenerateLogOpts): void {
+  const { provider, status, ...rest } = opts ?? {};
+  const action = provider ? `generate_${kind}/${provider}` : `generate_${kind}`;
+  const details: Record<string, unknown> = { ...rest };
+  if (status) details.status = status;
+  void logActivity({
+    category: "generate",
+    action,
+    details: Object.keys(details).length ? details : undefined,
+  });
 }

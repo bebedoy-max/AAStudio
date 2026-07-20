@@ -39,14 +39,66 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
     { value: "wan-i2v", label: "Wan i2v", cr: 18 },
   ],
   magnific: [{ value: "kling-motion", label: "Kling Motion", cr: 45 }],
-};
-const RATIOS = ["16:9", "9:16", "1:1", "4:5", "3:4"];
-const QUALITY_OPTS: Record<string, { value: string; label: string; mult: number }[]> = {
-  default: [
-    { value: "std", label: "Standard 5s", mult: 1 },
-    { value: "long", label: "Long 10s", mult: 2 },
+  roboneo: [
+    { value: "rn:seedance-pro", label: "Seedance Pro (Roboneo)", cr: 0 },
+    { value: "rn:google-omni", label: "Google Omni (Roboneo)", cr: 0 },
+    { value: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", cr: 0 },
   ],
 };
+
+// Baca provider aktif dari Routing Provider (manage/routing) — cap "video".
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedVideoProvider(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { video?: string };
+    const p = obj?.video;
+    return p && I2V_CATALOG[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
+const RATIOS = ["16:9", "9:16", "1:1", "4:5", "3:4"];
+
+type QualityOpt = {
+  value: string;
+  label: string;
+  mult: number;         // multiplier untuk cr (biaya)
+  duration: number;     // detik
+  resolution?: string;  // seedance-pro
+  sound?: "on" | "off"; // kling-v26
+};
+// Default (weavy/wavespeed/magnific): pilih durasi saja.
+const DEFAULT_QUALITY: QualityOpt[] = [
+  { value: "std",  label: "Standard 5s", mult: 1, duration: 5 },
+  { value: "long", label: "Long 10s",    mult: 2, duration: 10 },
+];
+// Per-model roboneo (parameter valid ikut recipe flow_share).
+const ROBONEO_QUALITY: Record<string, QualityOpt[]> = {
+  "rn:seedance-pro": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1,   duration: 5,  resolution: "720p" },
+    { value: "720p-10s", label: "720p · 10s", mult: 2,   duration: 10, resolution: "720p" },
+    { value: "720p-12s", label: "720p · 12s", mult: 2.4, duration: 12, resolution: "720p" },
+    { value: "480p-5s",  label: "480p · 5s",  mult: 0.7, duration: 5,  resolution: "480p" },
+    { value: "1080p-5s", label: "1080p · 5s", mult: 1.5, duration: 5,  resolution: "1080p" },
+  ],
+  "rn:google-omni": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10 },
+  ],
+  "rn:kling-v26:std": [
+    { value: "5s-off",  label: "5s · No Sound",  mult: 1,   duration: 5,  sound: "off" },
+    { value: "5s-on",   label: "5s · Sound",     mult: 1.3, duration: 5,  sound: "on"  },
+    { value: "10s-off", label: "10s · No Sound", mult: 2,   duration: 10, sound: "off" },
+    { value: "10s-on",  label: "10s · Sound",    mult: 2.6, duration: 10, sound: "on"  },
+  ],
+};
+function qualityOptsFor(model: string): QualityOpt[] {
+  return ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
+}
+
 
 type Template = { name: string; body: string };
 const DEFAULT_TPL: Template[] = [
@@ -73,10 +125,11 @@ function ImageToVideo() {
 
   const i2vBootstrapped = useRef(false);
   useEffect(() => {
-    const p = (typeof window !== "undefined" && localStorage.getItem("aatools.activeProvider")) || provider || "weavy";
+    const routed = readRoutedVideoProvider();
+    const p = routed || (typeof window !== "undefined" && localStorage.getItem("aatools.activeProvider")) || provider || "weavy";
     if (!i2vBootstrapped.current) {
       i2vBootstrapped.current = true;
-      if (!I2V_CATALOG[provider]) setProvider(p);
+      if (routed || !I2V_CATALOG[provider]) setProvider(p);
       const list = I2V_CATALOG[p] || I2V_CATALOG.weavy;
       if (!list.find((m) => m.value === model)) setModel(list[0]?.value || "");
       const tpl = localStorage.getItem("aatools.i2v.templates");
@@ -113,10 +166,35 @@ function ImageToVideo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sinkron dengan Routing Provider (menu Kelola Routing)
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedVideoProvider();
+      if (routed && routed !== provider) {
+        setProvider(routed);
+        const list = I2V_CATALOG[routed] || [];
+        if (!list.find((m) => m.value === model)) setModel(list[0]?.value || "");
+      }
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider, model, setProvider, setModel]);
+
+
   const models = I2V_CATALOG[provider] || I2V_CATALOG.weavy;
   const modelCr = models.find((m) => m.value === model)?.cr ?? 0;
-  const qMult = QUALITY_OPTS.default.find((q) => q.value === quality)?.mult ?? 1;
+  const currentQualityOpts = qualityOptsFor(model);
+  const activeQuality =
+    currentQualityOpts.find((q) => q.value === quality) || currentQualityOpts[0];
+  const qMult = activeQuality?.mult ?? 1;
   const totalCost = Math.round(modelCr * qMult);
+
 
   const [imgFile, setImgFile] = useSticky<File | null>("i2v.imgFile", null);
   const [results, setResults] = useSticky<string[]>("i2v.results", []);
@@ -132,7 +210,7 @@ function ImageToVideo() {
 
   const generate = async () => {
     if (!imgFile || !prompt.trim()) return;
-    logGenerate("image_to_video");
+    logGenerate("image_to_video", { provider, modelKey: model, status: "started" });
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       trackGeneration({ kind: "image-to-video", title: prompt.slice(0, 60) || "Image → Video", counts: { videos: 1 } });
@@ -146,18 +224,24 @@ function ImageToVideo() {
     try {
       const { generateI2V } = await import("@/lib/providers/generate-i2v");
       const url = await generateI2V({
-        provider: provider as "weavy" | "wavespeed" | "magnific",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo",
         modelKey: model,
         imageFile: imgFile,
         ratio,
-        duration: quality === "long" ? 10 : 5,
+        duration: activeQuality?.duration ?? 5,
+        resolution: activeQuality?.resolution,
+        sound: activeQuality?.sound,
         prompt,
         onProgress: (msg, pct) => setStatus((s) => ({ ...s, text: msg, pct: pct ?? s.pct })),
       });
+
       setResults((r) => [url, ...r]);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
+      logGenerate("image_to_video", { provider, modelKey: model, status: "success" });
     } catch (e) {
-      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + ((e as Error).message || String(e)) }));
+      const msg = (e as Error).message || String(e);
+      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
+      logGenerate("image_to_video", { provider, modelKey: model, status: "error", error: msg });
     } finally {
       clearInterval(tick);
     }
@@ -228,7 +312,7 @@ function ImageToVideo() {
                 <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
               </Field>
               <Field label="Kualitas">
-                <Select value={quality} onChange={(e) => setQuality(e.target.value)} options={QUALITY_OPTS.default} />
+                <Select value={activeQuality?.value || ""} onChange={(e) => setQuality(e.target.value)} options={currentQualityOpts.map((q) => ({ value: q.value, label: q.label }))} />
               </Field>
               <Field label="Template Prompt">
                 <div className="flex gap-2">

@@ -131,6 +131,16 @@ const CAPS: Cap[] = [
           { name: "Sora / Seedance", cost: "~40 cr / clip 5s" },
         ],
       },
+      {
+        id: "roboneo",
+        name: "Roboneo",
+        desc: "Kling I2V via Roboneo (Meitu gateway). Gratis pakai kuota akun Roboneo, butuh access-token _v2…",
+        models: [
+          { name: "Kling V2.6 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
+          { name: "Kling V2.6 Pro (i2v)", cost: "Gratis (kuota Roboneo)" },
+          { name: "Kling V2.1 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
+        ],
+      },
     ],
   },
   {

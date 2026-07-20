@@ -302,7 +302,7 @@ function MotionControl() {
       .map((s, i) => ({ s, i }))
       .filter(({ s }) => s.image && s.video);
     if (ready.length === 0) return;
-    logGenerate("motion", { count: ready.length });
+    logGenerate("motion", { provider, modelKey, status: "started", count: ready.length });
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       trackGeneration({ kind: "motion", title: `Motion · ${ready.length} slot`, counts: { videos: ready.length } });
@@ -374,14 +374,18 @@ function MotionControl() {
       });
       if (errCount > 0 && doneCount === 0) {
         failNotification(notifId, `Semua slot gagal (${errCount})`);
+        logGenerate("motion", { provider, modelKey, status: "error", success: doneCount, failed: errCount });
       } else if (errCount > 0) {
         finishNotification(notifId, { detail: `${doneCount} sukses · ${errCount} gagal`, route: "/generate/motion" });
+        logGenerate("motion", { provider, modelKey, status: "partial", success: doneCount, failed: errCount });
       } else {
         finishNotification(notifId, { detail: `${doneCount} video siap`, route: "/generate/motion" });
+        logGenerate("motion", { provider, modelKey, status: "success", success: doneCount });
       }
     } catch (e) {
       pushLog(`Fatal: ${(e as Error).message}`, "error");
       failNotification(notifId, (e as Error).message);
+      logGenerate("motion", { provider, modelKey, status: "error", error: (e as Error).message });
     } finally {
       setGenerating(false);
     }
