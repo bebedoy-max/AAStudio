@@ -151,13 +151,13 @@ function ImageToVideo() {
     if (h && h.workflow === "image-to-video") {
       const seed = [h.title, h.hook, h.description].filter(Boolean).join(" — ");
       if (seed) setPrompt((prev) => (prev && prev.trim() ? prev : seed));
-      if (h.thumbnail_data_url && !img) {
+      if (h.thumbnail_data_url) {
         (async () => {
           try {
             const res = await fetch(h.thumbnail_data_url!);
             const blob = await res.blob();
             const file = new File([blob], "handoff-thumb.jpg", { type: blob.type || "image/jpeg" });
-            setImg(URL.createObjectURL(file));
+            setImg(h.thumbnail_data_url!);
             setImgFile(file);
           } catch {}
         })();
