@@ -9,7 +9,44 @@ import {
   pollRoboneoTask,
   isRoboneoRotatableError,
 } from "./roboneo";
+import { compressImage } from "./weavy";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
+
+// Normalize mobile camera output: HEIC/HEIF or very large JPEG can break
+// public upload hosts (litterbox/catbox) with "Failed to fetch" on mobile
+// networks. Re-encode to JPEG ≤1600px so the payload is always <2 MB.
+async function normalizeImage(file: File): Promise<File> {
+  const isHeic = /heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+  if (isHeic) {
+    try {
+      return await compressImage(file, 1600, 0.85);
+    } catch {
+      // fall through — HEIC decode may fail on some browsers; upstream will error clearer
+    }
+  }
+  if (!file.type.startsWith("image/")) return file;
+  if (file.size > 8 * 1024 * 1024) return compressImage(file, 1280, 0.75);
+  if (file.size > 4 * 1024 * 1024) return compressImage(file, 1600, 0.85);
+  return file;
+}
+
+async function uploadPublicWithRetry(file: File, filename: string, retries = 2): Promise<string> {
+  let lastErr = "";
+  for (let a = 0; a <= retries; a++) {
+    const fd = new FormData();
+    fd.append("file", new File([file], filename, { type: file.type || "image/jpeg" }));
+    try {
+      const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
+      const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (r.ok && j.url) return j.url;
+      lastErr = j.error || `HTTP ${r.status}`;
+    } catch (e) {
+      lastErr = (e as Error).message || "network error";
+    }
+    if (a < retries) await new Promise((res) => setTimeout(res, 1500 * (a + 1)));
+  }
+  throw new Error(`Upload gagal: ${lastErr}`);
+}
 
 export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo";
 
@@ -81,18 +118,10 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
   const quality = (parts[2] as "std" | "pro") || "std";
   const modelVersion: "v26" | "v21" = versionTag.includes("v21") ? "v21" : "v26";
 
-  opts.onProgress?.("Upload image ke public host...", 8);
-  const fd = new FormData();
-  fd.append(
-    "file",
-    new File([opts.imageFile], `rn_i2v_${Date.now()}.jpg`, {
-      type: opts.imageFile.type || "image/jpeg",
-    }),
-  );
-  const upRes = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
-  const upJson = (await upRes.json().catch(() => ({}))) as { url?: string; error?: string };
-  if (!upRes.ok || !upJson.url) throw new Error(upJson.error || `Upload gagal (${upRes.status})`);
-  const imageUrl = upJson.url;
+  opts.onProgress?.("Normalisasi image (mobile-safe)...", 5);
+  const normalized = await normalizeImage(opts.imageFile);
+  opts.onProgress?.("Upload image ke public host...", 10);
+  const imageUrl = await uploadPublicWithRetry(normalized, `rn_i2v_${Date.now()}.jpg`);
 
   for (let ti = 0; ti < tokens.length; ti++) {
     const at = tokens[ti]!;
