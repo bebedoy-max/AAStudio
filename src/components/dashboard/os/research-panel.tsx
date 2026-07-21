@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Loader2, Search, Sparkles, ArrowRight, Play } from "lucide-react";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 import { setHandoff, WORKFLOW_ROUTES, type CreativeHandoff } from "@/lib/creative/handoff";
+import { useSticky } from "@/lib/stores/use-sticky";
 import { Chip, Skeleton } from "./section";
 import { toast } from "sonner";
 
@@ -30,9 +31,11 @@ type ResearchResult = {
 export type ResearchPanelHandle = { runKeyword: (kw: string) => void };
 
 export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPanel(_props, ref) {
-  const [keyword, setKeyword] = useState("");
+  // Persist across route changes so a user coming back to the dashboard
+  // still sees their previous research result.
+  const [keyword, setKeyword] = useSticky<string>("dashboard.research.keyword", "");
   const [busy, setBusy] = useState(false);
-  const [data, setData] = useState<ResearchResult | null>(null);
+  const [data, setData] = useSticky<ResearchResult | null>("dashboard.research.data", null);
   const navigate = useNavigate();
 
   const run = useCallback(async (kw: string) => {
@@ -155,8 +158,13 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
                 </div>
                 <button
                   onClick={() => {
+                    // Safety net: only allow bulk-fashion when keyword clearly is apparel
+                    const kwLower = (data.keyword + " " + idea.title).toLowerCase();
+                    const isFashion = /(fashion|apparel|outfit|dress|lookbook|baju|pakaian|busana|hijab|kaos|jaket|celana|gaun|kemeja|model wear)/i.test(kwLower);
+                    let wf = idea.workflow;
+                    if (wf === "bulk-fashion" && !isFashion) wf = "narrative-video";
                     setHandoff({
-                      workflow: idea.workflow,
+                      workflow: wf,
                       title: idea.title,
                       hook: idea.hook,
                       description: idea.description,
@@ -164,7 +172,7 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
                       keyword: data.keyword,
                       duration: idea.duration,
                     });
-                    navigate({ to: WORKFLOW_ROUTES[idea.workflow] });
+                    navigate({ to: WORKFLOW_ROUTES[wf] });
                   }}
                   className="mt-2 w-full inline-flex items-center justify-center gap-1 rounded-full border border-primary/40 bg-primary/10 hover:bg-primary/20 px-3 py-1 text-[11px] text-primary transition"
                 >

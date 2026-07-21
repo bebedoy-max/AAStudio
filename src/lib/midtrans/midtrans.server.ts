@@ -1,24 +1,89 @@
 // Server-only Midtrans HTTP client + signature verification.
 // Loaded dynamically from server functions and webhook route.
+//
+// Sumber konfigurasi (server_key + environment) diprioritaskan dari tabel
+// `payment_gateways` (provider='midtrans', is_active=true) yang dikelola
+// admin lewat /admin/payments. Jika tidak ada baris aktif, fallback ke
+// environment variables MIDTRANS_SERVER_KEY & MIDTRANS_MODE.
 import { createHash } from "node:crypto";
 
-function isProduction() {
-  return (process.env.MIDTRANS_MODE ?? "production").toLowerCase() === "production";
+type MidtransRuntimeConfig = {
+  serverKey: string;
+  isProduction: boolean;
+  source: "db" | "env";
+};
+
+let _cached: { at: number; cfg: MidtransRuntimeConfig } | null = null;
+const CACHE_MS = 30_000;
+
+async function loadFromDb(): Promise<MidtransRuntimeConfig | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    type LooseClient = { from: (t: string) => any };
+    const admin = supabaseAdmin as unknown as LooseClient;
+    const { data } = await admin
+      .from("payment_gateways")
+      .select("environment, config_ciphertext, is_active")
+      .eq("provider", "midtrans")
+      .eq("is_active", true)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const row = data as { environment: string; config_ciphertext: string } | null;
+    if (!row?.config_ciphertext) return null;
+    const { decryptString } = await import("@/lib/tokens/crypto.server");
+    const cfg = JSON.parse(await decryptString(row.config_ciphertext)) as Record<string, string>;
+    if (!cfg.server_key) return null;
+    return {
+      serverKey: cfg.server_key,
+      isProduction: row.environment === "production",
+      source: "db",
+    };
+  } catch (e) {
+    console.warn("[midtrans] gagal baca payment_gateways, fallback ke env", e);
+    return null;
+  }
 }
 
-export function midtransApiBase() {
-  return isProduction() ? "https://api.midtrans.com" : "https://api.sandbox.midtrans.com";
-}
-
-function serverKey() {
+function loadFromEnv(): MidtransRuntimeConfig | null {
   const key = process.env.MIDTRANS_SERVER_KEY;
-  if (!key) throw new Error("MIDTRANS_SERVER_KEY not set");
-  return key;
+  if (!key) return null;
+  return {
+    serverKey: key,
+    isProduction: (process.env.MIDTRANS_MODE ?? "production").toLowerCase() === "production",
+    source: "env",
+  };
 }
 
-function authHeader() {
-  const b64 = Buffer.from(serverKey() + ":", "utf8").toString("base64");
+export async function getMidtransConfig(): Promise<MidtransRuntimeConfig> {
+  if (_cached && Date.now() - _cached.at < CACHE_MS) return _cached.cfg;
+  const cfg = (await loadFromDb()) ?? loadFromEnv();
+  if (!cfg) {
+    throw new Error(
+      "Midtrans belum dikonfigurasi. Set di /admin/payments (payment_gateways) atau env MIDTRANS_SERVER_KEY.",
+    );
+  }
+  _cached = { at: Date.now(), cfg };
+  return cfg;
+}
+
+export function invalidateMidtransConfigCache() {
+  _cached = null;
+}
+
+function apiBase(isProd: boolean) {
+  return isProd ? "https://api.midtrans.com" : "https://api.sandbox.midtrans.com";
+}
+
+function authHeaderFor(serverKey: string) {
+  const b64 = Buffer.from(serverKey + ":", "utf8").toString("base64");
   return `Basic ${b64}`;
+}
+
+/** @deprecated gunakan getMidtransConfig() */
+export async function midtransApiBase() {
+  const cfg = await getMidtransConfig();
+  return apiBase(cfg.isProduction);
 }
 
 export type MidtransChargeResult = {
@@ -36,6 +101,7 @@ export async function createQrisCharge(params: {
   itemName: string;
   expiryMinutes?: number;
 }): Promise<MidtransChargeResult> {
+  const cfg = await getMidtransConfig();
   const expiry = params.expiryMinutes ?? 60; // default 1 jam
   const body = {
     payment_type: "qris",
@@ -60,12 +126,12 @@ export async function createQrisCharge(params: {
     ],
   };
 
-  const res = await fetch(`${midtransApiBase()}/v2/charge`, {
+  const res = await fetch(`${apiBase(cfg.isProduction)}/v2/charge`, {
     method: "POST",
     headers: {
       accept: "application/json",
       "content-type": "application/json",
-      authorization: authHeader(),
+      authorization: authHeaderFor(cfg.serverKey),
     },
     body: JSON.stringify(body),
   });
@@ -95,8 +161,9 @@ export async function createQrisCharge(params: {
 }
 
 export async function fetchTransactionStatus(orderId: string) {
-  const res = await fetch(`${midtransApiBase()}/v2/${encodeURIComponent(orderId)}/status`, {
-    headers: { accept: "application/json", authorization: authHeader() },
+  const cfg = await getMidtransConfig();
+  const res = await fetch(`${apiBase(cfg.isProduction)}/v2/${encodeURIComponent(orderId)}/status`, {
+    headers: { accept: "application/json", authorization: authHeaderFor(cfg.serverKey) },
   });
   return (await res.json()) as {
     status_code?: string;
@@ -113,17 +180,18 @@ export async function fetchTransactionStatus(orderId: string) {
 /**
  * Midtrans notification signature = SHA512(order_id + status_code + gross_amount + server_key)
  */
-export function verifyNotificationSignature(payload: {
+export async function verifyNotificationSignature(payload: {
   order_id?: string;
   status_code?: string;
   gross_amount?: string;
   signature_key?: string;
-}): boolean {
+}): Promise<boolean> {
   if (!payload.signature_key || !payload.order_id || !payload.status_code || !payload.gross_amount) {
     return false;
   }
+  const cfg = await getMidtransConfig();
   const expected = createHash("sha512")
-    .update(payload.order_id + payload.status_code + payload.gross_amount + serverKey())
+    .update(payload.order_id + payload.status_code + payload.gross_amount + cfg.serverKey)
     .digest("hex");
   return expected === payload.signature_key;
 }

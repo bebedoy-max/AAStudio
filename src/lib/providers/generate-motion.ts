@@ -16,6 +16,12 @@ import {
 import { buildKlingMotionControlRecipe } from "./weavy-recipes";
 import { getFirstWavespeedKey, wsUploadMedia, wsMotionControl } from "./wavespeed";
 import { runMagnificMotion } from "./magnific-motion";
+import {
+  getAllRoboneoKeys,
+  submitRoboneoMotion,
+  pollRoboneoTask,
+  isRoboneoRotatableError,
+} from "./roboneo";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 function getFirstMagnificKey(): string | null {
@@ -49,7 +55,7 @@ async function generateOneMagnific(slot: MotionSlotInput, opts: MotionOpts): Pro
   });
 }
 
-export type MotionProvider = "weavy" | "wavespeed" | "magnific";
+export type MotionProvider = "weavy" | "wavespeed" | "magnific" | "roboneo";
 
 export type MotionSlotInput = {
   index: number;
@@ -171,6 +177,75 @@ async function generateOneWavespeed(slot: MotionSlotInput, opts: MotionOpts): Pr
   return outUrl;
 }
 
+async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
+  const { index } = slot;
+  const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
+    opts.onLog?.(`#${index + 1} [RN] ${m}`, l);
+
+  const tokens = getAllRoboneoKeys();
+  if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
+
+  // Upload media ke public host (catbox/litterbox/uguu) — Roboneo cukup butuh
+  // URL publik yang bisa di-fetch gateway Meitu, tidak perlu provider lain.
+  const uploadPublic = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
+    const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
+    if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
+    return j.url;
+  };
+
+  opts.onStatus?.({ index, status: "uploading img..." });
+  log("Upload image ke public host...");
+  const imgBlob = await maybeCompress(slot.image);
+  const imageUrl = await uploadPublic(
+    new File([imgBlob], `rn_img_${index}_${Date.now()}.jpg`, { type: imgBlob.type || "image/jpeg" }),
+  );
+  log(`Image: ${imageUrl.substring(0, 60)}...`);
+
+  opts.onStatus?.({ index, status: "uploading vid..." });
+  log("Upload video ke public host...");
+  const videoUrl = await uploadPublic(
+    new File([slot.video], `rn_vid_${index}_${Date.now()}.mp4`, { type: slot.video.type || "video/mp4" }),
+  );
+  log(`Video: ${videoUrl.substring(0, 60)}...`);
+
+  // Extract quality from modelKey (rn:<apiName>:<quality>)
+  const parts = opts.modelKey.split(":");
+  const quality = (parts[2] as "std" | "pro") || "std";
+
+  for (let ti = 0; ti < tokens.length; ti++) {
+    const at = tokens[ti]!;
+    try {
+      opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
+      log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
+      const taskId = await submitRoboneoMotion({
+        accessToken: at,
+        imageUrl,
+        videoUrl,
+        prompt: opts.prompt,
+        quality,
+      });
+      log(`Task: ${taskId}`);
+      opts.onStatus?.({ index, status: "processing" });
+      const outUrl = await pollRoboneoTask({
+        accessToken: at,
+        taskId,
+        onProgress: (pct, st) => opts.onStatus?.({ index, status: `${st} ${pct}%` }),
+      });
+      if (!outUrl) throw new Error("Roboneo: no output URL");
+      return outUrl;
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      log(`Token ${ti + 1} failed: ${msg}`, "warn");
+      if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
+      log("Rotating to next Roboneo token...", "info");
+    }
+  }
+  throw new Error("Roboneo: semua token gagal");
+}
+
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
 export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOpts): Promise<void> {
   await Promise.all(
@@ -181,6 +256,7 @@ export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOp
         if (opts.provider === "weavy") url = await generateOneWeavy(slot, opts);
         else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
         else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
+        else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
         else throw new Error("Provider tidak dikenal: " + opts.provider);
         opts.onStatus?.({ index: slot.index, status: "done", url });
         opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");

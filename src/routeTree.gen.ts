@@ -23,6 +23,7 @@ import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
 import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
 import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
 import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
+import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
@@ -41,6 +42,7 @@ import { Route as AdminTransactionsRouteImport } from './routes/admin.transactio
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
 import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
@@ -56,7 +58,9 @@ import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/u
 import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
 import { Route as ApiPublicScrapeArticleRouteImport } from './routes/api/public/scrape-article'
+import { Route as ApiPublicRoboneoRouteImport } from './routes/api/public/roboneo'
 import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/proxy-image'
+import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
@@ -66,6 +70,7 @@ import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/d
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
+import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
@@ -135,6 +140,11 @@ const ManageTokensRoute = ManageTokensRouteImport.update({
 const ManageRoutingRoute = ManageRoutingRouteImport.update({
   id: '/manage/routing',
   path: '/manage/routing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
+  id: '/generate/upscaler',
+  path: '/generate/upscaler',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateStoryboardRoute = GenerateStoryboardRouteImport.update({
@@ -227,6 +237,11 @@ const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminActivityLogRoute = AdminActivityLogRouteImport.update({
+  id: '/activity-log',
+  path: '/activity-log',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAccessRoute = AdminAccessRouteImport.update({
   id: '/access',
   path: '/access',
@@ -303,9 +318,19 @@ const ApiPublicScrapeArticleRoute = ApiPublicScrapeArticleRouteImport.update({
   path: '/api/public/scrape-article',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRoboneoRoute = ApiPublicRoboneoRouteImport.update({
+  id: '/api/public/roboneo',
+  path: '/api/public/roboneo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProxyImageRoute = ApiPublicProxyImageRouteImport.update({
   id: '/api/public/proxy-image',
   path: '/api/public/proxy-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicNewsFeedRoute = ApiPublicNewsFeedRouteImport.update({
+  id: '/api/public/news-feed',
+  path: '/api/public/news-feed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicNaratifBrainRoute = ApiPublicNaratifBrainRouteImport.update({
@@ -355,6 +380,12 @@ const ApiPublicMidtransNotificationRoute =
     path: '/api/public/midtrans/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicDokuNotificationRoute =
+  ApiPublicDokuNotificationRouteImport.update({
+    id: '/api/public/doku/notification',
+    path: '/api/public/doku/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -363,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
@@ -381,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -398,7 +431,9 @@ export interface FileRoutesByFullPath {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
+  '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
+  '/api/public/roboneo': typeof ApiPublicRoboneoRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -413,6 +448,7 @@ export interface FileRoutesByFullPath {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesByTo {
@@ -420,6 +456,7 @@ export interface FileRoutesByTo {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
@@ -438,6 +475,7 @@ export interface FileRoutesByTo {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -455,7 +493,9 @@ export interface FileRoutesByTo {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
+  '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
+  '/api/public/roboneo': typeof ApiPublicRoboneoRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -470,6 +510,7 @@ export interface FileRoutesByTo {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRoutesById {
@@ -480,6 +521,7 @@ export interface FileRoutesById {
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
   '/admin/access': typeof AdminAccessRoute
+  '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
@@ -498,6 +540,7 @@ export interface FileRoutesById {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -515,7 +558,9 @@ export interface FileRoutesById {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
+  '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
+  '/api/public/roboneo': typeof ApiPublicRoboneoRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -530,6 +575,7 @@ export interface FileRoutesById {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
 }
 export interface FileRouteTypes {
@@ -541,6 +587,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
@@ -559,6 +606,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/upscaler'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -576,7 +624,9 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
+    | '/api/public/news-feed'
     | '/api/public/proxy-image'
+    | '/api/public/roboneo'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -591,6 +641,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -598,6 +649,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
@@ -616,6 +668,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/upscaler'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -633,7 +686,9 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
+    | '/api/public/news-feed'
     | '/api/public/proxy-image'
+    | '/api/public/roboneo'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -648,6 +703,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
   id:
     | '__root__'
@@ -657,6 +713,7 @@ export interface FileRouteTypes {
     | '/mixing'
     | '/profile'
     | '/admin/access'
+    | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
     | '/admin/token-bank'
@@ -675,6 +732,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/upscaler'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -692,7 +750,9 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
+    | '/api/public/news-feed'
     | '/api/public/proxy-image'
+    | '/api/public/roboneo'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -707,6 +767,7 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/video'
     | '/api/router/voice'
+    | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
   fileRoutesById: FileRoutesById
 }
@@ -724,6 +785,7 @@ export interface RootRouteChildren {
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
+  GenerateUpscalerRoute: typeof GenerateUpscalerRoute
   ManageRoutingRoute: typeof ManageRoutingRoute
   ManageTokensRoute: typeof ManageTokensRoute
   SystemAnalyticRoute: typeof SystemAnalyticRoute
@@ -737,7 +799,9 @@ export interface RootRouteChildren {
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
+  ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
   ApiPublicProxyImageRoute: typeof ApiPublicProxyImageRoute
+  ApiPublicRoboneoRoute: typeof ApiPublicRoboneoRoute
   ApiPublicScrapeArticleRoute: typeof ApiPublicScrapeArticleRoute
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
   ApiPublicStoryboardBrainRoute: typeof ApiPublicStoryboardBrainRoute
@@ -752,6 +816,7 @@ export interface RootRouteChildren {
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
   ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
+  ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
 }
 
@@ -853,6 +918,13 @@ declare module '@tanstack/react-router' {
       path: '/manage/routing'
       fullPath: '/manage/routing'
       preLoaderRoute: typeof ManageRoutingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/generate/upscaler': {
+      id: '/generate/upscaler'
+      path: '/generate/upscaler'
+      fullPath: '/generate/upscaler'
+      preLoaderRoute: typeof GenerateUpscalerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/storyboard': {
@@ -981,6 +1053,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPaymentsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/activity-log': {
+      id: '/admin/activity-log'
+      path: '/activity-log'
+      fullPath: '/admin/activity-log'
+      preLoaderRoute: typeof AdminActivityLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/access': {
       id: '/admin/access'
       path: '/access'
@@ -1086,11 +1165,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicScrapeArticleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/roboneo': {
+      id: '/api/public/roboneo'
+      path: '/api/public/roboneo'
+      fullPath: '/api/public/roboneo'
+      preLoaderRoute: typeof ApiPublicRoboneoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/proxy-image': {
       id: '/api/public/proxy-image'
       path: '/api/public/proxy-image'
       fullPath: '/api/public/proxy-image'
       preLoaderRoute: typeof ApiPublicProxyImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/news-feed': {
+      id: '/api/public/news-feed'
+      path: '/api/public/news-feed'
+      fullPath: '/api/public/news-feed'
+      preLoaderRoute: typeof ApiPublicNewsFeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/naratif-brain': {
@@ -1156,11 +1249,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/doku/notification': {
+      id: '/api/public/doku/notification'
+      path: '/api/public/doku/notification'
+      fullPath: '/api/public/doku/notification'
+      preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
+  AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminTokenBankRoute: typeof AdminTokenBankRoute
@@ -1170,6 +1271,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
+  AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminTokenBankRoute: AdminTokenBankRoute,
@@ -1230,6 +1332,7 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
+  GenerateUpscalerRoute: GenerateUpscalerRoute,
   ManageRoutingRoute: ManageRoutingRoute,
   ManageTokensRoute: ManageTokensRoute,
   SystemAnalyticRoute: SystemAnalyticRoute,
@@ -1243,7 +1346,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
+  ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
   ApiPublicProxyImageRoute: ApiPublicProxyImageRoute,
+  ApiPublicRoboneoRoute: ApiPublicRoboneoRoute,
   ApiPublicScrapeArticleRoute: ApiPublicScrapeArticleRoute,
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,
   ApiPublicStoryboardBrainRoute: ApiPublicStoryboardBrainRoute,
@@ -1258,6 +1363,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
   ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
+  ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
 }
 export const routeTree = rootRouteImport

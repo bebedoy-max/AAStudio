@@ -59,7 +59,7 @@ export function KeyGuard({
 
   return (
     <>
-      {missing.length === 0 ? children : null}
+      {children}
       <Dialog open={open} onOpenChange={(v) => !v && setOpen(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>

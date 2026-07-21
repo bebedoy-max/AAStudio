@@ -5,6 +5,8 @@ import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { listAdminUserStats, setUserTags } from "@/lib/admin/users.functions";
 import {
   Loader2,
   Plus,
@@ -15,7 +17,10 @@ import {
   Save,
   X,
   Search,
+  Crown,
+  Clock,
 } from "lucide-react";
+import { confirmDialog } from "@/components/ui-confirm";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -28,17 +33,51 @@ export const Route = createFileRoute("/admin/")({
 });
 
 type Role = "admin" | "editor" | "user";
+type UserTag = "vip" | "vvip";
 
 type ManagedUser = {
   id: string;
   email: string | null;
   display_name: string | null;
   avatar_url: string | null;
-  is_active: boolean;
   created_at: string;
   roles: Role[];
   route_keys: string[];
+  tokens_count: number;
+  bank_keys_count: number;
+  total_active_keys: number;
+  last_sign_in_at: string | null;
+  tags: UserTag[];
+  is_paid: boolean;
 };
+
+function accountAge(createdAt: string): string {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const days = Math.max(0, Math.floor(diff / 86_400_000));
+  if (days < 1) return "hari ini";
+  if (days < 30) return `${days} hari`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} bulan`;
+  const years = Math.floor(days / 365);
+  const remMonths = Math.floor((days - years * 365) / 30);
+  return remMonths > 0 ? `${years} thn ${remMonths} bln` : `${years} tahun`;
+}
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return "belum pernah";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return "baru saja";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "baru saja";
+  if (mins < 60) return `${mins} menit lalu`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} jam lalu`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days} hari lalu`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} bln lalu`;
+  return `${Math.floor(days / 365)} thn lalu`;
+}
 
 function AdminPage() {
   return (
@@ -83,15 +122,28 @@ function AdminBody() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [filterRole, setFilterRole] = useState<"all" | Role>("all");
+  const [filterFeatureMin, setFilterFeatureMin] = useState<string>("");
+  const [filterKeyMin, setFilterKeyMin] = useState<string>("");
+  const [filterLoginFrom, setFilterLoginFrom] = useState<string>("");
+  const [filterLoginTo, setFilterLoginTo] = useState<string>("");
+  const [filterAgeMin, setFilterAgeMin] = useState<string>("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "free" | "paid">("all");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ManagedUser | null>(null);
+  const [mobileDetail, setMobileDetail] = useState<ManagedUser | null>(null);
+  const fetchStats = useServerFn(listAdminUserStats);
 
   async function load() {
     setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: perms }] = await Promise.all([
+    const [{ data: profiles }, { data: roles }, { data: perms }, statsRes] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("route_permissions").select("user_id, route_key"),
+      fetchStats().catch((e) => {
+        console.warn("[admin] listAdminUserStats failed", e);
+        return [] as Awaited<ReturnType<typeof listAdminUserStats>>;
+      }),
     ]);
     const rolesByUser: Record<string, Role[]> = {};
     (roles ?? []).forEach((r: any) => {
@@ -101,11 +153,33 @@ function AdminBody() {
     (perms ?? []).forEach((p: any) => {
       (permsByUser[p.user_id] ||= []).push(p.route_key);
     });
+    const statsByUser: Record<
+      string,
+      { t: number; b: number; total: number; last: string | null; tags: UserTag[]; is_paid: boolean }
+    > = {};
+    ((statsRes ?? []) as any[]).forEach((r) => {
+      statsByUser[r.id] = {
+        t: r.tokens_count ?? 0,
+        b: r.bank_keys_count ?? 0,
+        total: r.total_active_keys ?? 0,
+        last: r.last_sign_in_at ?? null,
+        tags: (r.tags ?? []) as UserTag[],
+        is_paid: Boolean(r.is_paid),
+      };
+    });
     setUsers(
       ((profiles ?? []) as any[]).map((p) => ({
         ...p,
         roles: rolesByUser[p.id] ?? [],
         route_keys: permsByUser[p.id] ?? [],
+        tokens_count: statsByUser[p.id]?.t ?? 0,
+        bank_keys_count: statsByUser[p.id]?.b ?? 0,
+        total_active_keys:
+          statsByUser[p.id]?.total ??
+          (statsByUser[p.id]?.t ?? 0) + (statsByUser[p.id]?.b ?? 0),
+        last_sign_in_at: statsByUser[p.id]?.last ?? null,
+        tags: statsByUser[p.id]?.tags ?? [],
+        is_paid: statsByUser[p.id]?.is_paid ?? false,
       })),
     );
     setLoading(false);
@@ -117,12 +191,46 @@ function AdminBody() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q),
-    );
-  }, [users, query]);
+    const featMin = Number(filterFeatureMin) || 0;
+    const keyMin = Number(filterKeyMin) || 0;
+    const ageMinDays = Number(filterAgeMin) || 0;
+    const loginFromMs = filterLoginFrom ? new Date(filterLoginFrom).getTime() : null;
+    const loginToMs = filterLoginTo ? new Date(filterLoginTo).getTime() + 86_400_000 : null;
+    return users.filter((u) => {
+      if (q && !(u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q))) return false;
+      if (filterRole !== "all") {
+        if (filterRole === "user" ? u.roles.length > 0 && !u.roles.includes("user") : !u.roles.includes(filterRole))
+          return false;
+      }
+      const featCount = u.roles.includes("admin") ? ALL_ROUTE_KEYS.length : u.route_keys.length;
+      if (featCount < featMin) return false;
+      if (u.total_active_keys < keyMin) return false;
+      if (loginFromMs !== null) {
+        if (!u.last_sign_in_at || new Date(u.last_sign_in_at).getTime() < loginFromMs) return false;
+      }
+      if (loginToMs !== null) {
+        if (!u.last_sign_in_at || new Date(u.last_sign_in_at).getTime() > loginToMs) return false;
+      }
+      if (ageMinDays > 0) {
+        const days = Math.floor((Date.now() - new Date(u.created_at).getTime()) / 86_400_000);
+        if (days < ageMinDays) return false;
+      }
+      if (filterStatus === "paid" && !u.is_paid) return false;
+      if (filterStatus === "free" && u.is_paid) return false;
+      return true;
+    });
+  }, [users, query, filterRole, filterFeatureMin, filterKeyMin, filterLoginFrom, filterLoginTo, filterAgeMin, filterStatus]);
+
+  const resetFilters = () => {
+    setQuery("");
+    setFilterRole("all");
+    setFilterFeatureMin("");
+    setFilterKeyMin("");
+    setFilterLoginFrom("");
+    setFilterLoginTo("");
+    setFilterAgeMin("");
+    setFilterStatus("all");
+  };
 
   async function callAdmin(body: Record<string, unknown>) {
     const { data: sess } = await supabase.auth.getSession();
@@ -136,18 +244,14 @@ function AdminBody() {
     return res.data;
   }
 
-  async function toggleActive(u: ManagedUser) {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_active: !u.is_active })
-      .eq("id", u.id);
-    if (error) return toast.error(error.message);
-    toast.success(u.is_active ? "User dinonaktifkan" : "User diaktifkan");
-    load();
-  }
-
   async function removeUser(u: ManagedUser) {
-    if (!confirm(`Hapus user ${u.email}?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus user ${u.email}?`,
+      description: "User dan seluruh data terkait akan dihapus permanen.",
+      confirmLabel: "Ya, hapus user",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await callAdmin({ action: "delete", user_id: u.id });
       toast.success("User dihapus");
@@ -160,26 +264,113 @@ function AdminBody() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <div className="p-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-2 flex-1 min-w-64">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              placeholder="Cari email / nama…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-2 flex-1 min-w-64">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <input
+                placeholder="Cari email / nama…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+            </div>
+            <button
+              onClick={resetFilters}
+              className="rounded-full border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Reset filter
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
+              style={{ background: "var(--gradient-neon)" }}
+            >
+              <Plus className="h-4 w-4" /> Tambah user
+            </button>
           </div>
-          <button
-            onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--gradient-neon)" }}
-          >
-            <Plus className="h-4 w-4" /> Tambah user
-          </button>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Role</span>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value as "all" | Role)}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              >
+                <option value="all">Semua</option>
+                <option value="admin">Admin</option>
+                <option value="editor">Editor</option>
+                <option value="user">User</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Fitur min.</span>
+              <input
+                type="number"
+                min={0}
+                value={filterFeatureMin}
+                onChange={(e) => setFilterFeatureMin(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Total key min.</span>
+              <input
+                type="number"
+                min={0}
+                value={filterKeyMin}
+                onChange={(e) => setFilterKeyMin(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login dari</span>
+              <input
+                type="date"
+                value={filterLoginFrom}
+                onChange={(e) => setFilterLoginFrom(e.target.value)}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login s/d</span>
+              <input
+                type="date"
+                value={filterLoginTo}
+                onChange={(e) => setFilterLoginTo(e.target.value)}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Usia (hari) min.</span>
+              <input
+                type="number"
+                min={0}
+                value={filterAgeMin}
+                onChange={(e) => setFilterAgeMin(e.target.value)}
+                placeholder="0"
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1 col-span-2 md:col-span-1">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status</span>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as "all" | "free" | "paid")}
+                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
+              >
+                <option value="all">Semua</option>
+                <option value="free">Free User</option>
+                <option value="paid">Paid User</option>
+              </select>
+            </label>
+          </div>
         </div>
       </Card>
 
+      <div className="hidden md:block">
       <Card>
         {loading ? (
           <div className="p-8 flex items-center justify-center">
@@ -193,6 +384,9 @@ function AdminBody() {
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Role</th>
                   <th className="px-4 py-3">Akses fitur</th>
+                  <th className="px-4 py-3">Total Token/API Key</th>
+                  <th className="px-4 py-3">Login terakhir</th>
+                  <th className="px-4 py-3">Usia Akun</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
@@ -213,7 +407,12 @@ function AdminBody() {
                           </span>
                         )}
                         <div className="min-w-0">
-                          <div className="font-medium truncate">{u.display_name || "—"}</div>
+                          <div className="font-medium truncate flex items-center gap-1.5">
+                            <span className="truncate">{u.display_name || "—"}</span>
+                            {u.tags.map((t) => (
+                              <TagBadge key={t} tag={t} />
+                            ))}
+                          </div>
                           <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                         </div>
                       </div>
@@ -247,18 +446,45 @@ function AdminBody() {
                         `${u.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
                       )}
                     </td>
+                    <td className="px-4 py-3 text-xs">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-mono text-sm">
+                          <span className="text-primary text-base font-semibold">
+                            {u.total_active_keys}
+                          </span>{" "}
+                          <span className="text-muted-foreground">Token/API Key</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {relativeTime(u.last_sign_in_at)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                      {accountAge(u.created_at)}
+                    </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleActive(u)}
+                      <span
                         className={[
-                          "text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border",
-                          u.is_active
-                            ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
-                            : "border-rose-400/50 text-rose-300 bg-rose-400/10",
+                          "inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border w-fit",
+                          u.is_paid
+                            ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+                            : "border-border text-muted-foreground bg-card/40",
                         ].join(" ")}
+                        title={u.is_paid ? "User pernah membayar & masa aktif fitur premium masih tersedia" : "Belum ada pembayaran aktif"}
                       >
-                        {u.is_active ? "aktif" : "nonaktif"}
-                      </button>
+                        <span
+                          className={[
+                            "h-2.5 w-2.5 rounded-full border",
+                            u.is_paid
+                              ? "bg-amber-300 border-amber-200 shadow-[0_0_8px_rgba(252,211,77,0.7)]"
+                              : "bg-white border-white/70",
+                          ].join(" ")}
+                        />
+                        {u.is_paid ? "Paid User" : "Free User"}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
@@ -280,7 +506,7 @@ function AdminBody() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                       Tidak ada user.
                     </td>
                   </tr>
@@ -290,6 +516,101 @@ function AdminBody() {
           </div>
         )}
       </Card>
+      </div>
+
+      {/* Mobile-only compact user list. Detail info is dibuka via modal saat nama diklik. */}
+      <Card>
+        <div className="md:hidden">
+          {loading ? (
+            <div className="p-8 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Tidak ada user.</div>
+          ) : (
+            <ul className="divide-y divide-border/50">
+              {filtered.map((u) => (
+                <li key={u.id} className="flex items-center gap-2 px-3 py-3">
+                  <button
+                    onClick={() => setMobileDetail(u)}
+                    className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
+                    title="Lihat detail user"
+                  >
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <span
+                        className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm shrink-0"
+                        style={{ background: "var(--gradient-neon)" }}
+                      >
+                        {(u.display_name || u.email || "U")[0]?.toUpperCase()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <span className="truncate">{u.display_name || u.email || "—"}</span>
+                        {u.tags.map((t) => (
+                          <TagBadge key={t} tag={t} />
+                        ))}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setEditing(u)}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-2.5 py-1.5 text-[11px] font-medium"
+                    title="Kelola user"
+                  >
+                    <UserCog className="h-3.5 w-3.5" />
+                    Kelola
+                  </button>
+                  <button
+                    onClick={() => removeUser(u)}
+                    className="shrink-0 inline-flex items-center rounded-full border border-rose-400/40 text-rose-300 px-2 py-1.5"
+                    title="Hapus user"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Card>
+
+      {mobileDetail && (
+        <Modal title={mobileDetail.email || mobileDetail.display_name || "Detail user"} onClose={() => setMobileDetail(null)}>
+          <div className="p-5 space-y-3 text-sm">
+            <DetailRow label="Nama" value={mobileDetail.display_name || "—"} />
+            <DetailRow label="Email" value={mobileDetail.email || "—"} />
+            <DetailRow label="Role" value={mobileDetail.roles.join(", ") || "—"} />
+            <DetailRow
+              label="Akses fitur"
+              value={
+                mobileDetail.roles.includes("admin")
+                  ? "Semua fitur"
+                  : `${mobileDetail.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
+              }
+            />
+            <DetailRow label="Total Token/API Key" value={String(mobileDetail.total_active_keys)} />
+            <DetailRow label="Login terakhir" value={relativeTime(mobileDetail.last_sign_in_at)} />
+            <DetailRow label="Usia akun" value={accountAge(mobileDetail.created_at)} />
+            <DetailRow label="Status" value={mobileDetail.is_paid ? "Paid User" : "Free User"} />
+            {mobileDetail.tags.length > 0 && (
+              <DetailRow label="Tag" value={mobileDetail.tags.join(", ")} />
+            )}
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setMobileDetail(null)}
+                className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground"
+                style={{ background: "var(--gradient-neon)" }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {creating && (
         <CreateUserModal
@@ -312,6 +633,15 @@ function AdminBody() {
           callAdmin={callAdmin}
         />
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/40 pb-1.5">
+      <span className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-sm text-foreground/95 text-right break-words">{value}</span>
     </div>
   );
 }
@@ -419,6 +749,8 @@ function EditUserModal({
   const [routeKeys, setRouteKeys] = useState<string[]>(user.route_keys);
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tags, setTags] = useState<UserTag[]>(user.tags ?? []);
+  const saveTagsFn = useServerFn(setUserTags);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -455,6 +787,13 @@ function EditUserModal({
         await callAdmin({ action: "reset_password", user_id: user.id, password: newPassword });
       }
 
+      // Update label VIP/VVIP
+      const before = [...(user.tags ?? [])].sort().join(",");
+      const after = [...tags].sort().join(",");
+      if (before !== after) {
+        await saveTagsFn({ data: { userId: user.id, tags } });
+      }
+
       toast.success("Perubahan tersimpan");
       onDone();
     } catch (e) {
@@ -472,6 +811,9 @@ function EditUserModal({
         </Field>
         <Field label="Role">
           <RoleSelect value={role} onChange={setRole} />
+        </Field>
+        <Field label="Label khusus">
+          <TagPicker value={tags} onChange={setTags} />
         </Field>
         {role !== "admin" && (
           <Field label="Akses fitur (per halaman)">
@@ -506,6 +848,59 @@ function EditUserModal({
 
 const inputCls =
   "w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/60";
+
+export function TagBadge({ tag }: { tag: UserTag }) {
+  const isVvip = tag === "vvip";
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+        isVvip
+          ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+          : "border-fuchsia-400/50 text-fuchsia-200 bg-fuchsia-500/10",
+      ].join(" ")}
+    >
+      <Crown className="h-2.5 w-2.5" />
+      {tag}
+    </span>
+  );
+}
+
+function TagPicker({ value, onChange }: { value: UserTag[]; onChange: (v: UserTag[]) => void }) {
+  function toggle(t: UserTag) {
+    onChange(value.includes(t) ? value.filter((x) => x !== t) : [...value, t]);
+  }
+  const opts: { v: UserTag; label: string; desc: string }[] = [
+    { v: "vip", label: "VIP", desc: "User prioritas" },
+    { v: "vvip", label: "VVIP", desc: "Top tier / partner" },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {opts.map((o) => {
+        const on = value.includes(o.v);
+        return (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => toggle(o.v)}
+            className={[
+              "text-left rounded-2xl border px-3 py-2.5 transition flex items-center gap-2",
+              on
+                ? "border-primary/60 bg-primary/10"
+                : "border-border bg-card/40 hover:bg-card/70",
+            ].join(" ")}
+          >
+            <Crown className={on ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
+            <div>
+              <div className="text-sm font-medium">{o.label}</div>
+              <div className="text-[10px] text-muted-foreground leading-tight">{o.desc}</div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

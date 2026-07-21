@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Rocket, Trash2, Plus, RefreshCw, X, Square } from "lucide-react";
+import { logGenerate } from "@/lib/activity/log";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -205,6 +206,11 @@ function BulkFashion() {
 
   const generate = async () => {
     if (!charFile || outfitFiles.length === 0) return;
+    logGenerate("bulk_fashion", { provider, modelKey: model, status: "started", outfits: outfitFiles.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      trackGeneration({ kind: "bulk-fashion", title: `Bulk Fashion · ${outfitFiles.length} outfit`, counts: { images: outfitFiles.length } });
+    } catch { /* ignore */ }
     const ac = new AbortController();
     abortRef.current = ac;
     setRunning(true);
@@ -241,10 +247,18 @@ function BulkFashion() {
       });
       if (!ac.signal.aborted) {
         setStatus((s) => ({ ...s, pct: 100, text: `✅ Selesai — ${urls.length}/${outfitFiles.length} sukses` }));
+        const failed = outfitFiles.length - urls.length;
+        logGenerate("bulk_fashion", {
+          provider, modelKey: model,
+          status: failed === 0 ? "success" : urls.length === 0 ? "error" : "partial",
+          success: urls.length, failed,
+        });
       }
     } catch (e) {
       if (!ac.signal.aborted) {
-        setStatus((s) => ({ ...s, pct: 100, text: "❌ " + ((e as Error).message || String(e)) }));
+        const msg = (e as Error).message || String(e);
+        setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
+        logGenerate("bulk_fashion", { provider, modelKey: model, status: "error", error: msg });
       }
     } finally {
       clearInterval(tick);
@@ -285,8 +299,8 @@ function BulkFashion() {
           ) : (
             <div className="relative aspect-[9/16] rounded-2xl overflow-hidden border border-border">
               <img src={char} alt="karakter" className="w-full h-full object-cover" />
-              <button onClick={() => charInput.current?.click()} className="absolute top-2 right-2 rounded-full px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
-                <RefreshCw className="h-3 w-3" /> Ganti
+              <button onClick={() => charInput.current?.click()} className="absolute top-2 right-2 rounded-full px-2 md:px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
+                <RefreshCw className="h-3 w-3" /> <span className="hidden md:inline">Ganti</span>
               </button>
             </div>
           )}

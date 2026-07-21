@@ -27,6 +27,14 @@ const MODEL_ENDPOINTS = {
     post: "/v1/ai/video/kling-v3-motion-control-pro",
     status: "/v1/ai/video/kling-v3-motion-control-pro",
   },
+  "mag:image-upscaler-creative": {
+    post: "/v1/ai/image-upscaler",
+    status: "/v1/ai/image-upscaler",
+  },
+  "mag:image-upscaler-precision-v2": {
+    post: "/v1/ai/image-upscaler-precision-v2",
+    status: "/v1/ai/image-upscaler-precision-v2",
+  },
 } as const;
 
 type ModelKey = keyof typeof MODEL_ENDPOINTS;
@@ -35,14 +43,7 @@ const SubmitBody = z.object({
   action: z.literal("submit"),
   apiKey: z.string().min(10),
   modelKey: z.enum(Object.keys(MODEL_ENDPOINTS) as [ModelKey, ...ModelKey[]]),
-  payload: z.object({
-    image_url: z.string().url(),
-    video_url: z.string().url(),
-    webhook_url: z.string().url().optional(),
-    prompt: z.string().max(2500).optional(),
-    character_orientation: z.enum(["image", "video"]).optional(),
-    cfg_scale: z.number().min(0).max(1).optional(),
-  }),
+  payload: z.record(z.string(), z.unknown()),
 });
 
 const StatusBody = z.object({

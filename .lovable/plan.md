@@ -1,103 +1,88 @@
-# Token Bank & Token Manager View Toggle
+# Integrasi DOKU (Jokul) + Payment Picker di Checkout
 
 ## Ringkasan
-- Admin punya menu baru **Token Bank** untuk menyetok API key per provider, mengatur harga, mentransfer ke user, dan meng-approve pembelian.
-- User bisa membeli token dari Token Bank lewat alur checkout yang sudah ada (upload bukti transfer → admin approve → key otomatis masuk ke Token Manager user).
-- Token Manager: setiap panel provider mendapat tombol **View** (default sembunyi) supaya panel ringkas walau banyak key.
 
-## Perubahan UI
+DOKU Jokul adalah **aggregator** — satu akun DOKU sudah menyediakan banyak
+metode pembayaran (VA BCA/BRI/Mandiri/BNI/Permata/CIMB, QRIS, e-wallet
+OVO/DANA/LinkAja/ShopeePay, kartu kredit, Alfamart/Indomaret). Jadi tidak
+perlu daftar akun VA bank satu-satu — cukup satu row `payment_gateways`
+provider `doku`, dan seluruh metode di atas otomatis bisa dipakai.
 
-### 1. Token Manager (`/manage/tokens`)
-- Semua panel (Brain, Weavy, Wavespeed, Magnific, Eleven, Render) default hanya menampilkan ringkasan (jumlah key, status). Tombol "View (n)" untuk expand daftar key.
-- Tambah tombol "Beli Token dari Bank" di header → membuka dialog katalog Token Bank.
+Rencana dibagi 3 bagian: (1) live charge DOKU, (2) daftar metode aktif +
+picker di checkout dialog, (3) webhook DOKU untuk fulfillment.
 
-### 2. Sidebar
-- Admin group tambah: **Token Bank** → `/admin/token-bank`.
+## Bagian 1 — Live charge DOKU
 
-### 3. Halaman Admin `/admin/token-bank` (baru)
-Tab per provider. Setiap tab:
-- Form tambah key (bulk, 1 per baris) + label opsional.
-- Tabel stok: label, key (masked/reveal), status (available/assigned), tombol Delete / Transfer.
-- Panel harga: input harga per key (IDR), toggle aktif.
-- Dialog Transfer: pilih user (search email) → 1 klik pindahkan 1 key.
-- Tab "Riwayat" transaksi.
+### Approach
 
-### 4. Dialog Beli Token (user)
-Reuse pola `checkout-dialog`:
-- Katalog: hanya provider dengan `is_active=true`, `stok>0`, `harga>0`.
-- User pilih provider + qty, isi metode pembayaran + upload bukti → buat `purchase_request` bertype `token_bank`.
-- Setelah admin approve di `/admin/requests`, sistem otomatis pull N key available dari `token_bank_keys`, mark `assigned`, append ke `user_tokens` (encrypted).
+Pakai **DOKU Checkout API** (`POST /checkout/v1/payment`) — endpoint tunggal
+yang menerima `payment.payment_method_types` (array). Response berisi
+`response.payment.url` yang kita redirect user ke sana. User pilih metode di
+sisi DOKU (atau kita batasi ke satu metode kalau user sudah pilih di app).
+Lebih sederhana + lebih aman dari Direct API (tidak perlu handle 3DS, VA
+number generation, dsb per method).
 
-## Perubahan DB (migration)
+Auth DOKU: header `Client-Id`, `Request-Id` (UUID), `Request-Timestamp`
+(ISO-8601 tanpa ms), `Signature` = `HMACSHA256(secret_key, stringToSign)`
+di mana `stringToSign` = concat header standar + digest body (SHA-256
+base64). Ini akan dibungkus helper `signDokuRequest()`.
 
-```sql
-CREATE TYPE public.bank_provider AS ENUM
-  ('brain','weavy','wavespeed','magnific','eleven','shotstack','creatomate');
+### File baru
 
-CREATE TABLE public.token_bank_keys (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider bank_provider NOT NULL,
-  key_value text NOT NULL,      -- disimpan plaintext di tabel admin-only (RLS ketat)
-  label text,
-  status text NOT NULL DEFAULT 'available',  -- available|assigned|disabled
-  assigned_to uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  assigned_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
+- `src/lib/payments/doku.server.ts` — helper signature + `createDokuCheckout()`.
+- `src/lib/payments/charge.functions.ts` — server fn `createPayment({ gatewayId, amount, method?, orderId })` yang: load gateway config → decrypt → dispatch ke handler provider (`doku` sekarang, `midtrans` menyusul). Return `{ redirectUrl, orderId, providerRef }`.
+- `src/routes/api/public/doku/notification.ts` — webhook DOKU (`Notification-Signature` verify) → panggil `fulfillPurchase()` yang sama dengan Midtrans.
 
-CREATE TABLE public.token_bank_prices (
-  provider bank_provider PRIMARY KEY,
-  price_idr integer NOT NULL DEFAULT 0,
-  is_active boolean NOT NULL DEFAULT true,
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
+### File diedit
 
-CREATE TABLE public.token_bank_transactions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  key_id uuid REFERENCES public.token_bank_keys(id) ON DELETE SET NULL,
-  provider bank_provider NOT NULL,
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  kind text NOT NULL,           -- 'transfer' | 'purchase'
-  price_idr integer NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  created_by uuid REFERENCES auth.users(id)
-);
+- `src/lib/payments/providers-catalog.ts` — set DOKU `liveTestSupported: true`,
+  tambah field opsional `notification_token` (untuk verify webhook) dan
+  `supportedMethods` list (`VIRTUAL_ACCOUNT_BCA`, `VIRTUAL_ACCOUNT_BRI`, dst).
+- `src/lib/payments/gateways.functions.ts` — tambah `testDoku()` (hit
+  endpoint sandbox/prod ringan `GET /orders/v1/status/{ref}` yang balas
+  404 saat kredensial valid tapi order tidak ada, mirip pola Midtrans).
 
-ALTER TABLE public.purchase_requests
-  ADD COLUMN IF NOT EXISTS request_kind text NOT NULL DEFAULT 'subscription',
-  ADD COLUMN IF NOT EXISTS token_provider bank_provider,
-  ADD COLUMN IF NOT EXISTS token_qty integer;
-```
-GRANTs: token_bank_keys & transactions → `authenticated` (RLS admin-only). token_bank_prices → `SELECT TO authenticated` (semua user melihat harga), `ALL` admin. Semua tabel `service_role` ALL.
+## Bagian 2 — Payment picker di checkout
 
-RLS:
-- `token_bank_keys`: hanya admin (has_role) untuk semua operasi.
-- `token_bank_prices`: SELECT semua authenticated, INSERT/UPDATE/DELETE admin.
-- `token_bank_transactions`: admin lihat semua; user lihat baris `user_id = auth.uid()`.
+### File baru
 
-## Server functions (`src/lib/token-bank/bank.functions.ts`)
-- `listBankInventory()` — admin: semua key + count per provider.
-- `addBankKeys({provider, keys[]})` — admin bulk insert.
-- `deleteBankKey({id})` — admin.
-- `setBankPrice({provider, price_idr, is_active})` — admin upsert.
-- `listBankPrices()` — public authenticated: dipakai user untuk katalog & admin.
-- `transferBankKey({keyId, userEmail})` — admin: cari user, mark assigned, append ke `user_tokens` (decrypt→append→encrypt via `crypto.server`), insert transaksi.
-- `fulfillTokenPurchase({purchaseRequestId})` — admin: dipanggil saat approve di halaman requests bila `request_kind='token_bank'`. Ambil N key available, transfer ke user.
+- `src/lib/payments/methods.functions.ts` — server fn publik
+  `listActivePaymentMethods()` (tanpa auth-middleware, tidak sensitif).
+  Baca `payment_gateways` where `is_active=true`, expand tiap gateway ke
+  daftar metode berdasarkan catalog (`doku` → semua VA + QRIS + e-wallet;
+  `midtrans` → QRIS + snap). Return
+  `Array<{ gatewayId, provider, methodCode, label, iconKey }>`. Tidak
+  return kredensial apapun.
 
-Semua pakai `requireSupabaseAuth` + cek `has_role('admin')` untuk operasi admin, kecuali `listBankPrices`.
+### File diedit
 
-## Perubahan file
-- **create** `supabase/migrations/<ts>_token_bank.sql`
-- **create** `src/lib/token-bank/bank.functions.ts`
-- **create** `src/routes/admin.token-bank.tsx`
-- **create** `src/components/token-bank/buy-dialog.tsx`
-- **create** `src/components/token-bank/transfer-dialog.tsx`
-- **edit** `src/components/app-sidebar.tsx` (link admin baru)
-- **edit** `src/routes/manage.tokens.tsx` (View toggle per panel + tombol Beli)
-- **edit** `src/routes/admin.requests.tsx` (approve → jalankan `fulfillTokenPurchase` bila kind=token_bank)
-- **edit** `src/components/checkout-dialog.tsx` (support `request_kind='token_bank'` untuk bundle token)
+- `src/components/checkout-dialog.tsx` + `src/components/token-bank/buy-dialog.tsx`
+  — ganti tembakan langsung ke Midtrans. Tampilkan grid pilihan metode
+  (icon + label), user klik salah satu → panggil `createPayment` dengan
+  `{ gatewayId, method }` → redirect ke `redirectUrl`.
 
-## Catatan
-- Key disimpan plaintext di `token_bank_keys` karena butuh dibaca admin, lalu di-encrypt saat masuk ke `user_tokens`. RLS admin-only + service_role = tidak bisa dibaca user biasa.
-- Untuk provider Weavy/Brain/Eleven yang formatnya array of object di localStorage user, server fn akan parse existing JSON dan append entry baru (mengikuti format masing-masing panel).
-- Transfer manual bypass pembayaran; pembelian selalu lewat checkout + approval, jadi ledger stok bank baru turun saat admin klik Approve.
+## Bagian 3 — Webhook & fulfillment
+
+- `src/routes/api/public/doku/notification.ts` verify signature DOKU (HMAC
+  header `Signature` atas raw body + timestamp), lalu panggil util
+  `fulfillPurchase(orderId, providerRef, amount)` yang sudah dipakai
+  Midtrans (di `src/lib/midtrans/fulfill.server.ts` — akan di-extract ke
+  `src/lib/payments/fulfill.server.ts` supaya provider-agnostic).
+
+## Kebutuhan dari user (dikonfigurasi via form Admin → Metode Pembayaran)
+
+Setelah plan disetujui, saya minta Anda:
+
+1. **Fix decrypt Midtrans dulu** — edit row Midtrans, save ulang (kalau memang mau tetap dipakai).
+2. Tambah row DOKU dengan **Client ID**, **Secret Key** (dari DOKU Back Office → Integration → Configuration), dan environment sandbox/production. Optional: **Notification Token** untuk verify webhook.
+3. Set **Notification URL** di DOKU Back Office ke:
+   `https://project--<project-id>.lovable.app/api/public/doku/notification`
+
+## Catatan teknis
+
+- Semua HMAC & panggilan API DOKU jalan di server function / server route (Cloudflare Worker) — kredensial tidak pernah menyentuh browser.
+- `TOKEN_ENCRYPTION_KEY` tetap sumber kebenaran untuk enkripsi config; tidak diubah oleh plan ini.
+- Pilihan Direct API vs Checkout API bisa di-switch belakangan (`method_mode` per gateway) tanpa breaking change di UI.
+
+Setujui plan ini? Kalau ada metode DOKU yang mau di-exclude (mis. kartu
+kredit), sebutkan sekarang biar tidak muncul di picker.

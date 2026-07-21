@@ -6,24 +6,68 @@
 import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "eleven";
+export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "eleven" | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,
   wavespeed: 0.01, // USD — token dianggap habis kalau <= $0.01
   eleven: 50,
+  roboneo: 1,
 } as const;
 
+
 const LS_KEYS = {
+  brain: "aatools.brain.geminiKeys",
+  brainChecks: "aatools.brain.checks",
   weavy: "aatools.weavy.tokens",
   weavyActive: "aatools.weavy.activeId",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
 } as const;
+
+
+type BrainKeyStatus = {
+  key: string;
+  state: "unknown" | "checking" | "active" | "invalid" | "limited" | "failed";
+  detail?: string;
+};
+
+async function checkGeminiKey(key: string): Promise<BrainKeyStatus> {
+  try {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
+    );
+    if (r.ok) return { key, state: "active", detail: "OK" };
+    if (r.status === 429) return { key, state: "limited", detail: "429 · quota / rate-limit" };
+    if (r.status === 401 || r.status === 403 || r.status === 400)
+      return { key, state: "invalid", detail: `${r.status} · key ditolak` };
+    return { key, state: "failed", detail: `${r.status}` };
+  } catch (e) {
+    return { key, state: "failed", detail: (e as Error).message };
+  }
+}
+
+async function refreshBrain(): Promise<void> {
+  const keys = readJSON<string[]>(LS_KEYS.brain, []);
+  if (keys.length === 0) return;
+  const kept: string[] = [];
+  const statuses: BrainKeyStatus[] = [];
+  for (const k of keys) {
+    const r = await checkGeminiKey(k);
+    // Drop only definitively invalid keys; keep rate-limited/failed for retry.
+    if (r.state === "invalid") continue;
+    kept.push(k);
+    statuses.push(r);
+  }
+  if (kept.length !== keys.length) writeJSON(LS_KEYS.brain, kept);
+  writeJSON(LS_KEYS.brainChecks, statuses);
+}
 
 function readJSON<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -105,6 +149,30 @@ async function refreshWavespeed(): Promise<void> {
   }
 }
 
+async function refreshRoboneo(): Promise<void> {
+  const list = readJSON<SimpleKey[]>(LS_KEYS.roboneo, []);
+  if (list.length === 0) return;
+  const kept: SimpleKey[] = [];
+  for (const x of list) {
+    const r = await fetchRoboneoBalance(x.key);
+    if (!r.ok) {
+      kept.push(x); // keep, network/gateway issue
+      continue;
+    }
+    const bal = r.balance;
+    if (bal !== null && bal < MIN_CREDITS.roboneo) continue; // habis → drop
+    kept.push({
+      ...x,
+      balance: bal,
+      status: bal === null ? "active" : bal <= 0 ? "empty" : "active",
+    });
+  }
+  if (kept.length !== list.length || kept.some((k, i) => k.balance !== list[i]?.balance)) {
+    writeJSON(LS_KEYS.roboneo, kept);
+  }
+}
+
+
 async function refreshEleven(): Promise<void> {
   const cfg = readJSON<ElevenCfg>(LS_KEYS.eleven, { keys: [], voice: "", customVoice: "" });
   if (!cfg.keys || cfg.keys.length === 0) return;
@@ -142,7 +210,10 @@ export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<
     try {
       if (provider === "weavy") await refreshWeavy();
       else if (provider === "wavespeed") await refreshWavespeed();
+      else if (provider === "roboneo") await refreshRoboneo();
       else if (provider === "eleven") await refreshEleven();
+      else if (provider === "brain") await refreshBrain();
+
       notifyPanes();
     } catch (e) {
       console.warn("[tokens/refresh] failed", provider, e);
@@ -157,4 +228,38 @@ export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<
 /** Fire-and-forget notifier used at the end of a successful generation. */
 export function notifyGenerationDone(provider: RefreshableProvider): void {
   void refreshAndPruneProvider(provider);
+}
+
+/** Refresh all auto-refreshable providers (brain/weavy/wavespeed) sequentially. */
+export async function refreshAllProviders(): Promise<void> {
+  await refreshAndPruneProvider("brain");
+  await refreshAndPruneProvider("weavy");
+  await refreshAndPruneProvider("wavespeed");
+  // magnific has no balance endpoint — skip
+}
+
+const GLOBAL_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const LAST_RUN_KEY = "aatools.tokens.lastGlobalRefresh";
+let globalTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Start a global 1-hour refresh loop for brain/weavy/wavespeed tokens.
+ * Persists last-run timestamp so page reloads don't reset the schedule.
+ * Safe to call multiple times — subsequent calls are no-ops.
+ */
+export function startGlobalTokenRefresh(): void {
+  if (typeof window === "undefined" || globalTimer !== null) return;
+  const runIfDue = () => {
+    try {
+      const last = Number(localStorage.getItem(LAST_RUN_KEY) ?? 0);
+      if (Date.now() - last < GLOBAL_REFRESH_INTERVAL_MS) return;
+      localStorage.setItem(LAST_RUN_KEY, String(Date.now()));
+      void refreshAllProviders();
+    } catch (e) {
+      console.warn("[tokens/refresh] global refresh failed", e);
+    }
+  };
+  // First run 30s after mount to avoid competing with initial page load.
+  window.setTimeout(runIfDue, 30_000);
+  globalTimer = setInterval(runIfDue, 5 * 60 * 1000); // check every 5 min, run every hour
 }

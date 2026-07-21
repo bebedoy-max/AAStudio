@@ -7,7 +7,7 @@ import { X, Loader2, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
-import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
+import { PaymentPicker } from "@/components/payments/payment-picker";
 
 type FeaturePrice = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
@@ -56,12 +56,15 @@ export function CheckoutDialog({
     if (total <= 0) return toast.error("Total pembayaran belum valid");
     setSubmitting(true);
     try {
-      const primaryKey = prices[0]?.route_key ?? featureKeys[0];
-      const extraKeys = prices
-        .map((p) => p.route_key)
-        .filter((k) => k !== primaryKey);
+      // Encode EVERY selected feature key in the FEATURES marker so the
+      // server fulfiller grants route_permissions for the whole set — the
+      // primary route_key alone would only unlock one feature.
+      const allKeys = Array.from(
+        new Set([...(prices.map((p) => p.route_key)), ...featureKeys]),
+      );
+      const primaryKey = allKeys[0];
       const featuresMarker =
-        extraKeys.length > 0 ? ` [FEATURES:${extraKeys.join(",")}]` : "";
+        allKeys.length > 0 ? ` [FEATURES:${allKeys.join(",")}]` : "";
       const labelList = prices.map((p) => p.label).join(", ");
       const bundleTag = isBundle ? `[BUNDLE: ${bundleLabel}] ` : "";
       const note = `${bundleTag}${labelList}${featuresMarker}`.trim();
@@ -71,7 +74,7 @@ export function CheckoutDialog({
         route_key: primaryKey,
         price_idr: total,
         payment_method_id: null,
-        payment_method_name: "QRIS (Midtrans)",
+        payment_method_name: null,
         note,
         status: "pending" as const,
       };
@@ -125,7 +128,7 @@ export function CheckoutDialog({
           Checkout
         </div>
         <h2 className="mt-1 font-display text-2xl font-bold">
-          Aktivasi <span className="text-gradient">via QRIS</span>
+          Aktivasi <span className="text-gradient">Fitur Premium</span>
         </h2>
 
         {loading ? (
@@ -187,7 +190,7 @@ export function CheckoutDialog({
                 </div>
               ) : (
                 <div className="mt-5">
-                  <MidtransQrisPanel
+                  <PaymentPicker
                     purchaseRequestId={order.id}
                     amount={order.total}
                     onApproved={refreshStatus}
@@ -197,9 +200,9 @@ export function CheckoutDialog({
             ) : (
               <>
                 <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-                  Pembayaran otomatis via <b className="text-foreground">QRIS Midtrans</b>. Bayar
-                  pakai GoPay, ShopeePay, Dana, OVO, atau mobile banking apa pun yang mendukung
-                  QRIS. Fitur langsung aktif begitu pembayaran terkonfirmasi.
+                  Klik <b className="text-foreground">Lanjut</b> untuk memilih metode pembayaran
+                  aktif (QRIS, Virtual Account, e-wallet, dsb.). Fitur langsung aktif begitu
+                  pembayaran terkonfirmasi.
                 </div>
                 <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
                   <button
@@ -215,7 +218,7 @@ export function CheckoutDialog({
                     style={{ background: "var(--gradient-neon)" }}
                   >
                     {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Lanjut ke QRIS · {rupiah(total)}
+                    Lanjut · {rupiah(total)}
                   </button>
                 </div>
               </>

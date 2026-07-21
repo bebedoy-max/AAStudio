@@ -22,6 +22,7 @@ import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
   BANK_PROVIDERS,
@@ -30,6 +31,7 @@ import {
   addBankKeys,
   deleteBankKey,
   deleteAllBankKeys,
+  restoreAssignedBankKeys,
   listBankInventory,
   listBankPrices,
   setBankPrice,
@@ -316,6 +318,8 @@ type AddSummary = {
   provider: BankProvider;
   total: number;
   duplicate: number;
+  alreadyAvailable: number;
+  restored: number;
   invalidFormat: number;
   probeFailed: number;
   added: number;
@@ -343,14 +347,19 @@ function AddKeys({
     setBusy(true);
     setSummary(null);
     try {
-      // Dedupe against existing inventory for this provider.
+      // Dedupe against available inventory for this provider. Assigned keys are
+      // no longer treated as a hard duplicate because admins often reset the
+      // report and need to return those keys to stock.
       const inv = await listBankInventory();
-      const existing = new Set(
-        inv.filter((r) => r.provider === provider).map((r) => r.key_value),
-      );
+      const providerRows = inv.filter((r) => r.provider === provider);
+      const availableKeys = new Set(providerRows.filter((r) => r.status === "available").map((r) => r.key_value));
+      const assignedKeys = new Set(providerRows.filter((r) => r.status === "assigned").map((r) => r.key_value));
       const uniq = Array.from(new Set(rawKeys));
-      const duplicate = rawKeys.length - uniq.length + uniq.filter((k) => existing.has(k)).length;
-      const toCheck = uniq.filter((k) => !existing.has(k));
+      const inputDuplicates = rawKeys.length - uniq.length;
+      const availableDuplicates = uniq.filter((k) => availableKeys.has(k)).length;
+      const assignedToRestore = uniq.filter((k) => assignedKeys.has(k) && !availableKeys.has(k));
+      const duplicate = inputDuplicates;
+      const toCheck = uniq.filter((k) => !availableKeys.has(k) && !assignedKeys.has(k));
 
       // Pre-validate every key by hitting the provider's check endpoint before
       // anything is written to the bank. Only rows with tone !== "bad" are
@@ -380,10 +389,17 @@ function AddKeys({
 
       let insertedIds: string[] = [];
       let idsByKey: Record<string, string> = {};
+      let restoredRows: { id: string; key_value: string }[] = [];
       if (accepted.length > 0) {
         const r = await addBankKeys({ data: { provider, keys: accepted } });
         insertedIds = r.inserted.map((x) => x.id);
         idsByKey = Object.fromEntries(r.inserted.map((x) => [x.key_value, x.id]));
+      }
+      if (assignedToRestore.length > 0) {
+        const r = await restoreAssignedBankKeys({ data: { provider, keys: assignedToRestore } });
+        restoredRows = r.restored;
+        insertedIds = insertedIds.concat(restoredRows.map((x) => x.id));
+        idsByKey = { ...idsByKey, ...Object.fromEntries(restoredRows.map((x) => [x.key_value, x.id])) };
       }
 
       // Map preChecks (keyed by key_value) to row-id keyed cache for parent.
@@ -397,19 +413,29 @@ function AddKeys({
         provider,
         total: rawKeys.length,
         duplicate,
+        alreadyAvailable: availableDuplicates,
+        restored: restoredRows.length,
         invalidFormat,
         probeFailed,
-        added: accepted.length,
+        added: accepted.length + restoredRows.length,
         addedRows: accepted.map((k) => ({
           key: k,
           label: preChecks[k]?.label ?? "OK",
           tone: preChecks[k]?.tone ?? "muted",
-        })),
+        })).concat(restoredRows.map((r) => ({
+          key: r.key_value,
+          label: "Dikembalikan ke stok",
+          tone: "ok" as const,
+        }))),
         rejectedRows: rejected,
       });
 
-      if (accepted.length > 0) {
-        toast.success(`${accepted.length} key valid tersimpan`);
+      const changedCount = accepted.length + restoredRows.length;
+      if (changedCount > 0) {
+        toast.success(`${changedCount} key tersedia di bank`);
+        setBulk("");
+      } else if (availableDuplicates > 0 && rejected.length === 0) {
+        toast.info("Semua key sudah tersedia di bank");
         setBulk("");
       } else {
         toast.error("Tidak ada key valid yang disimpan");
@@ -484,7 +510,8 @@ function AddKeys({
 }
 
 function AddSummaryPopup({ summary, onClose }: { summary: AddSummary; onClose: () => void }) {
-  const rejected = summary.total - summary.added - summary.duplicate;
+  const available = summary.added + summary.alreadyAvailable;
+  const rejected = summary.total - available - summary.duplicate;
   if (typeof document === "undefined") return null;
   return createPortal((
     <div
@@ -500,12 +527,14 @@ function AddSummaryPopup({ summary, onClose }: { summary: AddSummary; onClose: (
         </div>
         <div className="mt-1 font-display text-xl">
           {PROVIDER_LABELS[summary.provider]}{" "}
-          <span className="text-gradient">· {summary.added}/{summary.total} valid</span>
+          <span className="text-gradient">· {available}/{summary.total} tersedia</span>
         </div>
 
         <div className="mt-4 rounded-xl border border-border/60 bg-card/40 divide-y divide-border/50 text-[12.5px]">
           <RowLine label="Total input" value={summary.total} />
-          <RowLine label="Duplikat (sudah ada)" value={summary.duplicate} tone="muted" />
+          <RowLine label="Duplikat dalam input" value={summary.duplicate} tone="muted" />
+          <RowLine label="Sudah ada di bank" value={summary.alreadyAvailable} tone="muted" />
+          <RowLine label="Dikembalikan ke stok" value={summary.restored} tone={summary.restored ? "ok" : "muted"} />
           <RowLine label="Format salah" value={summary.invalidFormat} tone={summary.invalidFormat ? "bad" : "muted"} />
           <RowLine
             label="Invalid / probe gagal"
@@ -647,6 +676,22 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
           return { label: `HTTP ${r.status}`, tone: "bad" };
         } catch {
           return { label: "Gagal cek jaringan", tone: "bad" };
+        }
+      }
+      case "roboneo": {
+        const chk = await checkRoboneoToken(key);
+        if (!chk.ok) return { label: chk.message || "Invalid", tone: "bad" };
+        try {
+          const bal = await fetchRoboneoBalance(key);
+          if (bal.ok && bal.balance != null) {
+            return {
+              label: `${bal.balance} cr`,
+              tone: bal.balance <= 0 ? "bad" : bal.balance < 5 ? "warn" : "ok",
+            };
+          }
+          return { label: chk.message || "Aktif", tone: "ok" };
+        } catch {
+          return { label: chk.message || "Aktif", tone: "ok" };
         }
       }
       case "shotstack":

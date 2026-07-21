@@ -30,46 +30,30 @@ import {
 import { usePurchaseFeed, rupiah, type PurchaseView } from "@/lib/stores/purchase-feed";
 import { PurchaseDetailDialog } from "@/components/purchase-detail-dialog";
 
-// Top-nav sub-menu mirrors sidebar section (Manage / Generate / System).
-const NAV_SECTIONS: Record<string, { label: string; url: string }[]> = {
-  "/": [],
-  "/ai-influencer": [
-    { label: "Character", url: "/ai-influencer/character" },
-    { label: "Brain", url: "/ai-influencer/brain" },
-    { label: "Content Planner", url: "/ai-influencer/planner" },
-    { label: "Content Library", url: "/ai-influencer/library" },
-    { label: "Auto Publisher", url: "/ai-influencer/publisher" },
-    { label: "Analytics", url: "/ai-influencer/analytics" },
-  ],
-  "/manage": [
-    { label: "Token / API Manager", url: "/manage/tokens" },
-    { label: "Routing Provider", url: "/manage/routing" },
-  ],
-  "/generate": [
-    { label: "Motion Control", url: "/generate/motion" },
-    { label: "Bulk Fashion Generator", url: "/generate/bulk-fashion" },
-    { label: "Image To Video", url: "/generate/image-to-video" },
-  ],
-  "/storyboard": [
-    { label: "Produk Storyboard", url: "/generate/storyboard" },
-    { label: "Naratif Video Maker", url: "/generate/naratif" },
-  ],
-  "/mixing": [
-    { label: "AI Clipper", url: "/mixing/clipper" },
-    { label: "AI Dubber", url: "/mixing/dubbing" },
-  ],
-  "/system": [
-    { label: "Analytic", url: "/system/analytic" },
-    { label: "Pengaturan", url: "/system/settings" },
-    { label: "Help", url: "/system/help" },
-  ],
-  "/admin": [
-    { label: "Kelola User", url: "/admin" },
-    { label: "Request Pembelian", url: "/admin/requests" },
-    { label: "Metode Pembayaran", url: "/admin/payments" },
-    { label: "Pengaturan Halaman", url: "/admin/access" },
-  ],
-};
+// Local dismissal for finished (approved/rejected) purchase notifications.
+// Pending purchases are never dismissible — they represent an active,
+// user-initiated flow that still needs attention.
+const DISMISS_KEY = "aatools.notif.purchases.dismissed";
+function loadDismissedPurchases(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+function saveDismissedPurchases(set: Set<string>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(DISMISS_KEY, JSON.stringify(Array.from(set)));
+    window.dispatchEvent(new Event("aatools:purchases-dismissed-changed"));
+  } catch {
+    /* ignore */
+  }
+}
 
 function formatAgo(ts: number): string {
   const diff = Math.max(0, Date.now() - ts);
@@ -99,12 +83,14 @@ function NotifPanel({
   onClose,
   onNavigate,
   onPickPurchase,
+  onClearFinished,
 }: {
   items: AppNotification[];
   purchases: PurchaseView[];
   onClose: () => void;
   onNavigate: (n: AppNotification) => void;
   onPickPurchase: (p: PurchaseView) => void;
+  onClearFinished: () => void;
 }) {
   const empty = items.length === 0 && purchases.length === 0;
   return (
@@ -117,9 +103,9 @@ function NotifPanel({
           </div>
         </div>
         <button
-          onClick={clearFinished}
+          onClick={onClearFinished}
           className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-          title="Hapus notifikasi selesai"
+          title="Hapus notifikasi selesai (proses berjalan & pending tetap ditampilkan)"
         >
           <Trash2 className="h-3 w-3" /> Bersihkan
         </button>
@@ -362,13 +348,6 @@ function AccountMenu() {
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
-  const section =
-    pathname === "/"
-      ? "/"
-      : pathname.startsWith("/generate/storyboard") || pathname.startsWith("/generate/naratif")
-        ? "/storyboard"
-        : "/" + pathname.split("/")[1];
-  const items = NAV_SECTIONS[section] || NAV_SECTIONS["/"];
   const isHome = pathname === "/";
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -376,7 +355,23 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [pickedPurchase, setPickedPurchase] = useState<PurchaseView | null>(null);
   const navigate = useNavigate();
   const { items: notifs } = useNotifications();
-  const { items: purchases } = usePurchaseFeed();
+  const { items: allPurchases } = usePurchaseFeed();
+  const [dismissedPurchases, setDismissedPurchases] = useState<Set<string>>(() => loadDismissedPurchases());
+  useEffect(() => {
+    const sync = () => setDismissedPurchases(loadDismissedPurchases());
+    window.addEventListener("aatools:purchases-dismissed-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("aatools:purchases-dismissed-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+  const purchases = useMemo(
+    // Pending purchases are always visible (belum sukses bayar → user butuh
+    // aksi lanjutan). Approved/rejected bisa disembunyikan lewat Bersihkan.
+    () => allPurchases.filter((p) => p.status === "pending" || !dismissedPurchases.has(p.id)),
+    [allPurchases, dismissedPurchases],
+  );
   const pendingPurchases = useMemo(
     () => purchases.filter((p) => p.status === "pending").length,
     [purchases],
@@ -384,6 +379,19 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const unread = notifs.filter((n) => !n.read).length;
   const running = notifs.filter((n) => n.status === "running").length;
   const badgeCount = running + pendingPurchases;
+
+  function handleClearFinished() {
+    // Hapus notifikasi generate yang sudah selesai.
+    clearFinished();
+    // Sembunyikan purchase card berstatus approved / rejected. Yang pending
+    // dibiarkan karena masih menunggu pembayaran user.
+    const next = new Set(dismissedPurchases);
+    for (const p of allPurchases) {
+      if (p.status === "approved" || p.status === "rejected") next.add(p.id);
+    }
+    setDismissedPurchases(next);
+    saveDismissedPurchases(next);
+  }
 
   // Close drawer on route change
   useEffect(() => {
@@ -427,14 +435,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="flex-1 min-w-0 flex flex-col">
-        <header
-          className={[
-            "sticky top-0 z-20",
-            isHome
-              ? "bg-transparent"
-              : "backdrop-blur-md bg-background/60 border-b border-border/50",
-          ].join(" ")}
-        >
+        <header className="sticky top-0 z-20 bg-transparent">
           <div className="flex items-center gap-2 px-3 sm:px-6 py-3">
             {/* Mobile hamburger — top-left */}
             <button
@@ -444,35 +445,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             >
               <Menu className="h-4 w-4" />
             </button>
-
-            {/* Desktop sub-nav — hidden on dashboard */}
-            {items.length > 0 && (
-              <nav className="hidden lg:flex items-center gap-6 text-sm">
-                {items.map((it) => {
-                const active = pathname === it.url;
-                return (
-                  <Link
-                    key={it.url}
-                    to={it.url}
-                    className={[
-                      "relative pb-1 transition-colors whitespace-nowrap",
-                      active
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground hover:text-foreground",
-                    ].join(" ")}
-                  >
-                    {it.label}
-                    {active && (
-                      <span
-                        className="absolute -bottom-0.5 left-0 right-0 h-[2px] rounded-full"
-                        style={{ background: "var(--gradient-neon)" }}
-                      />
-                    )}
-                  </Link>
-                );
-                })}
-              </nav>
-            )}
 
             <div className="flex-1" />
 
@@ -518,6 +490,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                       if (n.route) navigate({ to: n.route });
                     }}
                     onPickPurchase={(p) => setPickedPurchase(p)}
+                    onClearFinished={handleClearFinished}
                   />
                 </>
               )}

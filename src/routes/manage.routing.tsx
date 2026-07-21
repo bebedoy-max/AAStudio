@@ -131,6 +131,16 @@ const CAPS: Cap[] = [
           { name: "Sora / Seedance", cost: "~40 cr / clip 5s" },
         ],
       },
+      {
+        id: "roboneo",
+        name: "Roboneo",
+        desc: "Kling I2V via Roboneo (Meitu gateway). Gratis pakai kuota akun Roboneo, butuh access-token _v2…",
+        models: [
+          { name: "Kling V2.6 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
+          { name: "Kling V2.6 Pro (i2v)", cost: "Gratis (kuota Roboneo)" },
+          { name: "Kling V2.1 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
+        ],
+      },
     ],
   },
   {
@@ -164,6 +174,21 @@ const CAPS: Cap[] = [
         models: [{ name: "Kling Motion Control", cost: "~35 cr / clip 5s" }],
       },
       {
+        id: "wavespeed",
+        name: "Wavespeed",
+        desc: "Kling Motion Control via Wavespeed API. Support V2.6 & V3.0 (Pro/Std).",
+        models: [
+          { name: "Kling V3.0 Pro / Std", cost: "84 / 63 cr per clip" },
+          { name: "Kling V2.6 Pro / Std", cost: "56 / 21 cr per clip" },
+        ],
+      },
+      {
+        id: "roboneo",
+        name: "Roboneo",
+        desc: "Kling Motion Control via Roboneo (Meitu gateway). Hanya Kling V2.6 Standard.",
+        models: [{ name: "Kling V2.6 Standard", cost: "Gratis (kuota akun Roboneo)" }],
+      },
+      {
         id: "magnific",
         name: "Magnific",
         desc: "Kling Motion Control langsung via api.magnific.com. Butuh Freepik/Magnific API key (FPSX…).",
@@ -194,7 +219,14 @@ function RoutingPage() {
   const setCap = (cap: CapKey, id: string) => {
     const next = { ...routing, [cap]: id };
     setRouting(next);
-    if (typeof window !== "undefined") localStorage.setItem(LS_ROUTING, JSON.stringify(next));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(LS_ROUTING, JSON.stringify(next));
+      // Notify halaman lain (mis. /generate/motion) supaya provider aktif
+      // segera menyesuaikan tanpa perlu reload.
+      window.dispatchEvent(
+        new CustomEvent("aatools:routing-changed", { detail: { cap, id, routing: next } }),
+      );
+    }
     setSavedAt(new Date().toLocaleTimeString());
   };
 
@@ -215,6 +247,46 @@ function RoutingPage() {
         {savedAt && <span className="ml-auto text-emerald-400">Tersimpan {savedAt}</span>}
       </div>
 
+      {/* Mobile: compact dropdown per capability */}
+      <div className="md:hidden flex flex-col gap-3">
+        {CAPS.map((cap) => {
+          const Icon = cap.icon;
+          const activeProv = cap.providers.find((p) => p.id === routing[cap.key]);
+          return (
+            <div key={cap.key} className="neumorph p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className="h-4 w-4 text-primary" />
+                <div className="text-sm font-display text-foreground">{cap.label}</div>
+              </div>
+              <select
+                value={routing[cap.key]}
+                onChange={(e) => setCap(cap.key, e.target.value)}
+                className="w-full rounded-xl border border-border bg-card/50 px-3 py-2.5 text-sm font-medium outline-none focus:border-primary/60"
+              >
+                {cap.providers.map((p) => (
+                  <option
+                    key={p.id}
+                    value={p.id}
+                    disabled={p.note === "coming-soon"}
+                    className="bg-[oklch(0.19_0.055_275)]"
+                  >
+                    {p.name}
+                    {p.note === "coming-soon" ? " (coming soon)" : ""}
+                  </option>
+                ))}
+              </select>
+              {activeProv && (
+                <div className="mt-1.5 text-[10px] font-mono text-muted-foreground">
+                  Aktif: <span className="text-primary">{activeProv.name}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop: full card layout */}
+      <div className="hidden md:flex flex-col gap-5">
       {CAPS.map((cap) => {
         const Icon = cap.icon;
         return (
@@ -279,6 +351,8 @@ function RoutingPage() {
           </Card>
         );
       })}
+      </div>
+
     </DashboardShell>
   );
 }

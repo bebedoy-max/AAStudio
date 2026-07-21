@@ -4,6 +4,22 @@ import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { useUpgradePrompt, closeUpgradePrompt } from "@/lib/stores/upgrade-prompt";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckoutDialog } from "@/components/checkout-dialog";
+import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
+
+// Pending purchase considered stale after 1 hour (matches Midtrans QRIS expiry).
+const PENDING_TTL_MS = 60 * 60 * 1000;
+
+type PendingRow = { id: string; route_key: string; price_idr: number; created_at: string; note?: string | null };
+
+const FEATURES_MARKER = "[FEATURES:";
+function extraFeatureKeysFromNote(note: string | null | undefined): string[] {
+  if (!note) return [];
+  const i = note.indexOf(FEATURES_MARKER);
+  if (i < 0) return [];
+  const end = note.indexOf("]", i);
+  if (end < 0) return [];
+  return note.slice(i + FEATURES_MARKER.length, end).split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 const FULL_ACCESS_KEY = "__full_access__";
 
@@ -71,10 +87,11 @@ export function UpgradeDialog({
 }) {
   const { routePermissions, featureAccess, user } = useAuth();
   const [prices, setPrices] = useState<Record<string, { label: string; price_idr: number }>>({});
-  const [pendingKeys, setPendingKeys] = useState<string[]>([]);
+  const [pendingRows, setPendingRows] = useState<PendingRow[]>([]);
   const [selected, setSelected] = useState<string[]>(preselectedFeature ? [preselectedFeature] : []);
   const [bundle, setBundle] = useState(false);
   const [checkout, setCheckout] = useState(false);
+  const [resume, setResume] = useState<PendingRow | null>(null);
 
   useEffect(() => {
     if (preselectedFeature) {
@@ -84,12 +101,15 @@ export function UpgradeDialog({
 
   const loadPending = async () => {
     if (!user) return;
+    const cutoff = new Date(Date.now() - PENDING_TTL_MS).toISOString();
     const { data } = await supabase
       .from("purchase_requests")
-      .select("route_key")
+      .select("id, route_key, price_idr, created_at, note")
       .eq("user_id", user.id)
-      .eq("status", "pending");
-    setPendingKeys(((data ?? []) as { route_key: string }[]).map((r) => r.route_key));
+      .eq("status", "pending")
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false });
+    setPendingRows(((data ?? []) as PendingRow[]));
   };
 
   useEffect(() => {
@@ -103,6 +123,17 @@ export function UpgradeDialog({
     })();
     loadPending();
   }, [user?.id]);
+
+  // A pending purchase can encode multiple feature keys via [FEATURES:...] in
+  // note. Treat every listed key as pending — not just the primary route_key.
+  const pendingKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of pendingRows) {
+      set.add(r.route_key);
+      for (const k of extraFeatureKeysFromNote(r.note)) set.add(k);
+    }
+    return Array.from(set);
+  }, [pendingRows]);
 
   // Only show features that are:
   //   - not already unlocked for this user (no permission granted)
@@ -119,12 +150,45 @@ export function UpgradeDialog({
   });
 
   const isPending = (k: string) => pendingKeys.includes(k);
+  const pendingFor = (k: string) =>
+    pendingRows.find(
+      (r) => r.route_key === k || extraFeatureKeysFromNote(r.note).includes(k),
+    ) ?? null;
 
   const bundlePrice = prices[FULL_ACCESS_KEY];
   const bundleAvailable = !!bundlePrice && availableFeatures.length > 1;
 
+  // Full price of every paid premium feature (owned + not owned).
+  const fullFeaturesTotal = useMemo(
+    () =>
+      ALL_ROUTE_KEYS.reduce((s, f) => {
+        const mode = featureAccess[f.key]?.mode ?? "subscription";
+        if (mode !== "subscription") return s;
+        return s + (prices[f.key]?.price_idr ?? 0);
+      }, 0),
+    [prices, featureAccess],
+  );
+
+  const individualTotal = useMemo(
+    () => availableFeatures.reduce((s, f) => s + (prices[f.key]?.price_idr ?? 0), 0),
+    [availableFeatures, prices],
+  );
+
+  // If the user already owns some premium features, discount the bundle
+  // proportionally so they only pay for the remaining ones.
+  const effectiveBundlePrice = useMemo(() => {
+    if (!bundlePrice) return 0;
+    if (fullFeaturesTotal <= 0) return bundlePrice.price_idr;
+    const ratio = individualTotal / fullFeaturesTotal;
+    return Math.max(0, Math.round(bundlePrice.price_idr * ratio));
+  }, [bundlePrice, fullFeaturesTotal, individualTotal]);
+
   const toggle = (key: string) => {
-    if (isPending(key)) return;
+    if (isPending(key)) {
+      const row = pendingFor(key);
+      if (row) setResume(row);
+      return;
+    }
     if (bundle) setBundle(false);
     setSelected((s) => (s.includes(key) ? s.filter((k) => k !== key) : [...s, key]));
   };
@@ -137,17 +201,14 @@ export function UpgradeDialog({
 
   const total = useMemo(
     () =>
-      bundle && bundlePrice
-        ? bundlePrice.price_idr
+      bundle
+        ? effectiveBundlePrice
         : selected.reduce((sum, k) => sum + (prices[k]?.price_idr ?? 0), 0),
-    [selected, prices, bundle, bundlePrice],
+    [selected, prices, bundle, effectiveBundlePrice],
   );
 
-  const individualTotal = useMemo(
-    () => availableFeatures.reduce((s, f) => s + (prices[f.key]?.price_idr ?? 0), 0),
-    [availableFeatures, prices],
-  );
-  const savings = bundlePrice ? Math.max(0, individualTotal - bundlePrice.price_idr) : 0;
+  const savings = Math.max(0, individualTotal - effectiveBundlePrice);
+
 
   const handleContinue = () => {
     if (selected.length === 0) return;
@@ -159,15 +220,29 @@ export function UpgradeDialog({
       <CheckoutDialog
         featureKeys={selected}
         bundleLabel={bundle ? bundlePrice?.label ?? null : null}
-        bundlePrice={bundle ? bundlePrice?.price_idr ?? null : null}
+        bundlePrice={bundle ? effectiveBundlePrice : null}
         onClose={() => setCheckout(false)}
         onSubmitted={() => {
+          // Refresh pending list but DO NOT close the upgrade dialog — the
+          // CheckoutDialog now shows the QRIS panel and closing would kill it.
           loadPending();
-          onClose();
         }}
       />
     );
   }
+
+  if (resume) {
+    return (
+      <ResumePaymentDialog
+        row={resume}
+        onClose={() => {
+          setResume(null);
+          loadPending();
+        }}
+      />
+    );
+  }
+
 
   return (
     <div
@@ -235,16 +310,22 @@ export function UpgradeDialog({
                 <div className="text-xs text-muted-foreground mt-0.5">
                   Semua fitur premium aktif 30 hari dengan satu harga diskon.
                 </div>
-                <div className="mt-2 flex items-baseline gap-2">
+                <div className="mt-2 flex items-baseline gap-2 flex-wrap">
                   <span className="font-display text-xl text-gradient">
-                    {formatRupiah(bundlePrice?.price_idr ?? 0)}
+                    {formatRupiah(effectiveBundlePrice)}
                   </span>
-                  {individualTotal > 0 && (
+                  {effectiveBundlePrice < (bundlePrice?.price_idr ?? 0) && (
                     <span className="text-xs text-muted-foreground line-through">
-                      {formatRupiah(individualTotal)}
+                      {formatRupiah(bundlePrice?.price_idr ?? 0)}
+                    </span>
+                  )}
+                  {individualTotal > effectiveBundlePrice && (
+                    <span className="text-[10px] text-muted-foreground">
+                      (satuan {formatRupiah(individualTotal)})
                     </span>
                   )}
                 </div>
+
               </div>
               <span
                 className={[
@@ -347,6 +428,46 @@ export function UpgradeDialog({
               <Zap className="h-4 w-4" /> Lanjut ke Pembayaran
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResumePaymentDialog({ row, onClose }: { row: PendingRow; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="neumorph w-full max-w-md max-h-[92vh] overflow-y-auto p-6 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 h-9 w-9 grid place-items-center rounded-full border border-border bg-card/50 hover:bg-sidebar-accent/60"
+          aria-label="Tutup"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-muted-foreground">
+          Lanjutkan pembayaran
+        </div>
+        <h2 className="mt-1 font-display text-xl font-bold">
+          Selesaikan <span className="text-gradient">QRIS</span>
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Pesanan masih menunggu pembayaran. Scan QRIS di bawah untuk menyelesaikan.
+        </p>
+        <div className="mt-4">
+          <MidtransQrisPanel
+            purchaseRequestId={row.id}
+            amount={row.price_idr}
+            onApproved={onClose}
+          />
         </div>
       </div>
     </div>

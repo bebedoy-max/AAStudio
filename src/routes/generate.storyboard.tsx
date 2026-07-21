@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
+import { logGenerate } from "@/lib/activity/log";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
@@ -26,6 +27,7 @@ import {
 import { createRunStore } from "@/lib/stores/run-store";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { confirmDialog } from "@/components/ui-confirm";
 
 
 export const Route = createFileRoute("/generate/storyboard")({
@@ -274,9 +276,15 @@ function StoryboardPage() {
     if (rows.length >= SB_MAX_ROWS) return;
     setRows((prev) => [...prev, newRow()]);
   };
-  const clearAllRows = () => {
+  const clearAllRows = async () => {
     if (rows.length === 0) return;
-    if (!window.confirm(`Hapus semua ${rows.length} link produk?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus semua ${rows.length} link produk?`,
+      description: "Semua baris akan direset ke satu baris kosong.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     setRows([newRow()]);
   };
 
@@ -358,6 +366,12 @@ function StoryboardPage() {
   async function generateAll() {
     const ok = rows.filter((r) => r.status === "ok" && r.info);
     if (!ok.length) return;
+    logGenerate("storyboard", { provider, modelKey, status: "started", rows: ok.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      const firstTitle = ok[0]?.info?.title || `Storyboard · ${ok.length} produk`;
+      trackGeneration({ kind: "storyboard", title: firstTitle, counts: { storyboards: ok.length } });
+    } catch { /* ignore */ }
     setBusy(true);
     setLogs([]);
     setResults(
@@ -383,6 +397,8 @@ function StoryboardPage() {
       pushLog("⚠️ Tidak ada Gemini API key di Kelola Token → tab Brain. Brain tidak akan jalan.");
     }
 
+    let successCount = 0;
+    let errorCount = 0;
     for (const row of ok) {
       const info = row.info!;
       const title = info.title || "(tanpa judul)";
@@ -443,13 +459,20 @@ function StoryboardPage() {
         void ratioToImageSize;
         patchResult(row.rowId, { status: "done", imgUrl });
         pushLog(`✅ [${title.slice(0, 40)}] Storyboard selesai`);
+        successCount++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         patchResult(row.rowId, { status: "err", error: msg });
         pushLog(`❌ [${title.slice(0, 40)}] ${msg}`);
+        errorCount++;
       }
     }
     pushLog("🏁 Semua produk selesai diproses");
+    logGenerate("storyboard", {
+      provider, modelKey,
+      status: errorCount === 0 ? "success" : successCount === 0 ? "error" : "partial",
+      success: successCount, failed: errorCount,
+    });
     setBusy(false);
   }
 

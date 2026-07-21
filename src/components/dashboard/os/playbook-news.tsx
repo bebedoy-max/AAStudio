@@ -1,33 +1,99 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
-import { BookOpen, Newspaper, ArrowRight, ExternalLink } from "lucide-react";
-import { todaysTips, todaysNews } from "@/lib/dashboard/playbook";
+import { BookOpen, Newspaper, ArrowRight, ExternalLink, Loader2, Loader, X } from "lucide-react";
+import { todaysTips } from "@/lib/dashboard/playbook";
 import { Chip } from "./section";
 import { setHandoff } from "@/lib/creative/handoff";
+
+type LiveNews = { title: string; url: string; source: string; tag: string };
+
+const NEWS_QUERIES = [
+  { q: "Kling AI update", tag: "Model" },
+  { q: "TikTok algorithm update creator", tag: "Platform" },
+  { q: "OpenAI Sora update", tag: "Model" },
+  { q: "YouTube Shorts monetization update", tag: "Platform" },
+  { q: "Runway Gen model update", tag: "Model" },
+];
+
+type ReaderState =
+  | { open: false }
+  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string };
 
 export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => void }) {
   const [tab, setTab] = useState<"playbook" | "news">("playbook");
   const tips = todaysTips();
-  const news = todaysNews();
+  const [news, setNews] = useState<LiveNews[]>([]);
+  const [loadingNews, setLoadingNews] = useState(false);
+  const [reader, setReader] = useState<ReaderState>({ open: false });
   const navigate = useNavigate();
 
-  const handleGenerate = (n: { title: string; url?: string }) => {
-    // Kalau berita punya URL, langsung setHandoff dgn autoScrape ke Naratif
-    // Video Maker. Halaman naratif akan otomatis mengisi field URL dan
-    // menjalankan scraping tanpa perlu paste manual.
+  useEffect(() => {
+    if (tab !== "news" || news.length > 0 || loadingNews) return;
+    setLoadingNews(true);
+    (async () => {
+      try {
+        const results = await Promise.all(
+          NEWS_QUERIES.map(async ({ q, tag }) => {
+            try {
+              const r = await fetch(`/api/public/news-feed?limit=1&q=${encodeURIComponent(q)}`);
+              const j = await r.json();
+              const it = Array.isArray(j.items) ? j.items[0] : null;
+              if (!it || !it.url || !it.title) return null;
+              return { title: it.title, url: it.url, source: it.source || "Google News", tag } as LiveNews;
+            } catch { return null; }
+          }),
+        );
+        setNews(results.filter((x): x is LiveNews => !!x));
+      } finally {
+        setLoadingNews(false);
+      }
+    })();
+  }, [tab, news.length, loadingNews]);
+
+
+  const openReader = async (n: LiveNews) => {
+    setReader({ open: true, title: n.title, url: n.url, loading: true });
+    try {
+      const r = await fetch("/api/public/scrape-article", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: n.url }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setReader({
+        open: true,
+        title: j.title || n.title,
+        url: n.url,
+        loading: false,
+        body: j.body || j.description || "(Isi berita tidak dapat diambil.)",
+        hero: Array.isArray(j.images) ? j.images[0] : undefined,
+      });
+    } catch (e) {
+      setReader({
+        open: true,
+        title: n.title,
+        url: n.url,
+        loading: false,
+        error: (e as Error).message || String(e),
+      });
+    }
+  };
+
+  const handleGenerate = (n: { title: string; url?: string; body?: string }) => {
     if (n.url) {
       setHandoff({
         workflow: "narrative-video",
         title: n.title,
         hook: "",
-        description: n.title,
+        description: n.body?.slice(0, 400) || n.title,
         sourceUrl: n.url,
         autoScrape: true,
       });
       void navigate({ to: "/generate/naratif" });
       return;
     }
-    // Tidak ada URL — fallback ke behavior lama: research keyword.
     onGenerate(n.title);
   };
 
@@ -71,6 +137,12 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
             </li>
           ))}
         </ul>
+      ) : loadingNews && news.length === 0 ? (
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Mengambil berita terbaru…
+        </div>
+      ) : news.length === 0 ? (
+        <div className="mt-3 text-xs text-muted-foreground">Berita tidak tersedia sekarang.</div>
       ) : (
         <ul className="mt-3 space-y-2">
           {news.map((n, i) => (
@@ -78,26 +150,20 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Chip>{n.tag}</Chip>
-                  <span className="text-[10px] text-muted-foreground">{n.source}</span>
+                  <span className="text-[10px] text-muted-foreground truncate">{n.source}</span>
                 </div>
-                {n.url ? (
-                  <a
-                    href={n.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-foreground/95 mt-1 inline-flex items-center gap-1 hover:text-primary hover:underline"
-                  >
-                    <span className="truncate">{n.title}</span>
-                    <ExternalLink className="h-3 w-3 shrink-0 opacity-70" />
-                  </a>
-                ) : (
-                  <div className="text-sm text-foreground/95 mt-1">{n.title}</div>
-                )}
+                <button
+                  onClick={() => openReader(n)}
+                  className="text-left text-sm text-foreground/95 mt-1 inline-flex items-start gap-1 hover:text-primary"
+                  title="Baca isi berita di aplikasi"
+                >
+                  <span className="line-clamp-2">{n.title}</span>
+                </button>
               </div>
               <button
                 onClick={() => handleGenerate(n)}
                 className="shrink-0 inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-                title={n.url ? "Buka di Naratif Video Maker + scrape otomatis" : "Riset topik"}
+                title="Buka di Naratif Video Maker + scrape otomatis"
               >
                 Generate <ArrowRight className="h-3 w-3" />
               </button>
@@ -105,6 +171,93 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
           ))}
         </ul>
       )}
+
+      {reader.open && (
+        <NewsReaderModal
+          state={reader}
+          onClose={() => setReader({ open: false })}
+          onGenerate={() => {
+            if (!reader.open) return;
+            handleGenerate({ title: reader.title, url: reader.url, body: reader.body });
+            setReader({ open: false });
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function NewsReaderModal({
+  state,
+  onClose,
+  onGenerate,
+}: {
+  state: Extract<ReaderState, { open: true }>;
+  onClose: () => void;
+  onGenerate: () => void;
+}) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="neumorph relative w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3 border-b border-border p-4 pr-12">
+          <Newspaper className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <div className="font-display text-base flex-1 leading-snug">{state.title}</div>
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" /> Tutup
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {state.loading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader className="h-3.5 w-3.5 animate-spin" /> Mengambil isi artikel…
+            </div>
+          ) : state.error ? (
+            <div className="text-xs text-destructive">Gagal ambil isi: {state.error}</div>
+          ) : (
+            <>
+              {state.hero && (
+                <img
+                  src={state.hero}
+                  alt={state.title}
+                  className="w-full max-h-64 object-cover rounded-lg mb-3 border border-border"
+                  loading="lazy"
+                />
+              )}
+              <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                {state.body}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-3">
+          <a
+            href={state.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="h-3 w-3" /> Buka di web
+          </a>
+          <button
+            onClick={onGenerate}
+            className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium text-primary-foreground"
+            style={{ background: "var(--gradient-neon)" }}
+          >
+            Generate Naratif
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

@@ -72,10 +72,22 @@ Return JSON: { "workflow": string, "keyword": string (5-8 words topic), "title":
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "AI gagal merespons");
       let parsed: OrchestratorResult;
+      const raw = String(data.text || "");
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
       try {
-        parsed = JSON.parse(data.text);
+        parsed = JSON.parse(cleaned);
       } catch {
-        throw new Error("AI mengembalikan format tidak valid");
+        const s = cleaned.indexOf("{");
+        const e = cleaned.lastIndexOf("}");
+        if (s >= 0 && e > s) {
+          try {
+            parsed = JSON.parse(cleaned.slice(s, e + 1));
+          } catch {
+            throw new Error("AI mengembalikan format tidak valid. Coba lagi.");
+          }
+        } else {
+          throw new Error("AI mengembalikan format tidak valid. Coba lagi.");
+        }
       }
       setLastResult(parsed);
       setStep(STEPS.length - 1);

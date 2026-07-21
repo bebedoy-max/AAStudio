@@ -20,6 +20,9 @@ const ALLOWED_HOSTS = new Set([
   "drive.google.com",
   "drive.usercontent.google.com",
   "lh3.googleusercontent.com",
+  "multi-agent-release.meitudata.com",
+  "litter.catbox.moe",
+  "files.catbox.moe",
 ]);
 
 function isAllowedImageUrl(value: string) {
@@ -36,7 +39,10 @@ function isAllowedImageUrl(value: string) {
       || url.hostname.endsWith(".slatic.net")
       || url.hostname.endsWith(".lazada.co.id")
       || url.hostname.endsWith(".static-src.com")
-      || url.hostname.endsWith(".akamaized.net");
+      || url.hostname.endsWith(".akamaized.net")
+      || url.hostname.endsWith(".meitudata.com")
+      || url.hostname.endsWith(".meitu.com")
+      || url.hostname.endsWith(".catbox.moe");
   } catch {
     return false;
   }
@@ -51,7 +57,7 @@ export const Route = createFileRoute("/api/public/proxy-image")({
 
         const authorization = request.headers.get("authorization");
         const headers: Record<string, string> = {
-            Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            Accept: "*/*",
             "User-Agent": "Mozilla/5.0",
         };
         if (authorization && new URL(url).hostname.endsWith(".weavy.ai")) headers.Authorization = authorization;
@@ -64,7 +70,7 @@ export const Route = createFileRoute("/api/public/proxy-image")({
 
         return new Response(upstream.body, {
           headers: {
-            "Content-Type": upstream.headers.get("Content-Type") || "image/png",
+            "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream",
             "Cache-Control": "public, max-age=86400",
             "Access-Control-Allow-Origin": "*",
           },

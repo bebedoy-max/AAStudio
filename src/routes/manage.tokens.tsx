@@ -1,15 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { flushSync } from "react-dom";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart, ChevronDown } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
+import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useAuth } from "@/lib/auth-context";
 import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
+import { confirmDialog } from "@/components/ui-confirm";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
 export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
@@ -83,16 +86,18 @@ export const Route = createFileRoute("/manage/tokens")({
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "eleven" | "render";
+type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "eleven" | "render";
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
-  { key: "brain", label: "🧠 Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
+  { key: "brain", label: "Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
   { key: "weavy", label: "Weavy", desc: "Provider utama Kling Motion Control, Wan, Sora, Seedance." },
   { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
   { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
-  { key: "eleven", label: "🎙️ ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
-  { key: "render", label: "🎬 Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
+  { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
+  { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
+  { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
+
 
 // ---- localStorage helpers ----
 type WeavyTok = { id: string; token: string; user?: string; email?: string; credits: number | null; status: "active" | "empty" | "pending" | "failed" };
@@ -106,6 +111,7 @@ const LS = {
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
@@ -142,6 +148,7 @@ const writeJSON = (k: string, v: unknown) => {
 function TokensPage() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState<ProviderKey>("brain");
+  const [tabOpen, setTabOpen] = useState(false);
   const active = providers.find((p) => p.key === tab)!;
   const [showImport, setShowImport] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
@@ -174,9 +181,11 @@ function TokensPage() {
               ? LS.wavespeed
               : tab === "magnific"
                 ? LS.magnific
-                : tab === "eleven"
-                  ? LS.eleven
-                  : LS.shotstack;
+                : tab === "roboneo"
+                  ? LS.roboneo
+                  : tab === "eleven"
+                    ? LS.eleven
+                    : LS.shotstack;
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -204,7 +213,11 @@ function TokensPage() {
     return () => window.clearInterval(refreshRemoteTokens);
   }, [loading, user?.id]);
 
-  const paneKey = `${tab}-${syncTick}`;
+  // Do NOT include syncTick in the pane key — remounting the pane every time
+  // remote sync fires (every 20s) wipes local input state, causing the user's
+  // freshly pasted keys to "disappear". Panes already listen to storage/sync
+  // events themselves to refresh the saved list.
+  const paneKey = tab;
 
   return (
     <SummaryCtx.Provider value={setSummary}>
@@ -218,30 +231,95 @@ function TokensPage() {
 
         <Card>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            {providers.map((p) => (
+            {/* Mobile: custom dropdown provider picker — bigger & more prominent than Beli Token */}
+            <div className="w-full md:hidden relative">
               <button
-                key={p.key}
-                onClick={() => setTab(p.key)}
-                className={[
-                  "px-4 py-2 rounded-full text-sm font-medium transition",
-                  tab === p.key
-                    ? "text-primary-foreground glow-pink"
-                    : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
-                ].join(" ")}
-                style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
+                type="button"
+                onClick={() => setTabOpen((v) => !v)}
+                className="w-full flex items-center justify-between gap-3 rounded-2xl border border-primary/50 bg-card/60 px-4 py-4 text-base font-extrabold shadow-[0_0_22px_rgba(236,72,153,0.28)] hover:shadow-[0_0_28px_rgba(236,72,153,0.45)] transition"
+                aria-haspopup="listbox"
+                aria-expanded={tabOpen}
               >
-                {p.label}
+                <span
+                  className="bg-clip-text text-transparent tracking-wide"
+                  style={{ backgroundImage: "linear-gradient(90deg,#f8fafc 0%,#cbd5e1 45%,#94a3b8 100%)" }}
+                >
+                  {providers.find((p) => p.key === tab)?.label ?? "Pilih provider"}
+                </span>
+                <ChevronDown className={["h-5 w-5 text-muted-foreground transition-transform", tabOpen ? "rotate-180" : ""].join(" ")} />
               </button>
-            ))}
-            <div className="ml-auto flex items-center gap-2">
+              {tabOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setTabOpen(false)} aria-hidden="true" />
+                  <ul
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full mt-2 z-40 rounded-2xl border border-border bg-[oklch(0.19_0.055_275)] shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto divide-y divide-border/40"
+                  >
+                    {providers.map((p) => {
+                      const active = p.key === tab;
+                      return (
+                        <li key={p.key}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTab(p.key);
+                              setTabOpen(false);
+                            }}
+                            className={[
+                              "w-full text-left px-4 py-3 text-sm font-semibold transition",
+                              active ? "text-primary-foreground" : "text-foreground/85 hover:bg-sidebar-accent/40",
+                            ].join(" ")}
+                            style={active ? { background: "var(--gradient-neon)" } : undefined}
+                          >
+                            {active ? (
+                              <span
+                                className="bg-clip-text text-transparent"
+                                style={{ backgroundImage: "linear-gradient(90deg,#f8fafc 0%,#cbd5e1 45%,#94a3b8 100%)" }}
+                              >
+                                {p.label}
+                              </span>
+                            ) : (
+                              p.label
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
+              )}
+            </div>
+
+
+            {/* Desktop: pill tabs */}
+            <div className="hidden md:flex flex-wrap items-center gap-2">
+              {providers.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setTab(p.key)}
+                  className={[
+                    "px-4 py-2 rounded-full text-sm font-medium transition",
+                    tab === p.key
+                      ? "text-primary-foreground glow-pink"
+                      : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
+                  ].join(" ")}
+                  style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2 w-full md:w-auto justify-end">
               <button
                 onClick={() => setBuyOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold hover:bg-primary/20"
+                className="relative inline-flex items-center gap-1.5 rounded-full border border-red-500/50 bg-gradient-to-r from-red-500/20 via-red-500/10 to-red-500/20 text-red-100 px-3.5 py-2 text-xs md:text-sm font-semibold md:font-bold md:px-5 md:py-2.5 shadow-[0_0_14px_rgba(239,68,68,0.35)] md:shadow-[0_0_20px_rgba(239,68,68,0.55)] hover:shadow-[0_0_28px_rgba(239,68,68,0.75)] hover:scale-[1.02] transition-all"
                 title="Beli token dari Token Bank"
               >
-                <ShoppingCart className="h-3.5 w-3.5" />
+                <ShoppingCart className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 Beli Token
               </button>
+
               <button
                 onClick={() => setShowKeys((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs font-medium hover:bg-sidebar-accent/40"
@@ -252,6 +330,7 @@ function TokensPage() {
               </button>
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 flex flex-col gap-4">
@@ -279,6 +358,16 @@ function TokensPage() {
                       singlePlaceholder="FPSX... (Magnific/Freepik API key)"
                       bulkPlaceholder={"FPSX-XXXX...\nFPSX-YYYY..."}
                       helper="Magnific dipakai untuk Motion Control (Kling motion transfer via api.magnific.com)."
+                    />
+                  )}
+                  {tab === "roboneo" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="roboneo"
+                      lsKey={LS.roboneo}
+                      singlePlaceholder="_v2NGMz... (Roboneo access-token)"
+                      bulkPlaceholder={"_v2NGMzMThk...\n_v2ABCDEF..."}
+                      helper="Roboneo access-token diambil dari cookie/localStorage roboneo.com (key: access-token). Multi-token akan auto-rotate saat quota habis."
                     />
                   )}
                   {tab === "eleven" && <ElevenPane key={paneKey} />}
@@ -331,9 +420,11 @@ function CompactSummary({
               ? LS.wavespeed
               : provider === "magnific"
                 ? LS.magnific
-                : provider === "eleven"
-                  ? LS.eleven
-                  : LS.shotstack,
+                : provider === "roboneo"
+                  ? LS.roboneo
+                  : provider === "eleven"
+                    ? LS.eleven
+                    : LS.shotstack,
       );
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -432,6 +523,19 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Paste key ke input di sebelah, klik Cek Saldo untuk verifikasi balance USD." },
     ],
     tip: "1 klip 5 detik Kling v2.1 Standard ≈ $0.25. Saldo $5 = ±20 klip.",
+  },
+  roboneo: {
+    url: "https://www.roboneo.com/ai_flow",
+    urlLabel: "roboneo.com",
+    prefix: "_v2… (access-token)",
+    steps: [
+      { text: "Login di roboneo.com (via Google / email)." },
+      { text: "Buka DevTools (F12) → tab Application → Storage → Local Storage → https://www.roboneo.com." },
+      { text: 'Cari key "access-token" — copy value (format _v2… panjang).' },
+      { text: "Paste ke input di sebelah. Multi-token akan auto-rotate saat quota habis." },
+      { text: "⚠️ Catatan: request ke gateway Roboneo mungkin diblok CORS di browser — kalau gagal, kita perlu proxy server." },
+    ],
+    tip: "Model yang didukung sekarang hanya Kling V2.6 Standard (video_bonbon_motioncontrol_v26 quality=std).",
   },
   magnific: {
     url: "https://www.magnific.com/api",
@@ -625,8 +729,8 @@ function BrainPane() {
       const r = await checkGeminiKey(goodFormat[i]);
       results.push(r);
       if (r.state === "active" || r.state === "limited") accepted.push(goodFormat[i]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / goodFormat.length) * 100), text: `Cek ${i + 1}/${goodFormat.length}` });
-      await new Promise((res) => setTimeout(res, 120));
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / goodFormat.length) * 100), text: `Cek ${i + 1}/${goodFormat.length}` }));
+      await new Promise((res) => setTimeout(res, 15));
     }
     const merged = Array.from(new Set([...stored, ...accepted]));
     writeJSON(LS.brain, merged);
@@ -680,8 +784,8 @@ function BrainPane() {
       const r = await checkGeminiKey(stored[i]);
       results.push(r);
       saveChecks([...results, ...stored.slice(i + 1).map((k) => ({ key: k, state: "checking" as const }))]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / stored.length) * 100), text: `Cek ${i + 1}/${stored.length}` });
-      await new Promise((res) => setTimeout(res, 120));
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / stored.length) * 100), text: `Cek ${i + 1}/${stored.length}` }));
+      await new Promise((res) => setTimeout(res, 15));
     }
     saveChecks(results);
     setProgress({ show: false, pct: 0, text: "" });
@@ -950,7 +1054,7 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       } else {
         invalidToken++;
       }
-      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
       await new Promise((r) => setTimeout(r, 150));
     }
     const merged = [...list, ...added];
@@ -1028,11 +1132,11 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
         : { ...t, status: "failed", credits: null };
       working = working.map((x) => (x.id === t.id ? updated : x));
       persist(working);
-      setProgress({
+      flushSync(() => setProgress({
         show: true,
         pct: Math.round(((i + 1) / working.length) * 100),
         text: `Checking ${i + 1}/${working.length} — ${res.ok ? (res.credits ?? "?") + " cr" : "gagal"}`,
-      });
+      }));
       // small delay to avoid hammering Firebase
       await new Promise((r) => setTimeout(r, 150));
     }
@@ -1196,7 +1300,7 @@ function ProviderKeyPane({
   singlePlaceholder: string;
   bulkPlaceholder: string;
   helper: string;
-  provider: "wavespeed" | "magnific";
+  provider: "wavespeed" | "magnific" | "roboneo";
 }) {
   const [k, setK] = useState("");
   const [bulk, setBulk] = useState("");
@@ -1228,6 +1332,20 @@ function ProviderKeyPane({
               balance: res.balance,
               status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
             };
+          } else if (provider === "roboneo") {
+            const chk = await checkRoboneoToken(x.key);
+            if (!chk.ok) {
+              updated = { ...x, balance: null, status: "failed", note: chk.message };
+            } else {
+              const bal = await fetchRoboneoBalance(x.key);
+              updated = {
+                ...x,
+                balance: bal.balance,
+                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+                note: bal.ok ? undefined : bal.message,
+              };
+            }
+
           } else {
             const res = await checkMagnificKey(x.key);
             updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
@@ -1256,7 +1374,9 @@ function ProviderKeyPane({
   const isValidFormat = (key: string) =>
     provider === "wavespeed"
       ? /^wsk_[A-Za-z0-9_-]{8,}$/i.test(key) || /^ws_[A-Za-z0-9_-]{8,}$/i.test(key)
-      : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
+      : provider === "roboneo"
+        ? /^_v2[A-Za-z0-9+/=_-]{20,}$/i.test(key)
+        : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
   const probe = async (key: string): Promise<SimpleKey> => {
     if (provider === "wavespeed") {
@@ -1268,6 +1388,19 @@ function ProviderKeyPane({
         status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
       };
     }
+    if (provider === "roboneo") {
+      const chk = await checkRoboneoToken(key);
+      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
+      const bal = await fetchRoboneoBalance(key);
+      return {
+        id: uid(),
+        key,
+        balance: bal.balance,
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+        note: bal.ok ? undefined : bal.message,
+      };
+    }
+
     const res = await checkMagnificKey(key);
     return { id: uid(), key, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
   };
@@ -1294,7 +1427,7 @@ function ProviderKeyPane({
       if (item.status === "active") added.push(item);
       else if (item.status === "empty") { empty++; added.push(item); }
       else failed++;
-      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
       await new Promise((r) => setTimeout(r, 120));
     }
     const merged = [...list, ...added];
@@ -1308,7 +1441,7 @@ function ProviderKeyPane({
     setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
@@ -1340,13 +1473,27 @@ function ProviderKeyPane({
       if (provider === "wavespeed") {
         const res = await checkWavespeedBalance(x.key);
         updated = { ...x, balance: res.balance, status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed" };
+      } else if (provider === "roboneo") {
+        const chk = await checkRoboneoToken(x.key);
+        if (!chk.ok) {
+          updated = { ...x, balance: null, status: "failed", note: chk.message };
+        } else {
+          const bal = await fetchRoboneoBalance(x.key);
+          updated = {
+            ...x,
+            balance: bal.balance,
+            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+            note: bal.ok ? undefined : bal.message,
+          };
+        }
+
       } else {
         const res = await checkMagnificKey(x.key);
         updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
       }
       working = working.map((y) => (y.id === x.id ? updated : y));
       persist(working);
-      setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` }));
       await new Promise((r) => setTimeout(r, 120));
     }
     setBusy(false);
@@ -1355,16 +1502,22 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
         { label: "Total key dicek", value: working.length },
         {
           label: "Aktif",
-          value: provider === "wavespeed" ? `${active}  ($${totBal.toFixed(2)})` : active,
+          value:
+            provider === "wavespeed"
+              ? `${active}  ($${totBal.toFixed(2)})`
+              : provider === "roboneo"
+                ? `${active}  (${totBal} credit)`
+                : active,
           tone: "ok",
         },
+
         { label: "Saldo kosong", value: emp, tone: emp ? "warn" : "muted" },
         { label: "Invalid / gagal", value: failed, tone: failed ? "bad" : "muted" },
       ],
@@ -1420,13 +1573,15 @@ function ProviderKeyPane({
               className="font-mono text-xs"
             />
           </Field>
-          <PrimaryButton onClick={tambah} disabled={!canAdd}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
         </>
       )}
 
       <div className="flex gap-2 flex-wrap">
+        {mode === "bulk" && (
+          <PrimaryButton onClick={tambah} disabled={!canAdd}>
+            <Plus className="h-3.5 w-3.5" /> Tambah
+          </PrimaryButton>
+        )}
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
           <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
         </GhostButton>
@@ -1587,8 +1742,8 @@ function ElevenPane() {
         reason: !r.ok ? "tes suara gagal" : !canSave ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
       });
       if (canSave) accepted.push(k);
-      setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` });
-      await new Promise((res) => setTimeout(res, 120));
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
+      await new Promise((res) => setTimeout(res, 15));
     }
     const merged = Array.from(new Set([...cfg.keys, ...accepted]));
     const next = { ...cfg, keys: merged };
@@ -1682,7 +1837,7 @@ function ElevenPane() {
         reason: !r.ok ? "tes suara gagal" : !canUse ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
       });
       saveStatuses([...results]);
-      setProgress({ show: true, pct: Math.round(((i + 1) / cfg.keys.length) * 100), text: `Cek ${i + 1}/${cfg.keys.length}` });
+      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / cfg.keys.length) * 100), text: `Cek ${i + 1}/${cfg.keys.length}` }));
       await new Promise((r) => setTimeout(r, 120));
     }
     const okCount = results.filter((r) => r.ok).length;
@@ -1942,8 +2097,14 @@ function MiniKeyPane({
     persist(next);
     setStatus(next.length === 0 ? "🗑 Semua key dihapus" : `${next.length} key tersimpan`);
   };
-  const clearAll = () => {
-    if (!confirm(`Hapus semua ${title} key?`)) return;
+  const clearAll = async () => {
+    const ok = await confirmDialog({
+      title: `Hapus semua ${title} key?`,
+      description: "Semua key pada slot ini akan dihapus.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     persist([]);
     setStatus("🗑 Semua key dihapus");
   };

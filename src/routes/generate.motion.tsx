@@ -23,10 +23,12 @@ import {
   GalleryEmpty,
 } from "@/components/dashboard/ui";
 import { generateMotionAll, type MotionProvider } from "@/lib/providers/generate-motion";
+import { logGenerate } from "@/lib/activity/log";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { useAuth } from "@/lib/auth-context";
 import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
+import { confirmDialog } from "@/components/ui-confirm";
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -66,12 +68,16 @@ const MOTION_MODELS: Record<Provider, ModelOpt[]> = {
     { key: "mag:kling-v2-6-motion-control-pro", label: "Kling V2.6 Pro (Magnific)", cr: 56 },
     { key: "mag:kling-v2-6-motion-control-std", label: "Kling V2.6 Standard (Magnific)", cr: 21 },
   ],
+  roboneo: [
+    { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 0 },
+  ],
 };
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   weavy: "Weavy",
   wavespeed: "Wavespeed",
   magnific: "Magnific",
+  roboneo: "Roboneo",
 };
 
 const MAX_REFS = 12;
@@ -104,19 +110,56 @@ type ResultItem = { id: string; url: string; provider: Provider; modelKey: strin
 const LS_RESULTS_BASE = "aatools.motion.results";
 const lsResultsKey = (uid: string | null) => (uid ? `${LS_RESULTS_BASE}.${uid}` : `${LS_RESULTS_BASE}.anon`);
 
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedMotionProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { motion?: string };
+    const p = obj?.motion as Provider | undefined;
+    return p && MOTION_MODELS[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
+
 function MotionControl() {
   const { user } = useAuth();
   const uid = user?.id ?? null;
 
-  // Provider aktif — legacy menyimpan di localStorage key 'aatools:activeProvider'
-  const [provider, setProvider] = useSticky<Provider>("motion.provider", "weavy");
-  useEffect(() => {
+  // Provider aktif — SELALU ikut Routing Provider (manage/routing).
+  // Fallback ke legacy key 'aatools:activeProvider' lalu 'weavy'.
+  const [provider, setProvider] = useState<Provider>(() => {
+    if (typeof window === "undefined") return "weavy";
+    const routed = readRoutedMotionProvider();
+    if (routed) return routed;
     try {
-      const p = localStorage.getItem("aatools:activeProvider") as Provider | null;
-      if (p && MOTION_MODELS[p]) setProvider(p);
+      const legacy = localStorage.getItem("aatools:activeProvider") as Provider | null;
+      if (legacy && MOTION_MODELS[legacy]) return legacy;
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return "weavy";
+  });
+
+  // Live-sync bila user mengubah routing di tab yg sama (custom event) atau
+  // tab lain (storage event), juga saat window mendapat focus kembali.
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedMotionProvider();
+      if (routed && routed !== provider) setProvider(routed);
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === LS_ROUTING || e.key === null) sync();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider]);
 
   const models = MOTION_MODELS[provider];
   const [modelKey, setModelKey] = useSticky<string>("motion.modelKey", models[0].key);
@@ -216,9 +259,15 @@ function MotionControl() {
     }
   };
 
-  const clearAll = () => {
+  const clearAll = async () => {
     if (results.length === 0) return;
-    if (!window.confirm(`Hapus semua ${results.length} video dari gallery?`)) return;
+    const ok = await confirmDialog({
+      title: `Hapus semua ${results.length} video dari gallery?`,
+      description: "Semua video di gallery ini akan dihapus permanen.",
+      confirmLabel: "Ya, hapus semua",
+      tone: "danger",
+    });
+    if (!ok) return;
     persistResults([]);
   };
 
@@ -253,6 +302,11 @@ function MotionControl() {
       .map((s, i) => ({ s, i }))
       .filter(({ s }) => s.image && s.video);
     if (ready.length === 0) return;
+    logGenerate("motion", { provider, modelKey, status: "started", count: ready.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      trackGeneration({ kind: "motion", title: `Motion · ${ready.length} slot`, counts: { videos: ready.length } });
+    } catch { /* ignore */ }
     setGenerating(true);
     setLogs([]);
     // Reset statuses on ready slots
@@ -320,14 +374,18 @@ function MotionControl() {
       });
       if (errCount > 0 && doneCount === 0) {
         failNotification(notifId, `Semua slot gagal (${errCount})`);
+        logGenerate("motion", { provider, modelKey, status: "error", success: doneCount, failed: errCount });
       } else if (errCount > 0) {
         finishNotification(notifId, { detail: `${doneCount} sukses · ${errCount} gagal`, route: "/generate/motion" });
+        logGenerate("motion", { provider, modelKey, status: "partial", success: doneCount, failed: errCount });
       } else {
         finishNotification(notifId, { detail: `${doneCount} video siap`, route: "/generate/motion" });
+        logGenerate("motion", { provider, modelKey, status: "success", success: doneCount });
       }
     } catch (e) {
       pushLog(`Fatal: ${(e as Error).message}`, "error");
       failNotification(notifId, (e as Error).message);
+      logGenerate("motion", { provider, modelKey, status: "error", error: (e as Error).message });
     } finally {
       setGenerating(false);
     }
@@ -358,11 +416,16 @@ function MotionControl() {
             }
           >
             <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(Math.max(slots.length, 1), 3)}, minmax(0, 1fr))`,
-              }}
+              className={
+                "grid gap-3 grid-cols-1 " +
+                (slots.length === 1
+                  ? "lg:grid-cols-1"
+                  : slots.length === 2
+                    ? "lg:grid-cols-2"
+                    : "lg:grid-cols-3")
+              }
             >
+
               {slots.map((s, idx) => (
                 <RefCard
                   key={s.id}
@@ -384,6 +447,8 @@ function MotionControl() {
         <div className="flex flex-col gap-5" style={{ gridArea: "settings" }}>
           <Card title="Pengaturan" sub={`Provider aktif: ${PROVIDER_LABEL[provider]}`}>
             <div className="flex flex-col gap-4">
+
+
               <Field
                 label="Model"
                 hint={
@@ -402,6 +467,7 @@ function MotionControl() {
                 }))}
                 />
               </Field>
+
 
               <Field label="Character Orientation">
                 <Select
@@ -708,16 +774,17 @@ function MediaUpload({
         {has ? (
           <>
             {kind === "image" ? (
-              <img src={previewUrl!} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={previewUrl!} alt="" className="absolute inset-0 h-full w-full object-contain bg-black/40" />
             ) : (
               <video
                 src={previewUrl!}
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-contain bg-black/40"
                 muted
                 playsInline
               />
             )}
-            <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 flex items-center justify-between text-[11px]">
+
+            <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm px-2.5 py-1.5 flex items-center justify-between text-[11px] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 group-active:opacity-100 md:opacity-100 transition-opacity">
               <span className="truncate text-foreground/95 max-w-[70%]">{file!.name}</span>
               <span className="font-mono text-muted-foreground">{sizeLabel}</span>
             </div>
@@ -727,10 +794,10 @@ function MediaUpload({
                 onChange(null);
                 if (inputRef.current) inputRef.current.value = "";
               }}
-              className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 backdrop-blur px-2.5 py-1 text-[11px] text-white hover:text-destructive transition"
+              className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/70 backdrop-blur px-2 py-1 text-[11px] text-white hover:text-destructive transition md:px-2.5"
               title="Ganti file"
             >
-              <X className="h-3.5 w-3.5" /> Ganti
+              <X className="h-3.5 w-3.5" /> <span className="hidden md:inline">Ganti</span>
             </button>
           </>
         ) : (

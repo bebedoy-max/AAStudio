@@ -43,7 +43,7 @@ export const Route = createFileRoute("/api/public/midtrans/notification")({
         const { verifyNotificationSignature, midtransStatusToInternal } = await import(
           "@/lib/midtrans/midtrans.server"
         );
-        if (!verifyNotificationSignature(payload)) {
+        if (!(await verifyNotificationSignature(payload))) {
           console.warn("[midtrans-webhook] invalid signature", { order_id: payload.order_id });
           // Tetap balas 200 supaya Midtrans dashboard tidak menandai URL down.
           return OK({ ok: true, note: "invalid signature ignored" });

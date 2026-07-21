@@ -11,13 +11,15 @@ export type BankProvider =
   | "magnific"
   | "eleven"
   | "shotstack"
-  | "creatomate";
+  | "creatomate"
+  | "roboneo";
 
 const PROVIDERS: readonly BankProvider[] = [
   "brain",
   "weavy",
   "wavespeed",
   "magnific",
+  "roboneo",
   "eleven",
   "shotstack",
   "creatomate",
@@ -33,6 +35,7 @@ export const BANK_STORAGE_KEY: Record<BankProvider, string> = {
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
   eleven: "aatools.eleven",
   shotstack: "aatools.shotstack.keys",
   creatomate: "aatools.creatomate.keys",
@@ -59,7 +62,8 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
     case "wavespeed":
     case "magnific":
     case "shotstack":
-    case "creatomate": {
+    case "creatomate":
+    case "roboneo": {
       type T = { id: string; key: string; balance: number | null; status: string };
       const arr: T[] = currentJson ? (JSON.parse(currentJson) as T[]) : [];
       if (!arr.some((k) => k.key === keyValue))
@@ -209,6 +213,52 @@ export const deleteAllBankKeys = createServerFn({ method: "POST" })
     const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const restoreAssignedBankKeys = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { provider: string; keys: string[] }) => {
+    assertProvider(data.provider);
+    const keys = Array.from(new Set((data.keys ?? []).map((k) => String(k).trim()).filter(Boolean)));
+    if (keys.length === 0) throw new Error("keys required");
+    return { provider: data.provider as BankProvider, keys };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+
+    const { data: assignedRaw, error: readErr } = await db
+      .from("token_bank_keys")
+      .select("id, key_value")
+      .eq("provider", data.provider)
+      .eq("status", "assigned")
+      .in("key_value", data.keys)
+      .order("created_at", { ascending: false });
+    if (readErr) throw new Error(readErr.message);
+
+    const assigned = (assignedRaw ?? []) as { id: string; key_value: string }[];
+    const keepByKey = new Map<string, { id: string; key_value: string }>();
+    const duplicateIds: string[] = [];
+    for (const row of assigned) {
+      if (keepByKey.has(row.key_value)) duplicateIds.push(row.id);
+      else keepByKey.set(row.key_value, row);
+    }
+
+    if (duplicateIds.length > 0) {
+      const { error: delErr } = await db.from("token_bank_keys").delete().in("id", duplicateIds);
+      if (delErr) throw new Error(delErr.message);
+    }
+
+    const keepIds = Array.from(keepByKey.values()).map((r) => r.id);
+    if (keepIds.length === 0) return { ok: true, restored: [] as { id: string; key_value: string }[] };
+
+    const { data: restored, error } = await db
+      .from("token_bank_keys")
+      .update({ status: "available", assigned_to: null, assigned_at: null })
+      .in("id", keepIds)
+      .select("id, key_value");
+    if (error) throw new Error(error.message);
+    return { ok: true, restored: (restored ?? []) as { id: string; key_value: string }[] };
   });
 
 export const listBankPrices = createServerFn({ method: "GET" })
@@ -594,6 +644,7 @@ export const PROVIDER_LABELS: Record<BankProvider, string> = {
   weavy: "Weavy",
   wavespeed: "Wavespeed",
   magnific: "Magnific",
+  roboneo: "Roboneo",
   eleven: "ElevenLabs",
   shotstack: "Shotstack",
   creatomate: "Creatomate",

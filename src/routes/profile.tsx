@@ -5,6 +5,9 @@ import { Loader2, ShieldCheck, Crown, Check, Users } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activity/log";
+import { useServerFn } from "@tanstack/react-start";
+import { getMyUserTags } from "@/lib/admin/users.functions";
 
 
 export const Route = createFileRoute("/profile")({
@@ -30,6 +33,15 @@ function ProfilePage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   const [uploading, setUploading] = useState(false);
+  const [tags, setTags] = useState<("vip" | "vvip")[]>([]);
+  const fetchTags = useServerFn(getMyUserTags);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchTags()
+      .then((t) => setTags(t as ("vip" | "vvip")[]))
+      .catch(() => {});
+  }, [user, fetchTags]);
 
   useEffect(() => {
     setDisplayName(profile?.display_name ?? "");
@@ -58,6 +70,11 @@ function ProfilePage() {
       if (uErr) throw uErr;
 
       await refresh();
+      void logActivity({
+        category: "profile",
+        action: "profile_update",
+        details: { changed: ["display_name", "avatar_url", "phone"] },
+      });
       toast.success("Profil berhasil disimpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan profil");
@@ -100,6 +117,7 @@ function ProfilePage() {
       if (error) throw error;
       setPassword("");
       setPassword2("");
+      void logActivity({ category: "profile", action: "password_change" });
       toast.success("Password berhasil diubah");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal mengubah password");
@@ -158,6 +176,23 @@ function ProfilePage() {
               {isAdmin ? <ShieldCheck className="h-3 w-3" /> : <Check className="h-3 w-3" />}
               {roleLabel}
             </div>
+            {tags.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                {tags.map((t) => (
+                  <span
+                    key={t}
+                    className={[
+                      "inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                      t === "vvip"
+                        ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+                        : "border-fuchsia-400/50 text-fuchsia-200 bg-fuchsia-500/10",
+                    ].join(" ")}
+                  >
+                    <Crown className="h-2.5 w-2.5" /> {t}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <label className="mt-4 w-full">
               <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1 text-left">
@@ -249,53 +284,6 @@ function ProfilePage() {
             </div>
           </div>
 
-          <div className="neumorph p-5">
-            <div className="flex items-center gap-2">
-              {hasFullAccess ? (
-                <Crown className="h-4 w-4 text-primary" />
-              ) : (
-                <ShieldCheck className="h-4 w-4 text-primary" />
-              )}
-              <div className="font-display text-lg text-foreground">Akses yang Diberikan</div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Daftar fitur yang bisa Anda akses dalam aplikasi.
-            </p>
-            {hasFullAccess ? (
-              <div className="mt-3 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-3">
-                <div className="font-display text-base text-gradient">FULL AKSES</div>
-                <div className="text-xs text-muted-foreground">
-                  Semua fitur premium dan area admin terbuka untuk akun Anda.
-                </div>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                  Sebagian / Tertentu — {grantedFeatures.length} fitur
-                </div>
-                {grantedFeatures.length === 0 ? (
-                  <div className="text-sm text-muted-foreground rounded-xl border border-border px-4 py-3">
-                    Belum ada fitur premium yang dibuka. Silakan lakukan upgrade.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {grantedFeatures.map((f) => (
-                      <div
-                        key={f.key}
-                        className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-sm"
-                      >
-                        <Check className="h-4 w-4 text-primary" />
-                        <span className="flex-1 truncate">{f.label}</span>
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                          {f.group}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
 
           <div className="neumorph p-5">
             <div className="font-display text-lg text-foreground">Ganti Password</div>

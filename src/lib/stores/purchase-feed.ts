@@ -43,6 +43,13 @@ function classify(row: PurchaseRow): PurchaseView {
   return { ...row, cart, kind, title };
 }
 
+const PENDING_TTL_MS = 60 * 60 * 1000; // 1 jam
+function hidePendingExpired(row: PurchaseRow): boolean {
+  if (row.status !== "pending") return true;
+  const created = new Date(row.created_at).getTime();
+  return Number.isFinite(created) && Date.now() - created < PENDING_TTL_MS;
+}
+
 export function usePurchaseFeed(pollMs = 20_000): {
   items: PurchaseView[];
   loading: boolean;
@@ -71,7 +78,7 @@ export function usePurchaseFeed(pollMs = 20_000): {
           .limit(20);
         if (error) throw error;
         if (!alive) return;
-        setItems(((data ?? []) as PurchaseRow[]).map(classify));
+        setItems(((data ?? []) as PurchaseRow[]).filter(hidePendingExpired).map(classify));
       } catch (e) {
         console.warn("[purchase-feed]", e);
       } finally {
@@ -100,8 +107,8 @@ export function usePurchaseFeed(pollMs = 20_000): {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20)
-      .then(({ data }) => {
-        setItems(((data ?? []) as PurchaseRow[]).map(classify));
+      .then(({ data }: { data: unknown }) => {
+        setItems(((data ?? []) as PurchaseRow[]).filter(hidePendingExpired).map(classify));
       });
   };
 

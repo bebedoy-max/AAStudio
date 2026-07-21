@@ -5,7 +5,19 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'bank_provider') THEN
     CREATE TYPE public.bank_provider AS ENUM
-      ('brain','weavy','wavespeed','magnific','eleven','shotstack','creatomate');
+      ('brain','weavy','wavespeed','magnific','eleven','shotstack','creatomate','roboneo');
+  END IF;
+END$$;
+
+-- Ensure 'roboneo' exists on already-created enum (idempotent).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'bank_provider' AND e.enumlabel = 'roboneo'
+  ) THEN
+    ALTER TYPE public.bank_provider ADD VALUE 'roboneo';
   END IF;
 END$$;
 

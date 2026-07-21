@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { logGenerate } from "@/lib/activity/log";
 import { Rocket, Play, Search, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/generate/naratif")({
 });
 
 // ============ Model Catalog (mirror legacy MODEL_CATALOG structure) ============
-type Provider = "weavy" | "wavespeed" | "magnific";
+type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type ModelDef = { key: string; label: string; qualities: Quality[] };
 
@@ -67,6 +68,11 @@ const IMG_CATALOG: Record<Provider, ModelDef[]> = {
     { key: "magnific-img", label: "Magnific Image", qualities: [
       { v: "2K", label: "2K (12 cr)", cr: 12 },
       { v: "4K", label: "4K (22 cr)", cr: 22, default: true },
+    ] },
+  ],
+  roboneo: [
+    { key: "nanobanana2", label: "Gemini Nano Banana 2 (via Weavy fallback)", qualities: [
+      { v: "1K", label: "1K (6 cr)", cr: 6, default: true },
     ] },
   ],
 };
@@ -112,7 +118,42 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "1080p", label: "1080p (65 cr)", cr: 65 },
     ] },
   ],
+  roboneo: [
+    { key: "rn:seedance-pro", label: "Seedance Pro (Roboneo)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (kuota)",  cr: 0, default: true },
+      { v: "720p-10s", label: "720p · 10s (kuota)", cr: 0 },
+      { v: "720p-12s", label: "720p · 12s (kuota)", cr: 0 },
+      { v: "480p-5s",  label: "480p · 5s (kuota)",  cr: 0 },
+      { v: "1080p-5s", label: "1080p · 5s (kuota)", cr: 0 },
+    ] },
+    { key: "rn:google-omni", label: "Google Omni (Roboneo)", qualities: [
+      { v: "5s",  label: "Durasi 5s (kuota)",  cr: 0, default: true },
+      { v: "10s", label: "Durasi 10s (kuota)", cr: 0 },
+    ] },
+    { key: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", qualities: [
+      { v: "5s-off",  label: "5s · No Sound (kuota)",  cr: 0, default: true },
+      { v: "5s-on",   label: "5s · Sound (kuota)",     cr: 0 },
+      { v: "10s-off", label: "10s · No Sound (kuota)", cr: 0 },
+      { v: "10s-on",  label: "10s · Sound (kuota)",    cr: 0 },
+    ] },
+  ],
+
 };
+
+// Baca provider aktif dari Routing Provider (manage/routing) — cap "video".
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedVideoProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { video?: string };
+    const p = obj?.video as Provider | undefined;
+    return p && VID_CATALOG[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 const VOICES = [
   { value: "JBFqnCBsd6RMkjVDRZzb", label: "George (male, warm narrator)" },
@@ -178,7 +219,10 @@ function NaratifPage() {
   useEffect(() => {
     if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
-    if (!provider || !IMG_CATALOG[provider]) {
+    const routed = readRoutedVideoProvider();
+    if (routed) {
+      setProvider(routed);
+    } else if (!provider || !IMG_CATALOG[provider]) {
       const p = ((typeof window !== "undefined" && (localStorage.getItem("aatools.activeProvider") || localStorage.getItem("arkx_activeProvider"))) || "weavy") as Provider;
       setProvider(IMG_CATALOG[p] ? p : "weavy");
     }
@@ -192,6 +236,14 @@ function NaratifPage() {
     // consume handoff dari Creative Dashboard (mis. dari kartu berita / idea card)
     const h = consumeHandoff();
     if (h && h.workflow === "narrative-video") {
+      // Reset semua hasil analisa lama supaya materi/extra prompt/scenes tidak
+      // bercampur dengan konten sebelumnya.
+      setScenes([]);
+      setBrainStatus("");
+      setMergeStatus("");
+      setFinalUrl(null);
+      setExtra("");
+      setMaterial(null);
       if (h.sourceUrl) {
         const src = h.sourceUrl;
         setUrl(src);
@@ -199,12 +251,34 @@ function NaratifPage() {
           setTimeout(() => { void scrapeRef.current?.(src); }, 0);
         }
       } else {
+        const body = [h.hook, h.description].filter(Boolean).join("\n\n");
+        setMaterial({
+          title: h.title || "",
+          desc: h.description || h.hook || "",
+          body: body || h.title || "",
+        });
         const seed = [h.title, h.hook, h.description].filter(Boolean).join(" — ");
-        if (seed) setExtra((prev) => (prev && prev.trim() ? prev : seed));
+        if (seed) setExtra(seed);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sinkron dengan Routing Provider (menu Kelola Routing) untuk cap "video".
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedVideoProvider();
+      if (routed && routed !== provider) setProvider(routed);
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider, setProvider]);
 
   // ketika provider berubah, reset pilihan model HANYA jika model saat ini tidak valid
   useEffect(() => {
@@ -276,6 +350,14 @@ function NaratifPage() {
   const scrape = async (overrideUrl?: string) => {
     const target = (overrideUrl ?? url).trim();
     if (!target) return;
+    // Materi baru → reset hasil analisa/scene/video final sebelumnya supaya
+    // Extra Prompt & scene tidak tercampur dengan riset lama.
+    setScenes([]);
+    setBrainStatus("");
+    setMergeStatus("");
+    setFinalUrl(null);
+    setExtra("");
+    setMaterial(null);
     setScraping(true);
     setScrapeStatus("Mengambil materi…");
     try {
@@ -294,6 +376,9 @@ function NaratifPage() {
         hero: images[0],
         images,
       });
+      // Seed extra prompt dari materi baru — bukan sisa research lama.
+      const seed = [j.title, j.description].filter(Boolean).join(" — ");
+      if (seed) setExtra(seed);
       setScrapeStatus(`✅ Materi terambil${images.length ? ` (${images.length} gambar)` : " (0 gambar — cek URL)"}`);
     } catch (e) {
       setScrapeStatus("❌ " + ((e as Error).message || String(e)));
@@ -411,6 +496,22 @@ function NaratifPage() {
     }
   };
 
+  // Parse encoded Roboneo quality string (e.g. "720p-10s", "5s-on") ke
+  // duration + resolution + sound sesuai schema recipe.
+  const parseVidQuality = (
+    q: string,
+  ): { duration: number; resolution?: string; sound?: "on" | "off" } => {
+    const s = (q || "").toLowerCase();
+    const durMatch = s.match(/(\d+)s/);
+    const resMatch = s.match(/(\d{3,4}p)/);
+    const soundMatch = s.match(/-(on|off)/);
+    return {
+      duration: durMatch ? Number(durMatch[1]) : 5,
+      resolution: resMatch ? resMatch[1] : undefined,
+      sound: soundMatch ? (soundMatch[1] as "on" | "off") : undefined,
+    };
+  };
+
   const genVideoAt = async (i: number): Promise<void> => {
     const scene = scenes[i];
     if (!scene?.imgUrl) throw new Error(`Scene #${i + 1} belum ada gambar`);
@@ -419,12 +520,15 @@ function NaratifPage() {
       const { generateI2V } = await import("@/lib/providers/generate-i2v");
       const imgResp = await fetch(scene.imgUrl);
       const imgFile = new File([await imgResp.blob()], `scene_${i}.jpg`, { type: "image/jpeg" });
+      const q = parseVidQuality(vidQuality);
       const videoUrl = await generateI2V({
         provider,
         modelKey: vidModel,
         imageFile: imgFile,
         ratio,
-        duration: 5,
+        duration: q.duration,
+        resolution: q.resolution,
+        sound: q.sound,
         prompt: scene.videoPrompt || scene.prompt,
       });
       patchScene(i, { videoUrl, busy: null });
@@ -434,8 +538,15 @@ function NaratifPage() {
     }
   };
 
+
   const genAllImages = async () => {
     if (bulkBusy.img) return;
+    logGenerate("naratif_images", { provider, modelKey: imgModel, status: "started", scenes: scenes.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      const title = (extra || url || "Naratif Video").slice(0, 60);
+      trackGeneration({ kind: "narrative", title, counts: { images: scenes.length } });
+    } catch { /* ignore */ }
     setBusy("img", true);
     setBrainStatus("🖼️ Generate semua gambar…");
     try {
@@ -444,8 +555,11 @@ function NaratifPage() {
         await genImageAt(i);
       }
       setBrainStatus("✅ Semua gambar selesai");
+      logGenerate("naratif_images", { provider, modelKey: imgModel, status: "success", scenes: scenes.length });
     } catch (e) {
-      setBrainStatus("❌ " + ((e as Error).message || String(e)));
+      const msg = (e as Error).message || String(e);
+      setBrainStatus("❌ " + msg);
+      logGenerate("naratif_images", { provider, modelKey: imgModel, status: "error", error: msg });
     } finally {
       setBusy("img", false);
     }
@@ -453,6 +567,7 @@ function NaratifPage() {
 
   const genAllVO = async () => {
     if (bulkBusy.vo) return;
+    logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "started", scenes: scenes.length });
     setBusy("vo", true);
     setBrainStatus("🎙️ Generate semua voice-over…");
     try {
@@ -461,8 +576,11 @@ function NaratifPage() {
         await genVOAt(i);
       }
       setBrainStatus("✅ Semua VO selesai");
+      logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "success", scenes: scenes.length });
     } catch (e) {
-      setBrainStatus("❌ " + ((e as Error).message || String(e)));
+      const msg = (e as Error).message || String(e);
+      setBrainStatus("❌ " + msg);
+      logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "error", error: msg });
     } finally {
       setBusy("vo", false);
     }
@@ -470,6 +588,12 @@ function NaratifPage() {
 
   const genAllVideos = async () => {
     if (bulkBusy.vid) return;
+    logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "started", scenes: scenes.length });
+    try {
+      const { trackGeneration } = await import("@/lib/dashboard/projects");
+      const title = (extra || url || "Naratif Video").slice(0, 60);
+      trackGeneration({ kind: "narrative", title, counts: { videos: scenes.length }, progress: 60 });
+    } catch { /* ignore */ }
     setBusy("vid", true);
     setBrainStatus("🎬 Generate semua image→video…");
     try {
@@ -478,8 +602,11 @@ function NaratifPage() {
         await genVideoAt(i);
       }
       setBrainStatus("✅ Semua video selesai");
+      logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "success", scenes: scenes.length });
     } catch (e) {
-      setBrainStatus("❌ " + ((e as Error).message || String(e)));
+      const msg = (e as Error).message || String(e);
+      setBrainStatus("❌ " + msg);
+      logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "error", error: msg });
     } finally {
       setBusy("vid", false);
     }

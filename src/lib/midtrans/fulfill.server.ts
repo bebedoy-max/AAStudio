@@ -252,12 +252,15 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
     .eq("id", pr.id);
   if (uErr) throw new Error(uErr.message);
 
-  // Bundle checkouts encode extra feature route_keys in the note. Grant
-  // route_permissions for each additional feature so a single payment
-  // activates the whole bundle.
+  // Bundle checkouts encode ALL feature route_keys in the note. Grant
+  // route_permissions for every listed feature (including the primary) so
+  // a single payment activates the whole bundle. The DB trigger already
+  // grants pr.route_key — this upsert is idempotent for that key and adds
+  // the rest of the bundle.
   const extras = parseExtraFeaturesFromNote(pr.note);
-  if (extras.length > 0) {
-    const rows = extras.map((rk) => ({
+  const allKeys = Array.from(new Set([pr.route_key, ...extras])).filter(Boolean);
+  if (allKeys.length > 0) {
+    const rows = allKeys.map((rk) => ({
       user_id: pr.user_id,
       route_key: rk,
       expires_at: activatedUntil.toISOString(),
@@ -265,7 +268,10 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
     const { error: rpErr } = await admin
       .from("route_permissions")
       .upsert(rows, { onConflict: "user_id,route_key" });
-    if (rpErr) console.warn("[midtrans-fulfill] extra route_permissions failed", rpErr.message);
+    if (rpErr) {
+      console.error("[midtrans-fulfill] route_permissions upsert failed", rpErr.message);
+      throw new Error(`Gagal aktivasi fitur: ${rpErr.message}`);
+    }
   }
 
   return { ok: true, kind: isTokenBank ? "token_bank" : "subscription" };

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { syncTokensForUser, resetTokenSync, clearLocalTokenCache } from "@/lib/tokens/sync";
+import { startGlobalTokenRefresh } from "@/lib/tokens/refresh";
 import {
   claimExclusiveSession,
   clearLocalExclusiveSession,
@@ -12,6 +13,7 @@ import {
   verifyExclusiveSession,
 } from "@/lib/auth/single-session";
 import { hasRunningTasks } from "@/lib/stores/notifications";
+import { logActivity } from "@/lib/activity/log";
 
 type Role = "admin" | "editor" | "user";
 
@@ -55,6 +57,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [routePermissions, setRoutePermissions] = useState<string[]>([]);
   const [featureAccess, setFeatureAccess] = useState<Record<string, FeatureAccessEntry>>({});
   const [loading, setLoading] = useState(true);
+
+  // Kick off global 1-hour token refresh loop (brain/weavy/wavespeed) once.
+  useEffect(() => {
+    startGlobalTokenRefresh();
+  }, []);
 
   // Global per-feature access settings (public / subscription / trial), managed by admin.
   useEffect(() => {
@@ -257,6 +264,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (event === "SIGNED_OUT") {
+        const uid = session?.user.id;
+        if (uid) void logActivity({ category: "auth", action: "logout", userId: uid });
+        try {
+          if (typeof sessionStorage !== "undefined") {
+            for (let i = sessionStorage.length - 1; i >= 0; i--) {
+              const k = sessionStorage.key(i);
+              if (k?.startsWith("aatools.auth.loginLogged.")) sessionStorage.removeItem(k);
+            }
+          }
+        } catch {
+          // ignore
+        }
         setSession(null);
         clearUserData();
         clearLocalTokenCache();
@@ -267,6 +286,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (s?.user) {
+        if (event === "SIGNED_IN") {
+          // Supabase memicu SIGNED_IN pada setiap tab reload / restore sesi.
+          // Log "login" hanya sekali per browser session per user supaya
+          // tidak menumpuk puluhan entri palsu.
+          try {
+            const key = `aatools.auth.loginLogged.${s.user.id}`;
+            if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(key)) {
+              sessionStorage.setItem(key, "1");
+              void logActivity({ category: "auth", action: "login", userId: s.user.id });
+            }
+          } catch {
+            // sessionStorage tidak tersedia — abaikan, jangan log agar tidak spam.
+          }
+        }
         setTimeout(() => {
           void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");
         }, 0);
