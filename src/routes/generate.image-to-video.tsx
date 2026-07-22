@@ -304,7 +304,7 @@ function ImageToVideo() {
 
         <div className="lg:col-span-2">
           <Card title="⚙️ Pengaturan">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Field label="Model AI">
                 <Select value={model} onChange={(e) => setModel(e.target.value)} options={models.map((m) => ({ value: m.value, label: `${m.label} — ${m.cr} cr` }))} />
               </Field>
@@ -361,7 +361,7 @@ function ImageToVideo() {
         {results.length === 0 ? (
           <GalleryEmpty />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             {results.map((u, i) => (
               <div key={i} className="rounded-xl overflow-hidden border border-border bg-black/40">
                 <a href={u} target="_blank" rel="noreferrer" className="block">

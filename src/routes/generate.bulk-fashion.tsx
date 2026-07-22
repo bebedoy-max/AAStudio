@@ -347,7 +347,7 @@ function BulkFashion() {
       </div>
 
       <Card title="⚙️ Pengaturan">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Field label="Jenis Produk">
             <Select value={productType} onChange={(e) => setProductType(e.target.value)} options={PRODUCT_TYPES.map((p) => ({ value: p, label: p }))} />
           </Field>
@@ -448,7 +448,7 @@ function BulkFashion() {
         {results.length === 0 ? (
           <GalleryEmpty />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {results.map((r, i) => (
               <div key={i} className="rounded-xl overflow-hidden border border-border bg-black/40">
                 {r.status === "done" ? (

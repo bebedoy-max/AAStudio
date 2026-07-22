@@ -45,7 +45,7 @@ function lastScheduledSlot(now = new Date()): number {
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string };
+  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string; refining?: boolean };
 
 export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void }) {
   const [insight, setInsight] = useState<Insight | null>(null);
@@ -235,7 +235,43 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                     loading: false,
                     body: j.body || j.description || "(Isi berita tidak dapat diambil.)",
                     hero: Array.isArray(j.images) ? j.images[0] : undefined,
+                    refining: true,
                   });
+                  // AI-refine: bersihkan sisa junk & rangkum sesuai judul.
+                  void (async () => {
+                    try {
+                      const keys = getCreativeKeys();
+                      if (!keys.openai && !keys.gemini) {
+                        setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
+                        return;
+                      }
+                      const rawBody = (j.body || j.description || "").slice(0, 8000);
+                      if (!rawBody || rawBody.length < 200) {
+                        setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
+                        return;
+                      }
+                      const system =
+                        "Kamu editor berita berpengalaman. Bersihkan teks hasil scrape dari elemen sampah " +
+                        "(menu navigasi, daftar 'Terkini/Terpopuler/Pilihan', timestamp bullet, kategori ALL-CAPS, " +
+                        "nama reporter/editor, iklan, teks berulang, link sisa). Sajikan HANYA isi berita/artikel " +
+                        "yang RELEVAN dengan JUDUL. Output berbahasa Indonesia, rapi, mudah dibaca. Balas TEKS BIASA " +
+                        "(tanpa markdown fence, tanpa **, tanpa #). Format: paragraf pembuka 1-2 kalimat, lalu " +
+                        "poin-poin utama (pakai '• ' di awal baris) atau paragraf pendek. Maksimal ~500 kata.";
+                      const user = `JUDUL: ${j.title || title}\n\nTEKS MENTAH:\n${rawBody}\n\nTugas: rangkum & rapikan sesuai instruksi.`;
+                      const rr = await fetch("/api/router/chat", {
+                        method: "POST",
+                        headers: headersFor(keys),
+                        body: JSON.stringify({ system, user, temperature: 0.4 }),
+                      });
+                      const rj = await rr.json();
+                      const refined = (rj?.text || "").trim();
+                      setReader((prev) =>
+                        prev.open ? { ...prev, refining: false, refined: refined || undefined } : prev,
+                      );
+                    } catch {
+                      setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
+                    }
+                  })();
                 } catch (e) {
                   setReader({
                     open: true,
@@ -292,7 +328,7 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
               workflow: "narrative-video",
               title: reader.title,
               hook: "",
-              description: reader.body?.slice(0, 400) || reader.title,
+              description: (reader.refined || reader.body)?.slice(0, 400) || reader.title,
               sourceUrl: scrapable ? reader.url : undefined,
               autoScrape: !!scrapable,
             });
@@ -351,9 +387,25 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
+              {state.refining && (
+                <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-card/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                  <Loader className="h-3 w-3 animate-spin" /> AI Brain sedang merapikan isi berita…
+                </div>
+              )}
+              {state.refined && !state.refining && (
+                <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
+                  ✧ Dirapikan oleh AI Brain
+                </div>
+              )}
               <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                {state.body}
+                {state.refined || state.body}
               </div>
+              {state.refined && state.body && (
+                <details className="mt-4 text-[11px] text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Lihat teks mentah</summary>
+                  <div className="mt-2 whitespace-pre-wrap text-foreground/60">{state.body}</div>
+                </details>
+              )}
             </>
           )}
         </div>

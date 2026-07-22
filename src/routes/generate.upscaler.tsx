@@ -416,7 +416,7 @@ function UpscalerPage() {
                 Belum ada gambar. Klik <b>Tambah</b> untuk memilih file (maks {MAX_IMAGES}).
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {rows.map((r, i) => (
                   <div key={r.id} className="relative rounded-xl overflow-hidden border border-border bg-background/40">
                     <div className="relative bg-black/40" style={{ aspectRatio: r.ratio || 1 }}>
@@ -461,7 +461,7 @@ function UpscalerPage() {
               </div>
             </div>
           )}
-          <div className="rounded-xl border border-border/60 bg-black/40 p-2 max-h-64 overflow-auto text-[11px] font-mono">
+          <div className="rounded-xl border border-border/60 bg-black/40 p-2 max-h-64 overflow-y-auto overflow-x-hidden text-[11px] font-mono min-w-0">
             {logs.length === 0 ? (
               <div className="text-muted-foreground px-1 py-2">Belum ada log. Jalankan proses untuk melihat aktivitas.</div>
             ) : (
@@ -469,13 +469,14 @@ function UpscalerPage() {
                 <div
                   key={i}
                   className={
-                    l.level === "error"
+                    "break-all min-w-0 " +
+                    (l.level === "error"
                       ? "text-red-400"
                       : l.level === "warn"
                         ? "text-amber-400"
                         : l.level === "success"
                           ? "text-emerald-400"
-                          : "text-muted-foreground"
+                          : "text-muted-foreground")
                   }
                 >
                   [{l.time}] {l.msg}
@@ -518,7 +519,7 @@ function UpscalerPage() {
             {results.length === 0 ? (
               <GalleryEmpty />
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {filteredResults.map((r) => (
                   <div key={r.id} className="rounded-xl overflow-hidden border border-border/60 bg-card/40 group">
                     <a href={r.url} target="_blank" rel="noreferrer" className="block relative bg-black/40">

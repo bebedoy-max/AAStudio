@@ -331,7 +331,7 @@ th{background:#f2f2f2}
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                   <tr className="border-b border-border/60">
@@ -392,7 +392,7 @@ th{background:#f2f2f2}
             </div>
 
             {/* Mobile: hanya waktu + user, tap untuk lihat detail */}
-            <div className="md:hidden">
+            <div className="lg:hidden">
               {filtered.length === 0 ? (
                 <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                   Tidak ada log yang cocok dengan filter.
@@ -409,22 +409,33 @@ th{background:#f2f2f2}
                       <li key={r.id}>
                         <button
                           onClick={() => setMobileRow(r)}
-                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-sidebar-accent/30"
+                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-sidebar-accent/30 md:grid md:grid-cols-[6.5rem_minmax(0,1fr)_5.5rem_minmax(0,14rem)] md:gap-4"
                         >
-                          <div className="font-mono text-[11px] text-muted-foreground shrink-0 min-w-[6.5rem]">
+                          <div className="font-mono text-[11px] text-muted-foreground shrink-0 min-w-[6.5rem] md:min-w-0">
                             {time}
                           </div>
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 md:flex-none">
                             <div className="text-sm truncate">{p?.display_name || p?.email || "—"}</div>
                             {p?.display_name && p?.email && (
                               <div className="text-[11px] text-muted-foreground truncate">{p.email}</div>
                             )}
                           </div>
+                          {/* Tablet-only extra columns */}
+                          <div className="hidden md:block">
+                            <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                              {r.category}
+                            </span>
+                          </div>
+                          <div className="hidden md:block font-mono text-[11px] text-foreground/90 truncate">
+                            {r.action}
+                          </div>
                         </button>
+
                       </li>
                     );
                   })}
                 </ul>
+
               )}
             </div>
           </>

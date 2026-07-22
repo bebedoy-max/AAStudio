@@ -277,20 +277,11 @@ function StoryboardPage() {
   const [ctaCustom, setCtaCustom] = useSticky<string>("sb.ctaCustom", "");
   const [prompt, setPrompt] = useSticky<string>("sb.prompt", "");
 
-  // Product types (persisted)
-  const [types, setTypes] = useSticky<string[]>("sb.types", SB_DEFAULT_TYPES);
-  const [selectedType, setSelectedType] = useSticky<string>("sb.selectedType", "");
-  const [newType, setNewType] = useState("");
-  const sbTypesBoot = useRef(false);
+  // Brain menganalisa jenis produk otomatis dari judul + deskripsi hasil scrape.
+  const sbBoot = useRef(false);
   useEffect(() => {
-    if (sbTypesBoot.current) return;
-    sbTypesBoot.current = true;
-    try {
-      const raw = localStorage.getItem("arkx_sb_types");
-      if (raw) setTypes(JSON.parse(raw));
-      const sel = localStorage.getItem("arkx_sb_type_sel");
-      if (sel) setSelectedType(sel);
-    } catch {}
+    if (sbBoot.current) return;
+    sbBoot.current = true;
     // Consume handoff dari Creative Dashboard → prefill prompt
     const h = consumeHandoff();
     if (h && h.workflow === "storyboard") {
@@ -299,29 +290,6 @@ function StoryboardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const persistTypes = (arr: string[], sel: string) => {
-    try {
-      localStorage.setItem("arkx_sb_types", JSON.stringify(arr));
-      localStorage.setItem("arkx_sb_type_sel", sel);
-    } catch {}
-  };
-  const addType = () => {
-    const v = newType.trim();
-    if (!v || types.includes(v)) return;
-    const arr = [...types, v];
-    setTypes(arr);
-    setSelectedType(v);
-    setNewType("");
-    persistTypes(arr, v);
-  };
-  const removeSelectedType = () => {
-    if (!selectedType) return;
-    const arr = types.filter((t) => t !== selectedType);
-    const nextSel = arr[0] ?? "";
-    setTypes(arr);
-    setSelectedType(nextSel);
-    persistTypes(arr, nextSel);
-  };
 
   // Product rows
   const [rows, setRows] = useSticky<ProductRow[]>("sb.rows", [newRow()]);
@@ -468,8 +436,8 @@ function StoryboardPage() {
           body: JSON.stringify({
             title: info.title,
             description: info.description,
-            productType: selectedType,
-            productTypes: types,
+            productType: "",
+            productTypes: [],
             scenes: Number(sceneCount),
             aspectRatio: ratio,
             ctaTarget,
@@ -613,27 +581,38 @@ function StoryboardPage() {
             title={`Link Produk (${rows.length}/${SB_MAX_ROWS})`}
             sub="Tempel URL e-commerce, klik scrape, pilih hingga 6 gambar per produk"
             right={
-              <div className="flex gap-2">
-                <GhostButton onClick={addRow} disabled={rows.length >= SB_MAX_ROWS}>
-                  <Plus className="h-3.5 w-3.5" /> Tambah
+              <div className="flex gap-2 shrink-0">
+                <GhostButton
+                  onClick={addRow}
+                  disabled={rows.length >= SB_MAX_ROWS}
+                  title="Tambah link produk"
+                  aria-label="Tambah link produk"
+                >
+                  <Plus className="h-4 w-4" />
                 </GhostButton>
                 <GhostButton
                   onClick={clearAllRows}
                   disabled={rows.length <= 1 && !rows[0]?.url}
                   className="text-destructive hover:text-destructive"
                   title="Hapus semua link produk"
+                  aria-label="Hapus semua link produk"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Hapus All</span>
+                  <Trash2 className="h-4 w-4" />
                 </GhostButton>
               </div>
             }
           >
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(Math.max(rows.length, 1), 3)}, minmax(0, 1fr))`,
-              }}
-            >
+            {(() => {
+              const cols = Math.min(Math.max(rows.length, 1), 3);
+              const colsClass = [
+                "grid-cols-1",
+                cols >= 2 ? "sm:grid-cols-2" : "",
+                cols >= 3 ? "lg:grid-cols-3" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+            <div className={`grid gap-3 ${colsClass}`}>
               {rows.map((r, idx) => (
                 <ProductRowCard
                   key={r.rowId}
@@ -647,6 +626,8 @@ function StoryboardPage() {
                 />
               ))}
             </div>
+              );
+            })()}
           </Card>
         </div>
 
@@ -743,52 +724,6 @@ function StoryboardPage() {
 
 
 
-              <Field label="Jenis Produk">
-                <div className="flex gap-2">
-
-                  <Select
-                    value={selectedType}
-                    onChange={(e) => {
-                      setSelectedType(e.target.value);
-                      persistTypes(types, e.target.value);
-                    }}
-                    options={[
-                      { value: "", label: "— pilih jenis produk —" },
-                      ...types.map((t) => ({ value: t, label: t })),
-                    ]}
-                    className="flex-1"
-                  />
-                  <button
-                    onClick={removeSelectedType}
-                    disabled={!selectedType}
-                    title="Hapus jenis terpilih"
-                    className="inline-flex h-10 items-center gap-1 rounded-xl border border-border bg-card/50 px-3 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/50 transition disabled:opacity-40"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Hapus
-                  </button>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Tambah jenis baru…"
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addType();
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={addType}
-                    className="inline-flex h-10 items-center gap-1 rounded-xl px-3 text-xs text-primary-foreground"
-                    style={{ background: "var(--gradient-neon)" }}
-                    title="Tambah"
-                  >
-                    <Plus className="h-4 w-4" /> Tambah
-                  </button>
-                </div>
-              </Field>
 
               <Field label="Prompt Tambahan (opsional)">
                 <Textarea
@@ -858,16 +793,16 @@ function StoryboardPage() {
             }
           >
             {logs.length > 0 && (
-              <div className="mb-4 rounded-xl border border-border/70 bg-black/40 p-3 max-h-40 overflow-y-auto font-mono text-[10px] leading-relaxed text-muted-foreground">
+              <div className="mb-4 rounded-xl border border-border/70 bg-black/40 p-3 max-h-40 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
                 {logs.map((l, i) => (
-                  <div key={i} className="whitespace-pre-wrap">
+                  <div key={i} className="whitespace-pre-wrap break-all min-w-0">
                     {l}
                   </div>
                 ))}
               </div>
             )}
             {results.length ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {results.map((r) => (
                   <div key={r.resultId} className="rounded-2xl border border-border/70 bg-card/30 p-2.5 flex flex-col gap-2">
                     <div className="flex items-center gap-2">
@@ -900,7 +835,7 @@ function StoryboardPage() {
                       style={{ aspectRatio: ratioToAspect(r.ratio ?? ratio) }}
                     >
                       {r.imgUrl ? (
-                        <img src={r.imgUrl} alt={r.title} className="h-full w-full object-cover" />
+                        <img src={r.imgUrl} alt={r.title} className="max-h-full max-w-full object-contain" />
                       ) : r.status === "err" ? (
                         <div className="text-[11px] text-destructive p-3 text-center">{r.error}</div>
                       ) : (

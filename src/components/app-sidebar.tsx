@@ -587,7 +587,7 @@ export function AppSidebar({
 
   const outerClass = inline
     ? "flex flex-col w-full p-4 gap-1"
-    : "hidden md:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
+    : "hidden lg:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
 
 
   return (
