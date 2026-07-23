@@ -121,6 +121,87 @@ async function downscaleImageToB64(
   }
 }
 
+/**
+ * Capture the first meaningful frame from a video URL (blob or http) and
+ * return a JPEG data URL usable as a persistent thumbnail. Returns null on
+ * failure (e.g. CORS-blocked cross-origin video).
+ */
+async function captureVideoThumbnail(
+  url: string,
+  maxDim = 480,
+  quality = 0.7,
+): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  return await new Promise((resolve) => {
+    try {
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.preload = "auto";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+      let done = false;
+      const finish = (result: string | null) => {
+        if (done) return;
+        done = true;
+        video.src = "";
+        resolve(result);
+      };
+      video.onerror = () => finish(null);
+      video.onloadedmetadata = () => {
+        const target = Math.min(1.0, Math.max(0.1, (video.duration || 2) * 0.1));
+        try {
+          video.currentTime = target;
+        } catch {
+          finish(null);
+        }
+      };
+      video.onseeked = () => {
+        try {
+          const w0 = video.videoWidth || 0;
+          const h0 = video.videoHeight || 0;
+          if (!w0 || !h0) return finish(null);
+          const scale = Math.min(1, maxDim / Math.max(w0, h0));
+          const w = Math.max(1, Math.round(w0 * scale));
+          const h = Math.max(1, Math.round(h0 * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return finish(null);
+          ctx.drawImage(video, 0, 0, w, h);
+          finish(canvas.toDataURL("image/jpeg", quality));
+        } catch {
+          finish(null);
+        }
+      };
+      setTimeout(() => finish(null), 8000);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * For images: if the URL is a remote http(s) URL, fetch and inline as a
+ * data URL so it survives blob revocation / link expiry. Data URLs are
+ * returned as-is. Returns null on failure.
+ */
+async function persistImageThumbnail(url: string): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith("data:")) return url;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    const file = new File([blob], "output.jpg", { type: blob.type || "image/jpeg" });
+    const { b64, mime } = await downscaleImageToB64(file, 640, 0.72);
+    return `data:${mime};base64,${b64}`;
+  } catch {
+    return null;
+  }
+}
+
 type LogLine = { time: string; level: "info" | "error" | "ok"; msg: string };
 
 export function ReffEditWorkspace({
@@ -139,10 +220,10 @@ export function ReffEditWorkspace({
 
   const K = `reff-edit.${mode}`;
   const [refs, setRefs] = useSticky<LocalRef[]>(`${K}.refs`, () => [newLocalRef(mode)]);
-  const [target, setTarget] = useSticky<LocalRef>(`${K}.target`, () => ({
-    ...newLocalRef(mode),
-    name: mode === "image" ? "Target image" : "Target video",
-  }));
+  const [targets, setTargets] = useSticky<LocalRef[]>(`${K}.targets`, () => [
+    { ...newLocalRef(mode), name: mode === "image" ? "Target image" : "Target video 1" },
+  ]);
+  const target = targets[0]; // legacy accessor for image mode
   const [aspect, setAspect] = useSticky<string>(`${K}.aspect`, aspectOptions[0]?.value ?? "original");
   const [quality, setQuality] = useSticky<"draft" | "standard" | "high">(
     `${K}.quality`,
@@ -160,6 +241,10 @@ export function ReffEditWorkspace({
   const [galleryView, setGalleryView] = useSticky<boolean>(`${K}.galleryView`, false);
   const [chatInput, setChatInput] = useSticky<string>(`${K}.chatInput`, "");
   const [chatBusy, setChatBusy] = useSticky<boolean>(`${K}.chatBusy`, false);
+  const [renderEngine, setRenderEngine] = useSticky<"browser" | "shotstack" | "creatomate">(
+    `${K}.renderEngine`,
+    "browser",
+  );
 
   const pushOutput = (url: string) => {
     setOutputs((prev) => [url, ...prev].slice(0, 50));
@@ -231,14 +316,30 @@ export function ReffEditWorkspace({
     );
   };
 
-  const onTarget = (file: File | null) => {
-    if (target.previewUrl) URL.revokeObjectURL(target.previewUrl);
-    setTarget((prev) => ({
-      ...prev,
-      file,
-      previewUrl: file ? URL.createObjectURL(file) : null,
-    }));
+  const onTargetFile = (key: string, file: File | null) => {
+    setTargets((prev) =>
+      prev.map((t) => {
+        if (t.key !== key) return t;
+        if (t.previewUrl) URL.revokeObjectURL(t.previewUrl);
+        return { ...t, file, previewUrl: file ? URL.createObjectURL(file) : null };
+      }),
+    );
   };
+  const addTarget = () =>
+    setTargets((prev) => {
+      if (mode === "image" || prev.length >= 10) return prev;
+      return [
+        ...prev,
+        { ...newLocalRef(mode), name: `Target video ${prev.length + 1}` },
+      ];
+    });
+  const removeTarget = (key: string) =>
+    setTargets((prev) => {
+      if (prev.length <= 1) return prev;
+      const t = prev.find((x) => x.key === key);
+      if (t?.previewUrl) URL.revokeObjectURL(t.previewUrl);
+      return prev.filter((x) => x.key !== key);
+    });
 
   const runAnalyze = async () => {
     setAnalyzing(true);
@@ -254,11 +355,31 @@ export function ReffEditWorkspace({
       setDna(gotDna);
       pushLog("Reference DNA siap.", "ok");
       pushLog("Membuat Edit Blueprint…");
+      // For video mode, probe each target duration so the brain can pick hooks per source.
+      let brainTargets: { name: string; durationSec: number }[] | undefined;
+      if (mode === "video") {
+        const filledTargets = targets.filter((t) => t.file);
+        if (filledTargets.length) {
+          const { probeVideoDuration } = await import("@/lib/reff-edit/video-ffmpeg");
+          brainTargets = await Promise.all(
+            filledTargets.map(async (t) => ({
+              name: t.file?.name || t.name,
+              durationSec: t.previewUrl ? await probeVideoDuration(t.previewUrl) : 0,
+            })),
+          );
+          pushLog(
+            `Analisa ${brainTargets.length} target video (total ${brainTargets
+              .reduce((a, b) => a + b.durationSec, 0)
+              .toFixed(1)}s)…`,
+          );
+        }
+      }
       const scenes = await generateBlueprint({
         mode,
         dna: gotDna,
-        targetHint: prompt || (target.file?.name ?? "target user"),
+        targetHint: prompt || (target?.file?.name ?? "target user"),
         totalDuration: mode === "video" ? 15 : 1,
+        targets: brainTargets,
       });
       setBlueprint(scenes);
       pushLog(`Blueprint: ${scenes.length} scene.`, "ok");
@@ -342,32 +463,99 @@ export function ReffEditWorkspace({
           status = "success";
         }
       } else {
-        // Video: render lokal via FFmpeg WASM, dipandu Reference DNA + Blueprint.
-        const srcUrl = target.previewUrl || refs.find((r) => r.file)?.previewUrl || null;
-        if (!srcUrl) throw new Error("Butuh minimal 1 file target atau referensi");
+        // Video mode. Collect all target files.
+        const filled = targets.filter((t) => t.file && t.previewUrl);
+        if (filled.length === 0) throw new Error("Upload minimal 1 target video.");
         const { reffVideoRender, probeVideoDuration } = await import(
           "@/lib/reff-edit/video-ffmpeg"
         );
-        const durSec = await probeVideoDuration(srcUrl);
-        pushLog(`FFmpeg engine · target ${durSec.toFixed(1)}s · ${blueprint.length} scene`);
-        const result = await reffVideoRender({
-          sourceUrl: srcUrl,
-          sourceFile: target.file ?? refs.find((r) => r.file)?.file ?? null,
-          targetDurationSec: durSec,
-          aspect,
-          dna,
-          blueprint,
-          onLog: (m) => pushLog(m),
-          onProgress: () => {},
-        });
-        providerUsed = "ffmpeg-wasm";
-        output = result.url;
-        pushOutput(output);
-        pushLog(
-          `Render video selesai (${(result.sizeBytes / (1024 * 1024)).toFixed(1)} MB).`,
-          "ok",
+        const sourceInfo = await Promise.all(
+          filled.map(async (t) => ({
+            url: t.previewUrl!,
+            file: t.file!,
+            durationSec: await probeVideoDuration(t.previewUrl!),
+            name: t.file!.name,
+          })),
         );
-        status = "success";
+        if (renderEngine === "browser") {
+          pushLog(
+            `FFmpeg (browser) · ${sourceInfo.length} source · ${blueprint.length} scene`,
+          );
+          const result = await reffVideoRender({
+            sources: sourceInfo,
+            aspect,
+            dna,
+            blueprint,
+            onLog: (m) => pushLog(m),
+            onProgress: () => {},
+          });
+          providerUsed = "ffmpeg-wasm";
+          output = result.url;
+          pushOutput(output);
+          pushLog(
+            `Render video selesai (${(result.sizeBytes / (1024 * 1024)).toFixed(1)} MB).`,
+            "ok",
+          );
+          status = "success";
+        } else {
+          // Cloud render (Shotstack / Creatomate). Upload each source publicly first.
+          pushLog(`Cloud render via ${renderEngine} — mengunggah ${sourceInfo.length} source…`);
+          const uploaded: { url: string; name: string }[] = [];
+          for (let i = 0; i < sourceInfo.length; i++) {
+            const s = sourceInfo[i];
+            const fd = new FormData();
+            fd.append("file", s.file, s.name);
+            const up = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
+            const upData = (await up.json().catch(() => ({}))) as { url?: string; error?: string };
+            if (!up.ok || !upData.url) {
+              throw new Error(`Upload source #${i + 1} gagal: ${upData.error || up.status}`);
+            }
+            uploaded.push({ url: upData.url, name: s.name });
+            pushLog(`  ↑ #${i + 1} ${upData.url}`);
+          }
+          const headers = headersFor(getCreativeKeys());
+          const res = await fetch("/api/router/render-cloud", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              provider: renderEngine,
+              kind: "clipper",
+              aspectRatio: aspect,
+              sources: uploaded,
+              blueprint,
+              dna,
+              timeline: {
+                totalSec: blueprint.reduce(
+                  (a, s) => a + Math.max(0.1, (s.to || 0) - (s.from || 0)),
+                  0,
+                ),
+              },
+            }),
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            ok?: boolean;
+            jobId?: string;
+            url?: string;
+            status?: string;
+            message?: string;
+          };
+          if (!res.ok || !data.ok) {
+            throw new Error(data.message || `render-cloud ${res.status}`);
+          }
+          providerUsed = renderEngine;
+          if (data.url) {
+            output = data.url;
+            pushOutput(output);
+            pushLog(`Cloud render selesai: ${data.url}`, "ok");
+            status = "success";
+          } else {
+            pushLog(
+              `Job ${data.jobId} ter-antri di ${renderEngine}. ${data.message || "Cek dashboard provider untuk URL final."}`,
+              "ok",
+            );
+            status = "pending";
+          }
+        }
       }
     } catch (e) {
       err = (e as Error).message;
@@ -376,14 +564,27 @@ export function ReffEditWorkspace({
     } finally {
       setRendering(false);
       const history = loadHistory(uid);
+      let thumbnailUrl: string | undefined;
+      if (output) {
+        try {
+          if (mode === "image") {
+            thumbnailUrl = (await persistImageThumbnail(output)) || undefined;
+          } else {
+            thumbnailUrl = (await captureVideoThumbnail(output)) || undefined;
+          }
+        } catch {
+          thumbnailUrl = undefined;
+        }
+      }
       history.unshift({
         id: uid8(),
         mode,
         referenceIds: [],
         dna: dna || undefined,
         blueprint,
-        targetUrl: target.previewUrl || undefined,
+        targetUrl: target?.previewUrl || undefined,
         outputUrl: output || undefined,
+        thumbnailUrl,
         providerUsed,
         durationMs: Date.now() - started,
         status,
@@ -413,6 +614,31 @@ export function ReffEditWorkspace({
     }
     saveRefs(uid, list.slice(0, 200));
     pushLog("Referensi disimpan ke Library.", "ok");
+  };
+
+  const saveOutputAsStyle = async () => {
+    if (!currentOutput || !dna) return;
+    const list = loadRefs(uid);
+    let thumb: string | undefined;
+    if (mode === "image") {
+      thumb = (await persistImageThumbnail(currentOutput)) || currentOutput;
+    } else {
+      thumb = (await captureVideoThumbnail(currentOutput)) || undefined;
+    }
+    list.unshift({
+      id: uid8(),
+      name: `Style ${new Date().toLocaleString("id-ID")}`,
+      type: mode,
+      category: "Cinematic",
+      role: "style",
+      weight: 80,
+      sourceUrl: currentOutput,
+      thumbnailUrl: thumb,
+      dna,
+      createdAt: new Date().toISOString(),
+    });
+    saveRefs(uid, list.slice(0, 200));
+    pushLog("Style output disimpan ke Library.", "ok");
   };
 
   const runChatAdjust = async () => {
@@ -448,10 +674,10 @@ export function ReffEditWorkspace({
               disabled={!refs.some((r) => r.file)}
               className="!px-3 sm:!px-4"
               aria-label="Simpan ke Library"
-              title="Simpan ke Library"
+              title="Simpan file referensi (+ DNA jika sudah dianalisa) ke Reference Library"
             >
-              <BookmarkPlus className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Simpan ke Library</span>
+              <BookmarkPlus className="h-4 w-4 mr-1" />
+              <span>Save to Library</span>
             </GhostButton>
             <GhostButton
               onClick={addRef}
@@ -496,7 +722,23 @@ export function ReffEditWorkspace({
       </Card>
 
       {/* ROW 2 — Reference DNA (full width) */}
-      <Card title="Reference DNA" sub="Hasil analisa AI Creative Director">
+      <Card
+        title="Reference DNA"
+        sub="Hasil analisa AI Creative Director"
+        right={
+          dna ? (
+            <GhostButton
+              onClick={saveRefsToLibrary}
+              disabled={!refs.some((r) => r.file)}
+              className="!px-3"
+              title="Simpan referensi + DNA ke Library"
+            >
+              <BookmarkPlus className="h-4 w-4 mr-1" />
+              <span>Save Style + DNA</span>
+            </GhostButton>
+          ) : undefined
+        }
+      >
         {!dna ? (
           <div className="text-sm text-muted-foreground">
             Upload referensi lalu tekan <span className="text-primary">Analyze Reference</span>.
@@ -515,14 +757,68 @@ export function ReffEditWorkspace({
 
       {/* ROW 2 — Target Content | Output Settings */}
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Target Content" sub="File yang akan diedit oleh AI">
-          <FileDrop
-            accept={mode === "image" ? "image/*" : "video/*"}
-            file={target.file}
-            previewUrl={target.previewUrl}
-            kind={mode}
-            onFile={(f) => onTarget(f)}
-          />
+        <Card
+          title="Target Content"
+          sub={
+            mode === "video"
+              ? `File yang akan diedit AI — bisa upload s.d. 10 video, AI akan pilih segmen terbaik dari tiap video`
+              : "File yang akan diedit oleh AI"
+          }
+          right={
+            mode === "video" ? (
+              <GhostButton
+                onClick={addTarget}
+                disabled={targets.length >= 10}
+                className="!px-3"
+                aria-label="Tambah target"
+                title="Tambah target video"
+              >
+                <Plus className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Tambah</span>
+              </GhostButton>
+            ) : null
+          }
+        >
+          {mode === "image" ? (
+            <FileDrop
+              accept="image/*"
+              file={targets[0]?.file ?? null}
+              previewUrl={targets[0]?.previewUrl ?? null}
+              kind="image"
+              onFile={(f) => onTargetFile(targets[0].key, f)}
+            />
+          ) : (
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+              {targets.map((t, i) => (
+                <div key={t.key} className="relative rounded-xl border border-border bg-card/30 p-2">
+                  <FileDrop
+                    accept="video/*"
+                    file={t.file}
+                    previewUrl={t.previewUrl}
+                    kind="video"
+                    onFile={(f) => onTargetFile(t.key, f)}
+                    large
+                  />
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      #{i + 1} {t.file?.name ?? "(kosong)"}
+                    </div>
+                    {targets.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeTarget(t.key)}
+                        className="h-6 w-6 grid place-items-center rounded-md border border-border text-muted-foreground hover:text-red-400 hover:border-red-400/60 transition"
+                        aria-label="Hapus target"
+                        title="Hapus target"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="mt-3">
             <Field label="Prompt tambahan (opsional)">
               <Textarea
@@ -554,6 +850,19 @@ export function ReffEditWorkspace({
                 ]}
               />
             </Field>
+            {mode === "video" && (
+              <Field label="Render Engine">
+                <Select
+                  value={renderEngine}
+                  onChange={(e) => setRenderEngine(e.target.value as typeof renderEngine)}
+                  options={[
+                    { value: "browser", label: "Browser FFmpeg (cepat, ≤ ~8 menit / 350 MB per file)" },
+                    { value: "shotstack", label: "Cloud · Shotstack (video panjang, butuh key)" },
+                    { value: "creatomate", label: "Cloud · Creatomate (video panjang, butuh key)" },
+                  ]}
+                />
+              </Field>
+            )}
           </div>
         </Card>
       </div>
@@ -566,6 +875,15 @@ export function ReffEditWorkspace({
           right={
             outputs.length > 0 ? (
               <div className="flex items-center gap-2">
+                <GhostButton
+                  onClick={() => void saveOutputAsStyle()}
+                  disabled={!currentOutput || !dna}
+                  className="!px-3"
+                  title="Simpan output ini + DNA sebagai style baru di Library"
+                >
+                  <BookmarkPlus className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Save as style</span>
+                </GhostButton>
                 {galleryView ? (
                   <GhostButton
                     onClick={() => setGalleryView(false)}

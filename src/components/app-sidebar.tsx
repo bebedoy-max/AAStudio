@@ -108,6 +108,17 @@ const DEFAULT_NAV: NavEntry[] = [
   },
   {
     kind: "group",
+    key: "storyboard",
+    label: "Storyboard",
+    icon: BookText,
+    items: [
+      { title: "Produk Storyboard", url: "/generate/storyboard", icon: Package, permKey: "generate.storyboard" },
+      { title: "Naratif Video Maker", url: "/generate/naratif", icon: BookText, permKey: "generate.naratif" },
+    ],
+  },
+
+  {
+    kind: "group",
     key: "reff-edit",
     label: "Reff EDIT",
     icon: Palette,
@@ -118,17 +129,6 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Edit History", url: "/reff-edit/history", icon: History, permKey: "reff-edit.history" },
     ],
   },
-  {
-    kind: "group",
-    key: "storyboard",
-    label: "Storyboard",
-    icon: BookText,
-    items: [
-      { title: "Produk Storyboard", url: "/generate/storyboard", icon: Package, permKey: "generate.storyboard" },
-      { title: "Naratif Video Maker", url: "/generate/naratif", icon: BookText, permKey: "generate.naratif" },
-    ],
-  },
-
   {
     kind: "group",
     key: "manage",
@@ -169,7 +169,7 @@ const ADMIN_GROUP: NavEntry = {
   ],
 };
 
-const NAV_ORDER_KEY = "aatools.sidebar.order.v2";
+const NAV_ORDER_KEY = "aatools.sidebar.order.v3";
 const HOVER_CLOSE_DELAY = 320;
 
 function loadOrder(defaults: string[]): string[] {

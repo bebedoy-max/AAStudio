@@ -56,6 +56,7 @@ export type BlueprintScene = {
   from: number;
   to: number;
   apply: string[];
+  sourceIdx?: number; // index into the target sources array (default 0)
 };
 
 export type ReferenceItem = {
@@ -79,6 +80,7 @@ export type HistoryItem = {
   blueprint?: BlueprintScene[];
   targetUrl?: string;
   outputUrl?: string;
+  thumbnailUrl?: string;
   providerUsed?: string;
   durationMs?: number;
   status: "success" | "error" | "pending";

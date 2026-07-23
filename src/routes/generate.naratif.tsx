@@ -140,7 +140,6 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
 
 };
 
-// Baca provider aktif dari Routing Provider (manage/routing) — cap "video".
 const LS_ROUTING = "aatools.routing.v2";
 function readRoutedVideoProvider(): Provider | null {
   if (typeof window === "undefined") return null;
@@ -150,6 +149,20 @@ function readRoutedVideoProvider(): Provider | null {
     const obj = JSON.parse(raw) as { video?: string };
     const p = obj?.video as Provider | undefined;
     return p && VID_CATALOG[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+// Baca provider gambar aktif dari Routing Provider (manage/routing) — cap "image".
+function readRoutedImageProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { image?: string };
+    const p = obj?.image as Provider | undefined;
+    return p && IMG_CATALOG[p] ? p : null;
   } catch {
     return null;
   }
@@ -188,6 +201,7 @@ function NaratifPage() {
   const [material, setMaterial] = useSticky<Material | null>("naratif.material", null);
 
   const [provider, setProvider] = useSticky<Provider>("naratif.provider", "weavy");
+  const [imgProvider, setImgProvider] = useSticky<Provider>("naratif.imgProvider", "weavy");
   const [ratio, setRatio] = useSticky<string>("naratif.ratio", "9:16");
   
 
@@ -210,7 +224,7 @@ function NaratifPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bootstrappedRef = useRef(false);
 
-  const imgModels = IMG_CATALOG[provider] || IMG_CATALOG.weavy;
+  const imgModels = IMG_CATALOG[imgProvider] || IMG_CATALOG.weavy;
   const vidModels = VID_CATALOG[provider] || VID_CATALOG.weavy;
   const activeImgModel = useMemo(() => imgModels.find((m) => m.key === imgModel) || imgModels[0], [imgModels, imgModel]);
   const activeVidModel = useMemo(() => vidModels.find((m) => m.key === vidModel) || vidModels[0], [vidModels, vidModel]);
@@ -225,6 +239,12 @@ function NaratifPage() {
     } else if (!provider || !IMG_CATALOG[provider]) {
       const p = ((typeof window !== "undefined" && (localStorage.getItem("aatools.activeProvider") || localStorage.getItem("arkx_activeProvider"))) || "weavy") as Provider;
       setProvider(IMG_CATALOG[p] ? p : "weavy");
+    }
+    const routedImg = readRoutedImageProvider();
+    if (routedImg) {
+      setImgProvider(routedImg);
+    } else if (!imgProvider || !IMG_CATALOG[imgProvider]) {
+      setImgProvider("weavy");
     }
     try {
       const eleven = localStorage.getItem("aatools.eleven");
@@ -269,6 +289,8 @@ function NaratifPage() {
     const sync = () => {
       const routed = readRoutedVideoProvider();
       if (routed && routed !== provider) setProvider(routed);
+      const routedImg = readRoutedImageProvider();
+      if (routedImg && routedImg !== imgProvider) setImgProvider(routedImg);
     };
     window.addEventListener("storage", sync);
     window.addEventListener("focus", sync);
@@ -278,14 +300,14 @@ function NaratifPage() {
       window.removeEventListener("focus", sync);
       window.removeEventListener("aatools:routing-changed", sync as EventListener);
     };
-  }, [provider, setProvider]);
+  }, [provider, setProvider, imgProvider, setImgProvider]);
 
   // ketika provider berubah, reset pilihan model HANYA jika model saat ini tidak valid
   useEffect(() => {
-    const list = IMG_CATALOG[provider] || [];
+    const list = IMG_CATALOG[imgProvider] || [];
     if (!list.find((m) => m.key === imgModel)) setImgModel(list[0]?.key || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider]);
+  }, [imgProvider]);
   useEffect(() => {
     const list = VID_CATALOG[provider] || [];
     if (!list.find((m) => m.key === vidModel)) setVidModel(list[0]?.key || "");
@@ -431,13 +453,13 @@ function NaratifPage() {
     patchScene(i, { busy: "img" });
     try {
       let imgUrl: string;
-      if (provider === "weavy") {
+      if (imgProvider === "weavy") {
         const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
         imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: scene.prompt, quality: imgQuality, ratio });
       } else {
         const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import("@/lib/providers/wavespeed");
         const key = getFirstWavespeedKey();
-        if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${provider})`);
+        if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${imgProvider})`);
         const modelId = mapImgToWsEndpoint(imgModel);
         const payload: Record<string, unknown> = { prompt: scene.prompt, aspect_ratio: ratio };
         if (/gpt-image/.test(modelId)) payload.quality = imgQuality;
@@ -685,7 +707,7 @@ function NaratifPage() {
                 { value: "1:1", label: "1:1 Square" },
               ]} />
             </Field>
-            <Field label={`Model AI Gambar (provider: ${provider})`}>
+            <Field label={`Model AI Gambar (provider: ${imgProvider})`}>
               <Select value={imgModel} onChange={(e) => setImgModel(e.target.value)} options={imgModels.map((m) => ({ value: m.key, label: m.label }))} />
             </Field>
             <Field label="Kualitas Gambar">

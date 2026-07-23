@@ -232,9 +232,12 @@ function transitionKind(
 }
 
 export type ReffVideoRenderOpts = {
-  sourceUrl: string;
+  // Legacy single-source (kept for image mode / backward compat).
+  sourceUrl?: string;
   sourceFile?: File | Blob | null;
-  targetDurationSec: number; // durasi video sumber
+  targetDurationSec?: number;
+  // New: multiple target sources. When provided, scenes route via sourceIdx.
+  sources?: { url: string; file?: File | Blob | null; durationSec: number; name?: string }[];
   aspect: string;
   dna: ReferenceDNA;
   blueprint: BlueprintScene[];
@@ -265,37 +268,58 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   );
 
   log("Menyiapkan target video…");
-  // Browser guard — FFmpeg WASM jalan di heap tab (~1 GB efektif). File besar
-  // atau durasi panjang bikin tab crash (Aw, Snap). Cegah sebelum writeFile.
-  const sizeHint =
-    opts.sourceFile && "size" in opts.sourceFile ? (opts.sourceFile as Blob).size : 0;
-  const MAX_SIZE = 350 * 1024 * 1024; // 350 MB
-  const MAX_DUR = 8 * 60; // 8 menit
-  if (sizeHint && sizeHint > MAX_SIZE) {
+  const MAX_SIZE = 350 * 1024 * 1024; // 350 MB per file
+  const MAX_TOTAL = 800 * 1024 * 1024; // 800 MB total
+  const MAX_DUR = 8 * 60; // 8 menit per source
+  const sourceList = opts.sources && opts.sources.length
+    ? opts.sources
+    : [{
+        url: opts.sourceUrl ?? "",
+        file: opts.sourceFile ?? null,
+        durationSec: opts.targetDurationSec ?? 0,
+        name: "source",
+      }];
+  let totalSize = 0;
+  for (let i = 0; i < sourceList.length; i++) {
+    const s = sourceList[i];
+    const sizeHint = s.file && "size" in s.file ? (s.file as Blob).size : 0;
+    if (sizeHint && sizeHint > MAX_SIZE) {
+      throw new Error(
+        `Source #${i + 1} terlalu besar (${(sizeHint / 1024 / 1024).toFixed(0)} MB). Batas per file ~${MAX_SIZE / 1024 / 1024} MB untuk render browser — gunakan Server Render.`,
+      );
+    }
+    totalSize += sizeHint;
+    if (s.durationSec && s.durationSec > MAX_DUR) {
+      throw new Error(
+        `Source #${i + 1} durasi ${Math.round(s.durationSec)}s > ${MAX_DUR}s. Gunakan Server Render.`,
+      );
+    }
+  }
+  if (totalSize > MAX_TOTAL) {
     throw new Error(
-      `Video target terlalu besar untuk render di browser (${(sizeHint / 1024 / 1024).toFixed(0)} MB). ` +
-        `Batas aman ~${MAX_SIZE / 1024 / 1024} MB. Potong / kompres dulu, atau gunakan server render.`,
+      `Total ukuran video ${(totalSize / 1024 / 1024).toFixed(0)} MB > ${MAX_TOTAL / 1024 / 1024} MB. Gunakan Server Render.`,
     );
   }
-  if (opts.targetDurationSec && opts.targetDurationSec > MAX_DUR) {
-    throw new Error(
-      `Durasi video ${Math.round(opts.targetDurationSec)}s melebihi batas render browser (${MAX_DUR}s). ` +
-        `Pilih segmen lebih pendek, atau kirim ke server render.`,
-    );
+  for (let i = 0; i < sourceList.length; i++) {
+    log(`Load source #${i + 1}${sourceList[i].name ? ` (${sourceList[i].name})` : ""}…`);
+    const data = await readSourceBytes(sourceList[i].file ?? null, sourceList[i].url);
+    await ff.writeFile(`in${i}.mp4`, data);
   }
-  const inputData = await readSourceBytes(opts.sourceFile ?? null, opts.sourceUrl);
-  await ff.writeFile("in.mp4", inputData);
 
-  // Normalisasi blueprint → clamp ke durasi target.
-  const dur = Math.max(0.1, opts.targetDurationSec || 0);
-  const scenes = (opts.blueprint.length ? opts.blueprint : [
-    { id: "s1", name: "Full", from: 0, to: dur, apply: [] } as BlueprintScene,
-  ])
-    .map((s) => ({
-      ...s,
-      from: Math.max(0, Math.min(dur, s.from || 0)),
-      to: Math.max(0.1, Math.min(dur, s.to || dur)),
-    }))
+  // Normalisasi blueprint → clamp per-source.
+  const scenes = (opts.blueprint.length
+    ? opts.blueprint
+    : [{ id: "s1", name: "Full", from: 0, to: sourceList[0].durationSec || 5, apply: [], sourceIdx: 0 } as BlueprintScene])
+    .map((s) => {
+      const idx = Math.max(0, Math.min(sourceList.length - 1, s.sourceIdx ?? 0));
+      const dur = Math.max(0.1, sourceList[idx].durationSec || 0);
+      return {
+        ...s,
+        sourceIdx: idx,
+        from: Math.max(0, Math.min(dur, s.from || 0)),
+        to: Math.max(0.1, Math.min(dur, s.to || dur)),
+      };
+    })
     .filter((s) => s.to > s.from);
 
   const parts: string[] = [];
@@ -316,8 +340,9 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       .filter(Boolean)
       .join(" ");
     log(
-      `Scene ${i + 1}/${scenes.length}: ${s.name} (${clipDur.toFixed(2)}s, ${speed}x${flags ? " · " + flags : ""})`,
+      `Scene ${i + 1}/${scenes.length}: ${s.name} · src#${(s.sourceIdx ?? 0) + 1} (${clipDur.toFixed(2)}s, ${speed}x${flags ? " · " + flags : ""})`,
     );
+    const inFile = `in${s.sourceIdx ?? 0}.mp4`;
 
     const renderClip = async (
       outName: string,
@@ -333,7 +358,7 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       const args = [
         "-ss", String(from),
         "-t", String(dur),
-        "-i", "in.mp4",
+        "-i", inFile,
         "-vf", chain,
         "-an",
         "-c:v", "libx264",
@@ -435,7 +460,9 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   try {
     for (const p of parts) await ff.deleteFile(p);
     if (parts.length > 1) await ff.deleteFile("list.txt");
-    await ff.deleteFile("in.mp4");
+    for (let i = 0; i < sourceList.length; i++) {
+      try { await ff.deleteFile(`in${i}.mp4`); } catch {}
+    }
     if (finalName === "out.mp4") await ff.deleteFile("out.mp4");
   } catch {
     /* noop */
