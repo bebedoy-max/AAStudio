@@ -58,15 +58,27 @@ export async function generateBlueprint(opts: {
   totalDuration?: number;
 }): Promise<BlueprintScene[]> {
   const system =
-    "You are an AI Creative Director. Turn the Reference DNA into a concrete Edit Blueprint. Respond ONLY as strict JSON.";
+    "You are an elite AI Creative Director / video editor. Turn the Reference DNA into a concrete, CINEMATIC Edit Blueprint that matches the reference in feel — not just color grading. You must think in cuts, pacing, motion, and transitions like a professional editor. Respond ONLY as strict JSON.";
   const duration = opts.totalDuration ?? (opts.mode === "video" ? 15 : 1);
+  const videoVocab =
+    `You MUST vary editing techniques across scenes. Draw from this vocabulary (use the EXACT keywords so the render engine can parse them):\n` +
+    `- SPEED: "slow motion" (0.5x), "speed ramp up", "speed ramp down", "hyperlapse" (2x), "freeze frame", "hold frame"\n` +
+    `- DIRECTION: "reverse playback", "backward", "boomerang" (forward+reverse)\n` +
+    `- CAMERA MOVE: "zoom in", "zoom out", "push in", "pull back", "whip pan", "handheld shake", "static locked"\n` +
+    `- CUT STYLE: "hard cut", "j-cut", "match cut", "jump cut", "flash cut"\n` +
+    `- TRANSITION OUT: "cross dissolve", "fade to black", "whip transition", "wipe left", "glitch transition", "hard cut" (default)\n` +
+    `- FX: "rgb split", "chromatic aberration", "vignette", "film grain", "light leak", "lens flare", "motion blur"\n` +
+    `- COLOR: use DNA colorGrading verbatim (teal & orange, warm golden, cool moody, noir, vintage film, neon cyberpunk, pastel dreamy, vibrant punchy, desaturated muted)\n`;
   const user =
     `Mode: ${opts.mode}\n` +
     `Reference DNA: ${JSON.stringify(opts.dna)}\n` +
     `Target: ${opts.targetHint || "user's target content"}\n` +
     `Total duration (s): ${duration}\n\n` +
+    (opts.mode === "video" ? videoVocab + "\n" : "") +
     `Return JSON: { "scenes": [ { "id": string, "name": string, "from": number, "to": number, "apply": string[] } ] }.\n` +
-    `For image mode, produce 1-3 scenes describing sequential apply steps (from=0,to=1). For video mode, cover the whole duration with 3-6 scenes. "apply" is a short list of concrete editing directives derived from the DNA.`;
+    (opts.mode === "image"
+      ? `For image mode, produce 1-3 scenes describing sequential apply steps (from=0,to=1). "apply" is a short list of concrete style/lighting/color directives derived from the DNA.`
+      : `For video mode: produce 4-8 scenes covering the whole duration with VARIED lengths (mix punchy 0.4-1.2s beats with 2-4s dramatic holds). "from" and "to" are timestamps in seconds into the SOURCE target video to cut from — DO NOT just walk from 0 forward; pick the most interesting segments and REORDER them for rhythm. Each scene's "apply" MUST contain 3-6 items combining: one COLOR directive, one CAMERA MOVE or SPEED directive, optionally one FX, and one TRANSITION OUT keyword. Vary techniques between scenes so the result feels edited, not filtered.`);
   const text = await callChat(system, user);
   const parsed = safeJson<{ scenes?: BlueprintScene[] }>(text, {});
   const scenes = (parsed.scenes || []).map((s, i) => ({

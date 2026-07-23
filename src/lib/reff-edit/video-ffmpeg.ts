@@ -8,6 +8,72 @@ import { fetchFile } from "@ffmpeg/util";
 import { getFfmpeg } from "@/lib/mixing/ffmpeg-render";
 import type { BlueprintScene, ReferenceDNA } from "./store";
 
+async function readSourceBytes(file: File | Blob | null, url: string): Promise<Uint8Array> {
+  // Beberapa strategi dicoba berurutan — File.arrayBuffer() bisa gagal dengan
+  // NotReadableError untuk file besar / referensi lama; fetch() blob URL kadang
+  // gagal "Failed to fetch" di Chromium. Kita coba semua sebelum menyerah.
+  const errors: string[] = [];
+  const tryDirect = async (b: Blob): Promise<Uint8Array> => {
+    const buf = await b.arrayBuffer();
+    return new Uint8Array(buf);
+  };
+  const tryStream = async (b: Blob): Promise<Uint8Array> => {
+    const reader = (b.stream() as ReadableStream<Uint8Array>).getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        total += value.byteLength;
+      }
+    }
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) {
+      out.set(c, off);
+      off += c.byteLength;
+    }
+    return out;
+  };
+
+  if (file) {
+    try {
+      return await tryDirect(file);
+    } catch (e) {
+      errors.push(`file.arrayBuffer: ${(e as Error).message}`);
+    }
+    try {
+      return await tryDirect(file.slice(0));
+    } catch (e) {
+      errors.push(`file.slice().arrayBuffer: ${(e as Error).message}`);
+    }
+    try {
+      return await tryStream(file);
+    } catch (e) {
+      errors.push(`file.stream: ${(e as Error).message}`);
+    }
+  }
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  } catch (e) {
+    errors.push(`fetch(url): ${(e as Error).message}`);
+  }
+  try {
+    return await fetchFile(url);
+  } catch (e) {
+    errors.push(`fetchFile: ${(e as Error).message}`);
+  }
+  throw new Error(
+    `Tidak bisa membaca file target. Pilih ulang file video dari komputer lalu render lagi.\n${errors.join("\n")}`,
+  );
+}
+
 const ASPECT_SCALE: Record<string, string> = {
   "9:16": "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280",
   "16:9": "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
@@ -70,20 +136,54 @@ function colorFilterFromText(text: string): string[] {
 function speedFromText(text: string): number {
   const t = text.toLowerCase();
   if (t.includes("slow motion") || t.includes("slow-mo") || t.includes("slowmo")) return 0.5;
-  if (t.includes("speed ramp up") || t.includes("time lapse") || t.includes("fast cut")) return 1.5;
+  if (t.includes("time lapse") || t.includes("fast cut")) return 1.5;
   if (t.includes("hyperlapse") || t.includes("very fast")) return 2.0;
   return 1.0;
+}
+
+type RampKind = "none" | "up" | "down";
+function rampFromText(text: string): RampKind {
+  const t = text.toLowerCase();
+  if (t.includes("speed ramp up") || t.includes("ramp up")) return "up";
+  if (t.includes("speed ramp down") || t.includes("ramp down")) return "down";
+  return "none";
+}
+
+type DirectionKind = "forward" | "reverse" | "boomerang";
+function directionFromText(text: string): DirectionKind {
+  const t = text.toLowerCase();
+  if (t.includes("boomerang")) return "boomerang";
+  if (t.includes("reverse playback") || t.includes("reverse") || t.includes("backward"))
+    return "reverse";
+  return "forward";
+}
+
+function isFreeze(text: string): boolean {
+  const t = text.toLowerCase();
+  return t.includes("freeze frame") || t.includes("hold frame") || t.includes("freeze");
 }
 
 function motionFromText(text: string): string[] {
   const t = text.toLowerCase();
   const f: string[] = [];
-  if (t.includes("zoom in") || t.includes("push in")) {
+  if (t.includes("whip pan") || t.includes("whip")) {
+    f.push("crop=iw-40:ih-20:20+30*sin(2*PI*t*2):10");
+    f.push("gblur=sigma=1.2");
+  } else if (t.includes("zoom in") || t.includes("push in")) {
     f.push("zoompan=z='min(zoom+0.0015,1.15)':d=1:s=1280x1280:fps=30");
   } else if (t.includes("zoom out") || t.includes("pull back")) {
     f.push("zoompan=z='if(lte(zoom,1.0),1.15,max(1.001,zoom-0.0015))':d=1:s=1280x1280:fps=30");
   } else if (t.includes("shake") || t.includes("handheld")) {
     f.push("crop=iw-20:ih-20:10+5*sin(2*PI*t):10+5*cos(2*PI*t)");
+  }
+  if (t.includes("rgb split") || t.includes("chromatic aberration") || t.includes("glitch")) {
+    f.push("chromashift=crh=6:cbh=-6");
+  }
+  if (t.includes("motion blur")) f.push("tblend=all_mode=average");
+  if (t.includes("film grain") || t.includes("grain")) f.push("noise=alls=8:allf=t");
+  if (t.includes("light leak") || t.includes("lens flare")) {
+    f.push("eq=brightness=0.05");
+    f.push("vignette=PI/6");
   }
   return f;
 }
@@ -92,7 +192,7 @@ function buildSceneFilter(opts: {
   aspect: string;
   dna: ReferenceDNA;
   scene: BlueprintScene;
-}): { vf: string; speed: number } {
+}): { vf: string; speed: number; ramp: RampKind; direction: DirectionKind; freeze: boolean } {
   const dnaText = [
     opts.dna.colorGrading,
     opts.dna.mood,
@@ -113,11 +213,19 @@ function buildSceneFilter(opts: {
   filters.push("format=yuv420p");
 
   const speed = speedFromText(fullText);
-  return { vf: filters.filter(Boolean).join(","), speed };
+  const ramp = rampFromText(fullText);
+  const direction = directionFromText(fullText);
+  const freeze = isFreeze(fullText);
+  return { vf: filters.filter(Boolean).join(","), speed, ramp, direction, freeze };
 }
 
-function transitionKind(dna: ReferenceDNA): "none" | "fade" | "wipe" {
-  const t = `${dna.transition ?? ""} ${dna.editingRhythm ?? ""}`.toLowerCase();
+function transitionKind(
+  dna: ReferenceDNA,
+  blueprint: BlueprintScene[],
+): "none" | "fade" | "wipe" {
+  const t = `${dna.transition ?? ""} ${dna.editingRhythm ?? ""} ${blueprint
+    .flatMap((s) => s.apply)
+    .join(" ")}`.toLowerCase();
   if (t.includes("cross fade") || t.includes("dissolve") || t.includes("fade")) return "fade";
   if (t.includes("wipe") || t.includes("swipe")) return "wipe";
   return "none";
@@ -125,6 +233,7 @@ function transitionKind(dna: ReferenceDNA): "none" | "fade" | "wipe" {
 
 export type ReffVideoRenderOpts = {
   sourceUrl: string;
+  sourceFile?: File | Blob | null;
   targetDurationSec: number; // durasi video sumber
   aspect: string;
   dna: ReferenceDNA;
@@ -156,7 +265,26 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   );
 
   log("Menyiapkan target video…");
-  await ff.writeFile("in.mp4", await fetchFile(opts.sourceUrl));
+  // Browser guard — FFmpeg WASM jalan di heap tab (~1 GB efektif). File besar
+  // atau durasi panjang bikin tab crash (Aw, Snap). Cegah sebelum writeFile.
+  const sizeHint =
+    opts.sourceFile && "size" in opts.sourceFile ? (opts.sourceFile as Blob).size : 0;
+  const MAX_SIZE = 350 * 1024 * 1024; // 350 MB
+  const MAX_DUR = 8 * 60; // 8 menit
+  if (sizeHint && sizeHint > MAX_SIZE) {
+    throw new Error(
+      `Video target terlalu besar untuk render di browser (${(sizeHint / 1024 / 1024).toFixed(0)} MB). ` +
+        `Batas aman ~${MAX_SIZE / 1024 / 1024} MB. Potong / kompres dulu, atau gunakan server render.`,
+    );
+  }
+  if (opts.targetDurationSec && opts.targetDurationSec > MAX_DUR) {
+    throw new Error(
+      `Durasi video ${Math.round(opts.targetDurationSec)}s melebihi batas render browser (${MAX_DUR}s). ` +
+        `Pilih segmen lebih pendek, atau kirim ke server render.`,
+    );
+  }
+  const inputData = await readSourceBytes(opts.sourceFile ?? null, opts.sourceUrl);
+  await ff.writeFile("in.mp4", inputData);
 
   // Normalisasi blueprint → clamp ke durasi target.
   const dur = Math.max(0.1, opts.targetDurationSec || 0);
@@ -173,25 +301,96 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   const parts: string[] = [];
   for (let i = 0; i < scenes.length; i++) {
     const s = scenes[i];
-    const { vf, speed } = buildSceneFilter({ aspect: opts.aspect, dna: opts.dna, scene: s });
+    const { vf, speed, ramp, direction, freeze } = buildSceneFilter({
+      aspect: opts.aspect,
+      dna: opts.dna,
+      scene: s,
+    });
     const clipDur = Math.max(0.05, s.to - s.from);
     const out = `p_${i}.mp4`;
-    log(`Scene ${i + 1}/${scenes.length}: ${s.name} (${clipDur.toFixed(2)}s, speed ${speed}x)`);
-    const setpts = speed !== 1 ? `,setpts=${(1 / speed).toFixed(3)}*PTS` : "";
-    const args = [
-      "-ss", String(s.from),
-      "-t", String(clipDur),
-      "-i", "in.mp4",
-      "-vf", `${vf}${setpts}`,
-      "-an",
-      "-c:v", "libx264",
-      "-preset", "ultrafast",
-      "-crf", "24",
-      "-pix_fmt", "yuv420p",
-      "-movflags", "+faststart",
-      "-y", out,
-    ];
-    await execOrThrow(ff, args, `Render scene ${i + 1}`, logs);
+    const flags = [
+      direction !== "forward" ? direction : null,
+      freeze ? "freeze" : null,
+      ramp !== "none" ? `ramp-${ramp}` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    log(
+      `Scene ${i + 1}/${scenes.length}: ${s.name} (${clipDur.toFixed(2)}s, ${speed}x${flags ? " · " + flags : ""})`,
+    );
+
+    const renderClip = async (
+      outName: string,
+      from: number,
+      dur: number,
+      s: number,
+      reverse: boolean,
+    ) => {
+      const chainParts: string[] = [];
+      if (reverse) chainParts.push("reverse");
+      if (s !== 1) chainParts.push(`setpts=${(1 / s).toFixed(3)}*PTS`);
+      const chain = [vf, ...chainParts].filter(Boolean).join(",");
+      const args = [
+        "-ss", String(from),
+        "-t", String(dur),
+        "-i", "in.mp4",
+        "-vf", chain,
+        "-an",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "24",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        "-y", outName,
+      ];
+      await execOrThrow(ff, args, `Render ${outName}`, logs);
+    };
+
+    if (freeze) {
+      // Freeze = ultra-slow motion of a short segment so it feels like a hold.
+      const holdSrc = Math.min(0.15, clipDur);
+      await renderClip(out, s.from, holdSrc, 0.12, false);
+    } else if (direction === "boomerang") {
+      const fwd = `p_${i}_f.mp4`;
+      const rev = `p_${i}_r.mp4`;
+      await renderClip(fwd, s.from, clipDur, speed, false);
+      await renderClip(rev, s.from, clipDur, speed, true);
+      const list = `list_${i}.txt`;
+      await ff.writeFile(list, new TextEncoder().encode(`file '${fwd}'\nfile '${rev}'\n`));
+      await execOrThrow(
+        ff,
+        ["-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", "-y", out],
+        `Boomerang ${i + 1}`,
+        logs,
+      );
+      try {
+        await ff.deleteFile(fwd);
+        await ff.deleteFile(rev);
+        await ff.deleteFile(list);
+      } catch {}
+    } else if (ramp !== "none") {
+      const half = clipDur / 2;
+      const a = `p_${i}_a.mp4`;
+      const b = `p_${i}_b.mp4`;
+      const [sa, sb] = ramp === "up" ? [0.5, 1.8] : [1.8, 0.5];
+      await renderClip(a, s.from, half, sa, direction === "reverse");
+      await renderClip(b, s.from + half, half, sb, direction === "reverse");
+      const list = `list_${i}.txt`;
+      await ff.writeFile(list, new TextEncoder().encode(`file '${a}'\nfile '${b}'\n`));
+      await execOrThrow(
+        ff,
+        ["-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", "-y", out],
+        `Ramp ${i + 1}`,
+        logs,
+      );
+      try {
+        await ff.deleteFile(a);
+        await ff.deleteFile(b);
+        await ff.deleteFile(list);
+      } catch {}
+    } else {
+      await renderClip(out, s.from, clipDur, speed, direction === "reverse");
+    }
     parts.push(out);
   }
 
@@ -199,7 +398,7 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   if (parts.length === 1) {
     finalName = parts[0];
   } else {
-    const kind = transitionKind(opts.dna);
+    const kind = transitionKind(opts.dna, opts.blueprint);
     if (kind === "fade" && parts.length <= 6) {
       // Rangkai dengan xfade cross-dissolve 0.3s antar scene.
       log("Menggabungkan scene dengan cross-dissolve…");

@@ -352,6 +352,7 @@ export function ReffEditWorkspace({
         pushLog(`FFmpeg engine · target ${durSec.toFixed(1)}s · ${blueprint.length} scene`);
         const result = await reffVideoRender({
           sourceUrl: srcUrl,
+          sourceFile: target.file ?? refs.find((r) => r.file)?.file ?? null,
           targetDurationSec: durSec,
           aspect,
           dna,
