@@ -1,9 +1,5 @@
 import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-<<<<<<< HEAD
 import { Loader2, Upload, X, Sparkles, Send, MessageSquare, BookmarkPlus, Plus } from "lucide-react";
-=======
-import { Loader2, Upload, X, Sparkles, Send, MessageSquare } from "lucide-react";
->>>>>>> 1ce01ff1ee99549b7b7205bd59860b81dcbc930b
 import {
   Card,
   Field,
@@ -307,7 +303,6 @@ export function ReffEditWorkspace({
         sub={`Sampai 6 file — ${mode === "image" ? "gambar acuan style" : "video acuan style + motion"}`}
         right={
           <div className="flex items-center gap-2">
-<<<<<<< HEAD
             <GhostButton
               onClick={saveRefsToLibrary}
               disabled={!refs.some((r) => r.file)}
@@ -327,27 +322,16 @@ export function ReffEditWorkspace({
             >
               <Plus className="h-4 w-4 sm:mr-1" />
               <span className="hidden sm:inline">Tambah</span>
-=======
-            <GhostButton onClick={saveRefsToLibrary} disabled={!refs.some((r) => r.file)}>
-              Simpan ke Library
-            </GhostButton>
-            <GhostButton onClick={addRef} disabled={refs.length >= 6}>
-              + Tambah
->>>>>>> 1ce01ff1ee99549b7b7205bd59860b81dcbc930b
             </GhostButton>
           </div>
         }
       >
         <div className="flex flex-col gap-4">
-<<<<<<< HEAD
           <div
             className={`grid gap-4 grid-cols-1 ${
               refs.length >= 2 ? "sm:grid-cols-2" : ""
             } ${refs.length >= 3 ? "lg:grid-cols-3" : ""}`}
           >
-=======
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
->>>>>>> 1ce01ff1ee99549b7b7205bd59860b81dcbc930b
             {refs.map((r) => (
               <RefRow
                 key={r.key}
