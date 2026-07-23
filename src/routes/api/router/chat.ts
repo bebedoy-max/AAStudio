@@ -35,7 +35,13 @@ function parseKeys(header: string | null): string[] {
 function redact(text: string): string {
   return text
     .replace(/sk-[A-Za-z0-9_-]{20,}/g, "sk-***")
-    .replace(/AIza[A-Za-z0-9_-]{12,}/g, "AIza***");
+    .replace(/AIza[A-Za-z0-9_-]{12,}/g, "AIza***")
+    .replace(/AQ\.[A-Za-z0-9_-]{12,}/g, "AQ.***");
+}
+
+function geminiAuthHeaders(key: string): Record<string, string> {
+  // Gemini auth keys (AQ...) are API keys too, not OAuth bearer tokens.
+  return { "x-goog-api-key": key };
 }
 
 async function safeErr(res: Response): Promise<string> {
@@ -100,10 +106,15 @@ async function callGemini(
   const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
   let last: { ok: false; status: number; body: string } | undefined;
   for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    const useLegacyQueryParam = key.startsWith("AIza");
+    const url = useLegacyQueryParam
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`
+      : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: useLegacyQueryParam
+        ? { "Content-Type": "application/json" }
+        : { "Content-Type": "application/json", ...geminiAuthHeaders(key) },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: "user", parts: [{ text: user }] }],
@@ -211,11 +222,11 @@ export const Route = createFileRoute("/api/router/chat")({
           if (!user) return json({ error: "user prompt required" }, 400);
 
           const openaiKeys = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
-          const geminiKeys = parseKeys(request.headers.get("x-user-gemini-keys")).filter((k) => (k.startsWith("AIza") || k.startsWith("AQ.")));
+          const geminiKeys = parseKeys(request.headers.get("x-user-gemini-keys")).filter((k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k));
 
           if (openaiKeys.length === 0 && geminiKeys.length === 0) {
             return json({
-              error: "No valid AI keys. Gemini keys must start with 'AIza', OpenAI with 'sk-'.",
+              error: "No valid AI keys. Gemini credentials must start with 'AIza' or 'AQ.', OpenAI with 'sk-'.",
             }, 400);
           }
 

@@ -1,5 +1,18 @@
-import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
-import { Loader2, Upload, X, Sparkles, Send, MessageSquare, BookmarkPlus, Plus } from "lucide-react";
+import { useMemo, useRef, type ChangeEvent, type ReactNode } from "react";
+import { useSticky } from "@/lib/stores/use-sticky";
+import {
+  Loader2,
+  Upload,
+  X,
+  Sparkles,
+  Send,
+  MessageSquare,
+  BookmarkPlus,
+  Plus,
+  Download,
+  Images,
+} from "lucide-react";
+import { downloadFilesAsZip } from "@/lib/utils/download-zip";
 import {
   Card,
   Field,
@@ -31,6 +44,19 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 
+const LS_ROUTING = "aatools.routing.v2";
+function getImageProvider(): string {
+  if (typeof window === "undefined") return "weavy";
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return "weavy";
+    const r = JSON.parse(raw) as { image?: string };
+    return r.image || "weavy";
+  } catch {
+    return "weavy";
+  }
+}
+
 type LocalRef = {
   key: string;
   file: File | null;
@@ -53,6 +79,48 @@ function newLocalRef(kind: "image" | "video"): LocalRef {
   };
 }
 
+async function downscaleImageToB64(
+  file: File,
+  maxDim = 1280,
+  quality = 0.82,
+): Promise<{ mime: string; b64: string }> {
+  // For non-image files or when canvas is unavailable, fall back to raw base64.
+  const rawFallback = async () => {
+    const buf = await file.arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return { mime: file.type || "application/octet-stream", b64: btoa(bin) };
+  };
+  if (typeof window === "undefined" || !file.type.startsWith("image/")) {
+    return rawFallback();
+  }
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("image decode failed"));
+      el.src = url;
+    });
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas ctx null");
+    ctx.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    const [, b64 = ""] = dataUrl.split(",");
+    return { mime: "image/jpeg", b64 };
+  } catch {
+    return rawFallback();
+  }
+}
+
 type LogLine = { time: string; level: "info" | "error" | "ok"; msg: string };
 
 export function ReffEditWorkspace({
@@ -69,25 +137,68 @@ export function ReffEditWorkspace({
   const { user } = useAuth();
   const uid = user?.id ?? null;
 
-  const [refs, setRefs] = useState<LocalRef[]>([newLocalRef(mode)]);
-  const [target, setTarget] = useState<LocalRef>(() => ({
+  const K = `reff-edit.${mode}`;
+  const [refs, setRefs] = useSticky<LocalRef[]>(`${K}.refs`, () => [newLocalRef(mode)]);
+  const [target, setTarget] = useSticky<LocalRef>(`${K}.target`, () => ({
     ...newLocalRef(mode),
     name: mode === "image" ? "Target image" : "Target video",
   }));
-  const [aspect, setAspect] = useState(aspectOptions[0]?.value ?? "original");
-  const [quality, setQuality] = useState<"draft" | "standard" | "high">(
+  const [aspect, setAspect] = useSticky<string>(`${K}.aspect`, aspectOptions[0]?.value ?? "original");
+  const [quality, setQuality] = useSticky<"draft" | "standard" | "high">(
+    `${K}.quality`,
     "standard",
   );
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useSticky<string>(`${K}.prompt`, "");
 
-  const [dna, setDna] = useState<ReferenceDNA | null>(null);
-  const [blueprint, setBlueprint] = useState<BlueprintScene[]>([]);
-  const [logs, setLogs] = useState<LogLine[]>([]);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [rendering, setRendering] = useState(false);
-  const [outputUrl, setOutputUrl] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
+  const [dna, setDna] = useSticky<ReferenceDNA | null>(`${K}.dna`, null);
+  const [blueprint, setBlueprint] = useSticky<BlueprintScene[]>(`${K}.blueprint`, []);
+  const [logs, setLogs] = useSticky<LogLine[]>(`${K}.logs`, []);
+  const [analyzing, setAnalyzing] = useSticky<boolean>(`${K}.analyzing`, false);
+  const [rendering, setRendering] = useSticky<boolean>(`${K}.rendering`, false);
+  const [outputs, setOutputs] = useSticky<string[]>(`${K}.outputs`, []);
+  const [selectedIdx, setSelectedIdx] = useSticky<number>(`${K}.selectedIdx`, 0);
+  const [galleryView, setGalleryView] = useSticky<boolean>(`${K}.galleryView`, false);
+  const [chatInput, setChatInput] = useSticky<string>(`${K}.chatInput`, "");
+  const [chatBusy, setChatBusy] = useSticky<boolean>(`${K}.chatBusy`, false);
+
+  const pushOutput = (url: string) => {
+    setOutputs((prev) => [url, ...prev].slice(0, 50));
+    setSelectedIdx(0);
+    setGalleryView(false);
+  };
+
+  const currentOutput = outputs[selectedIdx] ?? null;
+
+  const downloadOne = async (url: string, idx: number) => {
+    try {
+      const ext = mode === "image" ? "png" : "mp4";
+      const filename = `reff-edit-${mode}-${idx + 1}.${ext}`;
+      let blobUrl = url;
+      if (/^https?:\/\//i.test(url)) {
+        const r = await fetch(url).catch(() => null);
+        if (r && r.ok) blobUrl = URL.createObjectURL(await r.blob());
+      }
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      if (blobUrl !== url) setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+    } catch (e) {
+      pushLog(`Download gagal: ${(e as Error).message}`, "error");
+    }
+  };
+
+  const downloadAll = async () => {
+    if (outputs.length === 0) return;
+    const ext = mode === "image" ? "png" : "mp4";
+    const files = outputs.map((url, i) => ({
+      url,
+      filename: `reff-edit-${mode}-${i + 1}.${ext}`,
+    }));
+    await downloadFilesAsZip(files, `reff-edit-${mode}`);
+  };
 
   const canAnalyze = refs.some((r) => r.file) && !analyzing;
   const canRender = !!dna && blueprint.length > 0 && !rendering;
@@ -188,43 +299,71 @@ export function ReffEditWorkspace({
         for (const r of refs) if (r.file) files.push(r.file);
         if (files.length === 0) throw new Error("Butuh minimal 1 file target atau referensi");
 
-        const images = await Promise.all(
-          files.slice(0, 6).map(async (f) => {
-            const buf = await f.arrayBuffer();
-            let bin = "";
-            const bytes = new Uint8Array(buf);
-            for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-            return { mime: f.type || "image/png", b64: btoa(bin) };
-          }),
-        );
-
-        const headers = headersFor(getCreativeKeys());
-        const res = await fetch("/api/router/image", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ prompt: composed, aspectRatio: aspect, images }),
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          provider?: string;
-          b64?: string;
-          mime?: string;
-          error?: string;
-        };
-        if (!res.ok || !data.b64) {
-          throw new Error(data.error || `router-image ${res.status}`);
+        const imageProvider = getImageProvider();
+        if (imageProvider === "weavy") {
+          const modelKey = "nanobanana2"; // Gemini Image Nano Banana 2 via Weavy
+          pushLog(`Routing via Weavy (${modelKey}) — ${files.length} gambar (target + ref)…`);
+          const { generateWeavyEdit } = await import("@/lib/providers/weavy-storyboard");
+          const url = await generateWeavyEdit({
+            modelKey,
+            prompt: composed,
+            quality: "1K",
+            ratio: aspect,
+            files: files.slice(0, 6),
+          });
+          providerUsed = `weavy/${modelKey}`;
+          output = url;
+          pushOutput(output);
+          pushLog(`Style transfer selesai via ${providerUsed}.`, "ok");
+          status = "success";
+        } else {
+          const images = await Promise.all(
+            files.slice(0, 4).map((f) => downscaleImageToB64(f, 1024, 0.76)),
+          );
+          const headers = headersFor(getCreativeKeys());
+          const res = await fetch("/api/router/image", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ prompt: composed, aspectRatio: aspect, images }),
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            provider?: string;
+            b64?: string;
+            mime?: string;
+            error?: string;
+          };
+          if (!res.ok || !data.b64) {
+            throw new Error(data.error || `router-image ${res.status}`);
+          }
+          providerUsed = data.provider || "router";
+          output = `data:${data.mime || "image/png"};base64,${data.b64}`;
+          pushOutput(output);
+          pushLog(`Style transfer selesai via ${providerUsed}.`, "ok");
+          status = "success";
         }
-        providerUsed = data.provider || "router";
-        output = `data:${data.mime || "image/png"};base64,${data.b64}`;
-        setOutputUrl(output);
-        pushLog(`Style transfer selesai via ${providerUsed}.`, "ok");
-        status = "success";
       } else {
-        // Video pipeline belum di-wire ke provider i2v — preview target sebagai placeholder.
-        output = target.previewUrl || refs[0]?.previewUrl || null;
-        if (!output) throw new Error("Butuh minimal 1 file target/referensi");
-        setOutputUrl(output);
+        // Video: render lokal via FFmpeg WASM, dipandu Reference DNA + Blueprint.
+        const srcUrl = target.previewUrl || refs.find((r) => r.file)?.previewUrl || null;
+        if (!srcUrl) throw new Error("Butuh minimal 1 file target atau referensi");
+        const { reffVideoRender, probeVideoDuration } = await import(
+          "@/lib/reff-edit/video-ffmpeg"
+        );
+        const durSec = await probeVideoDuration(srcUrl);
+        pushLog(`FFmpeg engine · target ${durSec.toFixed(1)}s · ${blueprint.length} scene`);
+        const result = await reffVideoRender({
+          sourceUrl: srcUrl,
+          targetDurationSec: durSec,
+          aspect,
+          dna,
+          blueprint,
+          onLog: (m) => pushLog(m),
+          onProgress: () => {},
+        });
+        providerUsed = "ffmpeg-wasm";
+        output = result.url;
+        pushOutput(output);
         pushLog(
-          "Blueprint dikirim ke pipeline video (preview lokal — sambungkan provider i2v untuk render nyata).",
+          `Render video selesai (${(result.sizeBytes / (1024 * 1024)).toFixed(1)} MB).`,
           "ok",
         );
         status = "success";
@@ -420,24 +559,111 @@ export function ReffEditWorkspace({
 
       {/* ROW 3 — Output Preview | AI Chat Adjustment */}
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Output Preview">
-          {!outputUrl ? (
+        <Card
+          title="Output Preview"
+          sub={outputs.length > 0 ? `${outputs.length} render${outputs.length > 1 ? "s" : ""}` : undefined}
+          right={
+            outputs.length > 0 ? (
+              <div className="flex items-center gap-2">
+                {galleryView ? (
+                  <GhostButton
+                    onClick={() => setGalleryView(false)}
+                    className="!px-3"
+                    aria-label="Tutup galeri"
+                    title="Tutup galeri"
+                  >
+                    <X className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Tutup</span>
+                  </GhostButton>
+                ) : outputs.length > 1 ? (
+                  <GhostButton
+                    onClick={() => setGalleryView(true)}
+                    className="!px-3"
+                    aria-label="Back to gallery"
+                    title="Back to gallery"
+                  >
+                    <Images className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Galeri</span>
+                  </GhostButton>
+                ) : null}
+                <GhostButton
+                  onClick={downloadAll}
+                  className="!px-3"
+                  aria-label="Download semua"
+                  title="Download semua sebagai zip"
+                  disabled={outputs.length === 0}
+                >
+                  <Download className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Download all</span>
+                </GhostButton>
+              </div>
+            ) : null
+          }
+        >
+          {outputs.length === 0 ? (
             <div className="text-sm text-muted-foreground">
               Belum ada hasil. Selesaikan analisa lalu jalankan render.
             </div>
-          ) : mode === "image" ? (
-            <img
-              src={outputUrl}
-              alt="Output"
-              className="w-full rounded-xl border border-border"
-            />
-          ) : (
-            <video
-              src={outputUrl}
-              controls
-              className="w-full rounded-xl border border-border"
-            />
-          )}
+          ) : galleryView ? (
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+              {outputs.map((url, i) => (
+                <div
+                  key={`${i}-${url.slice(0, 32)}`}
+                  className="group relative rounded-xl border border-border overflow-hidden bg-card/40 aspect-square"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedIdx(i);
+                      setGalleryView(false);
+                    }}
+                    className="block w-full h-full"
+                    aria-label={`Buka render #${i + 1}`}
+                  >
+                    {mode === "image" ? (
+                      <img src={url} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
+                    ) : (
+                      <video src={url} className="w-full h-full object-cover" muted />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void downloadOne(url, i);
+                    }}
+                    className="absolute top-2 right-2 h-8 w-8 grid place-items-center rounded-full bg-background/80 backdrop-blur border border-border text-foreground opacity-0 group-hover:opacity-100 hover:text-primary transition"
+                    aria-label="Download"
+                    title="Download"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                  {i === 0 && (
+                    <div className="absolute bottom-2 left-2 text-[10px] font-mono uppercase tracking-widest bg-primary/90 text-primary-foreground px-2 py-0.5 rounded">
+                      Latest
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : currentOutput ? (
+            <div className="group relative rounded-xl border border-border overflow-hidden">
+              {mode === "image" ? (
+                <img src={currentOutput} alt="Output" className="w-full h-auto" />
+              ) : (
+                <video src={currentOutput} controls className="w-full h-auto" />
+              )}
+              <button
+                type="button"
+                onClick={() => void downloadOne(currentOutput, selectedIdx)}
+                className="absolute top-3 right-3 h-9 w-9 grid place-items-center rounded-full bg-background/80 backdrop-blur border border-border text-foreground opacity-0 group-hover:opacity-100 hover:text-primary transition"
+                aria-label="Download"
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
         </Card>
 
         <Card title="AI Chat Adjustment" sub="Minta revisi bahasa natural">
@@ -683,7 +909,7 @@ function FileDrop({
   const onChange = (e: ChangeEvent<HTMLInputElement>) => {
     onFile(e.target.files?.[0] ?? null);
   };
-  const size = compact ? "h-20 w-20" : large ? "h-56 w-full" : "h-40 w-full";
+  const emptySize = compact ? "h-20 w-20" : large ? "h-56 w-full" : "h-40 w-full";
   return (
     <div className={compact ? "shrink-0" : ""}>
 
@@ -697,13 +923,13 @@ function FileDrop({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className={`${size} rounded-xl border border-dashed border-border bg-card/30 grid place-items-center overflow-hidden hover:border-primary/60 transition`}
+        className={`${previewUrl ? "w-full max-h-[70vh]" : emptySize} rounded-xl border ${previewUrl ? "border-border" : "border-dashed border-border"} bg-card/30 grid place-items-center overflow-hidden hover:border-primary/60 transition`}
       >
         {previewUrl ? (
           kind === "image" ? (
-            <img src={previewUrl} alt="preview" className="h-full w-full object-cover" />
+            <img src={previewUrl} alt="preview" className="w-full h-auto max-h-[70vh] object-contain" />
           ) : (
-            <video src={previewUrl} className="h-full w-full object-cover" muted />
+            <video src={previewUrl} className="w-full h-auto max-h-[70vh] object-contain" controls muted />
           )
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground text-xs">

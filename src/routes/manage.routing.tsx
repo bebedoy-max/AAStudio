@@ -36,7 +36,7 @@ const CAPS: Cap[] = [
       {
         id: "gemini",
         name: "Google Gemini",
-        desc: "Default. Multi-key auto-rotate saat kena 429. Isi API key AIza… di Token Manager → Brain.",
+        desc: "Default. Multi-key auto-rotate saat kena 429. Isi API key AIza… atau AQ… di Token Manager → Brain.",
         models: [
           { name: "gemini-2.5-flash", cost: "Free tier: 15 rpm / 1M token/hari" },
           { name: "gemini-flash-latest", cost: "Auto fallback" },
@@ -87,7 +87,7 @@ const CAPS: Cap[] = [
       {
         id: "gemini",
         name: "Gemini Direct",
-        desc: "Langsung ke Google AI Studio pakai API key AIza… (paling murah bila key sendiri).",
+        desc: "Langsung ke Google AI Studio pakai API key AIza… atau AQ… (paling murah bila key sendiri).",
         models: [
           { name: "gemini-2.5-flash-image", cost: "$0.039 / image (≈ free tier tersedia)" },
           { name: "gemini-3-pro-image", cost: "$0.134 / image" },

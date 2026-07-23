@@ -98,12 +98,13 @@ function buildNb2Recipe(prompt: string, resolution: string, ratio: string, urls:
       { nodeId: (importNodes[i] as { id: string }).id, outputId: "file" },
     ]);
   });
-  // NB2 edit multi-ref: paksa aspect_ratio="auto" agar model TIDAK crop/resize
-  // referensi produk (menjaga identitas). Resolution tetap dikirim mengikuti pilihan user.
+  // Aspect ratio: honor user selection. "original"/empty → "auto" (menjaga identitas referensi).
+  const validRatios = new Set(["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "21:9"]);
+  const aspectRatio = ratio && validRatios.has(ratio) ? ratio : "auto";
   const params = {
     image_urls: urls,
     prompt,
-    aspect_ratio: "auto",
+    aspect_ratio: aspectRatio,
     resolution,
     num_images: 1,
     output_format: "png",
@@ -111,7 +112,6 @@ function buildNb2Recipe(prompt: string, resolution: string, ratio: string, urls:
     limit_generations: false,
     enable_web_search: false,
   };
-  void ratio;
   const modelNode = {
     id: modelNodeId,
     type: "custommodelV2",
@@ -173,9 +173,9 @@ function buildNb2Recipe(prompt: string, resolution: string, ratio: string, urls:
               id: "aspect_ratio",
               title: "aspect_ratio",
               constraint: { type: "enum" },
-              defaultValue: { type: "string", value: "auto" },
+              defaultValue: { type: "string", value: aspectRatio },
             },
-            { type: "value", data: { type: "string", value: "auto" } },
+            { type: "value", data: { type: "string", value: aspectRatio } },
           ],
           [
             {
@@ -468,6 +468,71 @@ export async function generateWeavyStoryboard(opts: WeavyStoryboardOpts): Promis
     try {
       // Fetch remote refs → File → upload semua ke Weavy asset store.
       const files = await Promise.all(refs.map((u, i) => urlToFile(u, i)));
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const up = await uploadWeavyAssetWithRetry(
+          files[i],
+          `ref_${Date.now()}_${i}.jpg`,
+          active.accessToken,
+        );
+        uploadedUrls.push(resolveWeavyAssetUrl(up, "image"));
+      }
+
+      const isNb = opts.modelKey === "nanobanana2";
+      const built = isNb
+        ? buildNb2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16", uploadedUrls)
+        : buildGptImage2Recipe(opts.prompt, opts.quality || "medium", uploadedUrls);
+
+      const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
+      await saveWeavyRecipe(
+        recipeId,
+        { nodes: built.nodes, edges: built.edges, v3 },
+        active.accessToken,
+      );
+      await approveWeavyModel(built.model, active.accessToken);
+      const { batchId } = await executeWeavyBatch(
+        recipeId,
+        built.nodes,
+        built.edges,
+        active.accessToken,
+        built.model,
+      );
+      return await pollWeavyImage(recipeId, batchId, active.accessToken, uploadedUrls);
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      const msg = lastErr.message || "";
+      const creditLike =
+        /insufficient|credits?|quota|balance|402|401|403|cukup|not enough|payment|unauthori[sz]ed|amount/i.test(
+          msg,
+        );
+      if (!creditLike) throw lastErr;
+      await rotateWeavyToken(active.id);
+    }
+  }
+  throw lastErr ?? new Error("Belum ada Weavy token aktif di Kelola Token");
+}
+
+export type WeavyEditOpts = {
+  modelKey: string; // "nanobanana2" | "gptimage2"
+  prompt: string;
+  quality: string;
+  ratio: string;
+  files: File[]; // target first, then references (max 6)
+};
+
+export async function generateWeavyEdit(opts: WeavyEditOpts): Promise<string> {
+  const files = (opts.files || []).filter(Boolean).slice(0, 6);
+  if (files.length === 0) throw new Error("Weavy edit butuh minimal 1 file.");
+
+  const tried = new Set<string>();
+  let lastErr: Error | null = null;
+
+  while (true) {
+    const active = await getActiveWeavyAccessToken();
+    if (!active) break;
+    if (tried.has(active.id)) break;
+    tried.add(active.id);
+    try {
       const uploadedUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const up = await uploadWeavyAssetWithRetry(
