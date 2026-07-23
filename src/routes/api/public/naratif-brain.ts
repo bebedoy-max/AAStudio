@@ -97,7 +97,7 @@ export const Route = createFileRoute("/api/public/naratif-brain")({
         const description = (body.description || "").slice(0, 800);
         const material = (body.body || "").slice(0, 6000);
         const ratio = body.aspectRatio || "9:16";
-        const maxScenes = Math.min(10, Math.max(3, Number(body.maxScenes) || 8));
+        // Brain menentukan jumlah scene sendiri berdasarkan panjang & kompleksitas materi.
         const extra = (body.extraPrompt || "").slice(0, 600);
 
         if (!title && !material) {
@@ -110,7 +110,7 @@ Aturan JSON output (WAJIB dipatuhi persis):
 {
   "topic": "<judul topik ringkas 4-8 kata, Bahasa Indonesia>",
   "hook": "<kalimat pembuka 8-15 kata, hook attention Bahasa Indonesia>",
-  "totalScenes": <integer 3..${maxScenes}>,
+  "totalScenes": <integer, tentukan sendiri jumlah scene ideal (biasanya 3-10) sesuai kompleksitas materi>,
   "aspectRatio": "${ratio}",
   "scenes": [
     {
@@ -142,7 +142,7 @@ ${material || "(tidak ada)"}
 
 Instruksi tambahan user: ${extra || "(tidak ada)"}
 Aspek rasio target: ${ratio}
-Maksimum scene: ${maxScenes}
+Jumlah scene: tentukan sendiri sesuai kebutuhan konten (jangan dipaksa jumlah tertentu).
 
 Tulis JSON sesuai schema sekarang.`;
 

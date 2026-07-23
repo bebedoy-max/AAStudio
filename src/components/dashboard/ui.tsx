@@ -74,11 +74,11 @@ export function Card({ title, sub, children, right }: { title?: string; sub?: st
     <div className="neumorph p-5">
       {(title || right) && (
         <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            {title && <div className="font-display text-lg text-foreground">{title}</div>}
-            {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+          <div className="min-w-0 flex-1">
+            {title && <div className="font-display text-lg text-foreground truncate">{title}</div>}
+            {sub && <div className="text-xs text-muted-foreground mt-0.5 break-words">{sub}</div>}
           </div>
-          {right}
+          {right && <div className="shrink-0">{right}</div>}
         </div>
       )}
       {children}

@@ -215,10 +215,20 @@ export const Route = createFileRoute("/api/public/scrape-product")({
         const blockedHtmlTitle = /access\s*denied|forbidden|captcha|robot/i.test(ogTitle || acc.title || htmlTitle || "");
         const finalTitle = decodeEntities((blockedHtmlTitle ? "" : (ogTitle || acc.title || htmlTitle)) || jinaTitle || titleFromUrl(target) || "");
         const finalDesc = decodeEntities(ogDesc || acc.description || jinaDesc || jinaFirstText || "");
-        const finalImages = unique(imgs)
+        let finalImages = unique(imgs)
           .filter((u) => !/\.svg(\?|$)/i.test(u))
           .filter((u) => !/logo|favicon|icon-|sprite|placeholder|avatar|profile-picture/i.test(u))
           .slice(0, 20);
+
+        // Tokopedia: gambar pertama (og:image / hero) hampir selalu duplikat
+        // dari gambar kedua di gallery produk. Buang gambar pertama supaya
+        // user langsung dapat set gambar unik mulai dari slot berikutnya.
+        try {
+          const host = new URL(target).hostname.toLowerCase();
+          if (/(^|\.)tokopedia\.com$/.test(host) && finalImages.length > 1) {
+            finalImages = finalImages.slice(1);
+          }
+        } catch { /* ignore */ }
 
         return new Response(JSON.stringify({
           url: target,

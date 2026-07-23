@@ -29,20 +29,21 @@ function isAllowedImageUrl(value: string) {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    return ALLOWED_HOSTS.has(url.hostname)
-      || url.hostname.endsWith(".cloudinary.com")
-      || url.hostname.endsWith(".weavy.ai")
-      || url.hostname.endsWith(".fal.media")
-      || url.hostname.endsWith(".tokopedia.net")
-      || url.hostname.endsWith(".susercontent.com")
-      || url.hostname.endsWith(".shopee.co.id")
-      || url.hostname.endsWith(".slatic.net")
-      || url.hostname.endsWith(".lazada.co.id")
-      || url.hostname.endsWith(".static-src.com")
-      || url.hostname.endsWith(".akamaized.net")
-      || url.hostname.endsWith(".meitudata.com")
-      || url.hostname.endsWith(".meitu.com")
-      || url.hostname.endsWith(".catbox.moe");
+    const host = url.hostname.toLowerCase();
+    // Block localhost / private ranges to prevent SSRF; allow any other public host.
+    if (
+      host === "localhost" ||
+      host === "0.0.0.0" ||
+      host.endsWith(".localhost") ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    ) {
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }

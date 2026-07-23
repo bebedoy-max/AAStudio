@@ -5,6 +5,7 @@ import { Brain, Flame, Lightbulb, Newspaper, Target, RefreshCw, Loader2, Externa
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 import { setHandoff } from "@/lib/creative/handoff";
 import { Chip, Skeleton } from "./section";
+import { ensureArticle, getArticle, prefetchArticle } from "@/lib/dashboard/news-prefetch";
 
 type NewsItem = { title: string; url?: string };
 type Insight = {
@@ -45,7 +46,7 @@ function lastScheduledSlot(now = new Date()): number {
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string };
+  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
 
 export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void }) {
   const [insight, setInsight] = useState<Insight | null>(null);
@@ -135,6 +136,10 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
         niche_ideas: parsed.niche_ideas || [],
       };
       setInsight(merged);
+      // Background prefetch (scrape + refine) so clicks open instantly.
+      merged.news.forEach((it) => {
+        if (typeof it !== "string" && it.url) prefetchArticle(it.url, it.title);
+      });
       try {
         localStorage.setItem(KEY, JSON.stringify({ data: merged, at: Date.now() }));
       } catch {
@@ -190,7 +195,7 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
       {insight && (
         <div className="mt-4">
           <div className="text-sm text-foreground/90 italic">"{insight.greeting}"</div>
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <div className="mt-4 flex flex-col gap-3">
             <Block
               icon={<Flame className="h-3.5 w-3.5" />}
               label="Keyword Viral"
@@ -207,8 +212,6 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                 const scrapable =
                   rawUrl && /^https?:\/\//i.test(rawUrl) && !rawUrl.includes("google.com/search");
                 if (!scrapable) {
-                  // Tidak ada URL asli untuk di-scrape → tampilkan pesan singkat
-                  // di reader in-app; user tetap bisa klik "Buka di web" bila mau.
                   setReader({
                     open: true,
                     title,
@@ -219,40 +222,38 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                   });
                   return;
                 }
-                setReader({ open: true, title, url: rawUrl, loading: true });
-                try {
-                  const r = await fetch("/api/public/scrape-article", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url: rawUrl }),
-                  });
-                  const j = await r.json();
-                  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+                const cached = getArticle(rawUrl);
+                if (cached) {
                   setReader({
                     open: true,
-                    title: j.title || title,
+                    title: cached.title,
                     url: rawUrl,
                     loading: false,
-                    body: j.body || j.description || "(Isi berita tidak dapat diambil.)",
-                    hero: Array.isArray(j.images) ? j.images[0] : undefined,
+                    body: cached.body,
+                    refined: cached.refined,
+                    hero: cached.hero,
+                    error: cached.error,
                   });
-                } catch (e) {
-                  setReader({
-                    open: true,
-                    title,
-                    url: rawUrl,
-                    loading: false,
-                    error: (e as Error).message || String(e),
-                  });
+                  return;
                 }
+                setReader({ open: true, title, url: rawUrl, loading: true });
+                const data = await ensureArticle(rawUrl, title);
+                setReader({
+                  open: true,
+                  title: data.title,
+                  url: rawUrl,
+                  loading: false,
+                  body: data.body,
+                  refined: data.refined,
+                  hero: data.hero,
+                  error: data.error,
+                });
               }}
               onGenerate={(item) => {
                 const title = typeof item === "string" ? item : item.title;
                 const url = typeof item === "string" ? undefined : item.url;
                 const scrapable =
                   url && /^https?:\/\//i.test(url) && !url.includes("google.com/search");
-                // Selalu handoff ke naratif dengan URL bila ada supaya field URL
-                // di halaman naratif langsung ter-isi (dan auto-scrape kalau valid).
                 setHandoff({
                   workflow: "narrative-video",
                   title,
@@ -292,7 +293,7 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
               workflow: "narrative-video",
               title: reader.title,
               hook: "",
-              description: reader.body?.slice(0, 400) || reader.title,
+              description: (reader.refined || reader.body)?.slice(0, 400) || reader.title,
               sourceUrl: scrapable ? reader.url : undefined,
               autoScrape: !!scrapable,
             });
@@ -336,8 +337,9 @@ function NewsReaderModal({
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {state.loading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader className="h-3.5 w-3.5 animate-spin" /> Mengambil isi artikel…
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-xs text-muted-foreground">
+              <Loader className="h-8 w-8 animate-spin text-primary" />
+              <span>AI Brain sedang mengambil & merapikan isi berita…</span>
             </div>
           ) : state.error ? (
             <div className="text-xs text-destructive">Gagal ambil isi: {state.error}</div>
@@ -351,12 +353,24 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
+              {state.refined && (
+                <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
+                  ✧ Dirapikan oleh AI Brain
+                </div>
+              )}
               <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                {state.body}
+                {state.refined || state.body}
               </div>
+              {state.refined && state.body && (
+                <details className="mt-4 text-[11px] text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Lihat teks mentah</summary>
+                  <div className="mt-2 whitespace-pre-wrap text-foreground/60">{state.body}</div>
+                </details>
+              )}
             </>
           )}
         </div>
+
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-3">
           {state.url && (
             <a
@@ -402,28 +416,30 @@ function Block({
         (highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card/40")
       }
     >
-      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-        {icon} {label}
-        <Chip className="ml-auto" tone={highlight ? "primary" : "default"}>
-          {items.length}
-        </Chip>
+      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
+        <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          {icon} {label}
+          <Chip className="ml-auto" tone={highlight ? "primary" : "default"}>
+            {items.length}
+          </Chip>
+        </div>
+        <ul className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {items.slice(0, 5).map((it, i) => (
+            <li key={i}>
+              <button
+                onClick={onClick ? () => onClick(it) : undefined}
+                disabled={!onClick}
+                className={
+                  "text-xs text-left w-full line-clamp-2 " +
+                  (onClick ? "hover:text-primary text-foreground/85 cursor-pointer" : "text-foreground/75")
+                }
+              >
+                • {it}
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="mt-2 space-y-1.5">
-        {items.slice(0, 5).map((it, i) => (
-          <li key={i}>
-            <button
-              onClick={onClick ? () => onClick(it) : undefined}
-              disabled={!onClick}
-              className={
-                "text-xs text-left w-full line-clamp-2 " +
-                (onClick ? "hover:text-primary text-foreground/85 cursor-pointer" : "text-foreground/75")
-              }
-            >
-              • {it}
-            </button>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -443,38 +459,40 @@ function NewsBlock({
 }) {
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">
-      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-        {icon} {label}
-        <Chip className="ml-auto">{items.length}</Chip>
+      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
+        <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          {icon} {label}
+          <Chip className="ml-auto">{items.length}</Chip>
+        </div>
+        <ul className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">
+          {items.slice(0, 5).map((it, i) => {
+            const title = typeof it === "string" ? it : it.title;
+            const hasUrl =
+              typeof it !== "string" && !!it.url && /^https?:\/\//i.test(it.url || "");
+            return (
+              <li key={i} className="group">
+                <div className="flex items-start gap-1.5">
+                  <button
+                    onClick={() => onOpen(it)}
+                    className="flex-1 text-left text-xs text-foreground/85 hover:text-primary line-clamp-2 inline-flex items-start gap-1"
+                    title={hasUrl ? "Buka artikel di tab baru" : "Cari di Google"}
+                  >
+                    <span>• {title}</span>
+                    <ExternalLink className="h-3 w-3 opacity-60 shrink-0 mt-0.5" />
+                  </button>
+                  <button
+                    onClick={() => onGenerate(it)}
+                    className="shrink-0 text-[10px] text-primary hover:underline opacity-70 group-hover:opacity-100 transition"
+                    title={hasUrl ? "Generate naratif dari artikel ini" : "Riset topik"}
+                  >
+                    Gen
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-      <ul className="mt-2 space-y-1.5">
-        {items.slice(0, 5).map((it, i) => {
-          const title = typeof it === "string" ? it : it.title;
-          const hasUrl =
-            typeof it !== "string" && !!it.url && /^https?:\/\//i.test(it.url || "");
-          return (
-            <li key={i} className="group">
-              <div className="flex items-start gap-1.5">
-                <button
-                  onClick={() => onOpen(it)}
-                  className="flex-1 text-left text-xs text-foreground/85 hover:text-primary line-clamp-2 inline-flex items-start gap-1"
-                  title={hasUrl ? "Buka artikel di tab baru" : "Cari di Google"}
-                >
-                  <span>• {title}</span>
-                  <ExternalLink className="h-3 w-3 opacity-60 shrink-0 mt-0.5" />
-                </button>
-                <button
-                  onClick={() => onGenerate(it)}
-                  className="shrink-0 text-[10px] text-primary hover:underline opacity-70 group-hover:opacity-100 transition"
-                  title={hasUrl ? "Generate naratif dari artikel ini" : "Riset topik"}
-                >
-                  Gen
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
     </div>
   );
 }

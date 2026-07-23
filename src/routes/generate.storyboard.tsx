@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { logGenerate } from "@/lib/activity/log";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +12,7 @@ import {
   Loader2,
   Check as CheckIcon,
   AlertCircle,
+  Video,
 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import {
@@ -26,7 +27,7 @@ import {
 } from "@/components/dashboard/ui";
 import { createRunStore } from "@/lib/stores/run-store";
 import { useSticky } from "@/lib/stores/use-sticky";
-import { consumeHandoff } from "@/lib/creative/handoff";
+import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
 import { confirmDialog } from "@/components/ui-confirm";
 
 
@@ -63,7 +64,7 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
     },
     {
       key: "gptimage2",
-      label: "Image GPT 2 (Weavy)",
+      label: "Image GPT 2 Edit (Weavy)",
       qualities: [
         { v: "low", label: "Low (~15 cr)", cr: 15 },
         { v: "medium", label: "Medium (~36 cr)", cr: 36, default: true },
@@ -128,6 +129,51 @@ const SB_DEFAULT_TYPES = [
   "Perlengkapan Rumah",
 ];
 
+type FramingOpt = { value: string; label: string; instruction: string };
+const FRAMING_OPTS: FramingOpt[] = [
+  {
+    value: "normal",
+    label: "Normal (full scene + model)",
+    instruction: "",
+  },
+  {
+    value: "no-head",
+    label: "Tanpa kepala (crop leher ke bawah)",
+    instruction:
+      "WAJIB semua panel crop dari leher/dagu ke bawah — jangan tampilkan wajah, kepala, rambut, atau ekspresi model. Framing dari bahu/leher ke bawah (torso, tangan, badan) atau body-crop yang berinteraksi dengan produk. Jangan render wajah manusia sama sekali di panel manapun.",
+  },
+  {
+    value: "product-only",
+    label: "Zoom produk saja (no human)",
+    instruction:
+      "WAJIB semua panel adalah product-only shot — hanya produk dengan background, props, dan lifestyle context, tanpa manusia sama sekali. Jangan tampilkan orang, wajah, tangan, atau bagian tubuh apapun. Fokus pada produk sebagai hero, macro/detail/flat-lay/lifestyle still-life.",
+  },
+  {
+    value: "hands-only",
+    label: "Hanya tangan memegang produk",
+    instruction:
+      "WAJIB semua panel hanya menampilkan tangan / lengan / jari yang berinteraksi dengan produk. Jangan tampilkan wajah, kepala, atau tubuh bagian atas. Framing close-up hands-holding-product style.",
+  },
+  {
+    value: "detail-macro",
+    label: "Detail macro / close-up produk",
+    instruction:
+      "WAJIB semua panel adalah extreme close-up / macro shot produk — fokus pada tekstur, detail material, logo, packaging. Tidak boleh ada manusia, wajah, atau anggota tubuh terlihat.",
+  },
+];
+
+type CtaOpt = { value: string; label: string };
+const CTA_PRESETS: CtaOpt[] = [
+  { value: "tiktok", label: "TikTok Shop (keranjang kuning)" },
+  { value: "facebook-shopee", label: "Facebook Ads → Shopee" },
+  { value: "facebook-tokopedia", label: "Facebook Ads → Tokopedia" },
+  { value: "tokopedia", label: "Tokopedia" },
+  { value: "shopee", label: "Shopee" },
+  { value: "instagram", label: "Instagram (link in bio)" },
+  { value: "whatsapp", label: "WhatsApp (chat admin)" },
+  { value: "custom", label: "Custom (tulis sendiri)" },
+];
+
 type ScrapedInfo = {
   title?: string;
   description?: string;
@@ -157,6 +203,7 @@ function newRow(): ProductRow {
 
 // Module-level generation state — survives route navigation.
 type GenResult = {
+  resultId: string;
   rowId: string;
   title: string;
   prompt?: string;
@@ -176,6 +223,7 @@ function ratioToAspect(r: string | undefined): string {
 }
 
 function StoryboardPage() {
+  const navigate = useNavigate();
   // Provider — same localStorage key as legacy (arkx_activeProvider) so it stays in sync
   const [provider, setProvider] = useSticky<Provider>("sb.provider", "weavy");
   const sbBootstrapped = useRef(false);
@@ -191,7 +239,9 @@ function StoryboardPage() {
   }, []);
 
   const models = SB_MODELS[provider];
-  const [modelKey, setModelKey] = useSticky<string>("sb.modelKey", models[0]?.key ?? "");
+  const defaultModelKey =
+    models.find((m) => /gpt.?image/i.test(m.key))?.key ?? models[0]?.key ?? "";
+  const [modelKey, setModelKey] = useSticky<string>("sb.modelKey", defaultModelKey);
   useEffect(() => {
     const list = SB_MODELS[provider];
     if (!list.length) {
@@ -222,22 +272,16 @@ function StoryboardPage() {
 
   const [sceneCount, setSceneCount] = useSticky<string>("sb.sceneCount", "6");
   const [ratio, setRatio] = useSticky<string>("sb.ratio", "9:16");
+  const [framing, setFraming] = useSticky<string>("sb.framing", "normal");
+  const [ctaTarget, setCtaTarget] = useSticky<string>("sb.ctaTarget", "tiktok");
+  const [ctaCustom, setCtaCustom] = useSticky<string>("sb.ctaCustom", "");
   const [prompt, setPrompt] = useSticky<string>("sb.prompt", "");
 
-  // Product types (persisted)
-  const [types, setTypes] = useSticky<string[]>("sb.types", SB_DEFAULT_TYPES);
-  const [selectedType, setSelectedType] = useSticky<string>("sb.selectedType", "");
-  const [newType, setNewType] = useState("");
-  const sbTypesBoot = useRef(false);
+  // Brain menganalisa jenis produk otomatis dari judul + deskripsi hasil scrape.
+  const sbBoot = useRef(false);
   useEffect(() => {
-    if (sbTypesBoot.current) return;
-    sbTypesBoot.current = true;
-    try {
-      const raw = localStorage.getItem("arkx_sb_types");
-      if (raw) setTypes(JSON.parse(raw));
-      const sel = localStorage.getItem("arkx_sb_type_sel");
-      if (sel) setSelectedType(sel);
-    } catch {}
+    if (sbBoot.current) return;
+    sbBoot.current = true;
     // Consume handoff dari Creative Dashboard → prefill prompt
     const h = consumeHandoff();
     if (h && h.workflow === "storyboard") {
@@ -246,29 +290,6 @@ function StoryboardPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const persistTypes = (arr: string[], sel: string) => {
-    try {
-      localStorage.setItem("arkx_sb_types", JSON.stringify(arr));
-      localStorage.setItem("arkx_sb_type_sel", sel);
-    } catch {}
-  };
-  const addType = () => {
-    const v = newType.trim();
-    if (!v || types.includes(v)) return;
-    const arr = [...types, v];
-    setTypes(arr);
-    setSelectedType(v);
-    setNewType("");
-    persistTypes(arr, v);
-  };
-  const removeSelectedType = () => {
-    if (!selectedType) return;
-    const arr = types.filter((t) => t !== selectedType);
-    const nextSel = arr[0] ?? "";
-    setTypes(arr);
-    setSelectedType(nextSel);
-    persistTypes(arr, nextSel);
-  };
 
   // Product rows
   const [rows, setRows] = useSticky<ProductRow[]>("sb.rows", [newRow()]);
@@ -346,8 +367,8 @@ function StoryboardPage() {
   const setBusy = (b: boolean) => sbRunStore.set((s) => ({ ...s, busy: b }));
   const pushLog = (s: string) =>
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
-  const patchResult = (rowId: string, patch: Partial<GenResult>) =>
-    setResults((prev) => prev.map((r) => (r.rowId === rowId ? { ...r, ...patch } : r)));
+  const patchResult = (resultId: string, patch: Partial<GenResult>) =>
+    setResults((prev) => prev.map((r) => (r.resultId === resultId ? { ...r, ...patch } : r)));
 
   const canGenerate = okCount > 0 && !!modelKey && !busy;
 
@@ -373,15 +394,16 @@ function StoryboardPage() {
       trackGeneration({ kind: "storyboard", title: firstTitle, counts: { storyboards: ok.length } });
     } catch { /* ignore */ }
     setBusy(true);
-    setLogs([]);
-    setResults(
-      ok.map((r) => ({
-        rowId: r.rowId,
-        title: r.info?.title || "(tanpa judul)",
-        status: "pending" as const,
-        ratio,
-      })),
-    );
+    // JANGAN clear logs & results lama — biar history di gallery tetap ada.
+    const batchStamp = Date.now();
+    const newResults: GenResult[] = ok.map((r, i) => ({
+      resultId: `${r.rowId}_${batchStamp}_${i}`,
+      rowId: r.rowId,
+      title: r.info?.title || "(tanpa judul)",
+      status: "pending" as const,
+      ratio,
+    }));
+    setResults((prev) => [...newResults, ...prev]);
     pushLog(`🚀 Mulai generate ${ok.length} storyboard via ${PROVIDER_LABEL[provider]} · ${modelKey} · ${ratio}`);
 
     // Load gemini keys once
@@ -399,12 +421,14 @@ function StoryboardPage() {
 
     let successCount = 0;
     let errorCount = 0;
-    for (const row of ok) {
+    for (let idx = 0; idx < ok.length; idx++) {
+      const row = ok[idx];
+      const resultId = newResults[idx].resultId;
       const info = row.info!;
       const title = info.title || "(tanpa judul)";
       try {
         // --- 1. Brain ---
-        patchResult(row.rowId, { status: "brain" });
+        patchResult(resultId, { status: "brain" });
         pushLog(`🧠 [${title.slice(0, 40)}] Brain menyusun prompt storyboard…`);
         const brainRes = await fetch("/api/public/storyboard-brain", {
           method: "POST",
@@ -412,11 +436,19 @@ function StoryboardPage() {
           body: JSON.stringify({
             title: info.title,
             description: info.description,
-            productType: selectedType,
-            productTypes: types,
+            productType: "",
+            productTypes: [],
             scenes: Number(sceneCount),
             aspectRatio: ratio,
-            extraPrompt: prompt,
+            ctaTarget,
+            ctaCustom: ctaTarget === "custom" ? ctaCustom : "",
+            ctaLabel:
+              ctaTarget === "custom"
+                ? ctaCustom
+                : (CTA_PRESETS.find((c) => c.value === ctaTarget)?.label ?? ctaTarget),
+            extraPrompt: [FRAMING_OPTS.find((f) => f.value === framing)?.instruction, prompt]
+              .filter(Boolean)
+              .join("\n\n"),
           }),
         });
         const brainJson = await brainRes.json();
@@ -424,31 +456,50 @@ function StoryboardPage() {
           throw new Error(brainJson.error || "Brain gagal — cek Gemini key di Kelola Token");
         }
         const finalPrompt = brainJson.prompt as string;
-        patchResult(row.rowId, { prompt: finalPrompt });
+        patchResult(resultId, { prompt: finalPrompt });
         pushLog(`✅ [${title.slice(0, 40)}] Prompt siap (${finalPrompt.length} chars) via ${brainJson.provider || "gemini"}`);
 
         // --- 2. Image gen ---
-        patchResult(row.rowId, { status: "image" });
+        patchResult(resultId, { status: "image" });
         pushLog(`🎨 [${title.slice(0, 40)}] Generate gambar via ${PROVIDER_LABEL[provider]}…`);
         let imgUrl: string;
+        const refUrls = (row.selectedImages || []).slice(0, 6);
         if (provider === "weavy") {
-          const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
-          imgUrl = await generateWeavyImage({
-            modelKey,
-            prompt: finalPrompt,
-            quality: qualityV,
-            ratio,
-          });
+          if (refUrls.length > 0 && (modelKey === "nanobanana2" || modelKey === "gptimage2")) {
+            const { generateWeavyStoryboard } = await import("@/lib/providers/weavy-storyboard");
+            pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy NB2/GPT-Image-2 multi-ref)`);
+            imgUrl = await generateWeavyStoryboard({
+              modelKey,
+              prompt: finalPrompt,
+              quality: qualityV,
+              ratio,
+              referenceUrls: refUrls,
+            });
+          } else {
+            const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
+            imgUrl = await generateWeavyImage({
+              modelKey,
+              prompt: finalPrompt,
+              quality: qualityV,
+              ratio,
+            });
+          }
         } else if (provider === "wavespeed") {
           const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import(
             "@/lib/providers/wavespeed"
           );
           const key = getFirstWavespeedKey();
           if (!key) throw new Error("Belum ada Wavespeed API key di Kelola Token");
-          const modelId = mapImgToWsEndpoint(modelKey);
+          const wsRefs = refUrls;
+          const hasRef = wsRefs.length > 0;
+          const modelId = hasRef
+            ? mapImgToWsEndpoint(modelKey).replace(/\/text-to-image$/, "/edit")
+            : mapImgToWsEndpoint(modelKey);
           const payload: Record<string, unknown> = { prompt: finalPrompt, aspect_ratio: ratio };
+          if (hasRef) payload.images = wsRefs;
           if (/gpt-image/.test(modelId)) payload.quality = qualityV;
           else if (/nano-banana/.test(modelId)) payload.resolution = qualityV;
+          if (hasRef) pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${wsRefs.length} gambar produk sebagai referensi (Wavespeed edit)`);
           const data = await wsPost(modelId, payload, key);
           const getUrl = data.urls?.get || `${WAVESPEED_API}/predictions/${data.id}/result`;
           imgUrl = await wsPoll(getUrl, key, { timeoutMs: 300000 });
@@ -457,12 +508,12 @@ function StoryboardPage() {
         }
         // Suppress unused ratioToImageSize warning
         void ratioToImageSize;
-        patchResult(row.rowId, { status: "done", imgUrl });
+        patchResult(resultId, { status: "done", imgUrl });
         pushLog(`✅ [${title.slice(0, 40)}] Storyboard selesai`);
         successCount++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        patchResult(row.rowId, { status: "err", error: msg });
+        patchResult(resultId, { status: "err", error: msg });
         pushLog(`❌ [${title.slice(0, 40)}] ${msg}`);
         errorCount++;
       }
@@ -481,6 +532,39 @@ function StoryboardPage() {
     setLogs([]);
   };
 
+  async function sendToImageToVideo(imgUrl: string, title: string) {
+    try {
+      // Fetch via server proxy to bypass CORS, convert to data URL for handoff.
+      const proxied = `/api/public/proxy-image?url=${encodeURIComponent(imgUrl)}`;
+      let blob: Blob;
+      try {
+        const r = await fetch(proxied);
+        if (!r.ok) throw new Error(String(r.status));
+        blob = await r.blob();
+      } catch {
+        const r2 = await fetch(imgUrl);
+        blob = await r2.blob();
+      }
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result));
+        fr.onerror = () => reject(fr.error);
+        fr.readAsDataURL(blob);
+      });
+      setHandoff({
+        workflow: "image-to-video",
+        title: title || "Storyboard",
+        hook: "",
+        description: "",
+        thumbnail_data_url: dataUrl,
+      });
+      navigate({ to: "/generate/image-to-video" });
+    } catch (e) {
+      pushLog(`❌ Gagal kirim ke Image→Video: ${(e as Error).message}`);
+    }
+  }
+
+
   return (
     <DashboardShell>
       <PageHero
@@ -497,27 +581,38 @@ function StoryboardPage() {
             title={`Link Produk (${rows.length}/${SB_MAX_ROWS})`}
             sub="Tempel URL e-commerce, klik scrape, pilih hingga 6 gambar per produk"
             right={
-              <div className="flex gap-2">
-                <GhostButton onClick={addRow} disabled={rows.length >= SB_MAX_ROWS}>
-                  <Plus className="h-3.5 w-3.5" /> Tambah
+              <div className="flex gap-2 shrink-0">
+                <GhostButton
+                  onClick={addRow}
+                  disabled={rows.length >= SB_MAX_ROWS}
+                  title="Tambah link produk"
+                  aria-label="Tambah link produk"
+                >
+                  <Plus className="h-4 w-4" />
                 </GhostButton>
                 <GhostButton
                   onClick={clearAllRows}
                   disabled={rows.length <= 1 && !rows[0]?.url}
                   className="text-destructive hover:text-destructive"
                   title="Hapus semua link produk"
+                  aria-label="Hapus semua link produk"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Hapus All</span>
+                  <Trash2 className="h-4 w-4" />
                 </GhostButton>
               </div>
             }
           >
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(Math.max(rows.length, 1), 3)}, minmax(0, 1fr))`,
-              }}
-            >
+            {(() => {
+              const cols = Math.min(Math.max(rows.length, 1), 3);
+              const colsClass = [
+                "grid-cols-1",
+                cols >= 2 ? "sm:grid-cols-2" : "",
+                cols >= 3 ? "lg:grid-cols-3" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+              return (
+            <div className={`grid gap-3 ${colsClass}`}>
               {rows.map((r, idx) => (
                 <ProductRowCard
                   key={r.rowId}
@@ -531,6 +626,8 @@ function StoryboardPage() {
                 />
               ))}
             </div>
+              );
+            })()}
           </Card>
         </div>
 
@@ -594,51 +691,39 @@ function StoryboardPage() {
                 </Field>
               </div>
 
-              <Field label="Jenis Produk">
-                <div className="flex gap-2">
-                  <Select
-                    value={selectedType}
-                    onChange={(e) => {
-                      setSelectedType(e.target.value);
-                      persistTypes(types, e.target.value);
-                    }}
-                    options={[
-                      { value: "", label: "— pilih jenis produk —" },
-                      ...types.map((t) => ({ value: t, label: t })),
-                    ]}
-                    className="flex-1"
-                  />
-                  <button
-                    onClick={removeSelectedType}
-                    disabled={!selectedType}
-                    title="Hapus jenis terpilih"
-                    className="inline-flex h-10 items-center gap-1 rounded-xl border border-border bg-card/50 px-3 text-xs text-muted-foreground hover:text-destructive hover:border-destructive/50 transition disabled:opacity-40"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Hapus
-                  </button>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    placeholder="Tambah jenis baru…"
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addType();
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={addType}
-                    className="inline-flex h-10 items-center gap-1 rounded-xl px-3 text-xs text-primary-foreground"
-                    style={{ background: "var(--gradient-neon)" }}
-                    title="Tambah"
-                  >
-                    <Plus className="h-4 w-4" /> Tambah
-                  </button>
+              <Field label="Framing / Pengambilan Gambar">
+                <Select
+                  value={framing}
+                  onChange={(e) => setFraming(e.target.value)}
+                  options={FRAMING_OPTS.map((f) => ({ value: f.value, label: f.label }))}
+                />
+                <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                  Pilih "Tanpa kepala" / "Zoom produk" agar hasil aman untuk model Image-to-Video (Seedance, Kling, dll) yang sering menolak subjek manusia.
                 </div>
               </Field>
+
+              <Field label="CTA / Target Marketplace">
+                <Select
+                  value={ctaTarget}
+                  onChange={(e) => setCtaTarget(e.target.value)}
+                  options={CTA_PRESETS.map((c) => ({ value: c.value, label: c.label }))}
+                />
+                {ctaTarget === "custom" ? (
+                  <Input
+                    className="mt-2"
+                    placeholder="Contoh: klik link Lazada di bio…"
+                    value={ctaCustom}
+                    onChange={(e) => setCtaCustom(e.target.value)}
+                  />
+                ) : (
+                  <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                    Brain akan menulis CTA panel terakhir sesuai platform (mis. TikTok → "cek keranjang kuning", Facebook→Shopee → "klik link Shopee di bawah").
+                  </div>
+                )}
+              </Field>
+
+
+
 
               <Field label="Prompt Tambahan (opsional)">
                 <Textarea
@@ -708,18 +793,18 @@ function StoryboardPage() {
             }
           >
             {logs.length > 0 && (
-              <div className="mb-4 rounded-xl border border-border/70 bg-black/40 p-3 max-h-40 overflow-y-auto font-mono text-[10px] leading-relaxed text-muted-foreground">
+              <div className="mb-4 rounded-xl border border-border/70 bg-black/40 p-3 max-h-40 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
                 {logs.map((l, i) => (
-                  <div key={i} className="whitespace-pre-wrap">
+                  <div key={i} className="whitespace-pre-wrap break-all min-w-0">
                     {l}
                   </div>
                 ))}
               </div>
             )}
             {results.length ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {results.map((r) => (
-                  <div key={r.rowId} className="rounded-2xl border border-border/70 bg-card/30 p-2.5 flex flex-col gap-2">
+                  <div key={r.resultId} className="rounded-2xl border border-border/70 bg-card/30 p-2.5 flex flex-col gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground truncate flex-1">
                         {r.title}
@@ -750,14 +835,34 @@ function StoryboardPage() {
                       style={{ aspectRatio: ratioToAspect(r.ratio ?? ratio) }}
                     >
                       {r.imgUrl ? (
-                        <img src={r.imgUrl} alt={r.title} className="h-full w-full object-cover" />
+                        <img src={r.imgUrl} alt={r.title} className="max-h-full max-w-full object-contain" />
                       ) : r.status === "err" ? (
                         <div className="text-[11px] text-destructive p-3 text-center">{r.error}</div>
                       ) : (
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       )}
                     </div>
+                    {r.imgUrl && r.status === "done" && (
+                      <div className="flex gap-2">
+                        <GhostButton
+                          className="flex-1 justify-center text-primary hover:text-primary"
+                          onClick={() => sendToImageToVideo(r.imgUrl!, r.title)}
+                          title="Kirim gambar ini ke Image → Video"
+                        >
+                          <Video className="h-3.5 w-3.5" /> Generate Video
+                        </GhostButton>
+                        <a
+                          href={r.imgUrl}
+                          download={`storyboard-${r.resultId}.png`}
+                          className="inline-flex items-center gap-1 rounded-xl border border-border bg-card/50 px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition"
+                          title="Download gambar"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    )}
                   </div>
+
                 ))}
               </div>
             ) : (

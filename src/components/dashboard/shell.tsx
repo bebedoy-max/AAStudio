@@ -414,7 +414,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
       {/* Mobile drawer */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
           <div
             className="absolute inset-0 bg-background/70 backdrop-blur-sm"
             onClick={() => setDrawerOpen(false)}
@@ -440,7 +440,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             {/* Mobile hamburger — top-left */}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card/50"
+              className="lg:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card/50"
               aria-label="Buka menu"
             >
               <Menu className="h-4 w-4" />

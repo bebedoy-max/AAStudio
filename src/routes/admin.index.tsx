@@ -370,7 +370,7 @@ function AdminBody() {
         </div>
       </Card>
 
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
       <Card>
         {loading ? (
           <div className="p-8 flex items-center justify-center">
@@ -518,9 +518,9 @@ function AdminBody() {
       </Card>
       </div>
 
-      {/* Mobile-only compact user list. Detail info is dibuka via modal saat nama diklik. */}
+      {/* Mobile & tablet compact user list. Detail info is dibuka via modal saat nama diklik. */}
       <Card>
-        <div className="md:hidden">
+        <div className="lg:hidden">
           {loading ? (
             <div className="p-8 flex items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -556,6 +556,20 @@ function AdminBody() {
                       <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
                     </div>
                   </button>
+                  {/* Tablet-only extra columns */}
+                  <div className="hidden md:flex items-center gap-4 shrink-0 pr-2">
+                    <div className="text-right leading-tight">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Token/Key</div>
+                      <div className="text-sm font-semibold text-primary">{u.total_active_keys}</div>
+                    </div>
+                    <div className="text-right leading-tight min-w-[7rem]">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login terakhir</div>
+                      <div className="text-xs font-mono text-muted-foreground inline-flex items-center gap-1 justify-end">
+                        <Clock className="h-3 w-3" />
+                        {relativeTime(u.last_sign_in_at)}
+                      </div>
+                    </div>
+                  </div>
                   <button
                     onClick={() => setEditing(u)}
                     className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-2.5 py-1.5 text-[11px] font-medium"
@@ -577,6 +591,7 @@ function AdminBody() {
           )}
         </div>
       </Card>
+
 
       {mobileDetail && (
         <Modal title={mobileDetail.email || mobileDetail.display_name || "Detail user"} onClose={() => setMobileDetail(null)}>

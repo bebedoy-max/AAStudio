@@ -593,18 +593,19 @@ function MotionControl() {
                 <summary className="cursor-pointer text-xs text-muted-foreground px-1">
                   Log ({logs.length}) {generating && <Loader2 className="inline h-3 w-3 animate-spin" />}
                 </summary>
-                <div className="max-h-40 overflow-auto text-[11px] font-mono mt-2 px-1">
+                <div className="max-h-40 overflow-y-auto overflow-x-hidden text-[11px] font-mono mt-2 px-1 min-w-0">
                   {logs.map((l, i) => (
                     <div
                       key={i}
                       className={
-                        l.level === "error"
+                        "break-all min-w-0 " +
+                        (l.level === "error"
                           ? "text-red-400"
                           : l.level === "warn"
                             ? "text-amber-400"
                             : l.level === "success"
                               ? "text-emerald-400"
-                              : "text-muted-foreground"
+                              : "text-muted-foreground")
                       }
                     >
                       [{l.time}] {l.msg}

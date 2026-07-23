@@ -228,9 +228,9 @@ function BrainPage() {
             </div>
             <div className="text-[11px] text-muted-foreground mt-1">{progress}%</div>
           </div>
-          <ul className="max-h-56 overflow-y-auto space-y-1.5 text-xs font-mono">
+          <ul className="max-h-56 overflow-y-auto overflow-x-hidden space-y-1.5 text-xs font-mono min-w-0">
             {logs.map((l, i) => (
-              <li key={i} className="flex items-start gap-2">
+              <li key={i} className="flex items-start gap-2 min-w-0">
                 {(() => {
                   const later = logs.slice(i + 1).find((next) => next.step === l.step && next.detail === l.detail);
                   const visibleStatus = l.status === "running" && later ? later.status : l.status;
@@ -242,11 +242,11 @@ function BrainPage() {
                   <Loader2 className="h-3.5 w-3.5 text-primary animate-spin mt-0.5 shrink-0" />
                   );
                 })()}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 break-words">
                   <span className="text-foreground/90">[{l.step}]</span>{" "}
                   <span className="text-muted-foreground">{l.label}</span>
                   {l.detail && l.step !== "done" && (
-                    <div className="text-[10px] text-muted-foreground/70 truncate">{l.detail}</div>
+                    <div className="text-[10px] text-muted-foreground/70 break-all">{l.detail}</div>
                   )}
                 </div>
               </li>

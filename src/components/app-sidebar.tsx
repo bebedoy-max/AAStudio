@@ -31,7 +31,13 @@ import {
   Lock,
   SlidersHorizontal,
   Wand2,
+  Palette,
+  History,
+  Library,
+  ImageIcon,
+  Clapperboard,
 } from "lucide-react";
+
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -102,6 +108,18 @@ const DEFAULT_NAV: NavEntry[] = [
   },
   {
     kind: "group",
+    key: "reff-edit",
+    label: "Reff EDIT",
+    icon: Palette,
+    items: [
+      { title: "Image Reference Edit", url: "/reff-edit/image", icon: ImageIcon, permKey: "reff-edit.image" },
+      { title: "Video Reference Edit", url: "/reff-edit/video", icon: Clapperboard, permKey: "reff-edit.video" },
+      { title: "Reference Library", url: "/reff-edit/library", icon: Library, permKey: "reff-edit.library" },
+      { title: "Edit History", url: "/reff-edit/history", icon: History, permKey: "reff-edit.history" },
+    ],
+  },
+  {
+    kind: "group",
     key: "storyboard",
     label: "Storyboard",
     icon: BookText,
@@ -110,6 +128,7 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Naratif Video Maker", url: "/generate/naratif", icon: BookText, permKey: "generate.naratif" },
     ],
   },
+
   {
     kind: "group",
     key: "manage",
@@ -587,7 +606,7 @@ export function AppSidebar({
 
   const outerClass = inline
     ? "flex flex-col w-full p-4 gap-1"
-    : "hidden md:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
+    : "hidden lg:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
 
 
   return (

@@ -5,6 +5,7 @@ import { BookOpen, Newspaper, ArrowRight, ExternalLink, Loader2, Loader, X } fro
 import { todaysTips } from "@/lib/dashboard/playbook";
 import { Chip } from "./section";
 import { setHandoff } from "@/lib/creative/handoff";
+import { ensureArticle, getArticle, prefetchArticle } from "@/lib/dashboard/news-prefetch";
 
 type LiveNews = { title: string; url: string; source: string; tag: string };
 
@@ -18,7 +19,7 @@ const NEWS_QUERIES = [
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string };
+  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
 
 export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => void }) {
   const [tab, setTab] = useState<"playbook" | "news">("playbook");
@@ -44,7 +45,10 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
             } catch { return null; }
           }),
         );
-        setNews(results.filter((x): x is LiveNews => !!x));
+        const filtered = results.filter((x): x is LiveNews => !!x);
+        setNews(filtered);
+        // Background prefetch scrape + AI refine so click opens instantly.
+        filtered.forEach((n) => prefetchArticle(n.url, n.title));
       } finally {
         setLoadingNews(false);
       }
@@ -53,33 +57,34 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
 
 
   const openReader = async (n: LiveNews) => {
-    setReader({ open: true, title: n.title, url: n.url, loading: true });
-    try {
-      const r = await fetch("/api/public/scrape-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: n.url }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    const cached = getArticle(n.url);
+    if (cached) {
       setReader({
         open: true,
-        title: j.title || n.title,
+        title: cached.title,
         url: n.url,
         loading: false,
-        body: j.body || j.description || "(Isi berita tidak dapat diambil.)",
-        hero: Array.isArray(j.images) ? j.images[0] : undefined,
+        body: cached.body,
+        refined: cached.refined,
+        hero: cached.hero,
+        error: cached.error,
       });
-    } catch (e) {
-      setReader({
-        open: true,
-        title: n.title,
-        url: n.url,
-        loading: false,
-        error: (e as Error).message || String(e),
-      });
+      return;
     }
+    setReader({ open: true, title: n.title, url: n.url, loading: true });
+    const data = await ensureArticle(n.url, n.title);
+    setReader({
+      open: true,
+      title: data.title,
+      url: n.url,
+      loading: false,
+      body: data.body,
+      refined: data.refined,
+      hero: data.hero,
+      error: data.error,
+    });
   };
+
 
   const handleGenerate = (n: { title: string; url?: string; body?: string }) => {
     if (n.url) {
@@ -178,7 +183,7 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
           onClose={() => setReader({ open: false })}
           onGenerate={() => {
             if (!reader.open) return;
-            handleGenerate({ title: reader.title, url: reader.url, body: reader.body });
+            handleGenerate({ title: reader.title, url: reader.url, body: reader.refined || reader.body });
             setReader({ open: false });
           }}
         />
@@ -218,8 +223,9 @@ function NewsReaderModal({
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {state.loading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader className="h-3.5 w-3.5 animate-spin" /> Mengambil isi artikel…
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-xs text-muted-foreground">
+              <Loader className="h-8 w-8 animate-spin text-primary" />
+              <span>AI Brain sedang mengambil & merapikan isi berita…</span>
             </div>
           ) : state.error ? (
             <div className="text-xs text-destructive">Gagal ambil isi: {state.error}</div>
@@ -233,12 +239,24 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
+              {state.refined && (
+                <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
+                  ✧ Dirapikan & diterjemahkan oleh AI Brain
+                </div>
+              )}
               <div className="text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                {state.body}
+                {state.refined || state.body}
               </div>
+              {state.refined && state.body && (
+                <details className="mt-4 text-[11px] text-muted-foreground">
+                  <summary className="cursor-pointer hover:text-foreground">Lihat teks mentah</summary>
+                  <div className="mt-2 whitespace-pre-wrap text-foreground/60">{state.body}</div>
+                </details>
+              )}
             </>
           )}
         </div>
+
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-3">
           <a
             href={state.url}

@@ -189,7 +189,7 @@ function NaratifPage() {
 
   const [provider, setProvider] = useSticky<Provider>("naratif.provider", "weavy");
   const [ratio, setRatio] = useSticky<string>("naratif.ratio", "9:16");
-  const [maxScenes, setMaxScenes] = useSticky<string>("naratif.maxScenes", "10");
+  
 
   const [imgModel, setImgModel] = useSticky<string>("naratif.imgModel", "");
   const [imgQuality, setImgQuality] = useSticky<string>("naratif.imgQuality", "");
@@ -391,8 +391,7 @@ function NaratifPage() {
 
   const runBrain = async () => {
     if (!material) return;
-    const n = Number(maxScenes);
-    setBrainStatus(`Brain menyusun ${n} scene…`);
+    setBrainStatus(`Brain menganalisa & menyusun scene…`);
     try {
       let geminiKeys = "";
       try {
@@ -405,7 +404,7 @@ function NaratifPage() {
       const r = await fetch("/api/public/naratif-brain", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-gemini-keys": geminiKeys },
-        body: JSON.stringify({ title: material.title, description: material.desc, body: material.body, aspectRatio: ratio, maxScenes: n, extraPrompt: extra }),
+        body: JSON.stringify({ title: material.title, description: material.desc, body: material.body, aspectRatio: ratio, extraPrompt: extra }),
       });
       const j = await r.json();
       if (j.fallback || !j.result) throw new Error(j.error || "Brain gagal");
@@ -650,11 +649,25 @@ function NaratifPage() {
             {material.images && material.images.length > 0 && (
               <Field label={`Gambar dari Artikel (${material.images.length}) — referensi untuk Brain`}>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {material.images.slice(0, 12).map((src, i) => (
-                    <a key={i} href={src} target="_blank" rel="noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-border bg-black/30">
-                      <img src={src} alt={`ref-${i}`} className="w-full h-full object-cover" loading="lazy" />
-                    </a>
-                  ))}
+                  {material.images.slice(0, 12).map((src, i) => {
+                    const px = /^https?:\/\//i.test(src)
+                      ? `/api/public/proxy-image?url=${encodeURIComponent(src)}`
+                      : src;
+                    return (
+                      <a key={i} href={src} target="_blank" rel="noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-border bg-black/30">
+                        <img
+                          src={px}
+                          alt={`ref-${i}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const img = e.currentTarget as HTMLImageElement;
+                            if (img.src !== src) img.src = src;
+                          }}
+                        />
+                      </a>
+                    );
+                  })}
                 </div>
               </Field>
             )}
@@ -664,16 +677,13 @@ function NaratifPage() {
 
       {material && (
         <Card title="🧠 Brain — Naskah & Model">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Field label="Aspek Rasio">
               <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={[
                 { value: "9:16", label: "9:16 Vertical" },
                 { value: "16:9", label: "16:9 Landscape" },
                 { value: "1:1", label: "1:1 Square" },
               ]} />
-            </Field>
-            <Field label="Jumlah Scene">
-              <Select value={maxScenes} onChange={(e) => setMaxScenes(e.target.value)} options={["3","4","5","6","8","10","12"].map((n) => ({ value: n, label: `${n} scene` }))} />
             </Field>
             <Field label={`Model AI Gambar (provider: ${provider})`}>
               <Select value={imgModel} onChange={(e) => setImgModel(e.target.value)} options={imgModels.map((m) => ({ value: m.key, label: m.label }))} />
@@ -712,7 +722,7 @@ function NaratifPage() {
           <div className="flex flex-col gap-4">
             {scenes.map((s, i) => (
               <div key={s.idx} className="rounded-xl border border-border bg-card/40 p-4">
-                <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex flex-col lg:flex-row gap-4">
                   <div className="md:w-56 shrink-0 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="rounded-full px-2 py-0.5 text-[10px] font-mono bg-primary/15 text-primary">Scene #{s.idx}</span>

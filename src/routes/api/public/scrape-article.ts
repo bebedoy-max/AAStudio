@@ -297,6 +297,21 @@ export const Route = createFileRoute("/api/public/scrape-article")({
           s = s.replace(/\b(\w{3,}(?:\s+\w+){0,4})(?:\s+\1\b)+/gi, "$1");
           // Normalize whitespace per line, keep newlines
           s = s.split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).join("\n");
+          // Drop sidebar/nav junk lines that leak from listicle sites:
+          // "• • • • •", timestamps ("1 jam", "22 Jul 2026"), ALL-CAPS
+          // category tags, section headers ("Terkini", "Terpopuler").
+          const isJunkLine = (line: string): boolean => {
+            const t = line.replace(/^[•\-*\s]+/, "").trim();
+            if (!t) return false;
+            if (/^[•\-*\s]+$/.test(line)) return true;
+            if (/^\d{1,2}\s*(jam|menit|detik|hari|minggu|bulan)(\s+yang\s+lalu)?\.?$/i.test(t)) return true;
+            if (/^\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4}$/.test(t)) return true;
+            if (/^(terkini|terpopuler|pilihan|network|home|trending|kategori|tags?|share|advertisement|iklan|related|baca lainnya|next|prev|sebelumnya|selanjutnya|reporter|editor)\s*:?$/i.test(t)) return true;
+            if (t.length <= 40 && /^[A-Z][A-Z\s]{2,}$/.test(t)) return true;
+            if (/^\d{1,2}$/.test(t)) return true;
+            return false;
+          };
+          s = s.split("\n").filter((l) => !isJunkLine(l)).join("\n");
           // Collapse many blank lines
           s = s.replace(/\n{3,}/g, "\n\n");
           // Normalize listicle items: when a "N. Title" line is just a short

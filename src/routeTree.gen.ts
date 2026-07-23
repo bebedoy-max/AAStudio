@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ReffEditRouteImport } from './routes/reff-edit'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MixingRouteImport } from './routes/mixing'
 import { Route as AiInfluencerRouteImport } from './routes/ai-influencer'
@@ -19,6 +20,10 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SystemSettingsRouteImport } from './routes/system.settings'
 import { Route as SystemHelpRouteImport } from './routes/system.help'
 import { Route as SystemAnalyticRouteImport } from './routes/system.analytic'
+import { Route as ReffEditVideoRouteImport } from './routes/reff-edit.video'
+import { Route as ReffEditLibraryRouteImport } from './routes/reff-edit.library'
+import { Route as ReffEditImageRouteImport } from './routes/reff-edit.image'
+import { Route as ReffEditHistoryRouteImport } from './routes/reff-edit.history'
 import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
 import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
 import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
@@ -72,6 +77,11 @@ import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/c
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
+const ReffEditRoute = ReffEditRouteImport.update({
+  id: '/reff-edit',
+  path: '/reff-edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -121,6 +131,26 @@ const SystemAnalyticRoute = SystemAnalyticRouteImport.update({
   id: '/system/analytic',
   path: '/system/analytic',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ReffEditVideoRoute = ReffEditVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const ReffEditLibraryRoute = ReffEditLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const ReffEditImageRoute = ReffEditImageRouteImport.update({
+  id: '/image',
+  path: '/image',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const ReffEditHistoryRoute = ReffEditHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => ReffEditRoute,
 } as any)
 const MixingDubbingRoute = MixingDubbingRouteImport.update({
   id: '/dubbing',
@@ -393,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
+  '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -418,6 +449,10 @@ export interface FileRoutesByFullPath {
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
   '/mixing/dubbing': typeof MixingDubbingRoute
+  '/reff-edit/history': typeof ReffEditHistoryRoute
+  '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
+  '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/help': typeof SystemHelpRoute
   '/system/settings': typeof SystemSettingsRoute
@@ -455,6 +490,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
+  '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -480,6 +516,10 @@ export interface FileRoutesByTo {
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
   '/mixing/dubbing': typeof MixingDubbingRoute
+  '/reff-edit/history': typeof ReffEditHistoryRoute
+  '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
+  '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/help': typeof SystemHelpRoute
   '/system/settings': typeof SystemSettingsRoute
@@ -520,6 +560,7 @@ export interface FileRoutesById {
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
   '/profile': typeof ProfileRoute
+  '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -545,6 +586,10 @@ export interface FileRoutesById {
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
   '/mixing/dubbing': typeof MixingDubbingRoute
+  '/reff-edit/history': typeof ReffEditHistoryRoute
+  '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
+  '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/help': typeof SystemHelpRoute
   '/system/settings': typeof SystemSettingsRoute
@@ -586,6 +631,7 @@ export interface FileRouteTypes {
     | '/ai-influencer'
     | '/mixing'
     | '/profile'
+    | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
@@ -611,6 +657,10 @@ export interface FileRouteTypes {
     | '/manage/tokens'
     | '/mixing/clipper'
     | '/mixing/dubbing'
+    | '/reff-edit/history'
+    | '/reff-edit/image'
+    | '/reff-edit/library'
+    | '/reff-edit/video'
     | '/system/analytic'
     | '/system/help'
     | '/system/settings'
@@ -648,6 +698,7 @@ export interface FileRouteTypes {
     | '/'
     | '/mixing'
     | '/profile'
+    | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
@@ -673,6 +724,10 @@ export interface FileRouteTypes {
     | '/manage/tokens'
     | '/mixing/clipper'
     | '/mixing/dubbing'
+    | '/reff-edit/history'
+    | '/reff-edit/image'
+    | '/reff-edit/library'
+    | '/reff-edit/video'
     | '/system/analytic'
     | '/system/help'
     | '/system/settings'
@@ -712,6 +767,7 @@ export interface FileRouteTypes {
     | '/ai-influencer'
     | '/mixing'
     | '/profile'
+    | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
@@ -737,6 +793,10 @@ export interface FileRouteTypes {
     | '/manage/tokens'
     | '/mixing/clipper'
     | '/mixing/dubbing'
+    | '/reff-edit/history'
+    | '/reff-edit/image'
+    | '/reff-edit/library'
+    | '/reff-edit/video'
     | '/system/analytic'
     | '/system/help'
     | '/system/settings'
@@ -777,6 +837,7 @@ export interface RootRouteChildren {
   AiInfluencerRoute: typeof AiInfluencerRouteWithChildren
   MixingRoute: typeof MixingRouteWithChildren
   ProfileRoute: typeof ProfileRoute
+  ReffEditRoute: typeof ReffEditRouteWithChildren
   ApiProxyImageRoute: typeof ApiProxyImageRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   DevWeavyTestRoute: typeof DevWeavyTestRoute
@@ -822,6 +883,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reff-edit': {
+      id: '/reff-edit'
+      path: '/reff-edit'
+      fullPath: '/reff-edit'
+      preLoaderRoute: typeof ReffEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -891,6 +959,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/system/analytic'
       preLoaderRoute: typeof SystemAnalyticRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/reff-edit/video': {
+      id: '/reff-edit/video'
+      path: '/video'
+      fullPath: '/reff-edit/video'
+      preLoaderRoute: typeof ReffEditVideoRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/library': {
+      id: '/reff-edit/library'
+      path: '/library'
+      fullPath: '/reff-edit/library'
+      preLoaderRoute: typeof ReffEditLibraryRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/image': {
+      id: '/reff-edit/image'
+      path: '/image'
+      fullPath: '/reff-edit/image'
+      preLoaderRoute: typeof ReffEditImageRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/history': {
+      id: '/reff-edit/history'
+      path: '/history'
+      fullPath: '/reff-edit/history'
+      preLoaderRoute: typeof ReffEditHistoryRouteImport
+      parentRoute: typeof ReffEditRoute
     }
     '/mixing/dubbing': {
       id: '/mixing/dubbing'
@@ -1318,12 +1414,31 @@ const MixingRouteChildren: MixingRouteChildren = {
 const MixingRouteWithChildren =
   MixingRoute._addFileChildren(MixingRouteChildren)
 
+interface ReffEditRouteChildren {
+  ReffEditHistoryRoute: typeof ReffEditHistoryRoute
+  ReffEditImageRoute: typeof ReffEditImageRoute
+  ReffEditLibraryRoute: typeof ReffEditLibraryRoute
+  ReffEditVideoRoute: typeof ReffEditVideoRoute
+}
+
+const ReffEditRouteChildren: ReffEditRouteChildren = {
+  ReffEditHistoryRoute: ReffEditHistoryRoute,
+  ReffEditImageRoute: ReffEditImageRoute,
+  ReffEditLibraryRoute: ReffEditLibraryRoute,
+  ReffEditVideoRoute: ReffEditVideoRoute,
+}
+
+const ReffEditRouteWithChildren = ReffEditRoute._addFileChildren(
+  ReffEditRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AiInfluencerRoute: AiInfluencerRouteWithChildren,
   MixingRoute: MixingRouteWithChildren,
   ProfileRoute: ProfileRoute,
+  ReffEditRoute: ReffEditRouteWithChildren,
   ApiProxyImageRoute: ApiProxyImageRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   DevWeavyTestRoute: DevWeavyTestRoute,

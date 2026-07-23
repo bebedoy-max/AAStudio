@@ -4,9 +4,11 @@ import { createFileRoute } from "@tanstack/react-router";
 // Priority: Gemini Image → OpenAI Image. Auto-fallback.
 // Keys via headers: x-user-gemini-keys, x-user-openai-keys.
 
+type ImgPart = { mime: string; b64: string };
 type Body = {
   prompt?: string;
   aspectRatio?: string;
+  images?: ImgPart[]; // optional reference/target images (Gemini vision + edit)
 };
 
 function json(data: unknown, status = 200): Response {
@@ -45,16 +47,23 @@ async function safeErr(res: Response): Promise<string> {
 async function callGeminiImage(
   key: string,
   prompt: string,
+  images: ImgPart[] = [],
 ): Promise<{ ok: true; b64: string; mime: string } | { ok: false; status: number; body: string }> {
   const models = ["gemini-2.5-flash-image", "gemini-2.0-flash-exp"];
   let last: { ok: false; status: number; body: string } | undefined;
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    const parts: Array<Record<string, unknown>> = [{ text: prompt }];
+    for (const img of images) {
+      if (img?.b64 && img?.mime) {
+        parts.push({ inlineData: { mimeType: img.mime, data: img.b64 } });
+      }
+    }
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        contents: [{ role: "user", parts }],
         generationConfig: { responseModalities: ["IMAGE"] },
       }),
     });
@@ -107,22 +116,27 @@ export async function routeImage(opts: {
   geminiKeys: string[];
   openaiKeys: string[];
   prompt: string;
+  images?: ImgPart[];
 }): Promise<
   | { ok: true; provider: "gemini" | "openai"; b64: string; mime: string }
   | { ok: false; status: number; error: string }
 > {
   const errors: string[] = [];
+  const hasImages = (opts.images?.length ?? 0) > 0;
   for (const k of opts.geminiKeys) {
-    const r = await callGeminiImage(k, opts.prompt);
+    const r = await callGeminiImage(k, opts.prompt, opts.images || []);
     if (r.ok) return { ok: true, provider: "gemini", b64: r.b64, mime: r.mime };
     errors.push(`gemini:${r.status}:${r.body}`);
     if (!isRotatable(r.status)) break;
   }
-  for (const k of opts.openaiKeys) {
-    const r = await callOpenAIImage(k, opts.prompt);
-    if (r.ok) return { ok: true, provider: "openai", b64: r.b64, mime: r.mime };
-    errors.push(`openai:${r.status}:${r.body}`);
-    if (!isRotatable(r.status)) break;
+  // OpenAI images.generations doesn't accept reference images in this route — skip if images provided.
+  if (!hasImages) {
+    for (const k of opts.openaiKeys) {
+      const r = await callOpenAIImage(k, opts.prompt);
+      if (r.ok) return { ok: true, provider: "openai", b64: r.b64, mime: r.mime };
+      errors.push(`openai:${r.status}:${r.body}`);
+      if (!isRotatable(r.status)) break;
+    }
   }
   if (opts.geminiKeys.length === 0 && opts.openaiKeys.length === 0) {
     return { ok: false, status: 400, error: "No image AI keys configured." };
@@ -153,7 +167,10 @@ export const Route = createFileRoute("/api/router/image")({
             }, 400);
           }
 
-          const r = await routeImage({ geminiKeys, openaiKeys, prompt });
+          const images = Array.isArray(body.images)
+            ? body.images.filter((i): i is ImgPart => !!i && typeof i.b64 === "string" && typeof i.mime === "string").slice(0, 8)
+            : [];
+          const r = await routeImage({ geminiKeys, openaiKeys, prompt, images });
           if (!r.ok) return json({ error: r.error }, r.status);
           return json({ provider: r.provider, b64: r.b64, mime: r.mime });
         } catch (e) {
