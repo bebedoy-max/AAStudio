@@ -46,11 +46,7 @@ function lastScheduledSlot(now = new Date()): number {
 
 type ReaderState =
   | { open: false }
-<<<<<<< HEAD
   | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
-=======
-  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string; refining?: boolean };
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
 
 export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void }) {
   const [insight, setInsight] = useState<Insight | null>(null);
@@ -233,59 +229,10 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                     title: cached.title,
                     url: rawUrl,
                     loading: false,
-<<<<<<< HEAD
                     body: cached.body,
                     refined: cached.refined,
                     hero: cached.hero,
                     error: cached.error,
-=======
-                    body: j.body || j.description || "(Isi berita tidak dapat diambil.)",
-                    hero: Array.isArray(j.images) ? j.images[0] : undefined,
-                    refining: true,
-                  });
-                  // AI-refine: bersihkan sisa junk & rangkum sesuai judul.
-                  void (async () => {
-                    try {
-                      const keys = getCreativeKeys();
-                      if (!keys.openai && !keys.gemini) {
-                        setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-                        return;
-                      }
-                      const rawBody = (j.body || j.description || "").slice(0, 8000);
-                      if (!rawBody || rawBody.length < 200) {
-                        setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-                        return;
-                      }
-                      const system =
-                        "Kamu editor berita berpengalaman. Bersihkan teks hasil scrape dari elemen sampah " +
-                        "(menu navigasi, daftar 'Terkini/Terpopuler/Pilihan', timestamp bullet, kategori ALL-CAPS, " +
-                        "nama reporter/editor, iklan, teks berulang, link sisa). Sajikan HANYA isi berita/artikel " +
-                        "yang RELEVAN dengan JUDUL. Output berbahasa Indonesia, rapi, mudah dibaca. Balas TEKS BIASA " +
-                        "(tanpa markdown fence, tanpa **, tanpa #). Format: paragraf pembuka 1-2 kalimat, lalu " +
-                        "poin-poin utama (pakai '• ' di awal baris) atau paragraf pendek. Maksimal ~500 kata.";
-                      const user = `JUDUL: ${j.title || title}\n\nTEKS MENTAH:\n${rawBody}\n\nTugas: rangkum & rapikan sesuai instruksi.`;
-                      const rr = await fetch("/api/router/chat", {
-                        method: "POST",
-                        headers: headersFor(keys),
-                        body: JSON.stringify({ system, user, temperature: 0.4 }),
-                      });
-                      const rj = await rr.json();
-                      const refined = (rj?.text || "").trim();
-                      setReader((prev) =>
-                        prev.open ? { ...prev, refining: false, refined: refined || undefined } : prev,
-                      );
-                    } catch {
-                      setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-                    }
-                  })();
-                } catch (e) {
-                  setReader({
-                    open: true,
-                    title,
-                    url: rawUrl,
-                    loading: false,
-                    error: (e as Error).message || String(e),
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
                   });
                   return;
                 }
@@ -406,16 +353,7 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
-<<<<<<< HEAD
               {state.refined && (
-=======
-              {state.refining && (
-                <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-card/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-                  <Loader className="h-3 w-3 animate-spin" /> AI Brain sedang merapikan isi berita…
-                </div>
-              )}
-              {state.refined && !state.refining && (
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
                 <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
                   ✧ Dirapikan oleh AI Brain
                 </div>

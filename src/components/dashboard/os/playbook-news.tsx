@@ -5,11 +5,7 @@ import { BookOpen, Newspaper, ArrowRight, ExternalLink, Loader2, Loader, X } fro
 import { todaysTips } from "@/lib/dashboard/playbook";
 import { Chip } from "./section";
 import { setHandoff } from "@/lib/creative/handoff";
-<<<<<<< HEAD
 import { ensureArticle, getArticle, prefetchArticle } from "@/lib/dashboard/news-prefetch";
-=======
-import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
 
 type LiveNews = { title: string; url: string; source: string; tag: string };
 
@@ -23,11 +19,7 @@ const NEWS_QUERIES = [
 
 type ReaderState =
   | { open: false }
-<<<<<<< HEAD
   | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
-=======
-  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string; refining?: boolean };
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
 
 export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => void }) {
   const [tab, setTab] = useState<"playbook" | "news">("playbook");
@@ -65,7 +57,6 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
 
 
   const openReader = async (n: LiveNews) => {
-<<<<<<< HEAD
     const cached = getArticle(n.url);
     if (cached) {
       setReader({
@@ -77,71 +68,6 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
         refined: cached.refined,
         hero: cached.hero,
         error: cached.error,
-=======
-    setReader({ open: true, title: n.title, url: n.url, loading: true });
-    try {
-      const r = await fetch("/api/public/scrape-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: n.url }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      const scrapedTitle = j.title || n.title;
-      const scrapedBody = j.body || j.description || "(Isi berita tidak dapat diambil.)";
-      setReader({
-        open: true,
-        title: scrapedTitle,
-        url: n.url,
-        loading: false,
-        body: scrapedBody,
-        hero: Array.isArray(j.images) ? j.images[0] : undefined,
-        refining: true,
-      });
-      // AI-refine: bersihkan sisa junk, translate ke Indonesia, rangkum sesuai judul.
-      void (async () => {
-        try {
-          const keys = getCreativeKeys();
-          if (!keys.openai && !keys.gemini) {
-            setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-            return;
-          }
-          const rawBody = String(scrapedBody).slice(0, 8000);
-          if (!rawBody || rawBody.length < 200) {
-            setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-            return;
-          }
-          const system =
-            "Kamu editor berita berpengalaman. Bersihkan teks hasil scrape dari elemen sampah " +
-            "(menu navigasi, daftar 'Terkini/Terpopuler/Pilihan', timestamp bullet, kategori ALL-CAPS, " +
-            "nama reporter/editor, iklan, teks berulang, link sisa, tombol 'Copy Link', ukuran font, timer audio). " +
-            "Sajikan HANYA isi berita/artikel yang RELEVAN dengan JUDUL. WAJIB terjemahkan ke Bahasa Indonesia " +
-            "jika sumber berbahasa asing. Output rapi, mudah dibaca. Balas TEKS BIASA (tanpa markdown fence, " +
-            "tanpa **, tanpa #). Format: paragraf pembuka 1-2 kalimat, lalu poin-poin utama (pakai '• ' di awal baris) " +
-            "atau paragraf pendek. Maksimal ~500 kata.";
-          const user = `JUDUL: ${scrapedTitle}\n\nTEKS MENTAH:\n${rawBody}\n\nTugas: rangkum, translate ke Indonesia bila perlu, & rapikan sesuai instruksi.`;
-          const rr = await fetch("/api/router/chat", {
-            method: "POST",
-            headers: headersFor(keys),
-            body: JSON.stringify({ system, user, temperature: 0.4 }),
-          });
-          const rj = await rr.json();
-          const refined = (rj?.text || "").trim();
-          setReader((prev) =>
-            prev.open ? { ...prev, refining: false, refined: refined || undefined } : prev,
-          );
-        } catch {
-          setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-        }
-      })();
-    } catch (e) {
-      setReader({
-        open: true,
-        title: n.title,
-        url: n.url,
-        loading: false,
-        error: (e as Error).message || String(e),
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
       });
       return;
     }
@@ -313,16 +239,7 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
-<<<<<<< HEAD
               {state.refined && (
-=======
-              {state.refining && (
-                <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-card/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-                  <Loader className="h-3 w-3 animate-spin" /> AI Brain sedang merapikan & menerjemahkan isi berita…
-                </div>
-              )}
-              {state.refined && !state.refining && (
->>>>>>> b2b7d13056d3b3dd04ddd7f92d1246bc9a709c9f
                 <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
                   ✧ Dirapikan & diterjemahkan oleh AI Brain
                 </div>
