@@ -1,88 +1,113 @@
-# Integrasi DOKU (Jokul) + Payment Picker di Checkout
+# REFF EDIT — AI Reference-Based Editing Workspace
 
-## Ringkasan
+Modul baru dengan konsep "AI Creative Director": user memberi referensi (image/video), AI mengekstrak "Reference DNA", membuat Edit Blueprint, lalu menerapkannya ke target content.
 
-DOKU Jokul adalah **aggregator** — satu akun DOKU sudah menyediakan banyak
-metode pembayaran (VA BCA/BRI/Mandiri/BNI/Permata/CIMB, QRIS, e-wallet
-OVO/DANA/LinkAja/ShopeePay, kartu kredit, Alfamart/Indomaret). Jadi tidak
-perlu daftar akun VA bank satu-satu — cukup satu row `payment_gateways`
-provider `doku`, dan seluruh metode di atas otomatis bisa dipakai.
+## Sidebar (baru)
 
-Rencana dibagi 3 bagian: (1) live charge DOKU, (2) daftar metode aktif +
-picker di checkout dialog, (3) webhook DOKU untuk fulfillment.
+Group **Reff EDIT** (icon `Wand2`/`Palette`) ditambah di `src/components/app-sidebar.tsx`:
 
-## Bagian 1 — Live charge DOKU
+- Image Reference Edit → `/reff-edit/image`
+- Video Reference Edit → `/reff-edit/video`
+- Reference Library → `/reff-edit/library`
+- Edit History → `/reff-edit/history`
 
-### Approach
+Group ini didaftarkan di `DEFAULT_NAV` dengan `permKey` `reff-edit.image`, `reff-edit.video`, `reff-edit.library`, `reff-edit.history` (bisa dikelola dari Admin → Pengaturan Halaman).
 
-Pakai **DOKU Checkout API** (`POST /checkout/v1/payment`) — endpoint tunggal
-yang menerima `payment.payment_method_types` (array). Response berisi
-`response.payment.url` yang kita redirect user ke sana. User pilih metode di
-sisi DOKU (atau kita batasi ke satu metode kalau user sudah pilih di app).
-Lebih sederhana + lebih aman dari Direct API (tidak perlu handle 3DS, VA
-number generation, dsb per method).
+## Route baru
 
-Auth DOKU: header `Client-Id`, `Request-Id` (UUID), `Request-Timestamp`
-(ISO-8601 tanpa ms), `Signature` = `HMACSHA256(secret_key, stringToSign)`
-di mana `stringToSign` = concat header standar + digest body (SHA-256
-base64). Ini akan dibungkus helper `signDokuRequest()`.
+```
+src/routes/reff-edit.tsx              (layout, <Outlet />)
+src/routes/reff-edit.image.tsx        (Image Reference Edit workspace)
+src/routes/reff-edit.video.tsx        (Video Reference Edit workspace)
+src/routes/reff-edit.library.tsx      (Reference Library)
+src/routes/reff-edit.history.tsx      (Edit History)
+```
 
-### File baru
+Layout memakai `DashboardShell` + `PageHero` konsisten dengan modul lain (mis. `generate.motion.tsx`).
 
-- `src/lib/payments/doku.server.ts` — helper signature + `createDokuCheckout()`.
-- `src/lib/payments/charge.functions.ts` — server fn `createPayment({ gatewayId, amount, method?, orderId })` yang: load gateway config → decrypt → dispatch ke handler provider (`doku` sekarang, `midtrans` menyusul). Return `{ redirectUrl, orderId, providerRef }`.
-- `src/routes/api/public/doku/notification.ts` — webhook DOKU (`Notification-Signature` verify) → panggil `fulfillPurchase()` yang sama dengan Midtrans.
+## UI layout workspace (Image & Video)
 
-### File diedit
+Grid 3 kolom dark futuristic (AA SuperTools style):
 
-- `src/lib/payments/providers-catalog.ts` — set DOKU `liveTestSupported: true`,
-  tambah field opsional `notification_token` (untuk verify webhook) dan
-  `supportedMethods` list (`VIRTUAL_ACCOUNT_BCA`, `VIRTUAL_ACCOUNT_BRI`, dst).
-- `src/lib/payments/gateways.functions.ts` — tambah `testDoku()` (hit
-  endpoint sandbox/prod ringan `GET /orders/v1/status/{ref}` yang balas
-  404 saat kredensial valid tapi order tidak ada, mirip pola Midtrans).
+```text
++----------------------+----------------------+----------------------+
+| LEFT                 | CENTER               | RIGHT                |
+| Reference Upload     | AI Analysis +        | Target Upload +      |
+|  - drop zone (multi) |  Reference DNA card  |  Output Preview      |
+|  - per-file:         |  Edit Blueprint      |  Output Settings     |
+|    role select       |  (editable JSON/     |   (aspect, quality)  |
+|    weight slider     |   scene list)        |  AI Chat Adjustment  |
+|  - "Analyze"         |  "Send to Engine"    |  (revise iteratively)|
++----------------------+----------------------+----------------------+
+| BOTTOM: Render Timeline (progress log per scene)                   |
++--------------------------------------------------------------------+
+```
 
-## Bagian 2 — Payment picker di checkout
+Reusable subkomponen di `src/components/reff-edit/`:
+- `reference-upload.tsx` — multi-file, role (Style/Camera/Lighting/Color/Motion/Composition), weight 0–100.
+- `dna-card.tsx` — render output analisa AI (visual style, palette, lighting, camera, mood, dst).
+- `blueprint-editor.tsx` — daftar scene editable (duration + apply steps).
+- `target-panel.tsx` — upload target + preview hasil.
+- `chat-adjust.tsx` — chat AI untuk revisi ("buat lebih cinematic", dst) → memicu regenerate.
+- `render-timeline.tsx` — log/progres tiap scene.
 
-### File baru
+## Backend / server routes
 
-- `src/lib/payments/methods.functions.ts` — server fn publik
-  `listActivePaymentMethods()` (tanpa auth-middleware, tidak sensitif).
-  Baca `payment_gateways` where `is_active=true`, expand tiap gateway ke
-  daftar metode berdasarkan catalog (`doku` → semua VA + QRIS + e-wallet;
-  `midtrans` → QRIS + snap). Return
-  `Array<{ gatewayId, provider, methodCode, label, iconKey }>`. Tidak
-  return kredensial apapun.
+Semua endpoint melewati AI Router yang sudah ada (`/api/router/chat`, `/api/router/image`, `/api/router/video`, `/api/router/render`) untuk provider routing + fallback + logging.
 
-### File diedit
+Baru:
+- `src/routes/api/router/reff-analyze.ts` — POST { referenceUrls, mode: "image"|"video" }. Panggil Gemini Vision (multimodal) via router, output structured JSON = **Reference DNA**.
+- `src/routes/api/router/reff-blueprint.ts` — POST { dna, target, mode }. Router chat → JSON Edit Blueprint (list of scenes).
+- `src/routes/api/router/reff-image.ts` — POST { dna, blueprint, targetUrl }. Router image (Gemini Image / OpenAI Image) → apply style transfer.
+- `src/routes/api/router/reff-video.ts` — POST { dna, blueprint, targetUrl }. Trigger pipeline video: AI instruction + FFmpeg pipeline (reuse `src/lib/mixing/ffmpeg-render.ts` untuk cutting/transition/color/speed).
+- `src/routes/api/router/reff-adjust.ts` — POST { previousOutput, revisionPrompt } → blueprint delta + regenerate.
 
-- `src/components/checkout-dialog.tsx` + `src/components/token-bank/buy-dialog.tsx`
-  — ganti tembakan langsung ke Midtrans. Tampilkan grid pilihan metode
-  (icon + label), user klik salah satu → panggil `createPayment` dengan
-  `{ gatewayId, method }` → redirect ke `redirectUrl`.
+Upload file publik memakai `/api/public/upload-catbox` (sudah ada).
 
-## Bagian 3 — Webhook & fulfillment
+## Library & History (persistence)
 
-- `src/routes/api/public/doku/notification.ts` verify signature DOKU (HMAC
-  header `Signature` atas raw body + timestamp), lalu panggil util
-  `fulfillPurchase(orderId, providerRef, amount)` yang sudah dipakai
-  Midtrans (di `src/lib/midtrans/fulfill.server.ts` — akan di-extract ke
-  `src/lib/payments/fulfill.server.ts` supaya provider-agnostic).
+Simpan ke Supabase (butuh Lovable Cloud). Tabel + RLS + grants dibuat via migrasi baru:
 
-## Kebutuhan dari user (dikonfigurasi via form Admin → Metode Pembayaran)
+- `reff_edit_references` — id, user_id, name, type (image|video), category, thumbnail_url, source_url, dna jsonb, created_at.
+- `reff_edit_history` — id, user_id, mode, reference_ids[], blueprint jsonb, target_url, output_url, provider_used, tokens_used, duration_ms, status, error, created_at.
 
-Setelah plan disetujui, saya minta Anda:
+Server functions (client-safe):
+- `src/lib/reff-edit/references.functions.ts` — list/create/delete reference, semua via `requireSupabaseAuth`.
+- `src/lib/reff-edit/history.functions.ts` — list/create history, semua via `requireSupabaseAuth`.
 
-1. **Fix decrypt Midtrans dulu** — edit row Midtrans, save ulang (kalau memang mau tetap dipakai).
-2. Tambah row DOKU dengan **Client ID**, **Secret Key** (dari DOKU Back Office → Integration → Configuration), dan environment sandbox/production. Optional: **Notification Token** untuk verify webhook.
-3. Set **Notification URL** di DOKU Back Office ke:
-   `https://project--<project-id>.lovable.app/api/public/doku/notification`
+Grants standar (`GRANT ... TO authenticated`, `GRANT ALL ... TO service_role`), RLS `auth.uid() = user_id`.
 
-## Catatan teknis
+## Provider routing
 
-- Semua HMAC & panggilan API DOKU jalan di server function / server route (Cloudflare Worker) — kredensial tidak pernah menyentuh browser.
-- `TOKEN_ENCRYPTION_KEY` tetap sumber kebenaran untuk enkripsi config; tidak diubah oleh plan ini.
-- Pilihan Direct API vs Checkout API bisa di-switch belakangan (`method_mode` per gateway) tanpa breaking change di UI.
+Reuse pola routing yang ada:
+- Analysis (multimodal): Gemini Vision primary → OpenAI vision fallback (via router chat dengan image_url content blocks).
+- Image edit: Gemini Image → OpenAI Image → provider image aktif user (`/api/router/image`).
+- Video edit AI: router chat + FFmpeg (`ffmpeg-render.ts`) untuk processing layer.
 
-Setujui plan ini? Kalau ada metode DOKU yang mau di-exclude (mis. kartu
-kredit), sebutkan sekarang biar tidak muncul di picker.
+Setiap request mencatat: provider_used, token_usage, processing_time, error_log ke `reff_edit_history`.
+
+## Output Settings
+
+- Image: Original / 1:1 / 4:5 / 9:16 / 16:9
+- Video: 9:16 / 16:9 / 1:1
+- Quality: Draft / Standard / High (mapping ke param provider + ffmpeg CRF)
+
+## Integrasi cross-module
+
+Reuse `src/lib/creative/handoff.ts`: hasil edit bisa dilempar ke Motion Control, AI Clipper, Storyboard, dll. Tombol "Kirim ke ..." di panel output.
+
+## Scope MVP (untuk implementasi awal, 1 iterasi)
+
+1. Sidebar entry + 4 route files dengan layout + PageHero + placeholder panels.
+2. `reference-upload`, `dna-card`, `blueprint-editor`, `target-panel`, `chat-adjust`, `render-timeline` sebagai komponen fungsional (state lokal + `useSticky`).
+3. Endpoint `reff-analyze` + `reff-blueprint` live (memakai `/api/router/chat` dgn Gemini vision).
+4. `reff-image` live pakai `/api/router/image` yang ada.
+5. `reff-video` mengembalikan blueprint + memakai pipeline FFmpeg yang sudah ada di `mixing/ffmpeg-render.ts` (basic cut+transition).
+6. Reference Library & Edit History memakai localStorage dulu; migrasi Supabase menyusul (butuh Lovable Cloud enable — akan saya minta konfirmasi sebelum bikin tabel).
+
+## Yang akan saya tanyakan sebelum full-build
+
+- Aktifkan Lovable Cloud untuk Library/History persistent? (kalau tidak, tetap localStorage saja).
+- Prefer icon sidebar: `Wand2`, `Palette`, atau `Clapperboard`?
+
+Setelah plan disetujui, saya mulai dari sidebar + route shells + komponen UI, lalu wire endpoint router step-by-step.

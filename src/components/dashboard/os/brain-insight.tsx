@@ -5,6 +5,7 @@ import { Brain, Flame, Lightbulb, Newspaper, Target, RefreshCw, Loader2, Externa
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 import { setHandoff } from "@/lib/creative/handoff";
 import { Chip, Skeleton } from "./section";
+import { ensureArticle, getArticle, prefetchArticle } from "@/lib/dashboard/news-prefetch";
 
 type NewsItem = { title: string; url?: string };
 type Insight = {
@@ -45,7 +46,7 @@ function lastScheduledSlot(now = new Date()): number {
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string; refining?: boolean };
+  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
 
 export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void }) {
   const [insight, setInsight] = useState<Insight | null>(null);
@@ -135,6 +136,10 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
         niche_ideas: parsed.niche_ideas || [],
       };
       setInsight(merged);
+      // Background prefetch (scrape + refine) so clicks open instantly.
+      merged.news.forEach((it) => {
+        if (typeof it !== "string" && it.url) prefetchArticle(it.url, it.title);
+      });
       try {
         localStorage.setItem(KEY, JSON.stringify({ data: merged, at: Date.now() }));
       } catch {
@@ -207,8 +212,6 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                 const scrapable =
                   rawUrl && /^https?:\/\//i.test(rawUrl) && !rawUrl.includes("google.com/search");
                 if (!scrapable) {
-                  // Tidak ada URL asli untuk di-scrape → tampilkan pesan singkat
-                  // di reader in-app; user tetap bisa klik "Buka di web" bila mau.
                   setReader({
                     open: true,
                     title,
@@ -219,76 +222,38 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                   });
                   return;
                 }
-                setReader({ open: true, title, url: rawUrl, loading: true });
-                try {
-                  const r = await fetch("/api/public/scrape-article", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ url: rawUrl }),
-                  });
-                  const j = await r.json();
-                  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+                const cached = getArticle(rawUrl);
+                if (cached) {
                   setReader({
                     open: true,
-                    title: j.title || title,
+                    title: cached.title,
                     url: rawUrl,
                     loading: false,
-                    body: j.body || j.description || "(Isi berita tidak dapat diambil.)",
-                    hero: Array.isArray(j.images) ? j.images[0] : undefined,
-                    refining: true,
+                    body: cached.body,
+                    refined: cached.refined,
+                    hero: cached.hero,
+                    error: cached.error,
                   });
-                  // AI-refine: bersihkan sisa junk & rangkum sesuai judul.
-                  void (async () => {
-                    try {
-                      const keys = getCreativeKeys();
-                      if (!keys.openai && !keys.gemini) {
-                        setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-                        return;
-                      }
-                      const rawBody = (j.body || j.description || "").slice(0, 8000);
-                      if (!rawBody || rawBody.length < 200) {
-                        setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-                        return;
-                      }
-                      const system =
-                        "Kamu editor berita berpengalaman. Bersihkan teks hasil scrape dari elemen sampah " +
-                        "(menu navigasi, daftar 'Terkini/Terpopuler/Pilihan', timestamp bullet, kategori ALL-CAPS, " +
-                        "nama reporter/editor, iklan, teks berulang, link sisa). Sajikan HANYA isi berita/artikel " +
-                        "yang RELEVAN dengan JUDUL. Output berbahasa Indonesia, rapi, mudah dibaca. Balas TEKS BIASA " +
-                        "(tanpa markdown fence, tanpa **, tanpa #). Format: paragraf pembuka 1-2 kalimat, lalu " +
-                        "poin-poin utama (pakai '• ' di awal baris) atau paragraf pendek. Maksimal ~500 kata.";
-                      const user = `JUDUL: ${j.title || title}\n\nTEKS MENTAH:\n${rawBody}\n\nTugas: rangkum & rapikan sesuai instruksi.`;
-                      const rr = await fetch("/api/router/chat", {
-                        method: "POST",
-                        headers: headersFor(keys),
-                        body: JSON.stringify({ system, user, temperature: 0.4 }),
-                      });
-                      const rj = await rr.json();
-                      const refined = (rj?.text || "").trim();
-                      setReader((prev) =>
-                        prev.open ? { ...prev, refining: false, refined: refined || undefined } : prev,
-                      );
-                    } catch {
-                      setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-                    }
-                  })();
-                } catch (e) {
-                  setReader({
-                    open: true,
-                    title,
-                    url: rawUrl,
-                    loading: false,
-                    error: (e as Error).message || String(e),
-                  });
+                  return;
                 }
+                setReader({ open: true, title, url: rawUrl, loading: true });
+                const data = await ensureArticle(rawUrl, title);
+                setReader({
+                  open: true,
+                  title: data.title,
+                  url: rawUrl,
+                  loading: false,
+                  body: data.body,
+                  refined: data.refined,
+                  hero: data.hero,
+                  error: data.error,
+                });
               }}
               onGenerate={(item) => {
                 const title = typeof item === "string" ? item : item.title;
                 const url = typeof item === "string" ? undefined : item.url;
                 const scrapable =
                   url && /^https?:\/\//i.test(url) && !url.includes("google.com/search");
-                // Selalu handoff ke naratif dengan URL bila ada supaya field URL
-                // di halaman naratif langsung ter-isi (dan auto-scrape kalau valid).
                 setHandoff({
                   workflow: "narrative-video",
                   title,
@@ -372,8 +337,9 @@ function NewsReaderModal({
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {state.loading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader className="h-3.5 w-3.5 animate-spin" /> Mengambil isi artikel…
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-xs text-muted-foreground">
+              <Loader className="h-8 w-8 animate-spin text-primary" />
+              <span>AI Brain sedang mengambil & merapikan isi berita…</span>
             </div>
           ) : state.error ? (
             <div className="text-xs text-destructive">Gagal ambil isi: {state.error}</div>
@@ -387,12 +353,7 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
-              {state.refining && (
-                <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-card/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-                  <Loader className="h-3 w-3 animate-spin" /> AI Brain sedang merapikan isi berita…
-                </div>
-              )}
-              {state.refined && !state.refining && (
+              {state.refined && (
                 <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
                   ✧ Dirapikan oleh AI Brain
                 </div>
@@ -409,6 +370,7 @@ function NewsReaderModal({
             </>
           )}
         </div>
+
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-3">
           {state.url && (
             <a

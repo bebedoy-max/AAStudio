@@ -73,12 +73,12 @@ export function Card({ title, sub, children, right }: { title?: string; sub?: st
   return (
     <div className="neumorph p-5">
       {(title || right) && (
-        <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">
             {title && <div className="font-display text-lg text-foreground truncate">{title}</div>}
             {sub && <div className="text-xs text-muted-foreground mt-0.5 break-words">{sub}</div>}
           </div>
-          {right && <div className="shrink-0">{right}</div>}
+          {right && <div className="shrink-0 flex flex-wrap items-center gap-2">{right}</div>}
         </div>
       )}
       {children}

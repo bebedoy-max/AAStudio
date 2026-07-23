@@ -5,7 +5,7 @@ import { BookOpen, Newspaper, ArrowRight, ExternalLink, Loader2, Loader, X } fro
 import { todaysTips } from "@/lib/dashboard/playbook";
 import { Chip } from "./section";
 import { setHandoff } from "@/lib/creative/handoff";
-import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
+import { ensureArticle, getArticle, prefetchArticle } from "@/lib/dashboard/news-prefetch";
 
 type LiveNews = { title: string; url: string; source: string; tag: string };
 
@@ -19,7 +19,7 @@ const NEWS_QUERIES = [
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string; refining?: boolean };
+  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
 
 export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => void }) {
   const [tab, setTab] = useState<"playbook" | "news">("playbook");
@@ -45,7 +45,10 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
             } catch { return null; }
           }),
         );
-        setNews(results.filter((x): x is LiveNews => !!x));
+        const filtered = results.filter((x): x is LiveNews => !!x);
+        setNews(filtered);
+        // Background prefetch scrape + AI refine so click opens instantly.
+        filtered.forEach((n) => prefetchArticle(n.url, n.title));
       } finally {
         setLoadingNews(false);
       }
@@ -54,72 +57,34 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
 
 
   const openReader = async (n: LiveNews) => {
-    setReader({ open: true, title: n.title, url: n.url, loading: true });
-    try {
-      const r = await fetch("/api/public/scrape-article", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: n.url }),
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
-      const scrapedTitle = j.title || n.title;
-      const scrapedBody = j.body || j.description || "(Isi berita tidak dapat diambil.)";
+    const cached = getArticle(n.url);
+    if (cached) {
       setReader({
         open: true,
-        title: scrapedTitle,
+        title: cached.title,
         url: n.url,
         loading: false,
-        body: scrapedBody,
-        hero: Array.isArray(j.images) ? j.images[0] : undefined,
-        refining: true,
+        body: cached.body,
+        refined: cached.refined,
+        hero: cached.hero,
+        error: cached.error,
       });
-      // AI-refine: bersihkan sisa junk, translate ke Indonesia, rangkum sesuai judul.
-      void (async () => {
-        try {
-          const keys = getCreativeKeys();
-          if (!keys.openai && !keys.gemini) {
-            setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-            return;
-          }
-          const rawBody = String(scrapedBody).slice(0, 8000);
-          if (!rawBody || rawBody.length < 200) {
-            setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-            return;
-          }
-          const system =
-            "Kamu editor berita berpengalaman. Bersihkan teks hasil scrape dari elemen sampah " +
-            "(menu navigasi, daftar 'Terkini/Terpopuler/Pilihan', timestamp bullet, kategori ALL-CAPS, " +
-            "nama reporter/editor, iklan, teks berulang, link sisa, tombol 'Copy Link', ukuran font, timer audio). " +
-            "Sajikan HANYA isi berita/artikel yang RELEVAN dengan JUDUL. WAJIB terjemahkan ke Bahasa Indonesia " +
-            "jika sumber berbahasa asing. Output rapi, mudah dibaca. Balas TEKS BIASA (tanpa markdown fence, " +
-            "tanpa **, tanpa #). Format: paragraf pembuka 1-2 kalimat, lalu poin-poin utama (pakai '• ' di awal baris) " +
-            "atau paragraf pendek. Maksimal ~500 kata.";
-          const user = `JUDUL: ${scrapedTitle}\n\nTEKS MENTAH:\n${rawBody}\n\nTugas: rangkum, translate ke Indonesia bila perlu, & rapikan sesuai instruksi.`;
-          const rr = await fetch("/api/router/chat", {
-            method: "POST",
-            headers: headersFor(keys),
-            body: JSON.stringify({ system, user, temperature: 0.4 }),
-          });
-          const rj = await rr.json();
-          const refined = (rj?.text || "").trim();
-          setReader((prev) =>
-            prev.open ? { ...prev, refining: false, refined: refined || undefined } : prev,
-          );
-        } catch {
-          setReader((prev) => (prev.open ? { ...prev, refining: false } : prev));
-        }
-      })();
-    } catch (e) {
-      setReader({
-        open: true,
-        title: n.title,
-        url: n.url,
-        loading: false,
-        error: (e as Error).message || String(e),
-      });
+      return;
     }
+    setReader({ open: true, title: n.title, url: n.url, loading: true });
+    const data = await ensureArticle(n.url, n.title);
+    setReader({
+      open: true,
+      title: data.title,
+      url: n.url,
+      loading: false,
+      body: data.body,
+      refined: data.refined,
+      hero: data.hero,
+      error: data.error,
+    });
   };
+
 
   const handleGenerate = (n: { title: string; url?: string; body?: string }) => {
     if (n.url) {
@@ -258,8 +223,9 @@ function NewsReaderModal({
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           {state.loading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader className="h-3.5 w-3.5 animate-spin" /> Mengambil isi artikel…
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-xs text-muted-foreground">
+              <Loader className="h-8 w-8 animate-spin text-primary" />
+              <span>AI Brain sedang mengambil & merapikan isi berita…</span>
             </div>
           ) : state.error ? (
             <div className="text-xs text-destructive">Gagal ambil isi: {state.error}</div>
@@ -273,12 +239,7 @@ function NewsReaderModal({
                   loading="lazy"
                 />
               )}
-              {state.refining && (
-                <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-card/60 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-                  <Loader className="h-3 w-3 animate-spin" /> AI Brain sedang merapikan & menerjemahkan isi berita…
-                </div>
-              )}
-              {state.refined && !state.refining && (
+              {state.refined && (
                 <div className="mb-2 text-[10px] font-mono uppercase tracking-widest text-primary/80">
                   ✧ Dirapikan & diterjemahkan oleh AI Brain
                 </div>
@@ -295,6 +256,7 @@ function NewsReaderModal({
             </>
           )}
         </div>
+
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border p-3">
           <a
             href={state.url}

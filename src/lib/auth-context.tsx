@@ -449,13 +449,18 @@ export function useAuth() {
 // Hanya fitur premium yang bisa dikunci per user. Route lain (Manage / System)
 // selalu terbuka karena diperlukan untuk mengatur token, routing, dsb.
 export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
-  { key: "generate.motion", label: "Motion Control", group: "Generate" },
-  { key: "generate.storyboard", label: "Produk Storyboard", group: "Generate" },
-  { key: "generate.bulk-fashion", label: "Bulk Fashion Generator", group: "Generate" },
-  { key: "generate.image-to-video", label: "Image To Video", group: "Generate" },
-  { key: "generate.naratif", label: "Naratif Video Maker", group: "Generate" },
   { key: "ai-influencer.studio", label: "AI Influencer Studio", group: "AI Influencer" },
   { key: "mixing.clipper", label: "AI Clipper", group: "Mixing" },
-  { key: "mixing.dubbing", label: "AI Dubbing", group: "Mixing" },
+  { key: "mixing.dubbing", label: "AI Dubber", group: "Mixing" },
+  { key: "generate.motion", label: "Motion Control", group: "Generate" },
+  { key: "generate.bulk-fashion", label: "Bulk Fashion Generator", group: "Generate" },
+  { key: "generate.image-to-video", label: "Image To Video", group: "Generate" },
+  { key: "generate.upscaler", label: "Upscaler / Enhance", group: "Generate" },
+  { key: "reff-edit.image", label: "Image Reference Edit", group: "REFF EDIT" },
+  { key: "reff-edit.video", label: "Video Reference Edit", group: "REFF EDIT" },
+  { key: "reff-edit.library", label: "Reference Library", group: "REFF EDIT" },
+  { key: "reff-edit.history", label: "Edit History", group: "REFF EDIT" },
+  { key: "generate.storyboard", label: "Produk Storyboard", group: "Produk Generator" },
+  { key: "generate.naratif", label: "Naratif Video Maker", group: "Produk Generator" },
 ];
 
