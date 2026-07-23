@@ -633,12 +633,149 @@ function NaratifPage() {
     }
   };
 
+  const getMediaDuration = (url: string, kind: "audio" | "video"): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const el = document.createElement(kind);
+      el.preload = "metadata";
+      el.muted = true;
+      el.src = url;
+      const done = () => {
+        const d = el.duration;
+        if (!isFinite(d) || d <= 0) reject(new Error("Durasi media tidak valid"));
+        else resolve(d);
+      };
+      el.onloadedmetadata = done;
+      el.onerror = () => reject(new Error("Gagal load metadata media"));
+      setTimeout(() => reject(new Error("Timeout baca durasi")), 15000);
+    });
+
   const merge = async () => {
     if (bulkBusy.merge) return;
     setBusy("merge", true);
+    setMergeStatus("⏳ Menyiapkan FFmpeg…");
+    setFinalUrl(null);
     try {
-      setMergeStatus("ℹ️ Video final: gabung manual per-scene (client-side ffmpeg merge butuh koneksi cepat). Unduh semua video di atas & audio-nya, lalu gabung di editor. Auto-merge coming soon.");
-      setFinalUrl("#");
+      const { getFfmpeg } = await import("@/lib/mixing/ffmpeg-render");
+      const { fetchFile } = await import("@ffmpeg/util");
+      const ff = await getFfmpeg((m) => { if (/error|failed/i.test(m)) console.warn("[ffmpeg]", m); });
+
+      const targetW = ratio.startsWith("9:16") ? 720 : ratio.startsWith("1:1") ? 720 : 1280;
+      const targetH = ratio.startsWith("9:16") ? 1280 : ratio.startsWith("1:1") ? 720 : 720;
+      const scaleVf = `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1,fps=30`;
+      const XFADE = 0.5; // seconds crossfade
+
+      const parts: string[] = [];
+      const durs: number[] = [];
+      for (let i = 0; i < scenes.length; i++) {
+        const s = scenes[i];
+        if (!s.videoUrl || !s.audioUrl) throw new Error(`Scene #${i + 1} belum lengkap`);
+        setMergeStatus(`🎬 Mux scene ${i + 1}/${scenes.length}…`);
+
+        const [aDur, vDur] = await Promise.all([
+          getMediaDuration(s.audioUrl, "audio"),
+          getMediaDuration(s.videoUrl, "video"),
+        ]);
+        // Target scene duration = audio (VO) duration
+        const targetDur = Math.max(0.5, aDur);
+        // setpts factor: >1 slows video down (video shorter than VO), <1 speeds up (video longer)
+        const ptsFactor = targetDur / vDur;
+
+        const vName = `v${i}.mp4`;
+        const aName = `a${i}.mp3`;
+        const outName = `p${i}.mp4`;
+        await ff.writeFile(vName, await fetchFile(s.videoUrl));
+        await ff.writeFile(aName, await fetchFile(s.audioUrl));
+        const ret = await ff.exec([
+          "-i", vName,
+          "-i", aName,
+          "-vf", `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS`,
+          "-map", "0:v:0",
+          "-map", "1:a:0",
+          "-t", targetDur.toFixed(3),
+          "-c:v", "libx264",
+          "-preset", "ultrafast",
+          "-crf", "26",
+          "-pix_fmt", "yuv420p",
+          "-c:a", "aac",
+          "-b:a", "128k",
+          "-ar", "44100",
+          "-movflags", "+faststart",
+          "-y", outName,
+        ]);
+        if (ret !== 0) throw new Error(`FFmpeg mux gagal di scene ${i + 1}`);
+        try { await ff.deleteFile(vName); } catch { /* noop */ }
+        try { await ff.deleteFile(aName); } catch { /* noop */ }
+        parts.push(outName);
+        durs.push(targetDur);
+      }
+
+      setMergeStatus("🧵 Menggabung scene dengan crossfade…");
+
+      if (parts.length === 1) {
+        // No transitions needed
+        const data = (await ff.readFile(parts[0])) as Uint8Array;
+        const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        setFinalUrl(url);
+        setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+        try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+        logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
+        return;
+      }
+
+      // Build filter_complex with xfade (video) + acrossfade (audio)
+      const inputs: string[] = [];
+      parts.forEach((p) => { inputs.push("-i", p); });
+
+      const filters: string[] = [];
+      let vPrev = "[0:v]";
+      let aPrev = "[0:a]";
+      let cumOffset = 0;
+      for (let i = 1; i < parts.length; i++) {
+        const prevDur = durs[i - 1];
+        cumOffset += prevDur - XFADE;
+        const vOut = `[v${i}]`;
+        const aOut = `[a${i}]`;
+        filters.push(
+          `${vPrev}[${i}:v]xfade=transition=fade:duration=${XFADE}:offset=${cumOffset.toFixed(3)}${vOut}`,
+        );
+        filters.push(
+          `${aPrev}[${i}:a]acrossfade=d=${XFADE}:c1=tri:c2=tri${aOut}`,
+        );
+        vPrev = vOut;
+        aPrev = aOut;
+      }
+
+      const cret = await ff.exec([
+        ...inputs,
+        "-filter_complex", filters.join(";"),
+        "-map", vPrev,
+        "-map", aPrev,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "26",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "+faststart",
+        "-y", "final.mp4",
+      ]);
+      if (cret !== 0) throw new Error("FFmpeg crossfade gagal");
+
+      const data = (await ff.readFile("final.mp4")) as Uint8Array;
+      const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      setFinalUrl(url);
+      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+
+      for (const p of parts) { try { await ff.deleteFile(p); } catch { /* noop */ } }
+      try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
+
+      logGenerate("naratif_merge", { status: "success", scenes: scenes.length, bytes: blob.size });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      setMergeStatus("❌ " + msg);
+      logGenerate("naratif_merge", { status: "error", error: msg });
     } finally {
       setBusy("merge", false);
     }
@@ -852,9 +989,18 @@ function NaratifPage() {
           </div>
 
           {mergeStatus && <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>}
-          {finalUrl && (
-            <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 text-center text-sm text-muted-foreground">
-              🎞️ Video final siap — sambungkan backend ffmpeg untuk file downloadable.
+          {finalUrl && finalUrl !== "#" && (
+            <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 space-y-3">
+              <video src={finalUrl} controls className={`w-full rounded-lg ${ratioClass(ratio)} bg-black`} />
+              <div className="flex justify-center">
+                <a
+                  href={finalUrl}
+                  download={`naratif-${Date.now()}.mp4`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                >
+                  ⬇️ Unduh Video Naratif
+                </a>
+              </div>
             </div>
           )}
         </Card>
