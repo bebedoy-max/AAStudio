@@ -482,15 +482,15 @@ const GUIDES: Record<ProviderKey, Guide> = {
   brain: {
     url: "https://aistudio.google.com/api-keys",
     urlLabel: "aistudio.google.com/api-keys",
-    prefix: "AIza…",
+    prefix: "AIza… / AQ…",
     steps: [
       { text: "Buka Google AI Studio dan login pakai akun Google." },
       { text: 'Klik tombol "Create API key" (pojok kanan atas).' },
       { text: 'Pilih project Google Cloud (atau "Create API key in new project").' },
-      { text: "Copy key yang muncul — WAJIB dimulai dengan AIza… (39 karakter)." },
+      { text: "Copy key yang muncul — bisa diawali AIza… (legacy) atau AQ… (auth key baru)." },
       { text: "Paste ke textarea di sebelah. Boleh tambah banyak key sekaligus (1 per baris) untuk auto-rotate saat kena limit gratis." },
     ],
-    tip: "Free tier Gemini: 15 request/menit, 1 juta token/hari untuk gemini-2.5-flash. Key yang dimulai selain AIza (mis. AQ.Ab8…) BUKAN API key — itu OAuth token dan akan ditolak.",
+    tip: "Free tier Gemini: 15 request/menit, 1 juta token/hari untuk gemini-2.5-flash. Format AQ… adalah auth key baru Gemini dan tetap valid sebagai API key.",
   },
   weavy: {
     url: "https://drive.google.com/file/d/1xJEUv31VdzF8FVXPzfcpRcnq8ahV3_8w/view?usp=sharing",
@@ -639,7 +639,8 @@ async function checkGeminiKey(key: string): Promise<BrainKeyStatus> {
   // Cheap probe: list models. 200 = valid; 400/401/403 = invalid; 429 = rate-limited.
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+      { headers: { "x-goog-api-key": key } },
     );
     if (r.ok) {
       const data = (await r.json().catch(() => ({}))) as { models?: unknown[] };
@@ -706,7 +707,7 @@ function BrainPane() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-  const isValidFormat = (k: string) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ\.[A-Za-z0-9_-]{20,}$/.test(k);
+  const isValidFormat = (k: string) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k);
 
   const tambah = async () => {
     const raw = parse(bulk);

@@ -41,7 +41,8 @@ type BrainKeyStatus = {
 async function checkGeminiKey(key: string): Promise<BrainKeyStatus> {
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+      { headers: { "x-goog-api-key": key } },
     );
     if (r.ok) return { key, state: "active", detail: "OK" };
     if (r.status === 429) return { key, state: "limited", detail: "429 · quota / rate-limit" };

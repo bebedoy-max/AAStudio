@@ -140,7 +140,6 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
 
 };
 
-// Baca provider aktif dari Routing Provider (manage/routing) — cap "video".
 const LS_ROUTING = "aatools.routing.v2";
 function readRoutedVideoProvider(): Provider | null {
   if (typeof window === "undefined") return null;
@@ -150,6 +149,20 @@ function readRoutedVideoProvider(): Provider | null {
     const obj = JSON.parse(raw) as { video?: string };
     const p = obj?.video as Provider | undefined;
     return p && VID_CATALOG[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+// Baca provider gambar aktif dari Routing Provider (manage/routing) — cap "image".
+function readRoutedImageProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { image?: string };
+    const p = obj?.image as Provider | undefined;
+    return p && IMG_CATALOG[p] ? p : null;
   } catch {
     return null;
   }
@@ -188,6 +201,7 @@ function NaratifPage() {
   const [material, setMaterial] = useSticky<Material | null>("naratif.material", null);
 
   const [provider, setProvider] = useSticky<Provider>("naratif.provider", "weavy");
+  const [imgProvider, setImgProvider] = useSticky<Provider>("naratif.imgProvider", "weavy");
   const [ratio, setRatio] = useSticky<string>("naratif.ratio", "9:16");
   
 
@@ -197,20 +211,44 @@ function NaratifPage() {
   const [vidQuality, setVidQuality] = useSticky<string>("naratif.vidQuality", "");
 
   const [voice, setVoice] = useSticky<string>("naratif.voice", VOICES[0].value);
+  const [voicePreset, setVoicePreset] = useSticky<string>("naratif.voicePreset", "story");
   const [extra, setExtra] = useSticky<string>("naratif.extra", "");
+
+  // Merge options (jeda + transisi antar scene)
+  const [sceneGap, setSceneGap] = useSticky<number>("naratif.sceneGap", 0.7);
+  const [xfadeDur, setXfadeDur] = useSticky<number>("naratif.xfadeDur", 0.5);
+  const [leadOutDur, setLeadOutDur] = useSticky<number>("naratif.leadOutDur", 0.4);
 
   const [brainStatus, setBrainStatus] = useSticky<string>("naratif.brainStatus", "");
   const [scenes, setScenes] = useSticky<Scene[]>("naratif.scenes", []);
   const [mergeStatus, setMergeStatus] = useSticky<string>("naratif.mergeStatus", "");
   const [finalUrl, setFinalUrl] = useSticky<string | null>("naratif.finalUrl", null);
   const [testingVoice, setTestingVoice] = useSticky<boolean>("naratif.testingVoice", false);
+
+  // Voice intonation preset → ElevenLabs voice_settings
+  const VOICE_PRESETS: Record<string, { label: string; stability: number; similarityBoost: number; style: number; speed: number }> = {
+    story:     { label: "Bercerita (Natural)",   stability: 0.45, similarityBoost: 0.80, style: 0.55, speed: 0.95 },
+    news:      { label: "Berita (Formal)",        stability: 0.65, similarityBoost: 0.80, style: 0.25, speed: 1.00 },
+    casual:    { label: "Santai (Casual)",        stability: 0.40, similarityBoost: 0.75, style: 0.65, speed: 1.02 },
+    cinematic: { label: "Dramatis (Sinematik)",   stability: 0.35, similarityBoost: 0.85, style: 0.80, speed: 0.92 },
+  };
+  const activeVoiceSettings = VOICE_PRESETS[voicePreset] || VOICE_PRESETS.story;
+  // Enrich narration → tambahkan koma/titik ringan agar TTS punya jeda natural
+  const enrichNarration = (text: string): string => {
+    let t = (text || "").trim();
+    if (!t) return t;
+    if (!/[.!?…]$/.test(t)) t += ".";
+    // sisipkan koma setelah konjungsi umum agar ada micro-pause
+    t = t.replace(/\s+(namun|tetapi|karena|sehingga|meskipun|walaupun|kemudian|lalu|selain itu|padahal)\s+/gi, ", $1 ");
+    return t;
+  };
   const [bulkBusy, setBulkBusy] = useState<BulkBusy>(EMPTY_BUSY);
   const anyBusy = bulkBusy.img || bulkBusy.vo || bulkBusy.vid || bulkBusy.merge;
   const setBusy = (k: BulkKind, v: boolean) => setBulkBusy((prev) => ({ ...prev, [k]: v }));
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bootstrappedRef = useRef(false);
 
-  const imgModels = IMG_CATALOG[provider] || IMG_CATALOG.weavy;
+  const imgModels = IMG_CATALOG[imgProvider] || IMG_CATALOG.weavy;
   const vidModels = VID_CATALOG[provider] || VID_CATALOG.weavy;
   const activeImgModel = useMemo(() => imgModels.find((m) => m.key === imgModel) || imgModels[0], [imgModels, imgModel]);
   const activeVidModel = useMemo(() => vidModels.find((m) => m.key === vidModel) || vidModels[0], [vidModels, vidModel]);
@@ -225,6 +263,12 @@ function NaratifPage() {
     } else if (!provider || !IMG_CATALOG[provider]) {
       const p = ((typeof window !== "undefined" && (localStorage.getItem("aatools.activeProvider") || localStorage.getItem("arkx_activeProvider"))) || "weavy") as Provider;
       setProvider(IMG_CATALOG[p] ? p : "weavy");
+    }
+    const routedImg = readRoutedImageProvider();
+    if (routedImg) {
+      setImgProvider(routedImg);
+    } else if (!imgProvider || !IMG_CATALOG[imgProvider]) {
+      setImgProvider("weavy");
     }
     try {
       const eleven = localStorage.getItem("aatools.eleven");
@@ -269,6 +313,8 @@ function NaratifPage() {
     const sync = () => {
       const routed = readRoutedVideoProvider();
       if (routed && routed !== provider) setProvider(routed);
+      const routedImg = readRoutedImageProvider();
+      if (routedImg && routedImg !== imgProvider) setImgProvider(routedImg);
     };
     window.addEventListener("storage", sync);
     window.addEventListener("focus", sync);
@@ -278,14 +324,14 @@ function NaratifPage() {
       window.removeEventListener("focus", sync);
       window.removeEventListener("aatools:routing-changed", sync as EventListener);
     };
-  }, [provider, setProvider]);
+  }, [provider, setProvider, imgProvider, setImgProvider]);
 
   // ketika provider berubah, reset pilihan model HANYA jika model saat ini tidak valid
   useEffect(() => {
-    const list = IMG_CATALOG[provider] || [];
+    const list = IMG_CATALOG[imgProvider] || [];
     if (!list.find((m) => m.key === imgModel)) setImgModel(list[0]?.key || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider]);
+  }, [imgProvider]);
   useEffect(() => {
     const list = VID_CATALOG[provider] || [];
     if (!list.find((m) => m.key === vidModel)) setVidModel(list[0]?.key || "");
@@ -327,7 +373,7 @@ function NaratifPage() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": key },
-        body: JSON.stringify({ text: "Halo, ini contoh suara narator untuk video naratif kamu.", voiceId: voice }),
+        body: JSON.stringify({ text: "Halo, ini contoh suara narator untuk video naratif kamu.", voiceId: voice, ...activeVoiceSettings }),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
@@ -431,13 +477,13 @@ function NaratifPage() {
     patchScene(i, { busy: "img" });
     try {
       let imgUrl: string;
-      if (provider === "weavy") {
+      if (imgProvider === "weavy") {
         const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
         imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: scene.prompt, quality: imgQuality, ratio });
       } else {
         const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import("@/lib/providers/wavespeed");
         const key = getFirstWavespeedKey();
-        if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${provider})`);
+        if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${imgProvider})`);
         const modelId = mapImgToWsEndpoint(imgModel);
         const payload: Record<string, unknown> = { prompt: scene.prompt, aspect_ratio: ratio };
         if (/gpt-image/.test(modelId)) payload.quality = imgQuality;
@@ -464,7 +510,7 @@ function NaratifPage() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": key },
-        body: JSON.stringify({ text: scene.narration, voiceId: voice }),
+        body: JSON.stringify({ text: enrichNarration(scene.narration), voiceId: voice, ...activeVoiceSettings }),
       });
       if (!r.ok) throw new Error(`VO gagal (${r.status})`);
       const buf = await r.arrayBuffer();
@@ -611,12 +657,169 @@ function NaratifPage() {
     }
   };
 
+  const getMediaDuration = (url: string, kind: "audio" | "video"): Promise<number> =>
+    new Promise((resolve, reject) => {
+      const el = document.createElement(kind);
+      el.preload = "metadata";
+      el.muted = true;
+      el.src = url;
+      const done = () => {
+        const d = el.duration;
+        if (!isFinite(d) || d <= 0) reject(new Error("Durasi media tidak valid"));
+        else resolve(d);
+      };
+      el.onloadedmetadata = done;
+      el.onerror = () => reject(new Error("Gagal load metadata media"));
+      setTimeout(() => reject(new Error("Timeout baca durasi")), 15000);
+    });
+
   const merge = async () => {
     if (bulkBusy.merge) return;
     setBusy("merge", true);
+    setMergeStatus("⏳ Menyiapkan FFmpeg…");
+    setFinalUrl(null);
     try {
-      setMergeStatus("ℹ️ Video final: gabung manual per-scene (client-side ffmpeg merge butuh koneksi cepat). Unduh semua video di atas & audio-nya, lalu gabung di editor. Auto-merge coming soon.");
-      setFinalUrl("#");
+      const { getFfmpeg } = await import("@/lib/mixing/ffmpeg-render");
+      const { fetchFile } = await import("@ffmpeg/util");
+      const ff = await getFfmpeg((m) => { if (/error|failed/i.test(m)) console.warn("[ffmpeg]", m); });
+
+      const targetW = ratio.startsWith("9:16") ? 720 : ratio.startsWith("1:1") ? 720 : 1280;
+      const targetH = ratio.startsWith("9:16") ? 1280 : ratio.startsWith("1:1") ? 720 : 720;
+      const scaleVf = `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1,fps=30`;
+      const XFADE = Math.max(0.1, Math.min(1.5, Number(xfadeDur) || 0.5));
+      const GAP = Math.max(0, Math.min(4, Number(sceneGap) || 0));
+      const TAIL_LAST = Math.max(0, Math.min(4, Number(leadOutDur) || 0));
+
+      const parts: string[] = [];
+      const durs: number[] = [];
+      for (let i = 0; i < scenes.length; i++) {
+        const s = scenes[i];
+        if (!s.videoUrl || !s.audioUrl) throw new Error(`Scene #${i + 1} belum lengkap`);
+        setMergeStatus(`🎬 Mux scene ${i + 1}/${scenes.length}…`);
+
+        const [aDur, vDur] = await Promise.all([
+          getMediaDuration(s.audioUrl, "audio"),
+          getMediaDuration(s.videoUrl, "video"),
+        ]);
+        // Target scene duration = audio (VO) duration
+        const voDur = Math.max(0.5, aDur);
+        // setpts factor: >1 slows video down (video shorter than VO), <1 speeds up (video longer)
+        const ptsFactor = voDur / vDur;
+        // Tail padding: jeda antar scene (freeze frame + silence) — last scene pakai leadOut
+        const isLast = i === scenes.length - 1;
+        const tailPad = isLast ? TAIL_LAST : GAP;
+        // Untuk crossfade halus, video butuh material di area transisi.
+        // Padding minimum >= XFADE agar xfade tidak nge-cut frame hitam.
+        const vTail = Math.max(tailPad, isLast ? 0 : XFADE);
+        const partDur = voDur + tailPad;
+        const vClipDur = voDur + vTail;
+
+        const vName = `v${i}.mp4`;
+        const aName = `a${i}.mp3`;
+        const outName = `p${i}.mp4`;
+        await ff.writeFile(vName, await fetchFile(s.videoUrl));
+        await ff.writeFile(aName, await fetchFile(s.audioUrl));
+
+        const vFilter =
+          `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS` +
+          (vTail > 0 ? `,tpad=stop_mode=clone:stop_duration=${vTail.toFixed(3)}` : "");
+        const aFilter =
+          tailPad > 0
+            ? `apad=pad_dur=${tailPad.toFixed(3)},atrim=0:${partDur.toFixed(3)},asetpts=N/SR/TB`
+            : `atrim=0:${partDur.toFixed(3)},asetpts=N/SR/TB`;
+
+        const ret = await ff.exec([
+          "-i", vName,
+          "-i", aName,
+          "-vf", vFilter,
+          "-af", aFilter,
+          "-map", "0:v:0",
+          "-map", "1:a:0",
+          "-t", vClipDur.toFixed(3),
+          "-c:v", "libx264",
+          "-preset", "ultrafast",
+          "-crf", "26",
+          "-pix_fmt", "yuv420p",
+          "-c:a", "aac",
+          "-b:a", "128k",
+          "-ar", "44100",
+          "-movflags", "+faststart",
+          "-y", outName,
+        ]);
+        if (ret !== 0) throw new Error(`FFmpeg mux gagal di scene ${i + 1}`);
+        try { await ff.deleteFile(vName); } catch { /* noop */ }
+        try { await ff.deleteFile(aName); } catch { /* noop */ }
+        parts.push(outName);
+        durs.push(vClipDur);
+      }
+
+      setMergeStatus("🧵 Menggabung scene dengan crossfade…");
+
+      if (parts.length === 1) {
+        // No transitions needed
+        const data = (await ff.readFile(parts[0])) as Uint8Array;
+        const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        setFinalUrl(url);
+        setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+        try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+        logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
+        return;
+      }
+
+      // Build filter_complex with xfade (video) + acrossfade (audio)
+      const inputs: string[] = [];
+      parts.forEach((p) => { inputs.push("-i", p); });
+
+      const filters: string[] = [];
+      let vPrev = "[0:v]";
+      let aPrev = "[0:a]";
+      let cumOffset = 0;
+      for (let i = 1; i < parts.length; i++) {
+        const prevDur = durs[i - 1];
+        cumOffset += prevDur - XFADE;
+        const vOut = `[v${i}]`;
+        const aOut = `[a${i}]`;
+        filters.push(
+          `${vPrev}[${i}:v]xfade=transition=fade:duration=${XFADE}:offset=${cumOffset.toFixed(3)}${vOut}`,
+        );
+        filters.push(
+          `${aPrev}[${i}:a]acrossfade=d=${XFADE}:c1=tri:c2=tri${aOut}`,
+        );
+        vPrev = vOut;
+        aPrev = aOut;
+      }
+
+      const cret = await ff.exec([
+        ...inputs,
+        "-filter_complex", filters.join(";"),
+        "-map", vPrev,
+        "-map", aPrev,
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "26",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "+faststart",
+        "-y", "final.mp4",
+      ]);
+      if (cret !== 0) throw new Error("FFmpeg crossfade gagal");
+
+      const data = (await ff.readFile("final.mp4")) as Uint8Array;
+      const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      setFinalUrl(url);
+      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+
+      for (const p of parts) { try { await ff.deleteFile(p); } catch { /* noop */ } }
+      try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
+
+      logGenerate("naratif_merge", { status: "success", scenes: scenes.length, bytes: blob.size });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      setMergeStatus("❌ " + msg);
+      logGenerate("naratif_merge", { status: "error", error: msg });
     } finally {
       setBusy("merge", false);
     }
@@ -685,7 +888,7 @@ function NaratifPage() {
                 { value: "1:1", label: "1:1 Square" },
               ]} />
             </Field>
-            <Field label={`Model AI Gambar (provider: ${provider})`}>
+            <Field label={`Model AI Gambar (provider: ${imgProvider})`}>
               <Select value={imgModel} onChange={(e) => setImgModel(e.target.value)} options={imgModels.map((m) => ({ value: m.key, label: m.label }))} />
             </Field>
             <Field label="Kualitas Gambar">
@@ -704,6 +907,13 @@ function NaratifPage() {
                   <Play className="h-3.5 w-3.5" /> {testingVoice ? "..." : "Tes"}
                 </PrimaryButton>
               </div>
+            </Field>
+            <Field label="Intonasi Narasi (Voice Preset)">
+              <Select
+                value={voicePreset}
+                onChange={(e) => setVoicePreset(e.target.value)}
+                options={Object.entries(VOICE_PRESETS).map(([v, p]) => ({ value: v, label: p.label }))}
+              />
             </Field>
             <Field label="Extra Prompt (opsional)">
               <Textarea rows={2} placeholder="Gaya visual, mood, angle bercerita tertentu…" value={extra} onChange={(e) => setExtra(e.target.value)} />
@@ -800,7 +1010,24 @@ function NaratifPage() {
               </div>
             ))}
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-4 rounded-xl border border-border bg-card/40 p-3">
+            <div className="text-[11px] font-medium text-muted-foreground mb-2">⚙️ Opsi Gabung Video (jeda & transisi antar scene)</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Jeda antar scene: <b>{sceneGap.toFixed(2)}s</b></span>
+                <input type="range" min={0} max={2.5} step={0.1} value={sceneGap} onChange={(e) => setSceneGap(Number(e.target.value))} />
+              </label>
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Durasi crossfade: <b>{xfadeDur.toFixed(2)}s</b></span>
+                <input type="range" min={0.2} max={1.5} step={0.05} value={xfadeDur} onChange={(e) => setXfadeDur(Number(e.target.value))} />
+              </label>
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Jeda akhir video: <b>{leadOutDur.toFixed(2)}s</b></span>
+                <input type="range" min={0} max={3} step={0.1} value={leadOutDur} onChange={(e) => setLeadOutDur(Number(e.target.value))} />
+              </label>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
             <PrimaryButton onClick={genAllImages} disabled={bulkBusy.img || bulkBusy.vid || bulkBusy.merge}>
               {bulkBusy.img ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
               {bulkBusy.img ? "Menggenerate Gambar…" : "Generate Semua Gambar"}
@@ -830,9 +1057,18 @@ function NaratifPage() {
           </div>
 
           {mergeStatus && <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>}
-          {finalUrl && (
-            <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 text-center text-sm text-muted-foreground">
-              🎞️ Video final siap — sambungkan backend ffmpeg untuk file downloadable.
+          {finalUrl && finalUrl !== "#" && (
+            <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 space-y-3">
+              <video src={finalUrl} controls className={`w-full rounded-lg ${ratioClass(ratio)} bg-black`} />
+              <div className="flex justify-center">
+                <a
+                  href={finalUrl}
+                  download={`naratif-${Date.now()}.mp4`}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                >
+                  ⬇️ Unduh Video Naratif
+                </a>
+              </div>
             </div>
           )}
         </Card>

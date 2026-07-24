@@ -28,6 +28,15 @@ type CloudRenderBody = {
   subtitle?: { enabled?: boolean; srt?: string };
   audio?: { voiceUrl?: string; music?: string };
   aspectRatio?: string;
+  blueprint?: {
+    id?: string;
+    name?: string;
+    from?: number;
+    to?: number;
+    apply?: string[];
+    sourceIdx?: number;
+  }[];
+  dna?: Record<string, string | undefined>;
 };
 
 function aspectDim(ar: string | undefined) {
@@ -40,24 +49,100 @@ function aspectDim(ar: string | undefined) {
   }
 }
 
+// Map DNA colorGrading / mood keywords → a coarse Shotstack "filter" preset name.
+// Shotstack supports: boost, contrast, muted, invert, negative, chrome, mono, sepia,
+// crossProcess, hue, blur, greyscale, blueshift, etc. Pick the closest match.
+function shotstackFilterFromText(txt: string): string | undefined {
+  const t = (txt || "").toLowerCase();
+  if (!t) return undefined;
+  if (/(teal.*orange|hollywood|cinematic teal)/.test(t)) return "boost";
+  if (/(warm|golden|sunset|amber|sunlit)/.test(t)) return "boost";
+  if (/(cool|cold|moody|blue)/.test(t)) return "blueshift";
+  if (/(noir|monochrome|black.*white|b&w|grayscale)/.test(t)) return "mono";
+  if (/(vintage|retro|film|kodak)/.test(t)) return "sepia";
+  if (/(pastel|soft|dreamy|hazy)/.test(t)) return "muted";
+  if (/(vibrant|punchy|bold|saturated|pop)/.test(t)) return "boost";
+  if (/(neon|cyberpunk|night city)/.test(t)) return "contrast";
+  if (/(desaturat|muted|faded)/.test(t)) return "muted";
+  return "boost";
+}
+
+// Detect transition-out keyword → Shotstack transition preset.
+function shotstackTransitionFromApply(apply: string[]): string | undefined {
+  const t = apply.join(" ").toLowerCase();
+  if (t.includes("cross dissolve") || t.includes("dissolve") || t.includes("fade to black") || t.includes("cross fade")) return "fade";
+  if (t.includes("wipe left")) return "wipeLeft";
+  if (t.includes("wipe right")) return "wipeRight";
+  if (t.includes("wipe")) return "wipeLeft";
+  if (t.includes("whip")) return "slideLeft";
+  if (t.includes("zoom")) return "zoom";
+  return undefined;
+}
+
+// Detect speed keyword → shotstack clip.speed multiplier.
+function shotstackSpeedFromApply(apply: string[]): number {
+  const t = apply.join(" ").toLowerCase();
+  if (t.includes("slow motion") || t.includes("slowmo")) return 0.5;
+  if (t.includes("hyperlapse") || t.includes("2x")) return 2.0;
+  if (t.includes("fast cut") || t.includes("1.5x")) return 1.5;
+  return 1.0;
+}
+
+function buildShotstackClipsFromBlueprint(body: CloudRenderBody): Array<Record<string, unknown>> {
+  const sources = body.sources || [];
+  const blueprint = body.blueprint || [];
+  const dnaText = [
+    body.dna?.colorGrading,
+    body.dna?.mood,
+    body.dna?.cinematicStyle,
+    body.dna?.colorPalette,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const clips: Array<Record<string, unknown>> = [];
+  let cursor = 0;
+  for (const s of blueprint) {
+    const idx = Math.max(0, Math.min(sources.length - 1, s.sourceIdx ?? 0));
+    const src = sources[idx]?.url;
+    if (!src) continue;
+    const trim = Math.max(0, Number(s.from) || 0);
+    const rawLen = Math.max(0.1, (Number(s.to) || 0) - trim);
+    const speed = shotstackSpeedFromApply(s.apply || []);
+    const outLen = rawLen / speed;
+    const filter = shotstackFilterFromText(`${dnaText} ${(s.apply || []).join(" ")}`);
+    const transition = shotstackTransitionFromApply(s.apply || []);
+    const clip: Record<string, unknown> = {
+      asset: { type: "video", src, trim, volume: 0 },
+      start: cursor,
+      length: outLen,
+      fit: "cover",
+    };
+    if (filter) clip.filter = filter;
+    if (speed !== 1) (clip.asset as Record<string, unknown>).speed = speed;
+    if (transition) clip.transition = { in: transition, out: transition };
+    clips.push(clip);
+    cursor += outLen;
+  }
+  return clips;
+}
+
 async function submitShotstack(key: string, body: CloudRenderBody) {
-  const src = body.sources?.[0]?.url;
-  if (!src) throw new Error("Source video URL kosong");
   const { width, height } = aspectDim(body.aspectRatio);
-  const totalSec = body.timeline?.totalSec ?? 0;
-  const output = width === height ? "square" : width > height ? "mp4" : "mp4";
-  const clips: Array<Record<string, unknown>> = [
-    {
-      asset: { type: "video", src },
-      start: 0,
-      length: totalSec || "auto",
-    },
-  ];
-  if (body.subtitle?.enabled && body.subtitle.srt) {
+  let clips: Array<Record<string, unknown>>;
+  if (body.blueprint && body.blueprint.length && (body.sources || []).some((s) => s.url)) {
+    clips = buildShotstackClipsFromBlueprint(body);
+    if (clips.length === 0) throw new Error("Blueprint tidak menghasilkan clip valid (cek sourceIdx/url).");
+  } else {
+    const src = body.sources?.[0]?.url;
+    if (!src) throw new Error("Source video URL kosong");
+    const totalSec = body.timeline?.totalSec ?? 0;
+    clips = [{ asset: { type: "video", src }, start: 0, length: totalSec || "auto" }];
+  }
+  if (body.subtitle?.enabled && body.subtitle.srt && body.sources?.[0]?.url) {
     clips.push({
-      asset: { type: "caption", src, captionSource: "auto" },
+      asset: { type: "caption", src: body.sources[0].url, captionSource: "auto" },
       start: 0,
-      length: totalSec || "auto",
+      length: "auto",
     });
   }
   const payload = {
@@ -66,7 +151,7 @@ async function submitShotstack(key: string, body: CloudRenderBody) {
       tracks: [{ clips }],
     },
     output: {
-      format: output,
+      format: "mp4",
       resolution: height >= 1920 ? "1080" : "720",
       aspectRatio: body.aspectRatio || "9:16",
     },
@@ -83,12 +168,30 @@ async function submitShotstack(key: string, body: CloudRenderBody) {
 }
 
 async function submitCreatomate(key: string, body: CloudRenderBody) {
-  const src = body.sources?.[0]?.url;
-  if (!src) throw new Error("Source video URL kosong");
   const { width, height } = aspectDim(body.aspectRatio);
-  const elements: Array<Record<string, unknown>> = [
-    { type: "video", source: src, fit: "cover" },
-  ];
+  const elements: Array<Record<string, unknown>> = [];
+  if (body.blueprint && body.blueprint.length && (body.sources || []).some((s) => s.url)) {
+    for (const s of body.blueprint) {
+      const idx = Math.max(0, Math.min((body.sources || []).length - 1, s.sourceIdx ?? 0));
+      const src = body.sources?.[idx]?.url;
+      if (!src) continue;
+      const trim = Math.max(0, Number(s.from) || 0);
+      const rawLen = Math.max(0.1, (Number(s.to) || 0) - trim);
+      elements.push({
+        type: "video",
+        source: src,
+        fit: "cover",
+        trim_start: trim,
+        trim_duration: rawLen,
+        volume: 0,
+      });
+    }
+    if (elements.length === 0) throw new Error("Blueprint tidak menghasilkan element valid");
+  } else {
+    const src = body.sources?.[0]?.url;
+    if (!src) throw new Error("Source video URL kosong");
+    elements.push({ type: "video", source: src, fit: "cover" });
+  }
   const payload = {
     output_format: "mp4",
     width,

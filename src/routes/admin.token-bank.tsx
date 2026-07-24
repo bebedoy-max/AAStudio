@@ -657,13 +657,14 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
       }
       case "brain": {
         const isAIza = /^AIza[0-9A-Za-z_-]{20,}$/.test(key);
-        const isAQ = /^AQ\.[A-Za-z0-9_-]{20,}$/.test(key);
+        const isAQ = /^AQ[.A-Za-z0-9_-]{20,}$/.test(key);
         if (!isAIza && !isAQ) return { label: "Bukan format AIza…/AQ…", tone: "bad" };
-        // Probe both AIza dan AQ. lewat endpoint models — sama seperti flow
+        // Probe both AIza dan AQ auth keys lewat endpoint models — sama seperti flow
         // di Token Manager user, sehingga info status konsisten.
         try {
           const r = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1`,
+            "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+            { headers: { "x-goog-api-key": key } },
           );
           if (r.ok) {
             const data = (await r.json().catch(() => ({}))) as { models?: unknown[] };

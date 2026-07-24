@@ -87,7 +87,7 @@ const GUIDES: Guide[] = [
     steps: [
       "Kunjungi aistudio.google.com dan login dengan akun Google.",
       "Klik 'Get API Key' → 'Create API key in new project'.",
-      "Copy key yang diawali 'AIza...' — inilah yang ditempel di Token Manager tab Gemini.",
+      "Copy key yang diawali 'AIza...' atau 'AQ...' — inilah yang ditempel di Token Manager tab Gemini.",
       "Untuk kuota lebih besar, aktifkan billing project di Google Cloud Console.",
     ],
     tips: ["Gratis-tier Gemini sudah cukup untuk pemakaian ringan; batas kuota reset harian."],

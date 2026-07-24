@@ -195,7 +195,7 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
       {insight && (
         <div className="mt-4">
           <div className="text-sm text-foreground/90 italic">"{insight.greeting}"</div>
-          <div className="mt-4 flex flex-col gap-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
             <Block
               icon={<Flame className="h-3.5 w-3.5" />}
               label="Keyword Viral"
@@ -416,30 +416,28 @@ function Block({
         (highlight ? "border-primary/40 bg-primary/5" : "border-border bg-card/40")
       }
     >
-      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
-        <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          {icon} {label}
-          <Chip className="ml-auto" tone={highlight ? "primary" : "default"}>
-            {items.length}
-          </Chip>
-        </div>
-        <ul className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {items.slice(0, 5).map((it, i) => (
-            <li key={i}>
-              <button
-                onClick={onClick ? () => onClick(it) : undefined}
-                disabled={!onClick}
-                className={
-                  "text-xs text-left w-full line-clamp-2 " +
-                  (onClick ? "hover:text-primary text-foreground/85 cursor-pointer" : "text-foreground/75")
-                }
-              >
-                • {it}
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {icon} {label}
+        <Chip className="ml-auto" tone={highlight ? "primary" : "default"}>
+          {items.length}
+        </Chip>
       </div>
+      <ul className="mt-2 space-y-1.5">
+        {items.slice(0, 5).map((it, i) => (
+          <li key={i}>
+            <button
+              onClick={onClick ? () => onClick(it) : undefined}
+              disabled={!onClick}
+              className={
+                "text-xs text-left w-full line-clamp-2 " +
+                (onClick ? "hover:text-primary text-foreground/85 cursor-pointer" : "text-foreground/75")
+              }
+            >
+              • {it}
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -459,40 +457,38 @@ function NewsBlock({
 }) {
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">
-      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)] md:items-start">
-        <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          {icon} {label}
-          <Chip className="ml-auto">{items.length}</Chip>
-        </div>
-        <ul className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2 xl:grid-cols-3">
-          {items.slice(0, 5).map((it, i) => {
-            const title = typeof it === "string" ? it : it.title;
-            const hasUrl =
-              typeof it !== "string" && !!it.url && /^https?:\/\//i.test(it.url || "");
-            return (
-              <li key={i} className="group">
-                <div className="flex items-start gap-1.5">
-                  <button
-                    onClick={() => onOpen(it)}
-                    className="flex-1 text-left text-xs text-foreground/85 hover:text-primary line-clamp-2 inline-flex items-start gap-1"
-                    title={hasUrl ? "Buka artikel di tab baru" : "Cari di Google"}
-                  >
-                    <span>• {title}</span>
-                    <ExternalLink className="h-3 w-3 opacity-60 shrink-0 mt-0.5" />
-                  </button>
-                  <button
-                    onClick={() => onGenerate(it)}
-                    className="shrink-0 text-[10px] text-primary hover:underline opacity-70 group-hover:opacity-100 transition"
-                    title={hasUrl ? "Generate naratif dari artikel ini" : "Riset topik"}
-                  >
-                    Gen
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+      <div className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {icon} {label}
+        <Chip className="ml-auto">{items.length}</Chip>
       </div>
+      <ul className="mt-2 space-y-1.5">
+        {items.slice(0, 5).map((it, i) => {
+          const title = typeof it === "string" ? it : it.title;
+          const hasUrl =
+            typeof it !== "string" && !!it.url && /^https?:\/\//i.test(it.url || "");
+          return (
+            <li key={i} className="group">
+              <div className="flex items-start gap-1.5">
+                <button
+                  onClick={() => onOpen(it)}
+                  className="flex-1 text-left text-xs text-foreground/85 hover:text-primary line-clamp-2 inline-flex items-start gap-1"
+                  title={hasUrl ? "Buka artikel di tab baru" : "Cari di Google"}
+                >
+                  <span>• {title}</span>
+                  <ExternalLink className="h-3 w-3 opacity-60 shrink-0 mt-0.5" />
+                </button>
+                <button
+                  onClick={() => onGenerate(it)}
+                  className="shrink-0 text-[10px] text-primary hover:underline opacity-70 group-hover:opacity-100 transition"
+                  title={hasUrl ? "Generate naratif dari artikel ini" : "Riset topik"}
+                >
+                  Gen
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
