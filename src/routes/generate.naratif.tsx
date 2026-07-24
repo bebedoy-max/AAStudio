@@ -686,13 +686,9 @@ function NaratifPage() {
       const targetW = ratio.startsWith("9:16") ? 720 : ratio.startsWith("1:1") ? 720 : 1280;
       const targetH = ratio.startsWith("9:16") ? 1280 : ratio.startsWith("1:1") ? 720 : 720;
       const scaleVf = `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1,fps=30`;
-<<<<<<< HEAD
       const XFADE = Math.max(0.1, Math.min(1.5, Number(xfadeDur) || 0.5));
       const GAP = Math.max(0, Math.min(4, Number(sceneGap) || 0));
       const TAIL_LAST = Math.max(0, Math.min(4, Number(leadOutDur) || 0));
-=======
-      const XFADE = 0.5; // seconds crossfade
->>>>>>> 685ba4122b02e4e2032a589126eed46b8ca609ed
 
       const parts: string[] = [];
       const durs: number[] = [];
@@ -706,7 +702,6 @@ function NaratifPage() {
           getMediaDuration(s.videoUrl, "video"),
         ]);
         // Target scene duration = audio (VO) duration
-<<<<<<< HEAD
         const voDur = Math.max(0.5, aDur);
         // setpts factor: >1 slows video down (video shorter than VO), <1 speeds up (video longer)
         const ptsFactor = voDur / vDur;
@@ -718,18 +713,12 @@ function NaratifPage() {
         const vTail = Math.max(tailPad, isLast ? 0 : XFADE);
         const partDur = voDur + tailPad;
         const vClipDur = voDur + vTail;
-=======
-        const targetDur = Math.max(0.5, aDur);
-        // setpts factor: >1 slows video down (video shorter than VO), <1 speeds up (video longer)
-        const ptsFactor = targetDur / vDur;
->>>>>>> 685ba4122b02e4e2032a589126eed46b8ca609ed
 
         const vName = `v${i}.mp4`;
         const aName = `a${i}.mp3`;
         const outName = `p${i}.mp4`;
         await ff.writeFile(vName, await fetchFile(s.videoUrl));
         await ff.writeFile(aName, await fetchFile(s.audioUrl));
-<<<<<<< HEAD
 
         const vFilter =
           `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS` +
@@ -747,15 +736,6 @@ function NaratifPage() {
           "-map", "0:v:0",
           "-map", "1:a:0",
           "-t", vClipDur.toFixed(3),
-=======
-        const ret = await ff.exec([
-          "-i", vName,
-          "-i", aName,
-          "-vf", `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS`,
-          "-map", "0:v:0",
-          "-map", "1:a:0",
-          "-t", targetDur.toFixed(3),
->>>>>>> 685ba4122b02e4e2032a589126eed46b8ca609ed
           "-c:v", "libx264",
           "-preset", "ultrafast",
           "-crf", "26",
@@ -770,11 +750,7 @@ function NaratifPage() {
         try { await ff.deleteFile(vName); } catch { /* noop */ }
         try { await ff.deleteFile(aName); } catch { /* noop */ }
         parts.push(outName);
-<<<<<<< HEAD
         durs.push(vClipDur);
-=======
-        durs.push(targetDur);
->>>>>>> 685ba4122b02e4e2032a589126eed46b8ca609ed
       }
 
       setMergeStatus("🧵 Menggabung scene dengan crossfade…");
