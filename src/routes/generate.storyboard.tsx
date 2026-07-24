@@ -4,7 +4,7 @@ import { logGenerate } from "@/lib/activity/log";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
-  Search,
+  ClipboardPaste,
   Download,
   Trash2,
   Plus,
@@ -110,21 +110,82 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
   magnific: [],
   framia: [
     {
+      key: "framia:nano-banana-lite",
+      label: "Nano Banana Lite (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
+        { v: "2K", label: "2K (~2 cr)", cr: 2 },
+      ],
+    },
+    {
       key: "framia:nano-banana",
       label: "Nano Banana (Framia)",
       qualities: [
+        { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
+        { v: "2K", label: "2K (~3 cr)", cr: 3 },
+      ],
+    },
+    {
+      key: "framia:nano-banana-2",
+      label: "Nano Banana 2 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:nano-banana-pro",
+      label: "Nano Banana Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)", cr: 5, default: true }],
+    },
+    {
+      key: "framia:gpt-image-2",
+      label: "GPT Image 2 (Framia)",
+      qualities: [
+        { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
+        { v: "4K", label: "4K (~8 cr)", cr: 8 },
+      ],
+    },
+    {
+      key: "framia:seedream-4",
+      label: "Seedream 4.0 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:seedream-4-5",
+      label: "Seedream 4.5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:seedream-5",
+      label: "Seedream 5 (Framia)",
+      qualities: [
         { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
-        { v: "2K", label: "2K (~7 cr)", cr: 7 },
+        { v: "2K", label: "2K (~5 cr)", cr: 5 },
+      ],
+    },
+    {
+      key: "framia:seedream-5-pro",
+      label: "Seedream 5 Pro (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+        { v: "2K", label: "2K (~5 cr)", cr: 5 },
       ],
     },
     {
       key: "framia:flux-1.1-pro",
       label: "Flux 1.1 Pro (Framia)",
-      qualities: [{ v: "default", label: "Standard (~8 cr)", cr: 8, default: true }],
+      qualities: [{ v: "default", label: "Standard (~3 cr)", cr: 3, default: true }],
     },
     {
-      key: "framia:seedream-4",
-      label: "Seedream 4.0 (Framia)",
+      key: "framia:flux-max",
+      label: "Flux Max (Framia)",
       qualities: [{ v: "default", label: "Standard (~6 cr)", cr: 6, default: true }],
     },
     {
@@ -134,6 +195,7 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
     },
   ],
 };
+
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   weavy: "Weavy",
@@ -242,6 +304,11 @@ function newRow(): ProductRow {
   };
 }
 
+function extractFirstUrl(text: string): string {
+  const match = text.match(/https?:\/\/[^\s<>"]+/i);
+  return (match?.[0] ?? text).trim();
+}
+
 // Module-level generation state — survives route navigation.
 type GenResult = {
   resultId: string;
@@ -330,7 +397,7 @@ function StoryboardPage() {
       setQualityV(def?.v ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModel]);
+  }, [activeModel, qualityV]);
 
   const [sceneCount, setSceneCount] = useSticky<string>("sb.sceneCount", "6");
   const [ratio, setRatio] = useSticky<string>("sb.ratio", "9:16");
@@ -388,10 +455,10 @@ function StoryboardPage() {
       }),
     );
   };
-  const fetchRow = async (rowId: string) => {
+  const fetchRow = async (rowId: string, overrideUrl?: string) => {
     const row = rows.find((r) => r.rowId === rowId);
     if (!row) return;
-    const url = row.url.trim();
+    const url = (overrideUrl ?? row.url).trim();
     if (!/^https?:\/\//i.test(url)) {
       patchRow(rowId, { status: "err", error: "URL tidak valid" });
       return;
@@ -411,6 +478,23 @@ function StoryboardPage() {
       patchRow(rowId, {
         status: "err",
         error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+
+  const pasteAndFetchRow = async (rowId: string) => {
+    try {
+      const pasted = extractFirstUrl(await navigator.clipboard.readText());
+      if (!/^https?:\/\//i.test(pasted)) {
+        patchRow(rowId, { status: "err", error: "Clipboard tidak berisi URL valid" });
+        return;
+      }
+      patchRow(rowId, { url: pasted });
+      await fetchRow(rowId, pasted);
+    } catch (e) {
+      patchRow(rowId, {
+        status: "err",
+        error: e instanceof Error ? e.message : "Browser menolak akses clipboard",
       });
     }
   };
@@ -566,7 +650,18 @@ function StoryboardPage() {
           const getUrl = data.urls?.get || `${WAVESPEED_API}/predictions/${data.id}/result`;
           imgUrl = await wsPoll(getUrl, key, { timeoutMs: 300000 });
         } else if (provider === "framia") {
-          throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+          const { generateFramiaImage } = await import("@/lib/providers/framia-image");
+          if (refUrls.length) pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Framia)`);
+          imgUrl = await generateFramiaImage({
+            modelKey,
+            prompt: finalPrompt,
+            aspectRatio: ratio,
+            resolution: qualityV,
+            referenceUrls: refUrls,
+            onRotate: (next, total, reason) =>
+              pushLog(`🔄 [${title.slice(0, 40)}] Token Framia habis/invalid (${reason}) → pindah ke token #${next + 1}/${total}`),
+            onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
+          });
         } else {
           throw new Error(`Provider ${provider} belum di-wire untuk storyboard`);
         }
@@ -643,7 +738,7 @@ function StoryboardPage() {
         <div className="lg:col-span-2 order-1 lg:order-none">
           <Card
             title={`Link Produk (${rows.length}/${SB_MAX_ROWS})`}
-            sub="Tempel URL e-commerce, klik scrape, pilih hingga 6 gambar per produk"
+            sub="Paste URL e-commerce untuk scrape otomatis, lalu pilih hingga 6 gambar per produk"
             right={
               <div className="flex gap-2 shrink-0">
                 <GhostButton
@@ -684,7 +779,7 @@ function StoryboardPage() {
                   row={r}
                   canRemove={rows.length > 1}
                   onUrl={(v) => patchRow(r.rowId, { url: v })}
-                  onFetch={() => fetchRow(r.rowId)}
+                  onPaste={() => pasteAndFetchRow(r.rowId)}
                   onRemove={() => removeRow(r.rowId)}
                   onToggleImage={(u) => toggleRowImage(r.rowId, u)}
                 />
@@ -945,7 +1040,7 @@ function ProductRowCard({
   row,
   canRemove,
   onUrl,
-  onFetch,
+  onPaste,
   onRemove,
   onToggleImage,
 }: {
@@ -953,7 +1048,7 @@ function ProductRowCard({
   row: ProductRow;
   canRemove: boolean;
   onUrl: (v: string) => void;
-  onFetch: () => void;
+  onPaste: () => void;
   onRemove: () => void;
   onToggleImage: (url: string) => void;
 }) {
@@ -968,18 +1063,18 @@ function ProductRowCard({
         <StatusBadge status={row.status} error={row.error} />
         <span className="flex-1" />
         <button
-          onClick={onFetch}
+          onClick={onPaste}
           disabled={row.status === "loading"}
           className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-primary-foreground disabled:opacity-50"
           style={{ background: "var(--gradient-neon)" }}
-          title="Scrape URL"
+          title="Paste URL lalu scrape otomatis"
         >
           {row.status === "loading" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Search className="h-3.5 w-3.5" />
+            <ClipboardPaste className="h-3.5 w-3.5" />
           )}
-          Scrape
+          Paste
         </button>
         <button
           onClick={onRemove}

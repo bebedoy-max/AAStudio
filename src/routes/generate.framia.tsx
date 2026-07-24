@@ -12,6 +12,7 @@ import {
   listFramiaTemplateCategories,
   createWorkflowRun,
   waitForRunCompletion,
+  runFramiaWithRotation,
   type FramiaSkill,
   type FramiaCategory,
   type FramiaTemplate,
@@ -422,19 +423,31 @@ function RunDialog({
       } catch {
         throw new Error("Input JSON tidak valid");
       }
-      const res = await createWorkflowRun(token, {
-        workflowId,
-        projectId,
-        canvasId,
-        inputRefs,
-      });
-      const id = String(res.run_id || res.id || "");
-      if (!id) throw new Error("run_id tidak dikembalikan Framia");
-      setRunId(id);
-      const finalNodes = await waitForRunCompletion(token, id, {
-        onTick: (n) => setNodes(n),
-      });
+      const finalNodes = await runFramiaWithRotation(
+        async (activeToken) => {
+          const res = await createWorkflowRun(activeToken, {
+            workflowId,
+            projectId,
+            canvasId,
+            inputRefs,
+          });
+          const id = String(res.run_id || res.id || "");
+          if (!id) throw new Error("run_id tidak dikembalikan Framia");
+          setRunId(id);
+          const nodesOut = await waitForRunCompletion(activeToken, id, {
+            onTick: (n) => setNodes(n),
+          });
+          const failed = nodesOut.find((n) => String(n.status ?? "").toLowerCase() === "failed");
+          if (failed) throw new Error(`Framia node failed: ${failed.error ?? "unknown"}`);
+          return nodesOut;
+        },
+        {
+          onRotate: (next, total, reason) =>
+            setErr(`Token #${next - 1}/${total} gagal (${reason.slice(0, 80)}) — rotate ke token berikutnya…`),
+        },
+      );
       setNodes(finalNodes);
+      setErr("");
     } catch (e) {
       setErr((e as Error).message);
     } finally {

@@ -20,33 +20,67 @@ export type CreativeHandoff = {
 
 const KEY = "creative:handoff";
 
+// Large fields (data URLs) are kept in-memory to avoid sessionStorage quota.
+// SPA navigation preserves module state, so this survives route transitions.
+let memoryLarge: { thumbnail_data_url?: string } | null = null;
+
+function stripLarge(payload: CreativeHandoff): CreativeHandoff {
+  const { thumbnail_data_url, ...rest } = payload;
+  void thumbnail_data_url;
+  return rest as CreativeHandoff;
+}
+
+function safeSet(value: CreativeHandoff) {
+  try {
+    sessionStorage.setItem(KEY, JSON.stringify(value));
+  } catch {
+    // Quota exceeded — retry without large fields (already stored in memory).
+    try {
+      sessionStorage.setItem(KEY, JSON.stringify(stripLarge(value)));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function setHandoff(payload: Omit<CreativeHandoff, "createdAt">) {
   if (typeof window === "undefined") return;
   const value: CreativeHandoff = { ...payload, createdAt: Date.now() };
-  sessionStorage.setItem(KEY, JSON.stringify(value));
+  memoryLarge = payload.thumbnail_data_url ? { thumbnail_data_url: payload.thumbnail_data_url } : null;
+  safeSet(value);
+}
+
+function hydrate(raw: string): CreativeHandoff | null {
+  try {
+    const parsed = JSON.parse(raw) as CreativeHandoff;
+    if (!parsed.thumbnail_data_url && memoryLarge?.thumbnail_data_url) {
+      parsed.thumbnail_data_url = memoryLarge.thumbnail_data_url;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 export function consumeHandoff(): CreativeHandoff | null {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(KEY);
-    if (!raw) return null;
-    sessionStorage.removeItem(KEY);
-    return JSON.parse(raw) as CreativeHandoff;
-  } catch {
+  const raw = sessionStorage.getItem(KEY);
+  if (!raw) {
+    memoryLarge = null;
     return null;
   }
+  sessionStorage.removeItem(KEY);
+  const out = hydrate(raw);
+  memoryLarge = null;
+  return out;
 }
 
 export function peekHandoff(): CreativeHandoff | null {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as CreativeHandoff) : null;
-  } catch {
-    return null;
-  }
+  const raw = sessionStorage.getItem(KEY);
+  return raw ? hydrate(raw) : null;
 }
+
 
 export const WORKFLOW_ROUTES: Record<CreativeHandoff["workflow"], string> = {
   "narrative-video": "/generate/naratif",

@@ -79,10 +79,11 @@ const RATIOS = ["16:9", "9:16", "1:1", "4:5", "3:4"];
 type QualityOpt = {
   value: string;
   label: string;
-  mult: number;         // multiplier untuk cr (biaya)
+  mult: number;         // multiplier untuk cr (biaya) — dipakai kalau `cr` option tidak diset
   duration: number;     // detik
   resolution?: string;  // seedance-pro
   sound?: "on" | "off"; // kling-v26
+  cr?: number;          // override eksplisit sesuai harga real provider (Framia)
 };
 // Default (weavy/wavespeed/magnific): pilih durasi saja.
 const DEFAULT_QUALITY: QualityOpt[] = [
@@ -109,8 +110,53 @@ const ROBONEO_QUALITY: Record<string, QualityOpt[]> = {
     { value: "10s-on",  label: "10s · Sound",    mult: 2.6, duration: 10, sound: "on"  },
   ],
 };
+// Harga Framia diambil dari UI framia.converge.ai (720p, aspect 9:16).
+// Nilai `cr` di sini adalah biaya asli yang ditagih Framia — override
+// perhitungan modelCr × mult supaya cocok dengan node Framia di lapangan.
+const FRAMIA_QUALITY: Record<string, QualityOpt[]> = {
+  "framia:gemini-omni-flash": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
+    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 45 },
+  ],
+  "framia:seedance-2.0": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
+    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 45 },
+  ],
+  "framia:seedance-2.0-fast": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 15 },
+    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 25 },
+  ],
+  "framia:kling-3.0-omni": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 40 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 80 },
+  ],
+  "framia:kling-3.0": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 30 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 60 },
+  ],
+  "framia:veo-3.1": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 90 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 180 },
+  ],
+  "framia:veo-3.1-fast": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 65 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 130 },
+  ],
+  "framia:wan-2.7": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 20 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 40 },
+  ],
+  "framia:happyhorse-1.1": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 28 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 56 },
+  ],
+  "framia:kling-avatar": [
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 40 },
+    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 80 },
+  ],
+};
 function qualityOptsFor(model: string): QualityOpt[] {
-  return ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
+  return FRAMIA_QUALITY[model] || ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
 }
 
 
@@ -132,6 +178,9 @@ function ImageToVideo() {
   const [prompt, setPrompt] = useSticky<string>("i2v.prompt", "");
   const [showTpl, setShowTpl] = useState(false);
   const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>("i2v.status", { show: false, text: "", pct: 0, time: "0:00" });
+  const [logs, setLogs] = useSticky<string[]>("i2v.logs", []);
+  const pushLog = (s: string) =>
+    setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
   const imgInput = useRef<HTMLInputElement>(null);
 
   // provider info counters
@@ -208,7 +257,7 @@ function ImageToVideo() {
   const activeQuality =
     currentQualityOpts.find((q) => q.value === quality) || currentQualityOpts[0];
   const qMult = activeQuality?.mult ?? 1;
-  const totalCost = Math.round(modelCr * qMult);
+  const totalCost = activeQuality?.cr ?? Math.round(modelCr * qMult);
 
 
   const [imgFile, setImgFile] = useSticky<File | null>("i2v.imgFile", null);
@@ -232,6 +281,7 @@ function ImageToVideo() {
     } catch { /* ignore */ }
     const start = Date.now();
     setStatus({ show: true, text: "Memulai...", pct: 5, time: "0:00" });
+    pushLog(`🚀 Mulai generate video · ${provider} · ${model} · ${ratio} · ${activeQuality?.duration ?? 5}s`);
     const tick = setInterval(() => {
       const el = Math.floor((Date.now() - start) / 1000);
       setStatus((s) => ({ ...s, time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}` }));
@@ -247,15 +297,20 @@ function ImageToVideo() {
         resolution: activeQuality?.resolution,
         sound: activeQuality?.sound,
         prompt,
-        onProgress: (msg, pct) => setStatus((s) => ({ ...s, text: msg, pct: pct ?? s.pct })),
+        onProgress: (msg, pct) => {
+          setStatus((s) => ({ ...s, text: msg, pct: pct ?? s.pct }));
+          pushLog(`⏳ ${msg}${pct != null ? ` (${pct}%)` : ""}`);
+        },
       });
 
       setResults((r) => [url, ...r]);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
+      pushLog(`✅ Video selesai · ${url.slice(0, 60)}${url.length > 60 ? "…" : ""}`);
       logGenerate("image_to_video", { provider, modelKey: model, status: "success" });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
+      pushLog(`❌ ${msg}`);
       logGenerate("image_to_video", { provider, modelKey: model, status: "error", error: msg });
     } finally {
       clearInterval(tick);
@@ -356,6 +411,19 @@ function ImageToVideo() {
                 </div>
                 <div className="h-1 rounded-full bg-border overflow-hidden">
                   <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon)" }} />
+                </div>
+              </div>
+            )}
+            {logs.length > 0 && (
+              <div className="mt-3 rounded-xl border border-border/70 bg-black/40 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Log Proses</div>
+                  <button onClick={() => setLogs([])} className="text-[10px] text-muted-foreground hover:text-destructive">Clear</button>
+                </div>
+                <div className="max-h-40 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
+                  {logs.map((l, i) => (
+                    <div key={i} className="whitespace-pre-wrap break-all min-w-0">{l}</div>
+                  ))}
                 </div>
               </div>
             )}

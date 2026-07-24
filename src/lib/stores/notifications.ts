@@ -1,114 +1,115 @@
-// Global notification store — tracks running & completed generate processes.
-// Any page can call startNotification/finishNotification/failNotification.
-// The header bell reads this store and renders a live dropdown.
+// Global notification store for long-running generate jobs.
+// Uses useSyncExternalStore so components across routes share state.
 import { useSyncExternalStore } from "react";
 
-export type NotificationStatus = "running" | "done" | "error";
+export type NotificationStatus = "running" | "done" | "failed";
 
 export type AppNotification = {
   id: string;
-  label: string;      // "Generate Storyboard"
-  detail?: string;    // "Jaket kulit vintage"
-  route?: string;     // where to navigate on click
+  label: string;
+  detail?: string;
+  route?: string;
   status: NotificationStatus;
+  read: boolean;
   startedAt: number;
   endedAt?: number;
-  read?: boolean;
 };
 
 type State = { items: AppNotification[] };
 
 let state: State = { items: [] };
 const listeners = new Set<() => void>();
-const emit = () => listeners.forEach((l) => l());
-const subscribe = (l: () => void) => {
+
+function emit() {
+  listeners.forEach((l) => l());
+}
+function setState(updater: (prev: State) => State) {
+  state = updater(state);
+  emit();
+}
+function subscribe(l: () => void) {
   listeners.add(l);
   return () => {
     listeners.delete(l);
   };
+}
+function getSnapshot(): State {
+  return state;
+}
+
+export function useNotifications(): State {
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+export function hasRunningTasks(): boolean {
+  return state.items.some((n) => n.status === "running");
+}
+
+export type StartOptions = {
+  label: string;
+  detail?: string;
+  route?: string;
 };
 
-function upsert(n: AppNotification) {
-  const idx = state.items.findIndex((x) => x.id === n.id);
-  const items = state.items.slice();
-  if (idx >= 0) items[idx] = { ...items[idx], ...n };
-  else items.unshift(n);
-  // Trim: keep 30 latest
-  state = { items: items.slice(0, 30) };
-  emit();
-}
-
-export function startNotification(id: string, opts: { label: string; detail?: string; route?: string }): void {
-  upsert({
-    id,
-    label: opts.label,
-    detail: opts.detail,
-    route: opts.route,
-    status: "running",
-    startedAt: Date.now(),
-    read: false,
+export function startNotification(id: string, opts: StartOptions): void {
+  const now = Date.now();
+  setState((prev) => {
+    const existing = prev.items.find((n) => n.id === id);
+    const next: AppNotification = existing
+      ? { ...existing, ...opts, status: "running", read: false, startedAt: now, endedAt: undefined }
+      : {
+          id,
+          label: opts.label,
+          detail: opts.detail,
+          route: opts.route,
+          status: "running",
+          read: false,
+          startedAt: now,
+        };
+    const others = prev.items.filter((n) => n.id !== id);
+    return { items: [next, ...others] };
   });
 }
 
-export function finishNotification(id: string, opts?: { detail?: string; route?: string }): void {
-  const cur = state.items.find((x) => x.id === id);
-  if (!cur) {
-    upsert({
-      id,
-      label: opts?.detail || "Selesai",
-      detail: opts?.detail,
-      route: opts?.route,
-      status: "done",
-      startedAt: Date.now(),
-      endedAt: Date.now(),
-      read: false,
-    });
-    return;
-  }
-  upsert({
-    ...cur,
-    status: "done",
-    endedAt: Date.now(),
-    detail: opts?.detail ?? cur.detail,
-    route: opts?.route ?? cur.route,
-    read: false,
-  });
+export type FinishOptions = { detail?: string; route?: string };
+
+export function finishNotification(id: string, opts: FinishOptions = {}): void {
+  const now = Date.now();
+  setState((prev) => ({
+    items: prev.items.map((n) =>
+      n.id === id
+        ? {
+            ...n,
+            status: "done",
+            detail: opts.detail ?? n.detail,
+            route: opts.route ?? n.route,
+            read: false,
+            endedAt: now,
+          }
+        : n,
+    ),
+  }));
 }
 
 export function failNotification(id: string, detail?: string): void {
-  const cur = state.items.find((x) => x.id === id);
-  const base: AppNotification = cur ?? {
-    id,
-    label: "Proses gagal",
-    status: "error",
-    startedAt: Date.now(),
-  };
-  upsert({ ...base, status: "error", detail: detail ?? base.detail, endedAt: Date.now(), read: false });
+  const now = Date.now();
+  setState((prev) => ({
+    items: prev.items.map((n) =>
+      n.id === id
+        ? { ...n, status: "failed", detail: detail ?? n.detail, read: false, endedAt: now }
+        : n,
+    ),
+  }));
 }
 
 export function markAllRead(): void {
-  state = { items: state.items.map((x) => ({ ...x, read: true })) };
-  emit();
+  setState((prev) => ({ items: prev.items.map((n) => ({ ...n, read: true })) }));
 }
 
 export function removeNotification(id: string): void {
-  state = { items: state.items.filter((x) => x.id !== id) };
-  emit();
+  setState((prev) => ({ items: prev.items.filter((n) => n.id !== id) }));
 }
 
 export function clearFinished(): void {
-  state = { items: state.items.filter((x) => x.status === "running") };
-  emit();
-}
-
-const getSnap = () => state;
-export function useNotifications(): State {
-  return useSyncExternalStore(subscribe, getSnap, getSnap);
-}
-
-// Non-hook helper for background timers (idle checker) — returns true when
-// there's any generate/render job currently in progress. Any running task
-// counts as user activity so the idle-logout timer keeps getting reset.
-export function hasRunningTasks(): boolean {
-  return state.items.some((n) => n.status === "running");
+  setState((prev) => ({ items: prev.items.filter((n) => n.status === "running") }));
 }

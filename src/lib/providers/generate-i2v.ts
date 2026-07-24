@@ -158,29 +158,32 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
 }
 
 async function runFramiaI2V(opts: I2VOpts): Promise<string> {
-  const { getFirstFramiaKey, isFramiaTokenExpired } = await import("./framia");
+  const { getAllFramiaKeys, runFramiaWithRotation } = await import("./framia");
   const { runFramiaI2V: runRecipe } = await import("./framia-i2v");
-  const token = getFirstFramiaKey();
-  if (!token) {
+  if (getAllFramiaKeys().length === 0) {
     throw new Error(
       "Framia belum di-connect. Buka Token Manager → Framia dan tempel Bearer JWT terlebih dulu.",
     );
   }
-  if (isFramiaTokenExpired(token)) {
-    throw new Error("Token Framia expired. Perbarui di Token Manager → Framia.");
-  }
   const normalized = await normalizeImage(opts.imageFile);
-  return runRecipe({
-    token,
-    imageFile: normalized,
-    filename: normalized.name || `framia_i2v_${Date.now()}.jpg`,
-    prompt: opts.prompt,
-    modelKey: opts.modelKey,
-    aspectRatio: opts.ratio,
-    resolution: opts.resolution || "720p",
-    durationSec: opts.duration,
-    onProgress: opts.onProgress,
-  });
+  return runFramiaWithRotation(
+    (token) =>
+      runRecipe({
+        token,
+        imageFile: normalized,
+        filename: normalized.name || `framia_i2v_${Date.now()}.jpg`,
+        prompt: opts.prompt,
+        modelKey: opts.modelKey,
+        aspectRatio: opts.ratio,
+        resolution: opts.resolution || "720p",
+        durationSec: opts.duration,
+        onProgress: opts.onProgress,
+      }),
+    {
+      onRotate: (next, total, reason) =>
+        opts.onProgress?.(`Framia token ${next - 1}/${total} gagal (${reason.slice(0, 60)}), rotate…`, 15),
+    },
+  );
 }
 
 export async function generateI2V(opts: I2VOpts): Promise<string> {

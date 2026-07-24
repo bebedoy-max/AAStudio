@@ -65,6 +65,11 @@ function CharacterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
   useEffect(() => {
+    if (!currentModel.qualities.find((q) => q.v === quality)) {
+      setQuality(currentModel.qualities.find((q) => q.default)?.v ?? currentModel.qualities[0].v);
+    }
+  }, [currentModel, quality]);
+  useEffect(() => {
     const onStorage = () => setProvider(getActiveProvider());
     window.addEventListener("storage", onStorage);
     window.addEventListener("focus", onStorage);

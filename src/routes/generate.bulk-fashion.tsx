@@ -73,16 +73,40 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
     ] },
   ],
   framia: [
+    { key: "framia:nano-banana-lite-edit", label: "Nano Banana Lite Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
+      { v: "2K", label: "2K (~2 cr)", cr: 2 },
+    ] },
     { key: "framia:nano-banana-edit", label: "Nano Banana Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
+      { v: "2K", label: "2K (~3 cr)", cr: 3 },
+    ] },
+    { key: "framia:nano-banana-2-edit", label: "Nano Banana 2 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:nano-banana-pro-edit", label: "Nano Banana Pro Edit (Framia)", qualities: [
+      { v: "default", label: "Standard (~5 cr)", cr: 5, default: true },
+    ] },
+    { key: "framia:gpt-image-2-edit", label: "GPT Image 2 Edit (Framia)", qualities: [
+      { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
+      { v: "4K", label: "4K (~8 cr)", cr: 8 },
+    ] },
+    { key: "framia:seedream-4-edit", label: "Seedream 4.0 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:seedream-4-5-edit", label: "Seedream 4.5 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:seedream-5-edit", label: "Seedream 5 Edit (Framia)", qualities: [
       { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
-      { v: "2K", label: "2K (~7 cr)", cr: 7 },
+      { v: "2K", label: "2K (~5 cr)", cr: 5 },
     ] },
-    { key: "framia:gpt-image-edit", label: "GPT Image Edit (Framia)", qualities: [
-      { v: "medium", label: "Medium (~12 cr)", cr: 12, default: true },
-      { v: "high", label: "High (~20 cr)", cr: 20 },
-    ] },
-    { key: "framia:seedream-edit", label: "Seedream Edit (Framia)", qualities: [
-      { v: "default", label: "Standard (~6 cr)", cr: 6, default: true },
+    { key: "framia:seedream-5-pro-edit", label: "Seedream 5 Pro Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~5 cr)", cr: 5 },
     ] },
   ],
 };
@@ -223,6 +247,13 @@ function BulkFashion() {
   const models = MODEL_CATALOG[provider] || MODEL_CATALOG.weavy;
   const currentModel = models.find((m) => m.key === model) || models[0];
   const qualities = currentModel?.qualities || [];
+  useEffect(() => {
+    if (!currentModel) return;
+    if (!currentModel.qualities.find((q) => q.v === quality)) {
+      const def = currentModel.qualities.find((q) => q.default) || currentModel.qualities[0];
+      setQuality(def?.v || "");
+    }
+  }, [currentModel, quality, setQuality]);
   const modelCr = qualities.find((q) => q.v === quality)?.cr ?? qualities.find((q) => q.default)?.cr ?? 0;
   const totalCost = Math.round(modelCr * outfits.length);
 

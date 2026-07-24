@@ -109,7 +109,14 @@ export async function generateCharacterSlot(opts: SlotGenOpts): Promise<string> 
     });
   }
   if (opts.provider === "framia") {
-    throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+    const { generateFramiaImage } = await import("@/lib/providers/framia-image");
+    return generateFramiaImage({
+      modelKey: opts.modelKey,
+      prompt,
+      aspectRatio: opts.ratio,
+      resolution: opts.quality,
+      referenceUrls: [opts.frontUrl],
+    });
   }
   return runWavespeedSlot(opts, prompt);
 }
@@ -166,27 +173,60 @@ export const CHAR_MODEL_CATALOG: Record<CharacterSlotProvider, ModelOpt[]> = {
   ],
   framia: [
     {
+      key: "framia:nano-banana-lite-edit",
+      label: "Nano Banana Lite Edit (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~1 cr)", default: true },
+        { v: "2K", label: "2K (~2 cr)" },
+      ],
+    },
+    {
       key: "framia:nano-banana-edit",
       label: "Nano Banana Edit (Framia)",
       qualities: [
-        { v: "1K", label: "1K", default: true },
-        { v: "2K", label: "2K" },
+        { v: "1K", label: "1K (~2 cr)", default: true },
+        { v: "2K", label: "2K (~3 cr)" },
       ],
     },
     {
-      key: "framia:gpt-image-edit",
-      label: "GPT Image Edit (Framia)",
+      key: "framia:nano-banana-2-edit",
+      label: "Nano Banana 2 Edit (Framia)",
       qualities: [
-        { v: "medium", label: "Medium", default: true },
-        { v: "high", label: "High" },
+        { v: "1K", label: "1K (~3 cr)", default: true },
+        { v: "2K", label: "2K (~4 cr)" },
       ],
     },
     {
-      key: "framia:seedream-edit",
-      label: "Seedream Edit (Framia)",
-      qualities: [{ v: "default", label: "Standard", default: true }],
+      key: "framia:nano-banana-pro-edit",
+      label: "Nano Banana Pro Edit (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)", default: true }],
+    },
+    {
+      key: "framia:gpt-image-2-edit",
+      label: "GPT Image 2 Edit (Framia)",
+      qualities: [
+        { v: "2K", label: "2K (~5 cr)", default: true },
+        { v: "4K", label: "4K (~8 cr)" },
+      ],
+    },
+    {
+      key: "framia:seedream-4-edit",
+      label: "Seedream 4.0 Edit (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", default: true },
+        { v: "2K", label: "2K (~4 cr)" },
+      ],
+    },
+    {
+      key: "framia:seedream-5-pro-edit",
+      label: "Seedream 5 Pro Edit (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", default: true },
+        { v: "2K", label: "2K (~5 cr)" },
+      ],
     },
   ],
+
 };
 
 export function getActiveProvider(): CharacterSlotProvider {

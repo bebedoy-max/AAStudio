@@ -128,13 +128,39 @@ async function runWeavyBulk(opts: BulkFashionOpts): Promise<string[]> {
   return results.filter(Boolean);
 }
 
+async function runFramiaBulk(opts: BulkFashionOpts): Promise<string[]> {
+  const { generateFramiaImage } = await import("./framia-image");
+  const results: string[] = [];
+  for (let i = 0; i < opts.outfitFiles.length; i++) {
+    if (opts.signal?.aborted) break;
+    try {
+      opts.onProgress?.(i, `Generate outfit #${i + 1} (Framia)...`);
+      const url = await generateFramiaImage({
+        modelKey: opts.modelKey,
+        prompt: buildPrompt(opts.promptTemplate, opts.productType, i),
+        aspectRatio: opts.ratio,
+        resolution: opts.quality,
+        referenceFiles: [opts.charFile, opts.outfitFiles[i]],
+        onRotate: (next, total, reason) =>
+          opts.onProgress?.(i, `Token Framia habis (${reason}) → token #${next + 1}/${total}`),
+        onProgress: (msg) => opts.onProgress?.(i, msg),
+      });
+      if (opts.signal?.aborted) break;
+      results.push(url);
+      opts.onProgress?.(i, "done", url);
+    } catch (e) {
+      if (opts.signal?.aborted) break;
+      opts.onProgress?.(i, "error", undefined, (e as Error).message || String(e));
+    }
+  }
+  return results;
+}
+
 export async function generateBulkFashion(opts: BulkFashionOpts): Promise<string[]> {
   try {
     if (opts.provider === "wavespeed") return await runWavespeedBulk(opts);
     if (opts.provider === "weavy") return await runWeavyBulk(opts);
-    if (opts.provider === "framia") {
-      throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
-    }
+    if (opts.provider === "framia") return await runFramiaBulk(opts);
     throw new Error("Magnific belum menyediakan bulk fashion edit endpoint di proxy.");
   } finally {
     if (opts.provider === "wavespeed" || opts.provider === "weavy" || opts.provider === "framia") {

@@ -42,6 +42,59 @@ export function getFirstFramiaKey(): string | null {
   return getAllFramiaKeys()[0] ?? null;
 }
 
+/* -------------------------- auto-rotation helpers ------------------------- */
+
+/**
+ * True bila pesan error dari Framia bisa dipulihkan dengan token lain
+ * (credit habis, quota/limit, token expired/unauthorized, dsb).
+ */
+export function isFramiaRotatableError(msg: string): boolean {
+  const m = (msg || "").toLowerCase();
+  return /credit|insufficient|not enough|out of|balance|quota|exhaust|limit reached|too many|rate.?limit|402|401|403|unauthor|forbidden|expired|invalid.*token|token.*invalid/.test(
+    m,
+  );
+}
+
+export type FramiaRotateOpts = {
+  onRotate?: (nextIndex: number, total: number, reason: string) => void;
+  skipExpired?: boolean;
+};
+
+/**
+ * Jalankan operasi Framia dengan auto-rotate: coba tiap token berurutan;
+ * kalau error rotatable (credit habis / token expired / 401 / 403) lanjut ke
+ * token berikutnya. Bila semua gagal, throw error terakhir.
+ */
+export async function runFramiaWithRotation<T>(
+  fn: (token: string) => Promise<T>,
+  opts: FramiaRotateOpts = {},
+): Promise<T> {
+  const keys = getAllFramiaKeys();
+  if (keys.length === 0) {
+    throw new Error(
+      "Belum ada token Framia. Buka Manage → Tokens → Framia dan tambahkan Bearer JWT.",
+    );
+  }
+  let lastErr: Error | null = null;
+  for (let i = 0; i < keys.length; i++) {
+    const token = keys[i];
+    if (opts.skipExpired !== false && isFramiaTokenExpired(token)) {
+      lastErr = new Error(`Token #${i + 1} expired`);
+      if (i < keys.length - 1) opts.onRotate?.(i + 1, keys.length, "token expired");
+      continue;
+    }
+    try {
+      return await fn(token);
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e));
+      lastErr = err;
+      if (!isFramiaRotatableError(err.message) || i === keys.length - 1) throw err;
+      opts.onRotate?.(i + 1, keys.length, err.message);
+    }
+  }
+  throw lastErr ?? new Error("Framia: semua token gagal / habis credit");
+}
+
 /* -------------------------------- helpers --------------------------------- */
 
 /** Decode payload JWT tanpa validasi signature — sekedar untuk ambil exp/email. */
@@ -102,13 +155,25 @@ export async function framiaFetch<T = unknown>(opts: ProxyOpts): Promise<T> {
     raw?: string;
   } | null;
   if (!wrap?.ok) {
+    const d = (wrap?.data ?? null) as Record<string, unknown> | null;
+    const pick = (k: string) => {
+      const v = d && typeof d === "object" ? d[k] : undefined;
+      if (typeof v === "string" && v.trim()) return v;
+      if (v && typeof v === "object") return JSON.stringify(v).slice(0, 300);
+      return "";
+    };
     const err =
-      (wrap?.data && typeof wrap.data === "object" && "detail" in (wrap.data as object)
-        ? String((wrap.data as { detail: unknown }).detail)
-        : wrap?.raw?.slice(0, 200)) ||
+      pick("detail") ||
+      pick("message") ||
+      pick("error") ||
+      pick("msg") ||
+      pick("errors") ||
+      (d ? JSON.stringify(d).slice(0, 300) : "") ||
+      wrap?.raw?.slice(0, 300) ||
       `HTTP ${wrap?.status ?? r.status}`;
     throw new Error(`Framia ${method} ${path}: ${err}`);
   }
+
   return wrap.data as T;
 }
 
@@ -709,24 +774,44 @@ const genClientRunId = () =>
     .toString(36)
     .slice(2, 14)}`;
 
-async function publishWorkflowVersion(token: string, req: FramiaRunRequest, version: number) {
+async function publishWorkflowVersion(
+  token: string,
+  req: FramiaRunRequest,
+  version: number,
+): Promise<{ version: number; error?: string }> {
   const canvasSnapshot = asObject(req.contextRefs)?.canvas_snapshot;
-  if (!canvasSnapshot) return;
-  await framiaFetch<unknown>({
-    token,
-    path: "/video/api/workflows/versions",
-    method: "POST",
-    body: {
-      workflow_id: req.workflowId,
-      version,
-      owner_type: "project",
-      owner_id: req.projectId,
-      project_id: req.projectId,
-      canvas_id: req.canvasId,
-      canvas_snapshot: canvasSnapshot,
-    },
-  });
+  if (!canvasSnapshot) return { version };
+  // Some Framia deployments reject millisecond versions (int32 overflow),
+  // so retry with a second-resolution version before giving up.
+  const candidates = [version, Math.floor(Date.now() / 1000), 1];
+  let lastError = "";
+  for (const v of candidates) {
+    try {
+      await framiaFetch<unknown>({
+        token,
+        path: "/video/api/workflows/versions",
+        method: "POST",
+        body: {
+          workflow_id: req.workflowId,
+          version: v,
+          owner_type: "project",
+          owner_id: req.projectId,
+          project_id: req.projectId,
+          canvas_id: req.canvasId,
+          canvas_snapshot: canvasSnapshot,
+        },
+      });
+      return { version: v };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+      if (/401|403|credit|unauthorized/i.test(lastError)) throw e;
+    }
+  }
+  // Publishing failed: still attempt the run (ad-hoc runs often carry the
+  // snapshot in context_refs), but keep the reason for error reporting.
+  return { version, error: lastError };
 }
+
 
 /**
  * Kick off a workflow run. Payload shape follows the browser capture of the
@@ -740,8 +825,9 @@ async function publishWorkflowVersion(token: string, req: FramiaRunRequest, vers
  *   }
  */
 export async function createWorkflowRun(token: string, req: FramiaRunRequest): Promise<FramiaRun> {
-  const workflowVersion = req.workflowVersion ?? Date.now();
-  await publishWorkflowVersion(token, req, workflowVersion);
+  const requested = req.workflowVersion ?? Date.now();
+  const published = await publishWorkflowVersion(token, req, requested);
+  const workflowVersion = published.version;
   const raw = await framiaFetch<unknown>({
     token,
     path: "/video/api/workflows/runs",
@@ -758,7 +844,11 @@ export async function createWorkflowRun(token: string, req: FramiaRunRequest): P
       context_refs: req.contextRefs ?? { run_kind: "execution_graph" },
       execution_backend: req.executionBackend ?? "temporal",
     },
+  }).catch((e: unknown) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(published.error ? `${msg} (publish version gagal: ${published.error})` : msg);
   });
+
   const data = unwrapFramiaEnvelope<Record<string, unknown>>(raw);
   const run = asObject(data.run) ?? asObject(data.workflow_run) ?? asObject(data.workflowRun) ?? data;
   const runId = pickString(run.run_id, run.workflow_run_id, run.id, data.run_id, data.workflow_run_id, data.id);

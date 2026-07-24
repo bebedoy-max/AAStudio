@@ -1688,7 +1688,11 @@ function ProviderKeyPane({
             <div className="text-emerald-400 font-semibold whitespace-nowrap">
               {provider === "wavespeed"
                 ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
-                : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+                : provider === "framia" || provider === "roboneo"
+                  ? x.balance == null
+                    ? x.status === "failed" ? "❌" : "…"
+                    : `${x.balance.toLocaleString()} cr`
+                  : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
             </div>
             <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
               <Trash2 className="h-3.5 w-3.5" /> Hapus
