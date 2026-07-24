@@ -25,7 +25,7 @@ export const Route = createFileRoute("/generate/naratif")({
 });
 
 // ============ Model Catalog (mirror legacy MODEL_CATALOG structure) ============
-type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo";
+type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type ModelDef = { key: string; label: string; qualities: Quality[] };
 
@@ -73,6 +73,18 @@ const IMG_CATALOG: Record<Provider, ModelDef[]> = {
   roboneo: [
     { key: "nanobanana2", label: "Gemini Nano Banana 2 (via Weavy fallback)", qualities: [
       { v: "1K", label: "1K (6 cr)", cr: 6, default: true },
+    ] },
+  ],
+  framia: [
+    { key: "framia:nano-banana", label: "Nano Banana (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~7 cr)", cr: 7 },
+    ] },
+    { key: "framia:flux-1.1-pro", label: "Flux 1.1 Pro (Framia)", qualities: [
+      { v: "default", label: "Standard (~8 cr)", cr: 8, default: true },
+    ] },
+    { key: "framia:seedream-4", label: "Seedream 4.0 (Framia)", qualities: [
+      { v: "default", label: "Standard (~6 cr)", cr: 6, default: true },
     ] },
   ],
 };
@@ -135,6 +147,45 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "5s-on",   label: "5s · Sound (kuota)",     cr: 0 },
       { v: "10s-off", label: "10s · No Sound (kuota)", cr: 0 },
       { v: "10s-on",  label: "10s · Sound (kuota)",    cr: 0 },
+    ] },
+  ],
+  framia: [
+    // Model list from Framia video node (share recipe 8b83c48b70).
+    { key: "framia:seedance-2.0", label: "Seedance 2.0 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~45 cr)",  cr: 45, default: true },
+      { v: "1080p-5s", label: "1080p · 5s (~65 cr)", cr: 65 },
+      { v: "720p-10s", label: "720p · 10s (~90 cr)", cr: 90 },
+    ] },
+    { key: "framia:seedance-2.0-fast", label: "Seedance 2.0 Fast (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~30 cr)",  cr: 30, default: true },
+      { v: "720p-10s", label: "720p · 10s (~60 cr)", cr: 60 },
+    ] },
+    { key: "framia:kling-3.0-omni", label: "Kling 3.0 Omni (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~60 cr)",  cr: 60, default: true },
+      { v: "1080p-5s", label: "1080p · 5s (~90 cr)", cr: 90 },
+    ] },
+    { key: "framia:kling-3.0", label: "Kling 3.0 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~50 cr)",  cr: 50, default: true },
+      { v: "1080p-5s", label: "1080p · 5s (~75 cr)", cr: 75 },
+    ] },
+    { key: "framia:veo-3.1", label: "Veo 3.1 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~90 cr)",  cr: 90, default: true },
+    ] },
+    { key: "framia:veo-3.1-fast", label: "Veo 3.1 Fast (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~65 cr)",  cr: 65, default: true },
+    ] },
+    { key: "framia:wan-2.7", label: "Wan 2.7 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~25 cr)",  cr: 25, default: true },
+    ] },
+    { key: "framia:gemini-omni-flash", label: "Gemini Omni Flash (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~20 cr)",  cr: 20, default: true },
+      { v: "720p-10s", label: "720p · 10s (~40 cr)", cr: 40 },
+    ] },
+    { key: "framia:happyhorse-1.1", label: "HappyHorse 1.1 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~28 cr)",  cr: 28, default: true },
+    ] },
+    { key: "framia:kling-avatar", label: "Kling Avatar (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~40 cr)",  cr: 40, default: true },
     ] },
   ],
 
@@ -211,13 +262,37 @@ function NaratifPage() {
   const [vidQuality, setVidQuality] = useSticky<string>("naratif.vidQuality", "");
 
   const [voice, setVoice] = useSticky<string>("naratif.voice", VOICES[0].value);
+  const [voicePreset, setVoicePreset] = useSticky<string>("naratif.voicePreset", "story");
   const [extra, setExtra] = useSticky<string>("naratif.extra", "");
+
+  // Merge options (jeda + transisi antar scene)
+  const [sceneGap, setSceneGap] = useSticky<number>("naratif.sceneGap", 0.7);
+  const [xfadeDur, setXfadeDur] = useSticky<number>("naratif.xfadeDur", 0.5);
+  const [leadOutDur, setLeadOutDur] = useSticky<number>("naratif.leadOutDur", 0.4);
 
   const [brainStatus, setBrainStatus] = useSticky<string>("naratif.brainStatus", "");
   const [scenes, setScenes] = useSticky<Scene[]>("naratif.scenes", []);
   const [mergeStatus, setMergeStatus] = useSticky<string>("naratif.mergeStatus", "");
   const [finalUrl, setFinalUrl] = useSticky<string | null>("naratif.finalUrl", null);
   const [testingVoice, setTestingVoice] = useSticky<boolean>("naratif.testingVoice", false);
+
+  // Voice intonation preset → ElevenLabs voice_settings
+  const VOICE_PRESETS: Record<string, { label: string; stability: number; similarityBoost: number; style: number; speed: number }> = {
+    story:     { label: "Bercerita (Natural)",   stability: 0.45, similarityBoost: 0.80, style: 0.55, speed: 0.95 },
+    news:      { label: "Berita (Formal)",        stability: 0.65, similarityBoost: 0.80, style: 0.25, speed: 1.00 },
+    casual:    { label: "Santai (Casual)",        stability: 0.40, similarityBoost: 0.75, style: 0.65, speed: 1.02 },
+    cinematic: { label: "Dramatis (Sinematik)",   stability: 0.35, similarityBoost: 0.85, style: 0.80, speed: 0.92 },
+  };
+  const activeVoiceSettings = VOICE_PRESETS[voicePreset] || VOICE_PRESETS.story;
+  // Enrich narration → tambahkan koma/titik ringan agar TTS punya jeda natural
+  const enrichNarration = (text: string): string => {
+    let t = (text || "").trim();
+    if (!t) return t;
+    if (!/[.!?…]$/.test(t)) t += ".";
+    // sisipkan koma setelah konjungsi umum agar ada micro-pause
+    t = t.replace(/\s+(namun|tetapi|karena|sehingga|meskipun|walaupun|kemudian|lalu|selain itu|padahal)\s+/gi, ", $1 ");
+    return t;
+  };
   const [bulkBusy, setBulkBusy] = useState<BulkBusy>(EMPTY_BUSY);
   const anyBusy = bulkBusy.img || bulkBusy.vo || bulkBusy.vid || bulkBusy.merge;
   const setBusy = (k: BulkKind, v: boolean) => setBulkBusy((prev) => ({ ...prev, [k]: v }));
@@ -349,7 +424,7 @@ function NaratifPage() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": key },
-        body: JSON.stringify({ text: "Halo, ini contoh suara narator untuk video naratif kamu.", voiceId: voice }),
+        body: JSON.stringify({ text: "Halo, ini contoh suara narator untuk video naratif kamu.", voiceId: voice, ...activeVoiceSettings }),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
@@ -456,6 +531,8 @@ function NaratifPage() {
       if (imgProvider === "weavy") {
         const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
         imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: scene.prompt, quality: imgQuality, ratio });
+      } else if (imgProvider === "framia") {
+        throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
       } else {
         const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import("@/lib/providers/wavespeed");
         const key = getFirstWavespeedKey();
@@ -486,7 +563,7 @@ function NaratifPage() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": key },
-        body: JSON.stringify({ text: scene.narration, voiceId: voice }),
+        body: JSON.stringify({ text: enrichNarration(scene.narration), voiceId: voice, ...activeVoiceSettings }),
       });
       if (!r.ok) throw new Error(`VO gagal (${r.status})`);
       const buf = await r.arrayBuffer();
@@ -569,11 +646,13 @@ function NaratifPage() {
       trackGeneration({ kind: "narrative", title, counts: { images: scenes.length } });
     } catch { /* ignore */ }
     setBusy("img", true);
-    setBrainStatus("🖼️ Generate semua gambar…");
+    setBrainStatus(`🖼️ Generate ${scenes.length} gambar paralel…`);
     try {
-      for (let i = 0; i < scenes.length; i++) {
-        setBrainStatus(`🖼️ Gambar #${i + 1}/${scenes.length}…`);
-        await genImageAt(i);
+      const results = await Promise.allSettled(scenes.map((_, i) => genImageAt(i)));
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        const first = (failed[0] as PromiseRejectedResult).reason;
+        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
       }
       setBrainStatus("✅ Semua gambar selesai");
       logGenerate("naratif_images", { provider, modelKey: imgModel, status: "success", scenes: scenes.length });
@@ -590,11 +669,13 @@ function NaratifPage() {
     if (bulkBusy.vo) return;
     logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "started", scenes: scenes.length });
     setBusy("vo", true);
-    setBrainStatus("🎙️ Generate semua voice-over…");
+    setBrainStatus(`🎙️ Generate ${scenes.length} voice-over paralel…`);
     try {
-      for (let i = 0; i < scenes.length; i++) {
-        setBrainStatus(`🎙️ VO #${i + 1}/${scenes.length}…`);
-        await genVOAt(i);
+      const results = await Promise.allSettled(scenes.map((_, i) => genVOAt(i)));
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        const first = (failed[0] as PromiseRejectedResult).reason;
+        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
       }
       setBrainStatus("✅ Semua VO selesai");
       logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "success", scenes: scenes.length });
@@ -616,11 +697,13 @@ function NaratifPage() {
       trackGeneration({ kind: "narrative", title, counts: { videos: scenes.length }, progress: 60 });
     } catch { /* ignore */ }
     setBusy("vid", true);
-    setBrainStatus("🎬 Generate semua image→video…");
+    setBrainStatus(`🎬 Generate ${scenes.length} image→video paralel…`);
     try {
-      for (let i = 0; i < scenes.length; i++) {
-        setBrainStatus(`🎬 Video #${i + 1}/${scenes.length}…`);
-        await genVideoAt(i);
+      const results = await Promise.allSettled(scenes.map((_, i) => genVideoAt(i)));
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        const first = (failed[0] as PromiseRejectedResult).reason;
+        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
       }
       setBrainStatus("✅ Semua video selesai");
       logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "success", scenes: scenes.length });
@@ -662,7 +745,9 @@ function NaratifPage() {
       const targetW = ratio.startsWith("9:16") ? 720 : ratio.startsWith("1:1") ? 720 : 1280;
       const targetH = ratio.startsWith("9:16") ? 1280 : ratio.startsWith("1:1") ? 720 : 720;
       const scaleVf = `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},setsar=1,fps=30`;
-      const XFADE = 0.5; // seconds crossfade
+      const XFADE = Math.max(0.1, Math.min(1.5, Number(xfadeDur) || 0.5));
+      const GAP = Math.max(0, Math.min(4, Number(sceneGap) || 0));
+      const TAIL_LAST = Math.max(0, Math.min(4, Number(leadOutDur) || 0));
 
       const parts: string[] = [];
       const durs: number[] = [];
@@ -676,22 +761,40 @@ function NaratifPage() {
           getMediaDuration(s.videoUrl, "video"),
         ]);
         // Target scene duration = audio (VO) duration
-        const targetDur = Math.max(0.5, aDur);
+        const voDur = Math.max(0.5, aDur);
         // setpts factor: >1 slows video down (video shorter than VO), <1 speeds up (video longer)
-        const ptsFactor = targetDur / vDur;
+        const ptsFactor = voDur / vDur;
+        // Tail padding: jeda antar scene (freeze frame + silence) — last scene pakai leadOut
+        const isLast = i === scenes.length - 1;
+        const tailPad = isLast ? TAIL_LAST : GAP;
+        // Untuk crossfade halus, video butuh material di area transisi.
+        // Padding minimum >= XFADE agar xfade tidak nge-cut frame hitam.
+        const vTail = Math.max(tailPad, isLast ? 0 : XFADE);
+        const partDur = voDur + tailPad;
+        const vClipDur = voDur + vTail;
 
         const vName = `v${i}.mp4`;
         const aName = `a${i}.mp3`;
         const outName = `p${i}.mp4`;
         await ff.writeFile(vName, await fetchFile(s.videoUrl));
         await ff.writeFile(aName, await fetchFile(s.audioUrl));
+
+        const vFilter =
+          `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS` +
+          (vTail > 0 ? `,tpad=stop_mode=clone:stop_duration=${vTail.toFixed(3)}` : "");
+        const aFilter =
+          tailPad > 0
+            ? `apad=pad_dur=${tailPad.toFixed(3)},atrim=0:${partDur.toFixed(3)},asetpts=N/SR/TB`
+            : `atrim=0:${partDur.toFixed(3)},asetpts=N/SR/TB`;
+
         const ret = await ff.exec([
           "-i", vName,
           "-i", aName,
-          "-vf", `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS`,
+          "-vf", vFilter,
+          "-af", aFilter,
           "-map", "0:v:0",
           "-map", "1:a:0",
-          "-t", targetDur.toFixed(3),
+          "-t", vClipDur.toFixed(3),
           "-c:v", "libx264",
           "-preset", "ultrafast",
           "-crf", "26",
@@ -706,7 +809,7 @@ function NaratifPage() {
         try { await ff.deleteFile(vName); } catch { /* noop */ }
         try { await ff.deleteFile(aName); } catch { /* noop */ }
         parts.push(outName);
-        durs.push(targetDur);
+        durs.push(vClipDur);
       }
 
       setMergeStatus("🧵 Menggabung scene dengan crossfade…");
@@ -864,6 +967,13 @@ function NaratifPage() {
                 </PrimaryButton>
               </div>
             </Field>
+            <Field label="Intonasi Narasi (Voice Preset)">
+              <Select
+                value={voicePreset}
+                onChange={(e) => setVoicePreset(e.target.value)}
+                options={Object.entries(VOICE_PRESETS).map(([v, p]) => ({ value: v, label: p.label }))}
+              />
+            </Field>
             <Field label="Extra Prompt (opsional)">
               <Textarea rows={2} placeholder="Gaya visual, mood, angle bercerita tertentu…" value={extra} onChange={(e) => setExtra(e.target.value)} />
             </Field>
@@ -959,7 +1069,24 @@ function NaratifPage() {
               </div>
             ))}
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-4 rounded-xl border border-border bg-card/40 p-3">
+            <div className="text-[11px] font-medium text-muted-foreground mb-2">⚙️ Opsi Gabung Video (jeda & transisi antar scene)</div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Jeda antar scene: <b>{sceneGap.toFixed(2)}s</b></span>
+                <input type="range" min={0} max={2.5} step={0.1} value={sceneGap} onChange={(e) => setSceneGap(Number(e.target.value))} />
+              </label>
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Durasi crossfade: <b>{xfadeDur.toFixed(2)}s</b></span>
+                <input type="range" min={0.2} max={1.5} step={0.05} value={xfadeDur} onChange={(e) => setXfadeDur(Number(e.target.value))} />
+              </label>
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Jeda akhir video: <b>{leadOutDur.toFixed(2)}s</b></span>
+                <input type="range" min={0} max={3} step={0.1} value={leadOutDur} onChange={(e) => setLeadOutDur(Number(e.target.value))} />
+              </label>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
             <PrimaryButton onClick={genAllImages} disabled={bulkBusy.img || bulkBusy.vid || bulkBusy.merge}>
               {bulkBusy.img ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
               {bulkBusy.img ? "Menggenerate Gambar…" : "Generate Semua Gambar"}

@@ -102,6 +102,17 @@ const CAPS: Cap[] = [
           { name: "gpt-image-1 HD (1024²)", cost: "$0.167 / image" },
         ],
       },
+      {
+        id: "framia",
+        name: "Framia (Converge AI)",
+        desc: "Canvas workflow via Framia. Pilih node image di Generate → Framia (Nano Banana, Flux, Seedream, dsb).",
+        models: [
+          { name: "Gemini 2.5 Flash Image (Nano Banana)", cost: "~4 cr / image (Framia)" },
+          { name: "Flux 1.1 Pro", cost: "~8 cr / image (Framia)" },
+          { name: "Seedream 4.0", cost: "~6 cr / image (Framia)" },
+          { name: "Ideogram v3", cost: "~5 cr / image (Framia)" },
+        ],
+      },
     ],
   },
   {
@@ -139,6 +150,18 @@ const CAPS: Cap[] = [
           { name: "Kling V2.6 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
           { name: "Kling V2.6 Pro (i2v)", cost: "Gratis (kuota Roboneo)" },
           { name: "Kling V2.1 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
+        ],
+      },
+      {
+        id: "framia",
+        name: "Framia (Converge AI)",
+        desc: "Canvas workflow video di Framia — Kling, Sora, Seedance, Hailuo. Jalankan di Generate → Framia.",
+        models: [
+          { name: "Kling v2.1 Master (i2v)", cost: "~45 cr / clip 5s" },
+          { name: "Kling v2.1 Pro (i2v)", cost: "~35 cr / clip 5s" },
+          { name: "Sora 2 (t2v/i2v)", cost: "~50 cr / clip 5s" },
+          { name: "Seedance 1.0 Pro", cost: "~30 cr / clip 5s" },
+          { name: "Hailuo 02 Pro", cost: "~28 cr / clip 5s" },
         ],
       },
     ],
@@ -193,6 +216,15 @@ const CAPS: Cap[] = [
         name: "Magnific",
         desc: "Kling Motion Control langsung via api.magnific.com. Butuh Freepik/Magnific API key (FPSX…).",
         models: [{ name: "Kling Motion Transfer", cost: "~50 Freepik cr / clip 5s" }],
+      },
+      {
+        id: "framia",
+        name: "Framia (Converge AI)",
+        desc: "Motion Control via Framia canvas — Kling motion node. Jalankan di Generate → Framia.",
+        models: [
+          { name: "Kling V2.1 Motion Control", cost: "~40 cr / clip 5s (Framia)" },
+          { name: "Kling V2.6 Motion Control", cost: "~35 cr / clip 5s (Framia)" },
+        ],
       },
     ],
   },

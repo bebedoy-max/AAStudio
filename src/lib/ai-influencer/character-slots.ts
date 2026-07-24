@@ -54,10 +54,10 @@ async function urlToFile(url: string, name = "front.jpg"): Promise<File> {
   return new File([blob], name, { type: blob.type || "image/jpeg" });
 }
 
-type Provider = "weavy" | "wavespeed";
+export type CharacterSlotProvider = "weavy" | "wavespeed" | "framia";
 
 export type SlotGenOpts = {
-  provider: Provider;
+  provider: CharacterSlotProvider;
   modelKey: string; // weavy: "nanobanana2" | "gptimage2" ; wavespeed: "ws:google/nano-banana-2/edit" dst.
   quality: string;
   ratio: string;
@@ -108,6 +108,9 @@ export async function generateCharacterSlot(opts: SlotGenOpts): Promise<string> 
       outfitFile: file,
     });
   }
+  if (opts.provider === "framia") {
+    throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+  }
   return runWavespeedSlot(opts, prompt);
 }
 
@@ -115,7 +118,7 @@ export async function generateCharacterSlot(opts: SlotGenOpts): Promise<string> 
 // multi image reference: NB2 & GPT-Image-2).
 export type QualityOpt = { v: string; label: string; default?: boolean };
 export type ModelOpt = { key: string; label: string; qualities: QualityOpt[] };
-export const CHAR_MODEL_CATALOG: Record<Provider, ModelOpt[]> = {
+export const CHAR_MODEL_CATALOG: Record<CharacterSlotProvider, ModelOpt[]> = {
   weavy: [
     {
       key: "nanobanana2",
@@ -161,13 +164,44 @@ export const CHAR_MODEL_CATALOG: Record<Provider, ModelOpt[]> = {
       ],
     },
   ],
+  framia: [
+    {
+      key: "framia:nano-banana-edit",
+      label: "Nano Banana Edit (Framia)",
+      qualities: [
+        { v: "1K", label: "1K", default: true },
+        { v: "2K", label: "2K" },
+      ],
+    },
+    {
+      key: "framia:gpt-image-edit",
+      label: "GPT Image Edit (Framia)",
+      qualities: [
+        { v: "medium", label: "Medium", default: true },
+        { v: "high", label: "High" },
+      ],
+    },
+    {
+      key: "framia:seedream-edit",
+      label: "Seedream Edit (Framia)",
+      qualities: [{ v: "default", label: "Standard", default: true }],
+    },
+  ],
 };
 
-export function getActiveProvider(): Provider {
+export function getActiveProvider(): CharacterSlotProvider {
   if (typeof window === "undefined") return "weavy";
+  try {
+    const raw = localStorage.getItem("aatools.routing.v2");
+    if (raw) {
+      const routed = (JSON.parse(raw) as { image?: string })?.image;
+      if (routed === "wavespeed" || routed === "framia" || routed === "weavy") return routed;
+    }
+  } catch {}
   const p =
     localStorage.getItem("aatools.activeProvider") ||
     localStorage.getItem("aatools:activeProvider") ||
     "weavy";
-  return p === "wavespeed" ? "wavespeed" : "weavy";
+  if (p === "wavespeed" || p === "framia") return p;
+  return "weavy";
 }

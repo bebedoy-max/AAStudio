@@ -48,7 +48,7 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
   throw new Error(`Upload gagal: ${lastErr}`);
 }
 
-export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo";
+export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia";
 
 export type I2VOpts = {
   provider: I2VProvider;
@@ -157,11 +157,38 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
   throw new Error("Roboneo: semua token gagal");
 }
 
+async function runFramiaI2V(opts: I2VOpts): Promise<string> {
+  const { getFirstFramiaKey, isFramiaTokenExpired } = await import("./framia");
+  const { runFramiaI2V: runRecipe } = await import("./framia-i2v");
+  const token = getFirstFramiaKey();
+  if (!token) {
+    throw new Error(
+      "Framia belum di-connect. Buka Token Manager → Framia dan tempel Bearer JWT terlebih dulu.",
+    );
+  }
+  if (isFramiaTokenExpired(token)) {
+    throw new Error("Token Framia expired. Perbarui di Token Manager → Framia.");
+  }
+  const normalized = await normalizeImage(opts.imageFile);
+  return runRecipe({
+    token,
+    imageFile: normalized,
+    filename: normalized.name || `framia_i2v_${Date.now()}.jpg`,
+    prompt: opts.prompt,
+    modelKey: opts.modelKey,
+    aspectRatio: opts.ratio,
+    resolution: opts.resolution || "720p",
+    durationSec: opts.duration,
+    onProgress: opts.onProgress,
+  });
+}
+
 export async function generateI2V(opts: I2VOpts): Promise<string> {
   try {
     if (opts.provider === "wavespeed") return await runWavespeedI2V(opts);
     if (opts.provider === "weavy") return await runWeavyI2V(opts);
     if (opts.provider === "roboneo") return await runRoboneoI2V(opts);
+    if (opts.provider === "framia") return await runFramiaI2V(opts);
     return await runMagnificI2V(opts);
   } finally {
     notifyGenerationDone(opts.provider);

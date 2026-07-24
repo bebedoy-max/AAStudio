@@ -55,7 +55,7 @@ async function generateOneMagnific(slot: MotionSlotInput, opts: MotionOpts): Pro
   });
 }
 
-export type MotionProvider = "weavy" | "wavespeed" | "magnific" | "roboneo";
+export type MotionProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia";
 
 export type MotionSlotInput = {
   index: number;
@@ -246,6 +246,12 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   throw new Error("Roboneo: semua token gagal");
 }
 
+async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
+  void slot;
+  void opts;
+  throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+}
+
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
 export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOpts): Promise<void> {
   await Promise.all(
@@ -257,6 +263,7 @@ export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOp
         else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
         else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
         else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
+        else if (opts.provider === "framia") url = await generateOneFramia(slot, opts);
         else throw new Error("Provider tidak dikenal: " + opts.provider);
         opts.onStatus?.({ index: slot.index, status: "done", url });
         opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");

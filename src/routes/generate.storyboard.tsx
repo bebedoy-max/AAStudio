@@ -28,6 +28,7 @@ import {
 import { createRunStore } from "@/lib/stores/run-store";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
+
 import { confirmDialog } from "@/components/ui-confirm";
 
 
@@ -46,7 +47,7 @@ export const Route = createFileRoute("/generate/storyboard")({
 });
 
 // ---- Model catalog (mirror MODEL_CATALOG.storyboard from legacy) ----
-type Provider = "weavy" | "wavespeed" | "magnific";
+type Provider = "weavy" | "wavespeed" | "magnific" | "framia";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type SbModel = { key: string; label: string; qualities: Quality[] };
 
@@ -107,13 +108,53 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
     },
   ],
   magnific: [],
+  framia: [
+    {
+      key: "framia:nano-banana",
+      label: "Nano Banana (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+        { v: "2K", label: "2K (~7 cr)", cr: 7 },
+      ],
+    },
+    {
+      key: "framia:flux-1.1-pro",
+      label: "Flux 1.1 Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~8 cr)", cr: 8, default: true }],
+    },
+    {
+      key: "framia:seedream-4",
+      label: "Seedream 4.0 (Framia)",
+      qualities: [{ v: "default", label: "Standard (~6 cr)", cr: 6, default: true }],
+    },
+    {
+      key: "framia:ideogram-v3",
+      label: "Ideogram v3 (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)", cr: 5, default: true }],
+    },
+  ],
 };
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   weavy: "Weavy",
   wavespeed: "Wavespeed",
   magnific: "Magnific",
+  framia: "Framia",
 };
+
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedImageProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { image?: string };
+    const p = obj?.image as Provider | undefined;
+    return p && SB_MODELS[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 const SB_MAX_ROWS = 12;
 const SB_DEFAULT_TYPES = [
@@ -223,6 +264,7 @@ function ratioToAspect(r: string | undefined): string {
 }
 
 function StoryboardPage() {
+  
   const navigate = useNavigate();
   // Provider — same localStorage key as legacy (arkx_activeProvider) so it stays in sync
   const [provider, setProvider] = useSticky<Provider>("sb.provider", "weavy");
@@ -231,12 +273,32 @@ function StoryboardPage() {
     if (sbBootstrapped.current) return;
     sbBootstrapped.current = true;
     try {
+      const routed = readRoutedImageProvider();
+      if (routed) {
+        setProvider(routed);
+        return;
+      }
       const p = (localStorage.getItem("arkx_activeProvider") ||
         localStorage.getItem("aatools:activeProvider")) as Provider | null;
       if (p && SB_MODELS[p] && !SB_MODELS[provider]) setProvider(p);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedImageProvider();
+      if (routed && routed !== provider) setProvider(routed);
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider, setProvider]);
 
   const models = SB_MODELS[provider];
   const defaultModelKey =
@@ -503,6 +565,8 @@ function StoryboardPage() {
           const data = await wsPost(modelId, payload, key);
           const getUrl = data.urls?.get || `${WAVESPEED_API}/predictions/${data.id}/result`;
           imgUrl = await wsPoll(getUrl, key, { timeoutMs: 300000 });
+        } else if (provider === "framia") {
+          throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
         } else {
           throw new Error(`Provider ${provider} belum di-wire untuk storyboard`);
         }

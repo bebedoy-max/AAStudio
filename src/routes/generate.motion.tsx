@@ -26,6 +26,7 @@ import { generateMotionAll, type MotionProvider } from "@/lib/providers/generate
 import { logGenerate } from "@/lib/activity/log";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+
 import { useAuth } from "@/lib/auth-context";
 import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
 import { confirmDialog } from "@/components/ui-confirm";
@@ -71,6 +72,10 @@ const MOTION_MODELS: Record<Provider, ModelOpt[]> = {
   roboneo: [
     { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 0 },
   ],
+  framia: [
+    { key: "framia:kling-v2.1-motion", label: "Kling V2.1 Motion Control (Framia)", cr: 40 },
+    { key: "framia:kling-v2.6-motion", label: "Kling V2.6 Motion Control (Framia)", cr: 35 },
+  ],
 };
 
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -78,6 +83,7 @@ const PROVIDER_LABEL: Record<Provider, string> = {
   wavespeed: "Wavespeed",
   magnific: "Magnific",
   roboneo: "Roboneo",
+  framia: "Framia",
 };
 
 const MAX_REFS = 12;
@@ -126,6 +132,7 @@ function readRoutedMotionProvider(): Provider | null {
 
 function MotionControl() {
   const { user } = useAuth();
+  
   const uid = user?.id ?? null;
 
   // Provider aktif — SELALU ikut Routing Provider (manage/routing).

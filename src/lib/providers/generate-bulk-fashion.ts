@@ -5,7 +5,7 @@
 import { getAllWavespeedKeys, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API, isWavespeedRotatableError } from "./wavespeed";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
-export type BulkProvider = "weavy" | "wavespeed" | "magnific";
+export type BulkProvider = "weavy" | "wavespeed" | "magnific" | "framia";
 
 export type BulkFashionOpts = {
   provider: BulkProvider;
@@ -132,9 +132,12 @@ export async function generateBulkFashion(opts: BulkFashionOpts): Promise<string
   try {
     if (opts.provider === "wavespeed") return await runWavespeedBulk(opts);
     if (opts.provider === "weavy") return await runWeavyBulk(opts);
+    if (opts.provider === "framia") {
+      throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+    }
     throw new Error("Magnific belum menyediakan bulk fashion edit endpoint di proxy.");
   } finally {
-    if (opts.provider === "wavespeed" || opts.provider === "weavy") {
+    if (opts.provider === "wavespeed" || opts.provider === "weavy" || opts.provider === "framia") {
       notifyGenerationDone(opts.provider);
     }
   }

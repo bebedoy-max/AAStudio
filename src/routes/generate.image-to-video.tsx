@@ -8,6 +8,7 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 
 
+
 export const Route = createFileRoute("/generate/image-to-video")({
   head: () => ({
     meta: [
@@ -43,6 +44,19 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
     { value: "rn:seedance-pro", label: "Seedance Pro (Roboneo)", cr: 0 },
     { value: "rn:google-omni", label: "Google Omni (Roboneo)", cr: 0 },
     { value: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", cr: 0 },
+  ],
+  framia: [
+    // Model list from Framia video node (share recipe 8b83c48b70).
+    { value: "framia:seedance-2.0", label: "Seedance 2.0 (Framia)", cr: 45 },
+    { value: "framia:seedance-2.0-fast", label: "Seedance 2.0 Fast (Framia)", cr: 30 },
+    { value: "framia:kling-3.0-omni", label: "Kling 3.0 Omni (Framia)", cr: 60 },
+    { value: "framia:kling-3.0", label: "Kling 3.0 (Framia)", cr: 50 },
+    { value: "framia:veo-3.1", label: "Veo 3.1 (Framia)", cr: 90 },
+    { value: "framia:veo-3.1-fast", label: "Veo 3.1 Fast (Framia)", cr: 65 },
+    { value: "framia:wan-2.7", label: "Wan 2.7 (Framia)", cr: 25 },
+    { value: "framia:gemini-omni-flash", label: "Gemini Omni Flash (Framia)", cr: 20 },
+    { value: "framia:happyhorse-1.1", label: "HappyHorse 1.1 (Framia)", cr: 28 },
+    { value: "framia:kling-avatar", label: "Kling Avatar (Framia)", cr: 40 },
   ],
 };
 
@@ -108,6 +122,7 @@ const DEFAULT_TPL: Template[] = [
 
 function ImageToVideo() {
   const [img, setImg] = useSticky<string | null>("i2v.img", null);
+  
   const [provider, setProvider] = useSticky<string>("i2v.provider", "weavy");
   const [model, setModel] = useSticky<string>("i2v.model", "");
   const [ratio, setRatio] = useSticky<string>("i2v.ratio", "9:16");
@@ -224,7 +239,7 @@ function ImageToVideo() {
     try {
       const { generateI2V } = await import("@/lib/providers/generate-i2v");
       const url = await generateI2V({
-        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia",
         modelKey: model,
         imageFile: imgFile,
         ratio,

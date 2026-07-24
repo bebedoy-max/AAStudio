@@ -8,6 +8,7 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 
 
+
 export const Route = createFileRoute("/generate/bulk-fashion")({
   head: () => ({
     meta: [
@@ -71,7 +72,34 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "default", label: "Standard (12 cr)", cr: 12, default: true },
     ] },
   ],
+  framia: [
+    { key: "framia:nano-banana-edit", label: "Nano Banana Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~7 cr)", cr: 7 },
+    ] },
+    { key: "framia:gpt-image-edit", label: "GPT Image Edit (Framia)", qualities: [
+      { v: "medium", label: "Medium (~12 cr)", cr: 12, default: true },
+      { v: "high", label: "High (~20 cr)", cr: 20 },
+    ] },
+    { key: "framia:seedream-edit", label: "Seedream Edit (Framia)", qualities: [
+      { v: "default", label: "Standard (~6 cr)", cr: 6, default: true },
+    ] },
+  ],
 };
+
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedImageProvider(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { image?: string };
+    const p = obj?.image;
+    return p && MODEL_CATALOG[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 type Template = { name: string; body: string };
 const DEFAULT_TPL: Template[] = [
@@ -92,6 +120,7 @@ function ratioToAspectClass(r: string): string {
 }
 
 function BulkFashion() {
+  
   const [char, setChar] = useSticky<string | null>("bf.char", null);
   const [charFile, setCharFile] = useSticky<File | null>("bf.charFile", null);
   const [outfits, setOutfits] = useSticky<string[]>("bf.outfits", []);
@@ -117,8 +146,9 @@ function BulkFashion() {
   useEffect(() => {
     if (bfBootstrapped.current) return;
     bfBootstrapped.current = true;
-    const p = (typeof window !== "undefined" && localStorage.getItem("aatools.activeProvider")) || provider || "weavy";
-    if (!MODEL_CATALOG[provider]) setProvider(p);
+    const routed = readRoutedImageProvider();
+    const p = routed || (typeof window !== "undefined" && localStorage.getItem("aatools.activeProvider")) || provider || "weavy";
+    if (routed || !MODEL_CATALOG[provider]) setProvider(p);
     const list = MODEL_CATALOG[p] || MODEL_CATALOG.weavy;
     if (!list.find((m) => m.key === model)) {
       const first = list[0];
@@ -164,6 +194,30 @@ function BulkFashion() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedImageProvider();
+      if (routed && routed !== provider) {
+        setProvider(routed);
+        const list = MODEL_CATALOG[routed] || [];
+        if (!list.find((m) => m.key === model)) {
+          const first = list[0];
+          setModel(first?.key || "");
+          const def = first?.qualities.find((q) => q.default) || first?.qualities[0];
+          setQuality(def?.v || "");
+        }
+      }
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider, model, setProvider, setModel, setQuality]);
 
 
   const models = MODEL_CATALOG[provider] || MODEL_CATALOG.weavy;
@@ -225,7 +279,7 @@ function BulkFashion() {
       const { generateBulkFashion } = await import("@/lib/providers/generate-bulk-fashion");
       const doneCount = { n: 0 };
       const urls = await generateBulkFashion({
-        provider: provider as "weavy" | "wavespeed" | "magnific",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "framia",
         modelKey: model,
         quality,
         ratio,

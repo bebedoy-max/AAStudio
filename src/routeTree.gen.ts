@@ -33,6 +33,7 @@ import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyb
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
 import { Route as GenerateImageToVideoRouteImport } from './routes/generate.image-to-video'
+import { Route as GenerateFramiaRouteImport } from './routes/generate.framia'
 import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
 import { Route as DevWeavyTestRouteImport } from './routes/dev.weavy-test'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
@@ -68,6 +69,7 @@ import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/pro
 import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
+import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
 import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
 import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
@@ -195,6 +197,11 @@ const GenerateMotionRoute = GenerateMotionRouteImport.update({
 const GenerateImageToVideoRoute = GenerateImageToVideoRouteImport.update({
   id: '/generate/image-to-video',
   path: '/generate/image-to-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GenerateFramiaRoute = GenerateFramiaRouteImport.update({
+  id: '/generate/framia',
+  path: '/generate/framia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateBulkFashionRoute = GenerateBulkFashionRouteImport.update({
@@ -373,6 +380,11 @@ const ApiPublicMagnificRoute = ApiPublicMagnificRouteImport.update({
   path: '/api/public/magnific',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFramiaRoute = ApiPublicFramiaRouteImport.update({
+  id: '/api/public/framia',
+  path: '/api/public/framia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFfmpegCdnRoute = ApiPublicFfmpegCdnRouteImport.update({
   id: '/api/public/ffmpeg-cdn',
   path: '/api/public/ffmpeg-cdn',
@@ -440,6 +452,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
+  '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
@@ -464,6 +477,7 @@ export interface FileRoutesByFullPath {
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -507,6 +521,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
+  '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
@@ -531,6 +546,7 @@ export interface FileRoutesByTo {
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -577,6 +593,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
+  '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
@@ -601,6 +618,7 @@ export interface FileRoutesById {
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -648,6 +666,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
+    | '/generate/framia'
     | '/generate/image-to-video'
     | '/generate/motion'
     | '/generate/naratif'
@@ -672,6 +691,7 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/framia'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -715,6 +735,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
+    | '/generate/framia'
     | '/generate/image-to-video'
     | '/generate/motion'
     | '/generate/naratif'
@@ -739,6 +760,7 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/framia'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -784,6 +806,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
+    | '/generate/framia'
     | '/generate/image-to-video'
     | '/generate/motion'
     | '/generate/naratif'
@@ -808,6 +831,7 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/framia'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -842,6 +866,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   DevWeavyTestRoute: typeof DevWeavyTestRoute
   GenerateBulkFashionRoute: typeof GenerateBulkFashionRoute
+  GenerateFramiaRoute: typeof GenerateFramiaRoute
   GenerateImageToVideoRoute: typeof GenerateImageToVideoRoute
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
@@ -858,6 +883,7 @@ export interface RootRouteChildren {
   ApiPublicElevenlabsTtsRoute: typeof ApiPublicElevenlabsTtsRoute
   ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
+  ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
@@ -1049,6 +1075,13 @@ declare module '@tanstack/react-router' {
       path: '/generate/image-to-video'
       fullPath: '/generate/image-to-video'
       preLoaderRoute: typeof GenerateImageToVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/generate/framia': {
+      id: '/generate/framia'
+      path: '/generate/framia'
+      fullPath: '/generate/framia'
+      preLoaderRoute: typeof GenerateFramiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/bulk-fashion': {
@@ -1296,6 +1329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMagnificRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/framia': {
+      id: '/api/public/framia'
+      path: '/api/public/framia'
+      fullPath: '/api/public/framia'
+      preLoaderRoute: typeof ApiPublicFramiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ffmpeg-cdn': {
       id: '/api/public/ffmpeg-cdn'
       path: '/api/public/ffmpeg-cdn'
@@ -1443,6 +1483,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   DevWeavyTestRoute: DevWeavyTestRoute,
   GenerateBulkFashionRoute: GenerateBulkFashionRoute,
+  GenerateFramiaRoute: GenerateFramiaRoute,
   GenerateImageToVideoRoute: GenerateImageToVideoRoute,
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
@@ -1459,6 +1500,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicElevenlabsTtsRoute: ApiPublicElevenlabsTtsRoute,
   ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
+  ApiPublicFramiaRoute: ApiPublicFramiaRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
