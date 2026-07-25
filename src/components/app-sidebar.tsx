@@ -138,6 +138,7 @@ const DEFAULT_NAV: NavEntry[] = [
     items: [
       { title: "Token / API Manager", url: "/manage/tokens", icon: KeyRound },
       { title: "Routing Provider", url: "/manage/routing", icon: RouteIcon },
+      { title: "Account", url: "/manage/accounts", icon: UserCircle2 },
     ],
   },
   {

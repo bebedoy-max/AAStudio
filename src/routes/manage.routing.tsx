@@ -328,72 +328,74 @@ function RoutingPage() {
         })}
       </div>
 
-      {/* Desktop: full card layout */}
-      <div className="hidden md:flex flex-col gap-5">
-      {CAPS.map((cap) => {
-        const Icon = cap.icon;
-        return (
-          <Card key={cap.key}>
-            <div className="flex items-start gap-2 mb-4">
-              <Icon className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <div className="font-display text-lg text-foreground">{cap.label}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{cap.desc}</div>
-              </div>
-              <div className="ml-auto text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                Aktif: <span className="text-primary">{cap.providers.find((p) => p.id === routing[cap.key])?.name || "-"}</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {cap.providers.map((p) => {
-                const on = routing[cap.key] === p.id;
-                const soon = p.note === "coming-soon";
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => !soon && setCap(cap.key, p.id)}
-                    disabled={soon}
-                    className={[
-                      "neumorph p-4 text-left transition relative flex flex-col gap-3",
-                      soon ? "opacity-50 cursor-not-allowed" : on ? "neon-border glow-cyan" : "hover:border-primary/40",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-display text-base text-foreground">{p.name}</div>
-                      {soon && (
-                        <span className="text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 bg-amber-500/10">
-                          Coming Soon
-                        </span>
-                      )}
-                      {!soon && on && (
-                        <span
-                          className="h-6 w-6 rounded-full grid place-items-center text-primary-foreground"
-                          style={{ background: "var(--gradient-neon)" }}
+      {/* Desktop: horizontal row per capability — logo | title+select+desc | models */}
+      <div className="hidden md:flex flex-col gap-4">
+        {CAPS.map((cap) => {
+          const Icon = cap.icon;
+          const activeProv = cap.providers.find((p) => p.id === routing[cap.key]);
+          return (
+            <Card key={cap.key}>
+              <div className="grid grid-cols-[140px_minmax(0,1fr)_minmax(0,1.4fr)] gap-5 items-stretch">
+                {/* Left: icon block */}
+                <div
+                  className="rounded-2xl grid place-items-center border border-primary/30"
+                  style={{ background: "var(--gradient-neon)", minHeight: 140 }}
+                >
+                  <Icon className="h-12 w-12 text-primary-foreground" />
+                </div>
+
+                {/* Middle: title + select + description */}
+                <div className="flex flex-col gap-2 min-w-0">
+                  <div className="font-display text-lg text-foreground uppercase tracking-wide">
+                    {cap.label}
+                  </div>
+                  <div className="relative">
+                    <select
+                      value={routing[cap.key]}
+                      onChange={(e) => setCap(cap.key, e.target.value)}
+                      className="w-full appearance-none rounded-xl border border-primary/40 bg-card/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground outline-none focus:border-primary hover:border-primary/70 transition cursor-pointer"
+                    >
+                      {cap.providers.map((p) => (
+                        <option
+                          key={p.id}
+                          value={p.id}
+                          disabled={p.note === "coming-soon"}
+                          className="bg-[oklch(0.19_0.055_275)]"
                         >
-                          <CheckIcon className="h-3.5 w-3.5" />
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground leading-relaxed">{p.desc}</div>
-                    <div className="mt-1 space-y-1.5">
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Model & Cost</div>
-                      {p.models.map((m) => (
-                        <div
-                          key={m.name}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-card/30 px-2.5 py-1.5"
-                        >
-                          <span className="text-[11px] text-foreground/85 truncate">{m.name}</span>
-                          <span className="text-[10px] font-mono text-emerald-300 whitespace-nowrap">{m.cost}</span>
-                        </div>
+                          {p.name}
+                          {p.note === "coming-soon" ? " (coming soon)" : ""}
+                        </option>
                       ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary text-xs">▼</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {activeProv?.desc ?? cap.desc}
+                  </p>
+                </div>
+
+                {/* Right: models & cost as bullet list */}
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-0.5">
+                    Model & Cost
+                  </div>
+                  {(activeProv?.models ?? []).map((m) => (
+                    <div key={m.name} className="flex items-start gap-2 text-xs">
+                      <span className="mt-1 h-2 w-2 rounded-full border border-primary/60 shrink-0" />
+                      <span className="text-foreground/85 truncate flex-1">{m.name}</span>
+                      <span className="font-mono text-emerald-300 text-[10px] whitespace-nowrap">{m.cost}</span>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
-        );
-      })}
+                  ))}
+                  {activeProv?.note === "coming-soon" && (
+                    <span className="mt-1 self-start text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border border-amber-500/40 text-amber-300 bg-amber-500/10">
+                      Coming Soon
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
     </DashboardShell>

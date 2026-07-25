@@ -295,6 +295,37 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
       throw new Error(text || `Catbox HTTP ${status}`);
     });
   };
+  const uploadDirectTmpfiles = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    return postFormWithProgress("Tmpfiles", "https://tmpfiles.org/api/v1/upload", fd, kind, (text, status) => {
+      const j = JSON.parse(text || "null") as { status?: string; data?: { url?: string } } | null;
+      const url = j?.data?.url;
+      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) {
+        // Convert viewer URL → direct download URL (insert /dl/ after host)
+        return url.replace(/^(https?:\/\/tmpfiles\.org)\/(?!dl\/)/i, "$1/dl/");
+      }
+      throw new Error(`Tmpfiles HTTP ${status}`);
+    });
+  };
+  const uploadDirect0x0 = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    return postFormWithProgress("0x0", "https://0x0.st", fd, kind, (text, status) => {
+      const t = (text || "").trim();
+      if (status >= 200 && status < 300 && /^https?:\/\//i.test(t)) return t;
+      throw new Error(t || `0x0 HTTP ${status}`);
+    });
+  };
+  const uploadDirectPixeldrain = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    return postFormWithProgress("Pixeldrain", "https://pixeldrain.com/api/file", fd, kind, (text, status) => {
+      const j = JSON.parse(text || "null") as { id?: string; message?: string } | null;
+      if (status >= 200 && status < 300 && j?.id) return `https://pixeldrain.com/api/file/${j.id}`;
+      throw new Error(j?.message || `Pixeldrain HTTP ${status}`);
+    });
+  };
   const uploadViaServer = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name || "upload.bin");
@@ -315,14 +346,25 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     const serverEntry: [string, UploadFn] = ["Server", (f) => uploadViaServer(f)];
     const uguuEntry: [string, UploadFn] = ["Uguu", uploadDirectUguu];
     const catboxEntry: [string, UploadFn] = ["Catbox", uploadDirectCatbox];
+    const tmpfilesEntry: [string, UploadFn] = ["Tmpfiles", uploadDirectTmpfiles];
+    const pixeldrainEntry: [string, UploadFn] = ["Pixeldrain", uploadDirectPixeldrain];
+    const zeroEntry: [string, UploadFn] = ["0x0", uploadDirect0x0];
 
-    // Prioritaskan direct host (Uguu/Catbox) supaya tidak kena body-limit
-    // serverless. Server proxy hanya dipakai untuk file kecil sebagai
-    // fallback terakhir kalau direct host CORS-block.
+    // Prioritaskan direct host supaya tidak kena body-limit serverless
+    // (Vercel ~4.5MB). Beberapa hosting/region kadang CORS-block Uguu &
+    // Catbox — makanya tambahkan Tmpfiles/Pixeldrain/0x0 sebagai backup
+    // direct-browser. Server proxy jadi last-resort untuk file kecil.
     const canUseServer = file.size <= SERVER_PROXY_HARD_LIMIT;
+    const directOrder: Array<[string, UploadFn]> = [
+      uguuEntry,
+      catboxEntry,
+      tmpfilesEntry,
+      pixeldrainEntry,
+      zeroEntry,
+    ];
     const order: Array<[string, UploadFn]> = canUseServer
-      ? [uguuEntry, catboxEntry, serverEntry]
-      : [uguuEntry, catboxEntry];
+      ? [...directOrder, serverEntry]
+      : directOrder;
 
     for (const [host, fn] of order) {
       try {

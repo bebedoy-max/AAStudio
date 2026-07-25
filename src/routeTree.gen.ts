@@ -28,6 +28,7 @@ import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
 import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
 import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
 import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
+import { Route as ManageAccountsRouteImport } from './routes/manage.accounts'
 import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
@@ -70,6 +71,7 @@ import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
 import { Route as ApiPublicLeonardoUploadRouteImport } from './routes/api/public/leonardo-upload'
+import { Route as ApiPublicLeonardoCognitoRouteImport } from './routes/api/public/leonardo-cognito'
 import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
 import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
@@ -175,6 +177,11 @@ const ManageTokensRoute = ManageTokensRouteImport.update({
 const ManageRoutingRoute = ManageRoutingRouteImport.update({
   id: '/manage/routing',
   path: '/manage/routing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManageAccountsRoute = ManageAccountsRouteImport.update({
+  id: '/manage/accounts',
+  path: '/manage/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
@@ -388,6 +395,12 @@ const ApiPublicLeonardoUploadRoute = ApiPublicLeonardoUploadRouteImport.update({
   path: '/api/public/leonardo-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLeonardoCognitoRoute =
+  ApiPublicLeonardoCognitoRouteImport.update({
+    id: '/api/public/leonardo-cognito',
+    path: '/api/public/leonardo-cognito',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLeonardoRoute = ApiPublicLeonardoRouteImport.update({
   id: '/api/public/leonardo',
   path: '/api/public/leonardo',
@@ -478,6 +491,7 @@ export interface FileRoutesByFullPath {
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
+  '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -500,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
   '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
@@ -550,6 +565,7 @@ export interface FileRoutesByTo {
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
+  '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -572,6 +588,7 @@ export interface FileRoutesByTo {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
   '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
@@ -625,6 +642,7 @@ export interface FileRoutesById {
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
+  '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -647,6 +665,7 @@ export interface FileRoutesById {
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
   '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
@@ -701,6 +720,7 @@ export interface FileRouteTypes {
     | '/generate/naratif'
     | '/generate/storyboard'
     | '/generate/upscaler'
+    | '/manage/accounts'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -723,6 +743,7 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/framia'
     | '/api/public/leonardo'
+    | '/api/public/leonardo-cognito'
     | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
@@ -773,6 +794,7 @@ export interface FileRouteTypes {
     | '/generate/naratif'
     | '/generate/storyboard'
     | '/generate/upscaler'
+    | '/manage/accounts'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -795,6 +817,7 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/framia'
     | '/api/public/leonardo'
+    | '/api/public/leonardo-cognito'
     | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
@@ -847,6 +870,7 @@ export interface FileRouteTypes {
     | '/generate/naratif'
     | '/generate/storyboard'
     | '/generate/upscaler'
+    | '/manage/accounts'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -869,6 +893,7 @@ export interface FileRouteTypes {
     | '/api/public/ffmpeg-cdn'
     | '/api/public/framia'
     | '/api/public/leonardo'
+    | '/api/public/leonardo-cognito'
     | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
@@ -910,6 +935,7 @@ export interface RootRouteChildren {
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
   GenerateUpscalerRoute: typeof GenerateUpscalerRoute
+  ManageAccountsRoute: typeof ManageAccountsRoute
   ManageRoutingRoute: typeof ManageRoutingRoute
   ManageTokensRoute: typeof ManageTokensRoute
   SystemAnalyticRoute: typeof SystemAnalyticRoute
@@ -924,6 +950,7 @@ export interface RootRouteChildren {
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
   ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
   ApiPublicLeonardoRoute: typeof ApiPublicLeonardoRoute
+  ApiPublicLeonardoCognitoRoute: typeof ApiPublicLeonardoCognitoRoute
   ApiPublicLeonardoUploadRoute: typeof ApiPublicLeonardoUploadRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
@@ -1080,6 +1107,13 @@ declare module '@tanstack/react-router' {
       path: '/manage/routing'
       fullPath: '/manage/routing'
       preLoaderRoute: typeof ManageRoutingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manage/accounts': {
+      id: '/manage/accounts'
+      path: '/manage/accounts'
+      fullPath: '/manage/accounts'
+      preLoaderRoute: typeof ManageAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/upscaler': {
@@ -1376,6 +1410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicLeonardoUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leonardo-cognito': {
+      id: '/api/public/leonardo-cognito'
+      path: '/api/public/leonardo-cognito'
+      fullPath: '/api/public/leonardo-cognito'
+      preLoaderRoute: typeof ApiPublicLeonardoCognitoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leonardo': {
       id: '/api/public/leonardo'
       path: '/api/public/leonardo'
@@ -1551,6 +1592,7 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
   GenerateUpscalerRoute: GenerateUpscalerRoute,
+  ManageAccountsRoute: ManageAccountsRoute,
   ManageRoutingRoute: ManageRoutingRoute,
   ManageTokensRoute: ManageTokensRoute,
   SystemAnalyticRoute: SystemAnalyticRoute,
@@ -1565,6 +1607,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
   ApiPublicFramiaRoute: ApiPublicFramiaRoute,
   ApiPublicLeonardoRoute: ApiPublicLeonardoRoute,
+  ApiPublicLeonardoCognitoRoute: ApiPublicLeonardoCognitoRoute,
   ApiPublicLeonardoUploadRoute: ApiPublicLeonardoUploadRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
