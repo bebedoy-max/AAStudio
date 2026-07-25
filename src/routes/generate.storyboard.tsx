@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { logGenerate } from "@/lib/activity/log";
+import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/generate/storyboard")({
 });
 
 // ---- Model catalog (mirror MODEL_CATALOG.storyboard from legacy) ----
-type Provider = "weavy" | "wavespeed" | "magnific" | "framia";
+type Provider = "weavy" | "wavespeed" | "magnific" | "framia" | "leonardo";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type SbModel = { key: string; label: string; qualities: Quality[] };
 
@@ -194,6 +195,7 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
       qualities: [{ v: "default", label: "Standard (~5 cr)", cr: 5, default: true }],
     },
   ],
+  leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
 
 
@@ -202,6 +204,7 @@ const PROVIDER_LABEL: Record<Provider, string> = {
   wavespeed: "Wavespeed",
   magnific: "Magnific",
   framia: "Framia",
+  leonardo: "Leonardo.ai",
 };
 
 const LS_ROUTING = "aatools.routing.v2";
@@ -661,6 +664,18 @@ function StoryboardPage() {
             onRotate: (next, total, reason) =>
               pushLog(`🔄 [${title.slice(0, 40)}] Token Framia habis/invalid (${reason}) → pindah ke token #${next + 1}/${total}`),
             onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
+          });
+        } else if (provider === "leonardo") {
+          const { generateLeonardoOne } = await import("@/lib/providers/leonardo-router");
+          imgUrl = await generateLeonardoOne({
+            modelKey,
+            prompt: finalPrompt,
+            ratio,
+            quality: qualityV,
+            referenceUrls: refUrls,
+            onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
+            onRotate: (next, total, reason) =>
+              pushLog(`🔄 [${title.slice(0, 40)}] Token Leonardo (${reason}) → #${next + 1}/${total}`),
           });
         } else {
           throw new Error(`Provider ${provider} belum di-wire untuk storyboard`);

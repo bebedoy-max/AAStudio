@@ -17,6 +17,7 @@ export const ALLOWED_TOKEN_KEYS = [
   "aatools.weavy.activeId",
   "aatools.roboneo.keys",
   "aatools.framia.keys",
+  "aatools.leonardo.keys",
 ] as const;
 
 export type TokenStorageKey = (typeof ALLOWED_TOKEN_KEYS)[number];

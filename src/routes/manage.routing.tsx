@@ -113,6 +113,17 @@ const CAPS: Cap[] = [
           { name: "Ideogram v3", cost: "~5 cr / image (Framia)" },
         ],
       },
+      {
+        id: "leonardo",
+        name: "Leonardo.ai",
+        desc: "Langsung ke app.leonardo.ai pakai Bearer JWT (Cognito) di Token Manager → Leonardo. Text-to-image saja (belum multi-reference edit).",
+        models: [
+          { name: "GPT Image 2", cost: "~6–24 cr / image (Leonardo)" },
+          { name: "Nano Banana 2", cost: "~8 cr / image" },
+          { name: "Seedream 5.0 Pro", cost: "~8 cr / image" },
+          { name: "Flux.2 Pro", cost: "~8 cr / image" },
+        ],
+      },
     ],
   },
   {

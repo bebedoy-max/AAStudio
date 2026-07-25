@@ -6,6 +6,7 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 
 
 
@@ -109,6 +110,7 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "2K", label: "2K (~5 cr)", cr: 5 },
     ] },
   ],
+  leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
 
 const LS_ROUTING = "aatools.routing.v2";
@@ -310,7 +312,7 @@ function BulkFashion() {
       const { generateBulkFashion } = await import("@/lib/providers/generate-bulk-fashion");
       const doneCount = { n: 0 };
       const urls = await generateBulkFashion({
-        provider: provider as "weavy" | "wavespeed" | "magnific" | "framia",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "framia" | "leonardo",
         modelKey: model,
         quality,
         ratio,

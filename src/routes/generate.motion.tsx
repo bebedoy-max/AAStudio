@@ -454,7 +454,7 @@ function MotionControl() {
       />
 
       <div
-        className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] [grid-template-areas:'refs'_'settings'_'gallery'] lg:[grid-template-areas:'refs_settings'_'gallery_settings']"
+        className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] [grid-template-areas:'refs'_'settings'_'status'_'gallery'] lg:[grid-template-areas:'refs_settings'_'status_settings'_'gallery_settings']"
       >
         {/* References */}
         <div style={{ gridArea: "refs" }}>
@@ -577,58 +577,65 @@ function MotionControl() {
                 credits ({readySlots} × {activeModel.cr})
               </div>
 
-              {(generating || globalPct > 0) && (
-                <div className="mt-1 rounded-xl border border-border/70 bg-card/40 p-3">
-                  <div className="flex justify-between items-center text-xs mb-1">
-                    <span className="truncate pr-2">{globalStatusText}</span>
-                    <span className="font-mono text-muted-foreground">{elapsed}</span>
-                  </div>
-                  <div className="h-1 rounded-full bg-border overflow-hidden">
-                    <div
-                      className="h-full transition-all"
-                      style={{ width: `${globalPct}%`, background: "var(--gradient-neon)" }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {logs.length > 0 && (
-                <div className="rounded-xl border border-border/70 bg-black/40 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-                      Log Proses {generating && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}
-                    </div>
-                    <button
-                      onClick={() => setLogs([])}
-                      className="text-[10px] text-muted-foreground hover:text-destructive"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                  <div className="max-h-40 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed min-w-0">
-                    {logs.map((l, i) => (
-                      <div
-                        key={i}
-                        className={
-                          "whitespace-pre-wrap break-all min-w-0 " +
-                          (l.level === "error"
-                            ? "text-red-400"
-                            : l.level === "warn"
-                              ? "text-amber-400"
-                              : l.level === "success"
-                                ? "text-emerald-400"
-                                : "text-muted-foreground")
-                        }
-                      >
-                        [{l.time}] {l.msg}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </Card>
         </div>
+
+        {/* Status: progress + log — di atas gallery, selebar gallery */}
+        {(generating || globalPct > 0 || logs.length > 0) && (
+          <div style={{ gridArea: "status" }} className="flex flex-col gap-3">
+            {(generating || globalPct > 0) && (
+              <div className="rounded-xl border border-border/70 bg-card/40 p-3">
+                <div className="flex justify-between items-center text-xs mb-1">
+                  <span className="truncate pr-2">{globalStatusText}</span>
+                  <span className="font-mono text-muted-foreground">{elapsed}</span>
+                </div>
+                <div className="h-1 rounded-full bg-border overflow-hidden">
+                  <div
+                    className="h-full transition-all"
+                    style={{ width: `${globalPct}%`, background: "var(--gradient-neon)" }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {logs.length > 0 && (
+              <div className="rounded-xl border border-border/70 bg-black/40 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                    Log Proses {generating && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}
+                  </div>
+                  <button
+                    onClick={() => setLogs([])}
+                    className="text-[10px] text-muted-foreground hover:text-destructive"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="max-h-40 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed min-w-0">
+                  {logs.slice().reverse().map((l, i) => (
+                    <div
+                      key={i}
+                      className={
+                        "whitespace-pre-wrap break-all min-w-0 " +
+                        (l.level === "error"
+                          ? "text-red-400"
+                          : l.level === "warn"
+                            ? "text-amber-400"
+                            : l.level === "success"
+                              ? "text-emerald-400"
+                              : "text-muted-foreground")
+                      }
+                    >
+                      [{l.time}] {l.msg}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
 
 
         {/* Gallery */}

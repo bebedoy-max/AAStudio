@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
+import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
 import { Rocket, Play, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/generate/naratif")({
 });
 
 // ============ Model Catalog (mirror legacy MODEL_CATALOG structure) ============
-type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia";
+type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type ModelDef = { key: string; label: string; qualities: Quality[] };
 
@@ -130,6 +131,7 @@ const IMG_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "default", label: "Standard (~6 cr)", cr: 6, default: true },
     ] },
   ],
+  leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
 
 // Video models — pilihan kualitas = resolusi (durasi fix per model)
@@ -231,7 +233,7 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "720p-5s",  label: "720p · 5s (~40 cr)",  cr: 40, default: true },
     ] },
   ],
-
+  leonardo: [],
 };
 
 const LS_ROUTING = "aatools.routing.v2";
@@ -800,6 +802,14 @@ function NaratifPage() {
           aspectRatio: ratio,
           resolution: imgQuality,
         });
+      } else if (imgProvider === "leonardo") {
+        const { generateLeonardoOne } = await import("@/lib/providers/leonardo-router");
+        imgUrl = await generateLeonardoOne({
+          modelKey: imgModel,
+          prompt: withNoTextGuard(scene.prompt),
+          ratio,
+          quality: imgQuality,
+        });
       } else {
         const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import("@/lib/providers/wavespeed");
         const key = getFirstWavespeedKey();
@@ -886,6 +896,7 @@ function NaratifPage() {
       const imgResp = await fetch(scene.imgUrl);
       const imgFile = new File([await imgResp.blob()], `scene_${i}.jpg`, { type: "image/jpeg" });
       const q = parseVidQuality(vidQuality);
+      if (provider === "leonardo") throw new Error("Leonardo tidak mendukung video — pilih provider video lain.");
       const videoUrl = await generateI2V({
         provider,
         modelKey: vidModel,

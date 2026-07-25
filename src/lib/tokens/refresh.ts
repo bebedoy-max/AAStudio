@@ -10,7 +10,7 @@ import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { fetchFramiaBalance } from "@/lib/providers/framia";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "eleven" | "brain";
+export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "eleven" | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,
@@ -235,7 +235,7 @@ let inFlight: Partial<Record<RefreshableProvider, Promise<void>>> = {};
 
 export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if (provider === "magnific") return Promise.resolve(); // no balance endpoint
+  if (provider === "magnific" || provider === "leonardo") return Promise.resolve(); // no auto-refresh yet
   const existing = inFlight[provider];
   if (existing) return existing;
   const p = (async () => {

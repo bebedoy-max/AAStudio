@@ -1,113 +1,56 @@
-# REFF EDIT — AI Reference-Based Editing Workspace
+## Ringkasan
 
-Modul baru dengan konsep "AI Creative Director": user memberi referensi (image/video), AI mengekstrak "Reference DNA", membuat Edit Blueprint, lalu menerapkannya ke target content.
+Menambahkan Leonardo.ai sebagai provider baru, mengikuti pola persis provider **Framia** (yang juga pakai reverse-engineered Bearer JWT + proxy CORS server-side). Karena token JWT dari `app.leonardo.ai` **expired setiap ~1 jam**, integrasi ini fokus pada storage multi-token, auto-rotate, dan status expired jelas di UI supaya user tahu kapan harus paste ulang.
 
-## Sidebar (baru)
+## Scope (bertahap)
 
-Group **Reff EDIT** (icon `Wand2`/`Palette`) ditambah di `src/components/app-sidebar.tsx`:
+Fase 1 (dibangun sekarang) — **fondasi + Text-to-Image**:
+- Token storage + Token/API Manager entry (Leonardo card)
+- Server proxy `/api/public/leonardo` (forward Bearer + Origin `https://app.leonardo.ai`)
+- Provider client `src/lib/providers/leonardo.ts` (auth check, saldo/subscription, rotation)
+- Halaman `Generate → Leonardo (Text-to-Image)` dengan pilihan model (Phoenix, Lucid, Kino, dll) + galeri hasil
 
-- Image Reference Edit → `/reff-edit/image`
-- Video Reference Edit → `/reff-edit/video`
-- Reference Library → `/reff-edit/library`
-- Edit History → `/reff-edit/history`
+Fase 2 (setelah Fase 1 stabil, dibuat menyusul):
+- Motion / Image-to-Video (SVD)
+- Universal Upscaler
+- Elements / Style Reference
 
-Group ini didaftarkan di `DEFAULT_NAV` dengan `permKey` `reff-edit.image`, `reff-edit.video`, `reff-edit.library`, `reff-edit.history` (bisa dikelola dari Admin → Pengaturan Halaman).
+Alasan bertahap: 4 fitur di sekali jalan = permukaan reverse-engineered yang besar, risiko regresi tinggi. Fase 1 memvalidasi jalur auth+proxy dulu; setelah itu Fase 2–4 tinggal tambah endpoint pakai fondasi yang sama.
 
-## Route baru
+## File yang dibuat/diubah
 
-```
-src/routes/reff-edit.tsx              (layout, <Outlet />)
-src/routes/reff-edit.image.tsx        (Image Reference Edit workspace)
-src/routes/reff-edit.video.tsx        (Video Reference Edit workspace)
-src/routes/reff-edit.library.tsx      (Reference Library)
-src/routes/reff-edit.history.tsx      (Edit History)
-```
-
-Layout memakai `DashboardShell` + `PageHero` konsisten dengan modul lain (mis. `generate.motion.tsx`).
-
-## UI layout workspace (Image & Video)
-
-Grid 3 kolom dark futuristic (AA SuperTools style):
-
+**Baru:**
 ```text
-+----------------------+----------------------+----------------------+
-| LEFT                 | CENTER               | RIGHT                |
-| Reference Upload     | AI Analysis +        | Target Upload +      |
-|  - drop zone (multi) |  Reference DNA card  |  Output Preview      |
-|  - per-file:         |  Edit Blueprint      |  Output Settings     |
-|    role select       |  (editable JSON/     |   (aspect, quality)  |
-|    weight slider     |   scene list)        |  AI Chat Adjustment  |
-|  - "Analyze"         |  "Send to Engine"    |  (revise iteratively)|
-+----------------------+----------------------+----------------------+
-| BOTTOM: Render Timeline (progress log per scene)                   |
-+--------------------------------------------------------------------+
+src/routes/api/public/leonardo.ts        proxy: forward path ke app-api atau cloud API Leonardo, inject Bearer + Origin
+src/lib/providers/leonardo.ts            client: storage multi-key, JWT parse (exp, email), balance/subscription, rotation helper
+src/routes/generate.leonardo.tsx         UI text-to-image (prompt, model, size, num, gallery)
 ```
 
-Reusable subkomponen di `src/components/reff-edit/`:
-- `reference-upload.tsx` — multi-file, role (Style/Camera/Lighting/Color/Motion/Composition), weight 0–100.
-- `dna-card.tsx` — render output analisa AI (visual style, palette, lighting, camera, mood, dst).
-- `blueprint-editor.tsx` — daftar scene editable (duration + apply steps).
-- `target-panel.tsx` — upload target + preview hasil.
-- `chat-adjust.tsx` — chat AI untuk revisi ("buat lebih cinematic", dst) → memicu regenerate.
-- `render-timeline.tsx` — log/progres tiap scene.
+**Diubah:**
+```text
+src/lib/tokens/sync.functions.ts         + "aatools.leonardo.keys" ke ALLOWED_TOKEN_KEYS
+src/routes/manage.tokens.tsx             + card provider "Leonardo" (paste JWT, cek, hapus, multi-key)
+src/components/app-sidebar.tsx           + link "Leonardo" di grup Generate
+```
 
-## Backend / server routes
+## Detail teknis
 
-Semua endpoint melewati AI Router yang sudah ada (`/api/router/chat`, `/api/router/image`, `/api/router/video`, `/api/router/render`) untuk provider routing + fallback + logging.
+**Auth**: Bearer JWT (Cognito ID token). Token yang user paste akan di-decode client-side untuk ambil `exp` + `email`, ditampilkan di UI supaya user tahu sisa waktu. Tidak ada refresh otomatis — token dari session web tidak bisa diperpanjang tanpa OAuth flow Cognito, jadi UI hanya menandai "expired" dan minta paste ulang.
 
-Baru:
-- `src/routes/api/router/reff-analyze.ts` — POST { referenceUrls, mode: "image"|"video" }. Panggil Gemini Vision (multimodal) via router, output structured JSON = **Reference DNA**.
-- `src/routes/api/router/reff-blueprint.ts` — POST { dna, target, mode }. Router chat → JSON Edit Blueprint (list of scenes).
-- `src/routes/api/router/reff-image.ts` — POST { dna, blueprint, targetUrl }. Router image (Gemini Image / OpenAI Image) → apply style transfer.
-- `src/routes/api/router/reff-video.ts` — POST { dna, blueprint, targetUrl }. Trigger pipeline video: AI instruction + FFmpeg pipeline (reuse `src/lib/mixing/ffmpeg-render.ts` untuk cutting/transition/color/speed).
-- `src/routes/api/router/reff-adjust.ts` — POST { previousOutput, revisionPrompt } → blueprint delta + regenerate.
+**Proxy** (`/api/public/leonardo`): body `{ path, method, body }`, whitelist path prefix `/api/rest/v1/` dan `/graphql`, header forward: `Authorization: Bearer <token>`, `Origin: https://app.leonardo.ai`, `Referer: https://app.leonardo.ai/`. CORS response `*`.
 
-Upload file publik memakai `/api/public/upload-catbox` (sudah ada).
+**Rotate**: sama seperti Framia — 401/403/expired → coba token berikutnya. Token dengan `exp < now` di-skip.
 
-## Library & History (persistence)
+**Endpoint Text-to-Image**: `POST /api/rest/v1/generations` (standard REST Leonardo pakai JWT juga karena app internal memakainya). Polling `GET /api/rest/v1/generations/{id}` sampai `status=COMPLETE`.
 
-Simpan ke Supabase (butuh Lovable Cloud). Tabel + RLS + grants dibuat via migrasi baru:
+**Model catalog** (Fase 1, subset): Phoenix 1.0, Lucid Origin, Kino XL, Anime XL, FLUX Dev — id model diambil dari response `/platformModels` saat pertama load, di-cache di localStorage.
 
-- `reff_edit_references` — id, user_id, name, type (image|video), category, thumbnail_url, source_url, dna jsonb, created_at.
-- `reff_edit_history` — id, user_id, mode, reference_ids[], blueprint jsonb, target_url, output_url, provider_used, tokens_used, duration_ms, status, error, created_at.
+## Yang eksplisit **tidak** dikerjakan sekarang
 
-Server functions (client-safe):
-- `src/lib/reff-edit/references.functions.ts` — list/create/delete reference, semua via `requireSupabaseAuth`.
-- `src/lib/reff-edit/history.functions.ts` — list/create history, semua via `requireSupabaseAuth`.
+- Motion/I2V, Upscaler, Elements (Fase 2+)
+- Refresh token otomatis via Cognito (butuh flow login penuh, di luar scope)
+- Menyimpan JWT lama yang user sudah share di chat — user diminta login ulang dan paste token baru; token yang sudah bocor di chat tidak dipakai
 
-Grants standar (`GRANT ... TO authenticated`, `GRANT ALL ... TO service_role`), RLS `auth.uid() = user_id`.
+## Konfirmasi
 
-## Provider routing
-
-Reuse pola routing yang ada:
-- Analysis (multimodal): Gemini Vision primary → OpenAI vision fallback (via router chat dengan image_url content blocks).
-- Image edit: Gemini Image → OpenAI Image → provider image aktif user (`/api/router/image`).
-- Video edit AI: router chat + FFmpeg (`ffmpeg-render.ts`) untuk processing layer.
-
-Setiap request mencatat: provider_used, token_usage, processing_time, error_log ke `reff_edit_history`.
-
-## Output Settings
-
-- Image: Original / 1:1 / 4:5 / 9:16 / 16:9
-- Video: 9:16 / 16:9 / 1:1
-- Quality: Draft / Standard / High (mapping ke param provider + ffmpeg CRF)
-
-## Integrasi cross-module
-
-Reuse `src/lib/creative/handoff.ts`: hasil edit bisa dilempar ke Motion Control, AI Clipper, Storyboard, dll. Tombol "Kirim ke ..." di panel output.
-
-## Scope MVP (untuk implementasi awal, 1 iterasi)
-
-1. Sidebar entry + 4 route files dengan layout + PageHero + placeholder panels.
-2. `reference-upload`, `dna-card`, `blueprint-editor`, `target-panel`, `chat-adjust`, `render-timeline` sebagai komponen fungsional (state lokal + `useSticky`).
-3. Endpoint `reff-analyze` + `reff-blueprint` live (memakai `/api/router/chat` dgn Gemini vision).
-4. `reff-image` live pakai `/api/router/image` yang ada.
-5. `reff-video` mengembalikan blueprint + memakai pipeline FFmpeg yang sudah ada di `mixing/ffmpeg-render.ts` (basic cut+transition).
-6. Reference Library & Edit History memakai localStorage dulu; migrasi Supabase menyusul (butuh Lovable Cloud enable — akan saya minta konfirmasi sebelum bikin tabel).
-
-## Yang akan saya tanyakan sebelum full-build
-
-- Aktifkan Lovable Cloud untuk Library/History persistent? (kalau tidak, tetap localStorage saja).
-- Prefer icon sidebar: `Wand2`, `Palette`, atau `Clapperboard`?
-
-Setelah plan disetujui, saya mulai dari sidebar + route shells + komponen UI, lalu wire endpoint router step-by-step.
+Lanjut bangun Fase 1 dengan rencana di atas? Atau mau saya sertakan Upscaler juga di Fase 1 (paling ringan setelah T2I)?

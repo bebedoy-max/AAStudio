@@ -32,6 +32,7 @@ import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
+import { Route as GenerateLeonardoRouteImport } from './routes/generate.leonardo'
 import { Route as GenerateImageToVideoRouteImport } from './routes/generate.image-to-video'
 import { Route as GenerateFramiaRouteImport } from './routes/generate.framia'
 import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
@@ -51,7 +52,6 @@ import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
-import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
 import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
 import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
 import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
@@ -69,6 +69,8 @@ import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/pro
 import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
+import { Route as ApiPublicLeonardoUploadRouteImport } from './routes/api/public/leonardo-upload'
+import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
 import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
 import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
@@ -195,6 +197,11 @@ const GenerateMotionRoute = GenerateMotionRouteImport.update({
   path: '/generate/motion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GenerateLeonardoRoute = GenerateLeonardoRouteImport.update({
+  id: '/generate/leonardo',
+  path: '/generate/leonardo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GenerateImageToVideoRoute = GenerateImageToVideoRouteImport.update({
   id: '/generate/image-to-video',
   path: '/generate/image-to-video',
@@ -290,11 +297,6 @@ const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
   path: '/api/router/voice',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterVideoRoute = ApiRouterVideoRouteImport.update({
-  id: '/api/router/video',
-  path: '/api/router/video',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiRouterSubtitleRoute = ApiRouterSubtitleRouteImport.update({
   id: '/api/router/subtitle',
   path: '/api/router/subtitle',
@@ -381,6 +383,16 @@ const ApiPublicMagnificRoute = ApiPublicMagnificRouteImport.update({
   path: '/api/public/magnific',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLeonardoUploadRoute = ApiPublicLeonardoUploadRouteImport.update({
+  id: '/api/public/leonardo-upload',
+  path: '/api/public/leonardo-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeonardoRoute = ApiPublicLeonardoRouteImport.update({
+  id: '/api/public/leonardo',
+  path: '/api/public/leonardo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFramiaRoute = ApiPublicFramiaRouteImport.update({
   id: '/api/public/framia',
   path: '/api/public/framia',
@@ -461,6 +473,7 @@ export interface FileRoutesByFullPath {
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
   '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
+  '/generate/leonardo': typeof GenerateLeonardoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
@@ -486,6 +499,8 @@ export interface FileRoutesByFullPath {
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
+  '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -503,7 +518,6 @@ export interface FileRoutesByFullPath {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
-  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
@@ -531,6 +545,7 @@ export interface FileRoutesByTo {
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
   '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
+  '/generate/leonardo': typeof GenerateLeonardoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
@@ -556,6 +571,8 @@ export interface FileRoutesByTo {
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
+  '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -573,7 +590,6 @@ export interface FileRoutesByTo {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
-  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
@@ -604,6 +620,7 @@ export interface FileRoutesById {
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
   '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
+  '/generate/leonardo': typeof GenerateLeonardoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
@@ -629,6 +646,8 @@ export interface FileRoutesById {
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
+  '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -646,7 +665,6 @@ export interface FileRoutesById {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
-  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
@@ -678,6 +696,7 @@ export interface FileRouteTypes {
     | '/generate/bulk-fashion'
     | '/generate/framia'
     | '/generate/image-to-video'
+    | '/generate/leonardo'
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
@@ -703,6 +722,8 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
     | '/api/public/framia'
+    | '/api/public/leonardo'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -720,7 +741,6 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
-    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
@@ -748,6 +768,7 @@ export interface FileRouteTypes {
     | '/generate/bulk-fashion'
     | '/generate/framia'
     | '/generate/image-to-video'
+    | '/generate/leonardo'
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
@@ -773,6 +794,8 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
     | '/api/public/framia'
+    | '/api/public/leonardo'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -790,7 +813,6 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
-    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
@@ -820,6 +842,7 @@ export interface FileRouteTypes {
     | '/generate/bulk-fashion'
     | '/generate/framia'
     | '/generate/image-to-video'
+    | '/generate/leonardo'
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
@@ -845,6 +868,8 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
     | '/api/public/framia'
+    | '/api/public/leonardo'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -862,7 +887,6 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
-    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
@@ -881,6 +905,7 @@ export interface RootRouteChildren {
   GenerateBulkFashionRoute: typeof GenerateBulkFashionRoute
   GenerateFramiaRoute: typeof GenerateFramiaRoute
   GenerateImageToVideoRoute: typeof GenerateImageToVideoRoute
+  GenerateLeonardoRoute: typeof GenerateLeonardoRoute
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
@@ -898,6 +923,8 @@ export interface RootRouteChildren {
   ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
   ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
+  ApiPublicLeonardoRoute: typeof ApiPublicLeonardoRoute
+  ApiPublicLeonardoUploadRoute: typeof ApiPublicLeonardoUploadRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
@@ -915,7 +942,6 @@ export interface RootRouteChildren {
   ApiRouterRenderCloudRoute: typeof ApiRouterRenderCloudRoute
   ApiRouterSttRoute: typeof ApiRouterSttRoute
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
-  ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
@@ -1084,6 +1110,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GenerateMotionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/generate/leonardo': {
+      id: '/generate/leonardo'
+      path: '/generate/leonardo'
+      fullPath: '/generate/leonardo'
+      preLoaderRoute: typeof GenerateLeonardoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/generate/image-to-video': {
       id: '/generate/image-to-video'
       path: '/generate/image-to-video'
@@ -1217,13 +1250,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRouterVoiceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/video': {
-      id: '/api/router/video'
-      path: '/api/router/video'
-      fullPath: '/api/router/video'
-      preLoaderRoute: typeof ApiRouterVideoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/router/subtitle': {
       id: '/api/router/subtitle'
       path: '/api/router/subtitle'
@@ -1341,6 +1367,20 @@ declare module '@tanstack/react-router' {
       path: '/api/public/magnific'
       fullPath: '/api/public/magnific'
       preLoaderRoute: typeof ApiPublicMagnificRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leonardo-upload': {
+      id: '/api/public/leonardo-upload'
+      path: '/api/public/leonardo-upload'
+      fullPath: '/api/public/leonardo-upload'
+      preLoaderRoute: typeof ApiPublicLeonardoUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leonardo': {
+      id: '/api/public/leonardo'
+      path: '/api/public/leonardo'
+      fullPath: '/api/public/leonardo'
+      preLoaderRoute: typeof ApiPublicLeonardoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/framia': {
@@ -1506,6 +1546,7 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateBulkFashionRoute: GenerateBulkFashionRoute,
   GenerateFramiaRoute: GenerateFramiaRoute,
   GenerateImageToVideoRoute: GenerateImageToVideoRoute,
+  GenerateLeonardoRoute: GenerateLeonardoRoute,
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
@@ -1523,6 +1564,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
   ApiPublicFramiaRoute: ApiPublicFramiaRoute,
+  ApiPublicLeonardoRoute: ApiPublicLeonardoRoute,
+  ApiPublicLeonardoUploadRoute: ApiPublicLeonardoUploadRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
@@ -1540,7 +1583,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterRenderCloudRoute: ApiRouterRenderCloudRoute,
   ApiRouterSttRoute: ApiRouterSttRoute,
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
-  ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
