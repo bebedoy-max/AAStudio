@@ -185,9 +185,118 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const tokens = getAllRoboneoKeys();
   if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
 
-  // Upload media ke public host. Untuk Roboneo, prioritaskan Uguu/Catbox
-  // karena engine Meitu sering menolak URL temporer litterbox sebagai input.
-  const uploadPublic = async (file: File): Promise<string> => {
+  // Upload media. Untuk file besar, hindari edge worker (limit ~100MB / 413).
+  // Coba direct browser → Uguu / Catbox dulu (keduanya set CORS *), lalu
+  // fallback ke server proxy. Roboneo engine kadang menolak URL litterbox
+  // sebagai input, jadi litterbox hanya sebagai upaya terakhir.
+  const SERVER_PROXY_SAFE_LIMIT = 90 * 1024 * 1024;
+  const DIRECT_UPLOAD_TIMEOUT_MS = 8 * 60 * 1000;
+  const DIRECT_UPLOAD_STALL_MS = 45 * 1000;
+
+  const formatBytes = (bytes: number) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${bytes}B`;
+  };
+
+  const postFormWithProgress = async (
+    host: string,
+    url: string,
+    form: FormData,
+    kind: "image" | "video",
+    parse: (text: string, status: number) => string,
+  ): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (typeof XMLHttpRequest === "undefined") {
+        reject(new Error(`${host}: browser upload tidak tersedia`));
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      let settled = false;
+      let stallTimer: ReturnType<typeof setTimeout> | null = null;
+      let lastPct = -1;
+
+      const cleanup = () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = null;
+      };
+
+      const fail = (message: string) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error(message));
+      };
+
+      const resetStallTimer = () => {
+        cleanup();
+        stallTimer = setTimeout(() => {
+          xhr.abort();
+          fail(`${host}: upload tidak bergerak > ${Math.round(DIRECT_UPLOAD_STALL_MS / 1000)} detik`);
+        }, DIRECT_UPLOAD_STALL_MS);
+      };
+
+      xhr.open("POST", url);
+      xhr.timeout = DIRECT_UPLOAD_TIMEOUT_MS;
+
+      xhr.upload.onloadstart = () => resetStallTimer();
+      xhr.upload.onprogress = (event) => {
+        resetStallTimer();
+        if (event.lengthComputable && event.total > 0) {
+          const pct = Math.max(0, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+          if (pct !== lastPct) {
+            lastPct = pct;
+            opts.onStatus?.({ index, status: `uploading ${kind} ${host} ${pct}%` });
+          }
+          return;
+        }
+        opts.onStatus?.({ index, status: `uploading ${kind} ${host} ${formatBytes(event.loaded)}` });
+      };
+      xhr.upload.onload = () => {
+        resetStallTimer();
+        opts.onStatus?.({ index, status: `uploading ${kind} ${host} selesai, menunggu URL...` });
+      };
+
+      xhr.onload = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        try {
+          const text = typeof xhr.responseText === "string" ? xhr.responseText.trim() : "";
+          resolve(parse(text, xhr.status));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      xhr.onerror = () => fail(`${host}: network/CORS gagal`);
+      xhr.ontimeout = () => fail(`${host}: timeout upload`);
+      xhr.onabort = () => fail(`${host}: upload dibatalkan`);
+
+      resetStallTimer();
+      xhr.send(form);
+    });
+
+  const uploadDirectUguu = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("files[]", file, file.name || "upload.bin");
+    return postFormWithProgress("Uguu", "https://uguu.se/upload.php", fd, kind, (text, status) => {
+      const j = JSON.parse(text || "null") as { files?: Array<{ url?: string }>; error?: string } | null;
+      const url = j?.files?.[0]?.url;
+      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) return url.replace(/\\\//g, "/");
+      throw new Error(j?.error || `Uguu HTTP ${status}`);
+    });
+  };
+  const uploadDirectCatbox = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("reqtype", "fileupload");
+    fd.append("fileToUpload", file, file.name || "upload.bin");
+    return postFormWithProgress("Catbox", "https://catbox.moe/user/api.php", fd, kind, (text, status) => {
+      if (status >= 200 && status < 300 && /^https?:\/\//i.test(text)) return text;
+      throw new Error(text || `Catbox HTTP ${status}`);
+    });
+  };
+  const uploadViaServer = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name || "upload.bin");
     fd.append("prefer", "roboneo");
@@ -196,12 +305,51 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
     return j.url;
   };
+  const uploadPublic = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const errs: string[] = [];
+    // Untuk VIDEO: langsung server proxy (browser→Uguu/Catbox biasanya CORS-blocked
+    // dari halaman preview, dan hanya menambah waktu). Direct hosts hanya
+    // dipakai bila file besar (>90MB) di mana server proxy pasti kena 413.
+    type UploadFn = (f: File, k: "image" | "video") => Promise<string>;
+    const serverEntry: [string, UploadFn] = ["Server", (f) => uploadViaServer(f)];
+    const uguuEntry: [string, UploadFn] = ["Uguu", uploadDirectUguu];
+    const catboxEntry: [string, UploadFn] = ["Catbox", uploadDirectCatbox];
+    const order: Array<[string, UploadFn]> =
+      kind === "video"
+        ? file.size > SERVER_PROXY_SAFE_LIMIT
+          ? [uguuEntry, catboxEntry]
+          : [serverEntry]
+        : file.size > SERVER_PROXY_SAFE_LIMIT
+          ? [uguuEntry, catboxEntry]
+          : [uguuEntry, catboxEntry, serverEntry];
+
+    for (const [host, fn] of order) {
+      try {
+        log(
+          `${kind === "video" ? "Video" : "Image"} upload via ${host === "Server" ? "server proxy" : host} (${formatBytes(file.size)})...`,
+        );
+        opts.onStatus?.({ index, status: `uploading ${kind} ${host}...` });
+        return await fn(file, kind);
+      } catch (e) {
+        const msg = (e as Error).message;
+        errs.push(`${host}: ${msg}`);
+        log(`${host} gagal: ${msg}`, "warn");
+      }
+    }
+
+    if (kind === "video" && file.size > SERVER_PROXY_SAFE_LIMIT) {
+      errs.push(`skip server proxy (${formatBytes(file.size)} > ${formatBytes(SERVER_PROXY_SAFE_LIMIT)})`);
+    }
+    throw new Error(`Upload gagal: ${errs.join(" | ")}`);
+  };
+
 
   opts.onStatus?.({ index, status: "uploading img..." });
   log("Upload image ke public host...");
   const imgBlob = await maybeCompress(slot.image);
   const imageUrl = await uploadPublic(
     new File([imgBlob], `rn_img_${index}_${Date.now()}.jpg`, { type: imgBlob.type || "image/jpeg" }),
+    "image",
   );
   log(`Image: ${imageUrl.substring(0, 60)}...`);
 
@@ -209,6 +357,7 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   log("Upload video ke public host...");
   const videoUrl = await uploadPublic(
     new File([slot.video], `rn_vid_${index}_${Date.now()}.mp4`, { type: slot.video.type || "video/mp4" }),
+    "video",
   );
   log(`Video: ${videoUrl.substring(0, 60)}...`);
 

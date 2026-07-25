@@ -76,6 +76,7 @@ import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
+import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
@@ -416,6 +417,12 @@ const ApiPublicClipperBrainRoute = ApiPublicClipperBrainRouteImport.update({
   path: '/api/public/clipper-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBacksoundSearchRoute =
+  ApiPublicBacksoundSearchRouteImport.update({
+    id: '/api/public/backsound-search',
+    path: '/api/public/backsound-search',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMidtransNotificationRoute =
   ApiPublicMidtransNotificationRouteImport.update({
     id: '/api/public/midtrans/notification',
@@ -471,6 +478,7 @@ export interface FileRoutesByFullPath {
   '/system/settings': typeof SystemSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/ai-influencer/': typeof AiInfluencerIndexRoute
+  '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
@@ -540,6 +548,7 @@ export interface FileRoutesByTo {
   '/system/settings': typeof SystemSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/ai-influencer': typeof AiInfluencerIndexRoute
+  '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
@@ -612,6 +621,7 @@ export interface FileRoutesById {
   '/system/settings': typeof SystemSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/ai-influencer/': typeof AiInfluencerIndexRoute
+  '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
@@ -685,6 +695,7 @@ export interface FileRouteTypes {
     | '/system/settings'
     | '/admin/'
     | '/ai-influencer/'
+    | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
@@ -754,6 +765,7 @@ export interface FileRouteTypes {
     | '/system/settings'
     | '/admin'
     | '/ai-influencer'
+    | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
@@ -825,6 +837,7 @@ export interface FileRouteTypes {
     | '/system/settings'
     | '/admin/'
     | '/ai-influencer/'
+    | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
@@ -877,6 +890,7 @@ export interface RootRouteChildren {
   SystemAnalyticRoute: typeof SystemAnalyticRoute
   SystemHelpRoute: typeof SystemHelpRoute
   SystemSettingsRoute: typeof SystemSettingsRoute
+  ApiPublicBacksoundSearchRoute: typeof ApiPublicBacksoundSearchRoute
   ApiPublicClipperBrainRoute: typeof ApiPublicClipperBrainRoute
   ApiPublicCreativeBrainRoute: typeof ApiPublicCreativeBrainRoute
   ApiPublicDubbingBrainRoute: typeof ApiPublicDubbingBrainRoute
@@ -1378,6 +1392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicClipperBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/backsound-search': {
+      id: '/api/public/backsound-search'
+      path: '/api/public/backsound-search'
+      fullPath: '/api/public/backsound-search'
+      preLoaderRoute: typeof ApiPublicBacksoundSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/midtrans/notification': {
       id: '/api/public/midtrans/notification'
       path: '/api/public/midtrans/notification'
@@ -1494,6 +1515,7 @@ const rootRouteChildren: RootRouteChildren = {
   SystemAnalyticRoute: SystemAnalyticRoute,
   SystemHelpRoute: SystemHelpRoute,
   SystemSettingsRoute: SystemSettingsRoute,
+  ApiPublicBacksoundSearchRoute: ApiPublicBacksoundSearchRoute,
   ApiPublicClipperBrainRoute: ApiPublicClipperBrainRoute,
   ApiPublicCreativeBrainRoute: ApiPublicCreativeBrainRoute,
   ApiPublicDubbingBrainRoute: ApiPublicDubbingBrainRoute,

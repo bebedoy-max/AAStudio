@@ -190,8 +190,54 @@ function MotionControl() {
 
   const [generating, setGenerating] = useSticky<boolean>("motion.generating", false);
   const [logs, setLogs] = useSticky<{ time: string; msg: string; level: string }[]>("motion.logs", []);
+  const [elapsed, setElapsed] = useState("0:00");
+  const startedAtRef = useRef<number | null>(null);
   const [results, setResults] = useState<ResultItem[]>([]);
   const [search, setSearch] = useState("");
+
+  // Global progress bar: rata-rata dari status semua slot yg sudah dimulai.
+  const globalPct = useMemo(() => {
+    const active = slots.filter((s) => s.image && s.video);
+    if (active.length === 0) return 0;
+    const scoreOf = (s: RefSlot) => {
+      if (s.status === "done") return 100;
+      if (s.status === "error") return 100;
+      if (s.status === "processing") {
+        const m = /(\d+)%/.exec(s.statusText || "");
+        return m ? Math.max(60, Math.min(99, Number(m[1]))) : 70;
+      }
+      if (s.status === "uploading vid...") return 40;
+      if (s.status === "uploading img...") return 20;
+      return generating ? 5 : 0;
+    };
+    return Math.round(active.reduce((a, s) => a + scoreOf(s), 0) / active.length);
+  }, [slots, generating]);
+  const globalStatusText = useMemo(() => {
+    const active = slots.filter((s) => s.image && s.video);
+    if (active.length === 0) return "Idle";
+    const done = active.filter((s) => s.status === "done").length;
+    const err = active.filter((s) => s.status === "error").length;
+    if (!generating && done + err === active.length && done + err > 0) {
+      return err > 0 ? `Selesai — ${done} sukses · ${err} gagal` : `Selesai — ${done} video`;
+    }
+    if (generating) {
+      const running = active.find((s) => s.status !== "done" && s.status !== "error" && s.status !== "idle");
+      if (running) return `Slot #${active.indexOf(running) + 1}: ${running.statusText || running.status}`;
+      return "Memproses…";
+    }
+    return "Idle";
+  }, [slots, generating]);
+
+  useEffect(() => {
+    if (!generating) return;
+    startedAtRef.current = Date.now();
+    setElapsed("0:00");
+    const iv = setInterval(() => {
+      const el = Math.floor((Date.now() - (startedAtRef.current || Date.now())) / 1000);
+      setElapsed(`${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [generating]);
 
 
   // Load results scoped by current user id. Re-run when user changes (login/logout switch).
@@ -530,9 +576,60 @@ function MotionControl() {
                 </span>{" "}
                 credits ({readySlots} × {activeModel.cr})
               </div>
+
+              {(generating || globalPct > 0) && (
+                <div className="mt-1 rounded-xl border border-border/70 bg-card/40 p-3">
+                  <div className="flex justify-between items-center text-xs mb-1">
+                    <span className="truncate pr-2">{globalStatusText}</span>
+                    <span className="font-mono text-muted-foreground">{elapsed}</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-border overflow-hidden">
+                    <div
+                      className="h-full transition-all"
+                      style={{ width: `${globalPct}%`, background: "var(--gradient-neon)" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {logs.length > 0 && (
+                <div className="rounded-xl border border-border/70 bg-black/40 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                      Log Proses {generating && <Loader2 className="inline h-3 w-3 animate-spin ml-1" />}
+                    </div>
+                    <button
+                      onClick={() => setLogs([])}
+                      className="text-[10px] text-muted-foreground hover:text-destructive"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed min-w-0">
+                    {logs.map((l, i) => (
+                      <div
+                        key={i}
+                        className={
+                          "whitespace-pre-wrap break-all min-w-0 " +
+                          (l.level === "error"
+                            ? "text-red-400"
+                            : l.level === "warn"
+                              ? "text-amber-400"
+                              : l.level === "success"
+                                ? "text-emerald-400"
+                                : "text-muted-foreground")
+                        }
+                      >
+                        [{l.time}] {l.msg}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
+
 
         {/* Gallery */}
         <div style={{ gridArea: "gallery" }}>
@@ -594,32 +691,6 @@ function MotionControl() {
                     </div>
                   ))}
               </div>
-            )}
-            {logs.length > 0 && (
-              <details className="mt-4 rounded-xl border border-border/60 bg-black/40 p-2" open={generating}>
-                <summary className="cursor-pointer text-xs text-muted-foreground px-1">
-                  Log ({logs.length}) {generating && <Loader2 className="inline h-3 w-3 animate-spin" />}
-                </summary>
-                <div className="max-h-40 overflow-y-auto overflow-x-hidden text-[11px] font-mono mt-2 px-1 min-w-0">
-                  {logs.map((l, i) => (
-                    <div
-                      key={i}
-                      className={
-                        "break-all min-w-0 " +
-                        (l.level === "error"
-                          ? "text-red-400"
-                          : l.level === "warn"
-                            ? "text-amber-400"
-                            : l.level === "success"
-                              ? "text-emerald-400"
-                              : "text-muted-foreground")
-                      }
-                    >
-                      [{l.time}] {l.msg}
-                    </div>
-                  ))}
-                </div>
-              </details>
             )}
           </Card>
         </div>

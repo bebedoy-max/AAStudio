@@ -19,6 +19,13 @@ function extractFirstUrl(text: string): string {
   return (match?.[0] ?? text).trim();
 }
 
+const NO_TEXT_GUARD = "no text, no words, no captions, no typography, no logos, no watermarks, no subtitles anywhere in the image or during motion";
+function withNoTextGuard(prompt: string): string {
+  const p = (prompt || "").trim();
+  if (/no\s+text/i.test(p)) return p;
+  return `${p}${p.endsWith(".") ? "" : "."} ${NO_TEXT_GUARD}.`;
+}
+
 export const Route = createFileRoute("/generate/naratif")({
   head: () => ({
     meta: [
@@ -426,6 +433,81 @@ function NaratifPage() {
   const [xfadeDur, setXfadeDur] = useSticky<number>("naratif.xfadeDur", 0.5);
   const [leadOutDur, setLeadOutDur] = useSticky<number>("naratif.leadOutDur", 0.4);
 
+  // Backsound (background music) options
+  type BgTrack = { title: string; url: string; duration: number };
+  const [bgMood, setBgMood] = useSticky<string>("naratif.bgMood", "cinematic");
+  const [bgVol, setBgVol] = useSticky<number>("naratif.bgVol", 0.18);
+  const [bgTrack, setBgTrack] = useSticky<BgTrack | null>("naratif.bgTrack", null);
+  const [bgLibrary, setBgLibrary] = useState<BgTrack[]>([]);
+  const [bgLoading, setBgLoading] = useState(false);
+  const [bgUploadName, setBgUploadName] = useSticky<string>("naratif.bgUploadName", "");
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [bgPlaying, setBgPlaying] = useState(false);
+  const [bgSource, setBgSource] = useSticky<"none" | "library" | "upload">("naratif.bgSource", "none");
+
+  const BG_MOODS: Array<{ key: string; label: string }> = [
+    { key: "cinematic", label: "🎬 Cinematic" },
+    { key: "dark-cinematic", label: "🌑 Dark Cinematic" },
+    { key: "horror", label: "👻 Horror" },
+    { key: "inspiration", label: "✨ Inspirational" },
+    { key: "comedy", label: "😄 Comedy / Fun" },
+    { key: "upbeat", label: "⚡ Upbeat / Energetic" },
+    { key: "documentary", label: "📽️ Documentary" },
+  ];
+
+  const loadBgLibrary = async (mood: string): Promise<BgTrack[]> => {
+    setBgLoading(true);
+    try {
+      const r = await fetch(`/api/public/backsound-search?mood=${encodeURIComponent(mood)}`);
+      const j = await r.json();
+      const tracks: BgTrack[] = Array.isArray(j.tracks) ? j.tracks : [];
+      setBgLibrary(tracks);
+      return tracks;
+    } catch {
+      setBgLibrary([]);
+      return [];
+    } finally {
+      setBgLoading(false);
+    }
+  };
+
+  const shuffleBgTrack = async () => {
+    let list = bgLibrary;
+    if (!list.length) list = await loadBgLibrary(bgMood);
+    if (!list.length) return;
+    const t = list[Math.floor(Math.random() * list.length)];
+    setBgTrack(t);
+    setBgSource("library");
+    setBgUploadName("");
+    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+  };
+
+  const toggleBgPlay = () => {
+    if (!bgTrack?.url) return;
+    const el = bgAudioRef.current;
+    if (!el) return;
+    if (bgPlaying) { el.pause(); setBgPlaying(false); }
+    else { el.play().then(() => setBgPlaying(true)).catch(() => setBgPlaying(false)); }
+  };
+
+  const onBgUpload = async (file: File | null) => {
+    if (!file) return;
+    const buf = await file.arrayBuffer();
+    const blob = new Blob([buf], { type: file.type || "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    setBgTrack({ title: file.name, url, duration: 0 });
+    setBgSource("upload");
+    setBgUploadName(file.name);
+    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+  };
+
+  const clearBg = () => {
+    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+    setBgTrack(null);
+    setBgSource("none");
+    setBgUploadName("");
+  };
+
   // Subtitle burn-in options (default: aktif)
   const [subEnable, setSubEnable] = useSticky<boolean>("naratif.subEnable", true);
   const [subStyle, setSubStyle] = useSticky<string>("naratif.subStyle", "modern");
@@ -709,12 +791,12 @@ function NaratifPage() {
       let imgUrl: string;
       if (imgProvider === "weavy") {
         const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
-        imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: scene.prompt, quality: imgQuality, ratio });
+        imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: withNoTextGuard(scene.prompt), quality: imgQuality, ratio });
       } else if (imgProvider === "framia") {
         const { generateFramiaImage } = await import("@/lib/providers/framia-image");
         imgUrl = await generateFramiaImage({
           modelKey: imgModel,
-          prompt: scene.prompt,
+          prompt: withNoTextGuard(scene.prompt),
           aspectRatio: ratio,
           resolution: imgQuality,
         });
@@ -723,7 +805,7 @@ function NaratifPage() {
         const key = getFirstWavespeedKey();
         if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${imgProvider})`);
         const modelId = mapImgToWsEndpoint(imgModel);
-        const payload: Record<string, unknown> = { prompt: scene.prompt, aspect_ratio: ratio };
+        const payload: Record<string, unknown> = { prompt: withNoTextGuard(scene.prompt), aspect_ratio: ratio };
         if (/gpt-image/.test(modelId)) payload.quality = imgQuality;
         else if (/nano-banana/.test(modelId)) payload.resolution = imgQuality;
         const data = await wsPost(modelId, payload, key);
@@ -812,7 +894,7 @@ function NaratifPage() {
         duration: q.duration,
         resolution: q.resolution,
         sound: q.sound,
-        prompt: scene.videoPrompt || scene.prompt,
+        prompt: withNoTextGuard(scene.videoPrompt || scene.prompt),
       });
       patchScene(i, { videoUrl, busy: null });
     } catch (e) {
@@ -1071,69 +1153,133 @@ function NaratifPage() {
       for (const sf of subFilesToClean) { try { await ff.deleteFile(sf); } catch { /* noop */ } }
 
 
-      setMergeStatus("🧵 Menggabung scene dengan crossfade…");
+      setMergeStatus("🧵 Menggabung scene…");
+
+      // Load backsound (jika ada) ke ffmpeg FS
+      const HAS_BG = !!bgTrack?.url;
+      const BG_NAME = "bg_music.mp3";
+      const BG_VOL = Math.max(0, Math.min(1, Number(bgVol) || 0));
+      if (HAS_BG) {
+        try {
+          setMergeStatus("🎵 Memuat backsound…");
+          pushBulkLog(`🎵 Memuat backsound: ${bgTrack!.title}`);
+          await ff.writeFile(BG_NAME, await fetchFile(bgTrack!.url));
+        } catch (be) {
+          pushBulkLog(`⚠️ Backsound gagal dimuat: ${(be as Error).message}. Lanjut tanpa backsound.`);
+        }
+      }
+      const hasBgFile = HAS_BG; // simplified
 
       if (parts.length === 1) {
-        // No transitions needed
-        const data = (await ff.readFile(parts[0])) as Uint8Array;
+        // Single scene: langsung finalize (dengan opsi backsound loop+mix)
+        if (!hasBgFile) {
+          const data = (await ff.readFile(parts[0])) as Uint8Array;
+          const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
+          const url = URL.createObjectURL(blob);
+          setFinalUrl(url);
+          setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+          try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+          logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
+          return;
+        }
+        const t = durs[0];
+        const filt =
+          `[1:a]aloop=loop=-1:size=2147483647,atrim=0:${t.toFixed(3)},volume=${BG_VOL.toFixed(2)}[bg];` +
+          `[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`;
+        const sret = await ff.exec([
+          "-i", parts[0],
+          "-i", BG_NAME,
+          "-filter_complex", filt,
+          "-map", "0:v", "-map", "[aout]",
+          "-t", t.toFixed(3),
+          "-c:v", "copy",
+          "-c:a", "aac", "-b:a", "160k",
+          "-movflags", "+faststart",
+          "-y", "final.mp4",
+        ]);
+        if (sret !== 0) throw new Error("FFmpeg gagal mix backsound");
+        const data = (await ff.readFile("final.mp4")) as Uint8Array;
         const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
         const url = URL.createObjectURL(blob);
         setFinalUrl(url);
         setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
         try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+        try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
+        try { await ff.deleteFile(BG_NAME); } catch { /* noop */ }
         logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
         return;
       }
 
-      // Build filter_complex with xfade (video) + acrossfade (audio)
+      // Multi-scene: video crossfade + audio concat (tanpa crossfade — hindari volume dip).
+      // Total durasi setelah xfade video = sum(durs) - (N-1)*XFADE.
+      // Audio tiap part non-terakhir dipangkas XFADE agar total audio == total video.
+      const totalDur = durs.reduce((a, b) => a + b, 0) - (parts.length - 1) * XFADE;
       const inputs: string[] = [];
       parts.forEach((p) => { inputs.push("-i", p); });
+      if (hasBgFile) inputs.push("-i", BG_NAME);
 
       const filters: string[] = [];
       let vPrev = "[0:v]";
-      let aPrev = "[0:a]";
       let cumOffset = 0;
       for (let i = 1; i < parts.length; i++) {
         const prevDur = durs[i - 1];
         cumOffset += prevDur - XFADE;
         const vOut = `[v${i}]`;
-        const aOut = `[a${i}]`;
         filters.push(
           `${vPrev}[${i}:v]xfade=transition=fade:duration=${XFADE}:offset=${cumOffset.toFixed(3)}${vOut}`,
         );
-        filters.push(
-          `${aPrev}[${i}:a]acrossfade=d=${XFADE}:c1=tri:c2=tri${aOut}`,
-        );
         vPrev = vOut;
-        aPrev = aOut;
+      }
+
+      // Trim audio per part (potong XFADE dari akhir setiap part non-terakhir) lalu concat.
+      const aLabels: string[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        const isLast = i === parts.length - 1;
+        const cut = isLast ? durs[i] : Math.max(0.1, durs[i] - XFADE);
+        const lbl = `[ac${i}]`;
+        filters.push(`[${i}:a]atrim=0:${cut.toFixed(3)},asetpts=N/SR/TB${lbl}`);
+        aLabels.push(lbl);
+      }
+      filters.push(`${aLabels.join("")}concat=n=${parts.length}:v=0:a=1[avo]`);
+
+      let finalAudioLabel = "[avo]";
+      if (hasBgFile) {
+        const bgIdx = parts.length;
+        filters.push(
+          `[${bgIdx}:a]aloop=loop=-1:size=2147483647,atrim=0:${totalDur.toFixed(3)},volume=${BG_VOL.toFixed(2)}[bg]`,
+        );
+        filters.push(`[bg][avo]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[amixed]`);
+        finalAudioLabel = "[amixed]";
       }
 
       const cret = await ff.exec([
         ...inputs,
         "-filter_complex", filters.join(";"),
         "-map", vPrev,
-        "-map", aPrev,
+        "-map", finalAudioLabel,
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "160k",
         "-movflags", "+faststart",
         "-y", "final.mp4",
       ]);
-      if (cret !== 0) throw new Error("FFmpeg crossfade gagal");
+      if (cret !== 0) throw new Error("FFmpeg merge gagal");
 
       const data = (await ff.readFile("final.mp4")) as Uint8Array;
       const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
       const url = URL.createObjectURL(blob);
       setFinalUrl(url);
-      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB${hasBgFile ? " · + backsound" : ""}`);
       pushBulkLog(`🏁 Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
       setPct(100);
 
       for (const p of parts) { try { await ff.deleteFile(p); } catch { /* noop */ } }
       try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
+      if (hasBgFile) { try { await ff.deleteFile(BG_NAME); } catch { /* noop */ } }
+
 
       logGenerate("naratif_merge", { status: "success", scenes: scenes.length, bytes: blob.size });
     } catch (e) {
@@ -1395,6 +1541,87 @@ function NaratifPage() {
                   );
                 })}
               </div>
+            )}
+          </div>
+          <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+              <div className="text-[11px] font-medium text-muted-foreground">🎵 Backsound (musik latar) — auto-loop menyesuaikan durasi video</div>
+              {bgTrack && (
+                <button
+                  type="button"
+                  onClick={clearBg}
+                  className="text-[10px] text-red-400 hover:text-red-300 underline"
+                >
+                  Hapus backsound
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Mood (dari internet, gratis)</span>
+                <select
+                  value={bgMood}
+                  onChange={(e) => { setBgMood(e.target.value); setBgLibrary([]); }}
+                  className="h-8 rounded-md border border-border bg-black/30 px-2 text-[12px]"
+                >
+                  {BG_MOODS.map((m) => (
+                    <option key={m.key} value={m.key}>{m.label}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="text-[11px] flex flex-col gap-1">
+                <span>Aksi</span>
+                <div className="flex gap-1.5">
+                  <GhostButton
+                    onClick={shuffleBgTrack}
+                    disabled={bgLoading}
+                    className="!px-2 !py-1 text-[11px] flex-1"
+                    title="Ambil track random dari mood ini"
+                  >
+                    {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Shuffle
+                  </GhostButton>
+                  <GhostButton
+                    onClick={toggleBgPlay}
+                    disabled={!bgTrack?.url}
+                    className="!px-2 !py-1 text-[11px] flex-1"
+                    title="Play / pause preview"
+                  >
+                    <Play className="h-3 w-3" /> {bgPlaying ? "Pause" : "Play"}
+                  </GhostButton>
+                </div>
+              </div>
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Volume backsound: <b>{Math.round(bgVol * 100)}%</b></span>
+                <input type="range" min={0} max={0.6} step={0.02} value={bgVol} onChange={(e) => setBgVol(Number(e.target.value))} />
+              </label>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-md border border-border bg-black/20 px-2 py-1 hover:border-primary/60">
+                <span>📁 Upload manual (MP3/WAV)</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.currentTarget.files?.[0] || null; onBgUpload(f); e.currentTarget.value = ""; }}
+                />
+              </label>
+              {bgTrack && (
+                <span className="truncate max-w-[60%]">
+                  🎶 <b>{bgSource === "upload" ? bgUploadName || bgTrack.title : bgTrack.title}</b>
+                  {bgSource === "library" ? " (Kevin MacLeod · CC-BY)" : ""}
+                </span>
+              )}
+              {!bgTrack && <span className="opacity-70">Tidak ada backsound dipilih — video akan hanya pakai voice-over.</span>}
+            </div>
+            {bgTrack?.url && (
+              <audio
+                ref={bgAudioRef}
+                src={bgTrack.url}
+                onEnded={() => setBgPlaying(false)}
+                onPause={() => setBgPlaying(false)}
+                onPlay={() => setBgPlaying(true)}
+                className="hidden"
+              />
             )}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">

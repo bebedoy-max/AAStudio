@@ -50,7 +50,12 @@ export function getFirstFramiaKey(): string | null {
  */
 export function isFramiaRotatableError(msg: string): boolean {
   const m = (msg || "").toLowerCase();
-  return /credit|insufficient|not enough|out of|balance|quota|exhaust|limit reached|too many|rate.?limit|402|401|403|unauthor|forbidden|expired|invalid.*token|token.*invalid/.test(
+  // Broaden: Framia runs sering gagal karena berbagai sebab (node failed,
+  // resource kosong, HTTP 5xx, network). Untuk auto-rotate di batch (naratif),
+  // treat hampir semua kegagalan run sebagai rotatable — token berikutnya
+  // punya kesempatan lolos. Hanya error validasi input eksplisit yang tidak
+  // rotate (mis. prompt kosong / file corrupt terdeteksi client-side).
+  return /credit|insufficient|not enough|out of|balance|quota|exhaust|limit reached|too many|rate.?limit|402|401|403|unauthor|forbidden|expired|invalid.*token|token.*invalid|node failed|video url|url tidak|run_id|500|502|503|504|server error|internal|network|fetch|timeout|timed out|failed|gagal/.test(
     m,
   );
 }

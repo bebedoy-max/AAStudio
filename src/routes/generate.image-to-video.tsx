@@ -47,6 +47,8 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
   ],
   framia: [
     // Model list from Framia video node (share recipe 8b83c48b70).
+    // Gemini Omni Flash = default (paling stabil & murah).
+    { value: "framia:gemini-omni-flash", label: "Gemini Omni Flash (Framia)", cr: 20 },
     { value: "framia:seedance-2.0", label: "Seedance 2.0 (Framia)", cr: 45 },
     { value: "framia:seedance-2.0-fast", label: "Seedance 2.0 Fast (Framia)", cr: 30 },
     { value: "framia:kling-3.0-omni", label: "Kling 3.0 Omni (Framia)", cr: 60 },
@@ -54,7 +56,6 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
     { value: "framia:veo-3.1", label: "Veo 3.1 (Framia)", cr: 90 },
     { value: "framia:veo-3.1-fast", label: "Veo 3.1 Fast (Framia)", cr: 65 },
     { value: "framia:wan-2.7", label: "Wan 2.7 (Framia)", cr: 25 },
-    { value: "framia:gemini-omni-flash", label: "Gemini Omni Flash (Framia)", cr: 20 },
     { value: "framia:happyhorse-1.1", label: "HappyHorse 1.1 (Framia)", cr: 28 },
     { value: "framia:kling-avatar", label: "Kling Avatar (Framia)", cr: 40 },
   ],
@@ -115,8 +116,8 @@ const ROBONEO_QUALITY: Record<string, QualityOpt[]> = {
 // perhitungan modelCr × mult supaya cocok dengan node Framia di lapangan.
 const FRAMIA_QUALITY: Record<string, QualityOpt[]> = {
   "framia:gemini-omni-flash": [
-    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
     { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 45 },
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
   ],
   "framia:seedance-2.0": [
     { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
