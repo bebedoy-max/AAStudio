@@ -1690,7 +1690,7 @@ function ProviderKeyPane({
                 ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
                 : provider === "framia" || provider === "roboneo"
                   ? x.balance == null
-                    ? x.status === "failed" ? "❌" : "…"
+                    ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
                     : `${x.balance.toLocaleString()} cr`
                   : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
             </div>

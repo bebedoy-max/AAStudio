@@ -185,11 +185,12 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const tokens = getAllRoboneoKeys();
   if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
 
-  // Upload media ke public host (catbox/litterbox/uguu) — Roboneo cukup butuh
-  // URL publik yang bisa di-fetch gateway Meitu, tidak perlu provider lain.
+  // Upload media ke public host. Untuk Roboneo, prioritaskan Uguu/Catbox
+  // karena engine Meitu sering menolak URL temporer litterbox sebagai input.
   const uploadPublic = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name || "upload.bin");
+    fd.append("prefer", "roboneo");
     const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
     const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
@@ -226,6 +227,7 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
         videoUrl,
         prompt: opts.prompt,
         quality,
+        orientation: opts.orientation,
       });
       log(`Task: ${taskId}`);
       opts.onStatus?.({ index, status: "processing" });

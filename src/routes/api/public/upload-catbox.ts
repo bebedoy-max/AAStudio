@@ -21,6 +21,11 @@ function safeFilename(name: string) {
     .slice(0, 120) || "upload.bin";
 }
 
+function orderedAttempts(prefer: string | null) {
+  if (prefer === "roboneo") return [uploadToUguu, uploadToCatbox, uploadToLitterbox];
+  return [uploadToLitterbox, uploadToUguu, uploadToCatbox];
+}
+
 async function uploadToCatbox(file: File) {
   const form = new FormData();
   form.append("reqtype", "fileupload");
@@ -103,7 +108,8 @@ export const Route = createFileRoute("/api/public/upload-catbox")({
           return json({ error: "Hanya file gambar atau video yang didukung" }, { status: 400 });
         }
 
-        const attempts = [uploadToLitterbox, uploadToUguu, uploadToCatbox];
+        const prefer = typeof form.get("prefer") === "string" ? String(form.get("prefer")) : null;
+        const attempts = orderedAttempts(prefer);
         const errors: string[] = [];
         try {
           for (const upload of attempts) {

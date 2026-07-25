@@ -260,9 +260,11 @@ export async function submitRoboneoMotion(opts: {
   videoUrl: string;
   prompt?: string;
   quality?: "std" | "pro";
+  orientation?: "image" | "video";
 }): Promise<string> {
   const roomId = genRoomId();
   const nodeId = uuid();
+  const orientation = opts.orientation ?? "video";
   const node = {
     tool_abstract_name: { cn: "Motion Control", en: "Motion Control" },
     node_id: nodeId,
@@ -271,6 +273,8 @@ export async function submitRoboneoMotion(opts: {
       quality: opts.quality ?? "std",
       image_url: opts.imageUrl,
       video_url: opts.videoUrl,
+      character_orientation: orientation,
+      orientation,
       prompt: opts.prompt ?? "",
       random: `${Date.now()}-${Math.floor(10_000_000 + Math.random() * 89_999_999)}`,
     },
