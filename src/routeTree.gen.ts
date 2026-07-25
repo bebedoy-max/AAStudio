@@ -81,6 +81,7 @@ import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/d
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
+import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
@@ -448,6 +449,11 @@ const ApiPublicBacksoundSearchRoute =
     path: '/api/public/backsound-search',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
+  id: '/api/public/tiktok/callback',
+  path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicMidtransNotificationRoute =
   ApiPublicMidtransNotificationRouteImport.update({
     id: '/api/public/midtrans/notification',
@@ -536,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -610,6 +617,7 @@ export interface FileRoutesByTo {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -687,6 +695,7 @@ export interface FileRoutesById {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -765,6 +774,7 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
+    | '/api/public/tiktok/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -839,6 +849,7 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
+    | '/api/public/tiktok/callback'
   id:
     | '__root__'
     | '/'
@@ -915,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
+    | '/api/public/tiktok/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -972,6 +984,7 @@ export interface RootRouteChildren {
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
+  ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1480,6 +1493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBacksoundSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/tiktok/callback': {
+      id: '/api/public/tiktok/callback'
+      path: '/api/public/tiktok/callback'
+      fullPath: '/api/public/tiktok/callback'
+      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/midtrans/notification': {
       id: '/api/public/midtrans/notification'
       path: '/api/public/midtrans/notification'
@@ -1629,6 +1649,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
+  ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

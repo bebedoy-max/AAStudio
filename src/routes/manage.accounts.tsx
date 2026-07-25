@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Plus,
   Trash2,
@@ -18,6 +19,11 @@ import {
 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Input, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
+import {
+  startTikTokConnect,
+  listTikTokAccounts,
+  disconnectTikTokAccount,
+} from "@/lib/tiktok/tiktok.functions";
 
 function Panel({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return <div className={"neumorph " + className}>{children}</div>;
@@ -53,30 +59,7 @@ type AccountEntry = {
   isDefault?: boolean;
 };
 
-const DEFAULT_ACCOUNTS: AccountEntry[] = [
-  {
-    id: "leonardo",
-    name: "Leonardo.AI",
-    category: "provider",
-    logo: "https://cdn.leonardo.ai/assets/leonardo-favicon.png",
-    brandColor: "#7c5cff",
-    description: "Provider generate image & video AI (Phoenix, Flux, Motion).",
-    connected: false,
-    scopes: ["generate.image", "generate.video", "user.info"],
-    isDefault: true,
-  },
-  {
-    id: "tiktok",
-    name: "TikTok",
-    category: "social",
-    logo: "https://sf-static.tiktokcdn.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
-    brandColor: "#ff2d55",
-    description: "Publish otomatis video ke akun TikTok kamu.",
-    connected: false,
-    scopes: ["user.info.basic", "video.publish", "video.list"],
-    isDefault: true,
-  },
-];
+const DEFAULT_ACCOUNTS: AccountEntry[] = [];
 
 const CATEGORY_META: Record<Category, { label: string; icon: typeof Sparkles; hint: string }> = {
   provider: { label: "AI Provider", icon: Sparkles, hint: "Koneksi ke penyedia model AI" },
@@ -87,19 +70,14 @@ const CATEGORY_META: Record<Category, { label: string; icon: typeof Sparkles; hi
 const STORAGE_KEY = "aatools.manage.accounts.v1";
 
 function loadAccounts(): AccountEntry[] {
-  if (typeof window === "undefined") return DEFAULT_ACCOUNTS;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_ACCOUNTS;
+    if (!raw) return [];
     const saved = JSON.parse(raw) as AccountEntry[];
-    // ensure defaults present
-    const merged = [...saved];
-    for (const d of DEFAULT_ACCOUNTS) {
-      if (!merged.some((m) => m.id === d.id)) merged.unshift(d);
-    }
-    return merged;
+    return Array.isArray(saved) ? saved : [];
   } catch {
-    return DEFAULT_ACCOUNTS;
+    return [];
   }
 }
 
@@ -110,18 +88,63 @@ function saveAccounts(list: AccountEntry[]) {
 }
 
 function AccountsPage() {
-  const [accounts, setAccounts] = useState<AccountEntry[]>(DEFAULT_ACCOUNTS);
+  const [accounts, setAccounts] = useState<AccountEntry[]>([]);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | Category>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
+  const _listTikTok = useServerFn(listTikTokAccounts);
+  const _disconnectTikTok = useServerFn(disconnectTikTokAccount);
+
+  const refreshTikTok = async () => {
+    try {
+      const rows = (await _listTikTok()) as Array<{
+        id: string;
+        open_id: string;
+        display_name: string | null;
+        avatar_url: string | null;
+        scope: string | null;
+        created_at: string;
+      }>;
+      const mapped: AccountEntry[] = rows.map((r) => ({
+        id: `tiktok:${r.id}`,
+        name: "TikTok",
+        category: "social",
+        logo: "https://sf-static.tiktokcdn.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
+        brandColor: "#ff2d55",
+        description: "Akun TikTok terhubung via OAuth resmi.",
+        connected: true,
+        handle: r.display_name ? `@${r.display_name}` : r.open_id,
+        connectedAt: r.created_at,
+        scopes: r.scope ? r.scope.split(",") : undefined,
+      }));
+      setAccounts((prev) => {
+        const withoutTikTok = prev.filter((a) => !a.id.startsWith("tiktok:"));
+        return [...mapped, ...withoutTikTok];
+      });
+    } catch (e) {
+      // silent — user might not be signed in yet
+      console.warn("[TikTok] list failed", (e as Error).message);
+    }
+  };
+
   useEffect(() => {
     setAccounts(loadAccounts());
+    refreshTikTok();
+    const onMsg = (ev: MessageEvent) => {
+      const d = ev.data as { source?: string; ok?: boolean } | null;
+      if (d && d.source === "tiktok-oauth" && d.ok) refreshTikTok();
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    saveAccounts(accounts);
+    // Only persist local (non-DB) accounts to localStorage.
+    saveAccounts(accounts.filter((a) => !a.id.startsWith("tiktok:")));
   }, [accounts]);
 
   const filtered = useMemo(() => {
@@ -142,6 +165,7 @@ function AccountsPage() {
   }, [accounts]);
 
   const toggleConnect = (id: string) => {
+    if (id.startsWith("tiktok:")) return; // TikTok managed by OAuth, use Putuskan for real disconnect
     setAccounts((prev) =>
       prev.map((a) =>
         a.id === id
@@ -156,7 +180,18 @@ function AccountsPage() {
     );
   };
 
-  const removeAccount = (id: string) => {
+  const removeAccount = async (id: string) => {
+    if (id.startsWith("tiktok:")) {
+      const dbId = id.replace(/^tiktok:/, "");
+      try {
+        await _disconnectTikTok({ data: { id: dbId } });
+        await refreshTikTok();
+      } catch (e) {
+        console.error("[TikTok] disconnect failed", (e as Error).message);
+      }
+      setMenuFor(null);
+      return;
+    }
     setAccounts((prev) => prev.filter((a) => a.id !== id || a.isDefault));
     setMenuFor(null);
   };
@@ -590,8 +625,12 @@ function AddAccountDialog({
   const availableProviders = providerOptionsByCategory(category);
   const selectedProvider = availableProviders.find((p) => p.value === provider) || availableProviders[0];
   const isLeonardo = category === "provider" && provider === "leonardo";
+  const isTikTok = category === "social" && provider === "tiktok";
+  const _startTikTok = useServerFn(startTikTokConnect);
 
-  const canSubmit = identifier.trim().length > 2 && password.trim().length > 0 && status !== "connecting";
+  const canSubmit = isTikTok
+    ? status !== "connecting"
+    : identifier.trim().length > 2 && password.trim().length > 0 && status !== "connecting";
 
   const handleCategoryChange = (value: Category) => {
     setCategory(value);
@@ -605,6 +644,38 @@ function AddAccountDialog({
     if (!canSubmit) return;
     setStatus("connecting");
     setErrorMsg(null);
+
+    if (isTikTok) {
+      try {
+        const { authorizeUrl } = await _startTikTok();
+        const popup = window.open(authorizeUrl, "tiktok-oauth", "width=560,height=760");
+        if (!popup) {
+          setErrorMsg("Popup diblokir browser. Izinkan popup lalu coba lagi.");
+          setStatus("failed");
+          return;
+        }
+        const onMsg = (ev: MessageEvent) => {
+          const d = ev.data as { source?: string; ok?: boolean; message?: string; handle?: string } | null;
+          if (!d || d.source !== "tiktok-oauth") return;
+          window.removeEventListener("message", onMsg);
+          if (d.ok) {
+            setConnectedMeta({ email: d.handle });
+            setStatus("success");
+            // Popup pattern → row sudah tersimpan di DB oleh callback.
+            // Tutup dialog; parent akan re-fetch via message listener sendiri.
+            setTimeout(() => onClose(), 800);
+          } else {
+            setErrorMsg(d.message || "OAuth TikTok gagal.");
+            setStatus("failed");
+          }
+        };
+        window.addEventListener("message", onMsg);
+      } catch (e) {
+        setErrorMsg((e as Error).message);
+        setStatus("failed");
+      }
+      return;
+    }
 
     if (isLeonardo) {
       const res = await loginLeonardoCognito({
@@ -679,9 +750,11 @@ function AddAccountDialog({
           <div>
             <div className="text-lg font-bold">Tambah Akun Baru</div>
             <div className="text-xs text-muted-foreground">
-              {isLeonardo
-                ? "Login real ke Leonardo.AI via Cognito — JWT tersimpan otomatis"
-                : "Hubungkan akun sosial media atau provider AI"}
+              {isTikTok
+                ? "OAuth resmi TikTok — kamu akan diarahkan ke tiktok.com untuk login"
+                : isLeonardo
+                  ? "Login real ke Leonardo.AI via Cognito — JWT tersimpan otomatis"
+                  : "Hubungkan akun sosial media atau provider AI"}
             </div>
           </div>
         </div>
@@ -710,32 +783,45 @@ function AddAccountDialog({
             />
           </Field>
 
-          <Field label={isLeonardo ? "Email Leonardo" : "Link Profil / Username / Email"}>
-            <Input
-              placeholder={isLeonardo ? "email@domain.com" : "mis. https://tiktok.com/@akunku atau email@domain.com"}
-              value={identifier}
-              onChange={(e) => {
-                setIdentifier(e.target.value);
-                if (status !== "idle") setStatus("idle");
-                setErrorMsg(null);
-              }}
-              disabled={status === "connecting" || status === "success"}
-            />
-          </Field>
+          {!isTikTok && (
+            <>
+              <Field label={isLeonardo ? "Email Leonardo" : "Link Profil / Username / Email"}>
+                <Input
+                  placeholder={isLeonardo ? "email@domain.com" : "mis. https://tiktok.com/@akunku atau email@domain.com"}
+                  value={identifier}
+                  onChange={(e) => {
+                    setIdentifier(e.target.value);
+                    if (status !== "idle") setStatus("idle");
+                    setErrorMsg(null);
+                  }}
+                  disabled={status === "connecting" || status === "success"}
+                />
+              </Field>
 
-          <Field label="Password">
-            <Input
-              type="password"
-              placeholder={isLeonardo ? "Password akun Leonardo" : "Password akun"}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                if (status !== "idle") setStatus("idle");
-                setErrorMsg(null);
-              }}
-              disabled={status === "connecting" || status === "success"}
-            />
-          </Field>
+              <Field label="Password">
+                <Input
+                  type="password"
+                  placeholder={isLeonardo ? "Password akun Leonardo" : "Password akun"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (status !== "idle") setStatus("idle");
+                    setErrorMsg(null);
+                  }}
+                  disabled={status === "connecting" || status === "success"}
+                />
+              </Field>
+            </>
+          )}
+
+          {isTikTok && (
+            <div className="text-[11px] text-muted-foreground leading-relaxed border border-border rounded-lg p-3 bg-sidebar-accent/30">
+              <div className="font-semibold text-foreground/80 mb-1">TikTok OAuth (Sandbox / Production)</div>
+              Klik <b>Hubungkan</b> → jendela TikTok terbuka → login &amp; approve akses. Setelah selesai, akun otomatis
+              muncul di daftar dengan avatar &amp; display name. Token disimpan terenkripsi di server (AES-GCM) — kamu bisa
+              publish video / list video langsung dari aplikasi.
+            </div>
+          )}
 
           {isLeonardo && (
             <div className="text-[10px] text-muted-foreground leading-relaxed border border-border rounded-lg p-2.5 bg-sidebar-accent/30">

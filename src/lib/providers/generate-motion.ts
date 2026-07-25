@@ -408,33 +408,50 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const parts = opts.modelKey.split(":");
   const quality = (parts[2] as "std" | "pro") || "std";
 
+  const MAX_BUSY_RETRIES = 3;
   for (let ti = 0; ti < tokens.length; ti++) {
     const at = tokens[ti]!;
-    try {
-      opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
-      log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
-      const taskId = await submitRoboneoMotion({
-        accessToken: at,
-        imageUrl,
-        videoUrl,
-        prompt: opts.prompt,
-        quality,
-        orientation: opts.orientation,
-      });
-      log(`Task: ${taskId}`);
-      opts.onStatus?.({ index, status: "processing" });
-      const outUrl = await pollRoboneoTask({
-        accessToken: at,
-        taskId,
-        onProgress: (pct, st) => opts.onStatus?.({ index, status: `${st} ${pct}%` }),
-      });
-      if (!outUrl) throw new Error("Roboneo: no output URL");
-      return outUrl;
-    } catch (e) {
-      const msg = (e as Error).message || String(e);
-      log(`Token ${ti + 1} failed: ${msg}`, "warn");
-      if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
-      log("Rotating to next Roboneo token...", "info");
+    let busyRetry = 0;
+    // Retry loop for the same token to absorb transient upstream congestion
+    // ("system is busy") before rotating or giving up.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
+        log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
+        const taskId = await submitRoboneoMotion({
+          accessToken: at,
+          imageUrl,
+          videoUrl,
+          prompt: opts.prompt,
+          quality,
+          orientation: opts.orientation,
+        });
+        log(`Task: ${taskId}`);
+        opts.onStatus?.({ index, status: "processing" });
+        const outUrl = await pollRoboneoTask({
+          accessToken: at,
+          taskId,
+          onProgress: (pct, st) => opts.onStatus?.({ index, status: `${st} ${pct}%` }),
+        });
+        if (!outUrl) throw new Error("Roboneo: no output URL");
+        return outUrl;
+      } catch (e) {
+        const msg = (e as Error).message || String(e);
+        const isBusy = /system is busy|try again later|busy.*try again|too many requests|429/i.test(msg);
+        if (isBusy && busyRetry < MAX_BUSY_RETRIES) {
+          busyRetry++;
+          const waitMs = 5000 * busyRetry;
+          log(`Upstream busy — retry ${busyRetry}/${MAX_BUSY_RETRIES} in ${waitMs / 1000}s...`, "warn");
+          opts.onStatus?.({ index, status: `busy, retry ${busyRetry}/${MAX_BUSY_RETRIES}` });
+          await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+        log(`Token ${ti + 1} failed: ${msg}`, "warn");
+        if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
+        log("Rotating to next Roboneo token...", "info");
+        break;
+      }
     }
   }
   throw new Error("Roboneo: semua token gagal");
