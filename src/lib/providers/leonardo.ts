@@ -448,7 +448,18 @@ export async function createLeonardoGeneration(
 
   const promptIds = (input.imagePromptIds ?? []).filter((s) => typeof s === "string" && s.trim());
   if (promptIds.length > 0) {
-    parameters.image_prompts = promptIds.map((id) => ({ id }));
+    // v2 API expects references under parameters.guidances.image_reference
+    // (max 6). Uploaded init-image IDs use type "UPLOADED"; strength "MID"
+    // matches the default Leonardo web app sends. Older "image_prompts" is
+    // silently ignored by v2, which is why generations came back without
+    // any influence from the reference photos.
+    const refs = promptIds.slice(0, 6).map((id) => ({
+      image: { id, type: "UPLOADED" as const },
+      strength: "MID" as const,
+    }));
+    const existingGuidances =
+      (parameters.guidances as Record<string, unknown> | undefined) ?? {};
+    parameters.guidances = { ...existingGuidances, image_reference: refs };
   }
 
   const attempts: LeonardoGenerationAttempt[] = isGptImage2
@@ -457,8 +468,8 @@ export async function createLeonardoGeneration(
         // (LOW/MEDIUM/HIGH). Lowercase values validate on the UI but fail the v2 API.
         { base: "cloud", parameters, label: "cloud+quality+enhance" },
         { base: "api", parameters, label: "api+quality+enhance" },
-        { base: "cloud", parameters: { ...baseParameters, quality: parameters.quality }, label: "cloud+quality" },
-        { base: "cloud", parameters: { ...baseParameters, prompt_enhance: "OFF" }, label: "cloud+enhance" },
+        { base: "cloud", parameters: { ...baseParameters, quality: parameters.quality, guidances: parameters.guidances }, label: "cloud+quality" },
+        { base: "cloud", parameters: { ...baseParameters, prompt_enhance: "OFF", guidances: parameters.guidances }, label: "cloud+enhance" },
       ]
     : [{ base: "api", parameters, label: "api" }];
 

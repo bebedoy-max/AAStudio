@@ -303,7 +303,7 @@ function BulkFashion() {
     setRunning(true);
     const start = Date.now();
     setStatus({ show: true, text: `Memproses ${outfitFiles.length} outfit…`, pct: 5, time: "0:00" });
-    setResults([]);
+    // Jangan hapus hasil generate sebelumnya — hanya tambahkan hasil baru ke bawah.
     const tick = setInterval(() => {
       const el = Math.floor((Date.now() - start) / 1000);
       setStatus((s) => ({ ...s, time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}` }));

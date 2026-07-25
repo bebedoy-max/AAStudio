@@ -189,7 +189,6 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   // Coba direct browser → Uguu / Catbox dulu (keduanya set CORS *), lalu
   // fallback ke server proxy. Roboneo engine kadang menolak URL litterbox
   // sebagai input, jadi litterbox hanya sebagai upaya terakhir.
-  const SERVER_PROXY_SAFE_LIMIT = 90 * 1024 * 1024;
   const DIRECT_UPLOAD_TIMEOUT_MS = 8 * 60 * 1000;
   const DIRECT_UPLOAD_STALL_MS = 45 * 1000;
 
@@ -305,23 +304,25 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
     return j.url;
   };
+  // Vercel/serverless punya body-limit ~4.5MB → server proxy hanya aman
+  // untuk file kecil. Lovable preview toleran sampai ~90MB, tapi kita pakai
+  // ambang lebih ketat supaya build di hosting sendiri juga jalan.
+  const SERVER_PROXY_HARD_LIMIT = 4 * 1024 * 1024;
+
   const uploadPublic = async (file: File, kind: "image" | "video"): Promise<string> => {
     const errs: string[] = [];
-    // Untuk VIDEO: langsung server proxy (browser→Uguu/Catbox biasanya CORS-blocked
-    // dari halaman preview, dan hanya menambah waktu). Direct hosts hanya
-    // dipakai bila file besar (>90MB) di mana server proxy pasti kena 413.
     type UploadFn = (f: File, k: "image" | "video") => Promise<string>;
     const serverEntry: [string, UploadFn] = ["Server", (f) => uploadViaServer(f)];
     const uguuEntry: [string, UploadFn] = ["Uguu", uploadDirectUguu];
     const catboxEntry: [string, UploadFn] = ["Catbox", uploadDirectCatbox];
-    const order: Array<[string, UploadFn]> =
-      kind === "video"
-        ? file.size > SERVER_PROXY_SAFE_LIMIT
-          ? [uguuEntry, catboxEntry]
-          : [serverEntry]
-        : file.size > SERVER_PROXY_SAFE_LIMIT
-          ? [uguuEntry, catboxEntry]
-          : [uguuEntry, catboxEntry, serverEntry];
+
+    // Prioritaskan direct host (Uguu/Catbox) supaya tidak kena body-limit
+    // serverless. Server proxy hanya dipakai untuk file kecil sebagai
+    // fallback terakhir kalau direct host CORS-block.
+    const canUseServer = file.size <= SERVER_PROXY_HARD_LIMIT;
+    const order: Array<[string, UploadFn]> = canUseServer
+      ? [uguuEntry, catboxEntry, serverEntry]
+      : [uguuEntry, catboxEntry];
 
     for (const [host, fn] of order) {
       try {
@@ -337,8 +338,8 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
       }
     }
 
-    if (kind === "video" && file.size > SERVER_PROXY_SAFE_LIMIT) {
-      errs.push(`skip server proxy (${formatBytes(file.size)} > ${formatBytes(SERVER_PROXY_SAFE_LIMIT)})`);
+    if (!canUseServer) {
+      errs.push(`skip server proxy (${formatBytes(file.size)} > ${formatBytes(SERVER_PROXY_HARD_LIMIT)})`);
     }
     throw new Error(`Upload gagal: ${errs.join(" | ")}`);
   };
