@@ -75,7 +75,16 @@ function loadAccounts(): AccountEntry[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const saved = JSON.parse(raw) as AccountEntry[];
-    return Array.isArray(saved) ? saved : [];
+    if (!Array.isArray(saved)) return [];
+    // Strip stale demo/seed entries from older versions so the manager
+    // starts empty until the user connects a real account.
+    return saved.filter(
+      (a) =>
+        !a.isDefault &&
+        !a.id.startsWith("tiktok:") &&
+        a.handle !== "@demo_tiktok" &&
+        !(a.handle ?? "").startsWith("@demo_"),
+    );
   } catch {
     return [];
   }
@@ -86,6 +95,7 @@ function saveAccounts(list: AccountEntry[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {}
 }
+
 
 function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
@@ -165,14 +175,18 @@ function AccountsPage() {
   }, [accounts]);
 
   const toggleConnect = (id: string) => {
-    if (id.startsWith("tiktok:")) return; // TikTok managed by OAuth, use Putuskan for real disconnect
+    // TikTok is real OAuth: "Putuskan" must remove the DB row + revoke locally.
+    if (id.startsWith("tiktok:")) {
+      void removeAccount(id);
+      return;
+    }
     setAccounts((prev) =>
       prev.map((a) =>
         a.id === id
           ? {
               ...a,
               connected: !a.connected,
-              handle: !a.connected ? a.handle ?? `@demo_${a.id}` : undefined,
+              handle: !a.connected ? a.handle : undefined,
               connectedAt: !a.connected ? new Date().toISOString() : undefined,
             }
           : a,
@@ -192,9 +206,10 @@ function AccountsPage() {
       setMenuFor(null);
       return;
     }
-    setAccounts((prev) => prev.filter((a) => a.id !== id || a.isDefault));
+    setAccounts((prev) => prev.filter((a) => a.id !== id));
     setMenuFor(null);
   };
+
 
   const addAccount = (entry: AccountEntry) => {
     setAccounts((prev) => [...prev, entry]);

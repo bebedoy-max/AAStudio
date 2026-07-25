@@ -48,8 +48,8 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
           return htmlResponse({ ok: false, message: "Parameter code/state hilang." });
         }
 
-        const clientKey = process.env.TIKTOK_CLIENT_KEY;
-        const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+        const clientKey = process.env.TIKTOK_CLIENT_KEY?.trim();
+        const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim();
         if (!clientKey || !clientSecret) {
           return htmlResponse({ ok: false, message: "TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET belum di-set." });
         }

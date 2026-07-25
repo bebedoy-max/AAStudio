@@ -21,7 +21,7 @@ function randomState(): string {
 export const startTikTokConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const clientKey = process.env.TIKTOK_CLIENT_KEY;
+    const clientKey = process.env.TIKTOK_CLIENT_KEY?.trim();
     if (!clientKey) throw new Error("TIKTOK_CLIENT_KEY belum di-set di server secrets.");
 
     const state = randomState();
