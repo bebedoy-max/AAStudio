@@ -19,33 +19,43 @@ import {
   type LeonardoVideoSizeTier,
 } from "@/lib/providers/leonardo-video";
 
+import {
+  readRoutedImageProvider,
+  imageModelsFor,
+  ratiosFor,
+  generateImageWithProvider,
+  IMAGE_PROVIDER_LABEL,
+  type ImageProviderId,
+} from "@/lib/providers/image-catalog";
+
 export const Route = createFileRoute("/generate/leonardo")({
   head: () => ({
     meta: [
-      { title: "Leonardo Text-to-Image — Creative Studio" },
+      { title: "Text to Image — Creative Studio" },
       {
         name: "description",
         content:
-          "Generate gambar via Leonardo.ai (Phoenix, Diffusion XL, Kino, Anime, Vision) menggunakan Bearer JWT dari app.leonardo.ai.",
+          "Generate gambar dari teks memakai provider aktif di Routing — Weavy, Framia, Gemini, OpenAI, atau Leonardo.",
       },
-      { property: "og:title", content: "Leonardo Text-to-Image — Creative Studio" },
+      { property: "og:title", content: "Text to Image — Creative Studio" },
       {
         property: "og:description",
         content:
-          "Generate gambar via Leonardo.ai dengan GPT Image 2, Nano Banana 2, Seedream 5 Pro, dan Flux.2 Pro.",
+          "Satu halaman text-to-image multi-provider: model dan parameter otomatis mengikuti provider yang dirutekan.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Leonardo Text-to-Image — Creative Studio" },
+      { name: "twitter:title", content: "Text to Image — Creative Studio" },
       {
         name: "twitter:description",
         content:
-          "Generate gambar via Leonardo.ai dengan GPT Image 2, Nano Banana 2, Seedream 5 Pro, dan Flux.2 Pro.",
+          "Satu halaman text-to-image multi-provider: model dan parameter otomatis mengikuti provider yang dirutekan.",
       },
     ],
   }),
   component: LeonardoPage,
 });
+
 
 // Per-model preset table — sesuai app.leonardo.ai (screenshot).
 type ModelPreset = {
@@ -198,8 +208,77 @@ function LeonardoPage() {
     };
   }, []);
 
+  // ---- Provider routing (cap "image") ----
+  const [imgProvider, setImgProvider] = useState<ImageProviderId>("leonardo");
+  useEffect(() => {
+    const sync = () => setImgProvider(readRoutedImageProvider());
+    sync();
+    window.addEventListener("aatools:routing-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("aatools:routing-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  const genModels = imageModelsFor(imgProvider);
+  const [genModelKey, setGenModelKey] = useState<string>("");
+  const [genQuality, setGenQuality] = useState<string>("");
+  const [genRatio, setGenRatio] = useState<string>("9:16");
+  const activeGenModel = genModels.find((m) => m.key === genModelKey) ?? genModels[0];
+
+  useEffect(() => {
+    if (genModels.length === 0) return;
+    if (!genModels.some((m) => m.key === genModelKey)) setGenModelKey(genModels[0].key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imgProvider]);
+
+  useEffect(() => {
+    if (!activeGenModel) return;
+    if (!activeGenModel.qualities.some((q) => q.v === genQuality)) {
+      setGenQuality(activeGenModel.qualities[0].v);
+    }
+    const rs = ratiosFor(activeGenModel);
+    if (!rs.includes(genRatio)) setGenRatio(rs[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genModelKey, imgProvider]);
+
   const log = (m: string) =>
     setLogs((prev) => [`${new Date().toLocaleTimeString()} — ${m}`, ...prev].slice(0, 40));
+
+  const generateWithRoutedProvider = async () => {
+    if (!prompt.trim() || !activeGenModel || imgProvider === "leonardo") return;
+    setBusy(true);
+    setError(null);
+    setImages([]);
+    setLogs([]);
+    try {
+      const count = Number(num) || 1;
+      const out: string[] = [];
+      for (let i = 0; i < count; i++) {
+        log(`(${i + 1}/${count}) ${activeGenModel.label}…`);
+        const url = await generateImageWithProvider({
+          provider: imgProvider,
+          modelKey: activeGenModel.key,
+          prompt,
+          quality: genQuality,
+          ratio: genRatio,
+          onProgress: log,
+          onRotate: (idx, total, reason) => log(`↻ rotate token #${idx}/${total}: ${reason}`),
+        });
+        out.push(url);
+        setImages([...out]);
+      }
+      log(`✅ Selesai — ${out.length} gambar`);
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      log(`❌ ${msg}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   const refreshModels = async () => {
     const token = getFirstLeonardoKey();
@@ -317,27 +396,29 @@ function LeonardoPage() {
     <DashboardShell>
       <PageHero
         eyebrow="Generate"
-        title="Leonardo"
-        highlight={mode === "image" ? "Text-to-Image" : "Text/Image-to-Video"}
-        desc="Phoenix · Diffusion XL · Kino · Anime · Vision · Veo · Kling · Seedance · Wan — via Bearer JWT dari app.leonardo.ai"
+        title="Text to"
+        highlight="Image"
+        desc={`Provider aktif: ${IMAGE_PROVIDER_LABEL[imgProvider]} — model & parameter mengikuti routing di Manage → Routing.`}
       />
 
-      <div className="mt-4 inline-flex rounded-full border border-border bg-card/40 p-1 text-xs">
-        <button
-          onClick={() => setMode("image")}
-          className={`px-4 py-1.5 rounded-full transition ${mode === "image" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          🖼️ Image
-        </button>
-        <button
-          onClick={() => setMode("video")}
-          className={`px-4 py-1.5 rounded-full transition ${mode === "video" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-        >
-          🎬 Video
-        </button>
-      </div>
+      {imgProvider === "leonardo" && (
+        <div className="mt-4 inline-flex rounded-full border border-border bg-card/40 p-1 text-xs">
+          <button
+            onClick={() => setMode("image")}
+            className={`px-4 py-1.5 rounded-full transition ${mode === "image" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            🖼️ Image
+          </button>
+          <button
+            onClick={() => setMode("video")}
+            className={`px-4 py-1.5 rounded-full transition ${mode === "video" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            🎬 Video
+          </button>
+        </div>
+      )}
 
-      {keyCount === 0 && (
+      {imgProvider === "leonardo" && keyCount === 0 && (
         <div className="neumorph rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm mt-4">
           ⚠️ Belum ada token Leonardo tersimpan. Buka{" "}
           <a href="/manage/tokens" className="underline text-primary">
@@ -346,6 +427,7 @@ function LeonardoPage() {
           dan paste Cognito Bearer JWT dari DevTools app.leonardo.ai.
         </div>
       )}
+
 
       {mode === "video" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
@@ -505,7 +587,103 @@ function LeonardoPage() {
             </div>
           </div>
         </div>
+      ) : imgProvider !== "leonardo" ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
+          <div className="neumorph rounded-xl p-4 space-y-4">
+            <Field label="Prompt">
+              <Textarea
+                rows={5}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Deskripsi visual yang kamu inginkan…"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={`Model (${IMAGE_PROVIDER_LABEL[imgProvider]})`}>
+                <Select
+                  value={activeGenModel?.key ?? ""}
+                  onChange={(e) => setGenModelKey(e.target.value)}
+                  options={genModels.map((m) => ({ value: m.key, label: m.label }))}
+                />
+              </Field>
+              <Field label="Kualitas / Resolusi">
+                <Select
+                  value={genQuality}
+                  onChange={(e) => setGenQuality(e.target.value)}
+                  options={(activeGenModel?.qualities ?? []).map((q) => ({ value: q.v, label: q.label }))}
+                />
+              </Field>
+              <Field label="Aspect ratio">
+                <Select
+                  value={genRatio}
+                  onChange={(e) => setGenRatio(e.target.value)}
+                  options={ratiosFor(activeGenModel).map((r) => ({ value: r, label: r }))}
+                />
+              </Field>
+              <Field label="Jumlah gambar">
+                <Select
+                  value={num}
+                  onChange={(e) => setNum(e.target.value)}
+                  options={[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }))}
+                />
+              </Field>
+            </div>
+
+            <div className="flex gap-2">
+              <PrimaryButton
+                onClick={generateWithRoutedProvider}
+                disabled={busy || !prompt.trim() || !activeGenModel}
+              >
+                {busy ? "Generating…" : "Generate"}
+              </PrimaryButton>
+              <GhostButton
+                onClick={() => {
+                  setPrompt("");
+                  setImages([]);
+                  setLogs([]);
+                  setError(null);
+                }}
+                disabled={busy}
+              >
+                Reset
+              </GhostButton>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="text-[11px] text-muted-foreground">
+              Ganti provider di{" "}
+              <a href="/manage/routing" className="underline text-primary">
+                Manage → Routing → Image
+              </a>
+              .
+            </div>
+          </div>
+
+          <div className="neumorph rounded-xl p-4 space-y-3">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Log Proses
+            </div>
+            <div className="rounded-lg border border-border bg-black/40 p-2 h-56 overflow-auto font-mono text-[11px] leading-relaxed">
+              {logs.length === 0 ? (
+                <div className="text-muted-foreground italic">Belum ada aktivitas.</div>
+              ) : (
+                logs.map((l, i) => (
+                  <div key={i} className="text-muted-foreground">
+                    {l}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       ) : (
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
         <div className="neumorph rounded-xl p-4 space-y-4">
           <Field label="Prompt">

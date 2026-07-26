@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "AACreative Framia Token Grabber",
+  "version": "1.0.0",
+  "description": "Ambil JWT Framia (Converge AI) dengan 1 klik lalu kirim ke AACreative.",
+  "permissions": ["activeTab", "scripting", "storage", "cookies", "clipboardWrite", "webRequest", "tabs"],
+  "host_permissions": [
+    "https://framia.converge.ai/*",
+    "https://*.converge.ai/*",
+    "https://api.framia.pro/*",
+    "https://*.framia.pro/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png",
+    "default_title": "Grab Framia Token"
+  },
+  "icons": { "48": "icon.png", "128": "icon.png" }
+}

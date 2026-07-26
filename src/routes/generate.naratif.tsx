@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
+import { LEONARDO_VIDEO_MODELS, leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
 import { Rocket, Play, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
@@ -233,7 +234,19 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "720p-5s",  label: "720p · 5s (~40 cr)",  cr: 40, default: true },
     ] },
   ],
-  leonardo: [],
+  leonardo: LEONARDO_VIDEO_MODELS.map((m) => {
+    const opts = leonardoVideoQualityOptions(m.id, "9:16");
+    return {
+      key: m.id,
+      label: `${m.label} (Leonardo${m.audio ? " · Audio" : ""})`,
+      qualities: opts.map((o, idx) => ({
+        v: o.value,
+        label: `${o.label} (${o.cr.toLocaleString("id-ID")} cr)`,
+        cr: o.cr,
+        ...(idx === 0 ? { default: true as const } : {}),
+      })),
+    };
+  }),
 };
 
 const LS_ROUTING = "aatools.routing.v2";
@@ -896,7 +909,8 @@ function NaratifPage() {
       const imgResp = await fetch(scene.imgUrl);
       const imgFile = new File([await imgResp.blob()], `scene_${i}.jpg`, { type: "image/jpeg" });
       const q = parseVidQuality(vidQuality);
-      if (provider === "leonardo") throw new Error("Leonardo tidak mendukung video — pilih provider video lain.");
+      const leoTier =
+        provider === "leonardo" ? (vidQuality || "").split("-")[0] || undefined : undefined;
       const videoUrl = await generateI2V({
         provider,
         modelKey: vidModel,
@@ -904,6 +918,7 @@ function NaratifPage() {
         ratio,
         duration: q.duration,
         resolution: q.resolution,
+        sizeTier: leoTier,
         sound: q.sound,
         prompt: withNoTextGuard(scene.videoPrompt || scene.prompt),
       });
