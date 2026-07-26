@@ -59,6 +59,20 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
     { value: "framia:happyhorse-1.1", label: "HappyHorse 1.1 (Framia)", cr: 28 },
     { value: "framia:kling-avatar", label: "Kling Avatar (Framia)", cr: 40 },
   ],
+  leonardo: [
+    // Featured (tab Video di app.leonardo.ai)
+    { value: "leo-vid:gemini-omni-flash", label: "Gemini Omni Flash (Leonardo)", cr: 25 },
+    { value: "leo-vid:seedance-2.0-mini", label: "Seedance 2.0 Mini (Leonardo)", cr: 20 },
+    { value: "leo-vid:grok-imagine-1.5", label: "Grok Imagine 1.5 (Leonardo)", cr: 40 },
+    { value: "leo-vid:wan-2.6", label: "Wan 2.6 (Leonardo)", cr: 30 },
+    { value: "leo-vid:veo-3.1-lite", label: "Veo 3.1 Lite (Leonardo)", cr: 45 },
+    { value: "leo-vid:veo-3.1-fast", label: "Veo 3.1 Fast (Leonardo)", cr: 65 },
+    // Other Models
+    { value: "leo-vid:seedance-2.0", label: "Seedance 2.0 (Leonardo)", cr: 45 },
+    { value: "leo-vid:seedance-2.0-fast", label: "Seedance 2.0 Fast (Leonardo)", cr: 30 },
+    { value: "leo-vid:kling-o3-omni", label: "Kling Video O3 Omni (Leonardo)", cr: 55 },
+    { value: "leo-vid:kling-2.6", label: "Kling 2.6 (Leonardo)", cr: 40 },
+  ],
 };
 
 // Baca provider aktif dari Routing Provider (manage/routing) — cap "video".
@@ -156,8 +170,59 @@ const FRAMIA_QUALITY: Record<string, QualityOpt[]> = {
     { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 80 },
   ],
 };
+// Leonardo video — parameter valid per model (durations + resolution + sound).
+const LEONARDO_QUALITY: Record<string, QualityOpt[]> = {
+  "leo-vid:gemini-omni-flash": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
+    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 45 },
+  ],
+  "leo-vid:seedance-2.0-mini": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 20 },
+    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 35 },
+  ],
+  "leo-vid:grok-imagine-1.5": [
+    { value: "720p-5s-on", label: "720p · 5s · Sound", mult: 1,   duration: 5, resolution: "720p", sound: "on",  cr: 40 },
+    { value: "720p-8s-on", label: "720p · 8s · Sound", mult: 1.6, duration: 8, resolution: "720p", sound: "on",  cr: 60 },
+  ],
+  "leo-vid:wan-2.6": [
+    { value: "720p-5s-on",   label: "720p · 5s · Sound",  mult: 1,   duration: 5,  resolution: "720p",  sound: "on",  cr: 30 },
+    { value: "720p-10s-on",  label: "720p · 10s · Sound", mult: 2,   duration: 10, resolution: "720p",  sound: "on",  cr: 55 },
+    { value: "1080p-5s-on",  label: "1080p · 5s · Sound", mult: 1.5, duration: 5,  resolution: "1080p", sound: "on",  cr: 45 },
+  ],
+  "leo-vid:veo-3.1-lite": [
+    { value: "720p-4s-on", label: "720p · 4s · Sound", mult: 0.8, duration: 4, resolution: "720p",  sound: "on", cr: 35 },
+    { value: "720p-6s-on", label: "720p · 6s · Sound", mult: 1.2, duration: 6, resolution: "720p",  sound: "on", cr: 55 },
+    { value: "720p-8s-on", label: "720p · 8s · Sound", mult: 1.6, duration: 8, resolution: "720p",  sound: "on", cr: 70 },
+    { value: "1080p-8s-on", label: "1080p · 8s · Sound", mult: 2.2, duration: 8, resolution: "1080p", sound: "on", cr: 95 },
+  ],
+  "leo-vid:veo-3.1-fast": [
+    { value: "720p-4s-on", label: "720p · 4s · Sound", mult: 0.8, duration: 4, resolution: "720p",  sound: "on", cr: 50 },
+    { value: "720p-6s-on", label: "720p · 6s · Sound", mult: 1.2, duration: 6, resolution: "720p",  sound: "on", cr: 75 },
+    { value: "720p-8s-on", label: "720p · 8s · Sound", mult: 1.6, duration: 8, resolution: "720p",  sound: "on", cr: 100 },
+    { value: "1080p-8s-on", label: "1080p · 8s · Sound", mult: 2.2, duration: 8, resolution: "1080p", sound: "on", cr: 140 },
+  ],
+  "leo-vid:seedance-2.0": [
+    { value: "720p-5s",   label: "720p · 5s",   mult: 1,   duration: 5,  resolution: "720p",  cr: 45 },
+    { value: "720p-10s",  label: "720p · 10s",  mult: 2,   duration: 10, resolution: "720p",  cr: 85 },
+    { value: "1080p-5s",  label: "1080p · 5s",  mult: 1.5, duration: 5,  resolution: "1080p", cr: 65 },
+  ],
+  "leo-vid:seedance-2.0-fast": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 30 },
+    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 55 },
+  ],
+  "leo-vid:kling-o3-omni": [
+    { value: "720p-5s-on",  label: "720p · 5s · Sound",  mult: 1,   duration: 5,  resolution: "720p",  sound: "on", cr: 55 },
+    { value: "720p-10s-on", label: "720p · 10s · Sound", mult: 2,   duration: 10, resolution: "720p",  sound: "on", cr: 100 },
+    { value: "1080p-5s-on", label: "1080p · 5s · Sound", mult: 1.5, duration: 5,  resolution: "1080p", sound: "on", cr: 80 },
+  ],
+  "leo-vid:kling-2.6": [
+    { value: "720p-5s-off",  label: "720p · 5s · No Sound",  mult: 1,   duration: 5,  resolution: "720p", sound: "off", cr: 40 },
+    { value: "720p-5s-on",   label: "720p · 5s · Sound",     mult: 1.3, duration: 5,  resolution: "720p", sound: "on",  cr: 52 },
+    { value: "720p-10s-off", label: "720p · 10s · No Sound", mult: 2,   duration: 10, resolution: "720p", sound: "off", cr: 80 },
+  ],
+};
 function qualityOptsFor(model: string): QualityOpt[] {
-  return FRAMIA_QUALITY[model] || ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
+  return LEONARDO_QUALITY[model] || FRAMIA_QUALITY[model] || ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
 }
 
 
@@ -290,7 +355,7 @@ function ImageToVideo() {
     try {
       const { generateI2V } = await import("@/lib/providers/generate-i2v");
       const url = await generateI2V({
-        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo",
         modelKey: model,
         imageFile: imgFile,
         ratio,

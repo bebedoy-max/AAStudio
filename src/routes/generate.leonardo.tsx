@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
@@ -11,6 +11,7 @@ import {
   fetchLeonardoPlatformModels,
   type LeonardoPlatformModel,
 } from "@/lib/providers/leonardo";
+import { LEONARDO_VIDEO_MODELS, runLeonardoVideo } from "@/lib/providers/leonardo-video";
 
 export const Route = createFileRoute("/generate/leonardo")({
   head: () => ({
@@ -131,6 +132,7 @@ function computeDims(
 
 
 function LeonardoPage() {
+  const [mode, setMode] = useState<"image" | "video">("image");
   const [prompt, setPrompt] = useState("");
   const [neg, setNeg] = useState("");
   const [modelId, setModelId] = useState<string>(LEONARDO_MODELS[0].id);
@@ -146,6 +148,28 @@ function LeonardoPage() {
   const [keyCount, setKeyCount] = useState(0);
   const [remoteModels, setRemoteModels] = useState<LeonardoPlatformModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
+
+  // Video state
+  const [vidModelId, setVidModelId] = useState<string>(LEONARDO_VIDEO_MODELS[0].id);
+  const [vidAspect, setVidAspect] = useState<"16:9" | "9:16" | "1:1">("9:16");
+  const [vidDuration, setVidDuration] = useState<number>(5);
+  const [vidResolution, setVidResolution] = useState<"720p" | "1080p">("720p");
+  const [vidAudio, setVidAudio] = useState<boolean>(true);
+  const [vidImageFile, setVidImageFile] = useState<File | null>(null);
+  const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
+  const [videos, setVideos] = useState<string[]>([]);
+  const vidInput = useRef<HTMLInputElement>(null);
+  const activeVidModel =
+    LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
+
+  // Sync video duration/resolution when model changes
+  useEffect(() => {
+    if (!activeVidModel.durations.includes(vidDuration)) setVidDuration(activeVidModel.durations[0]);
+    if (!activeVidModel.resolutions.includes(vidResolution))
+      setVidResolution(activeVidModel.resolutions[0]);
+    if (!activeVidModel.audio) setVidAudio(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vidModelId]);
 
   useEffect(() => {
     setKeyCount(getAllLeonardoKeys().length);
@@ -237,14 +261,65 @@ function LeonardoPage() {
     }
   };
 
+  const generateVideo = async () => {
+    if (!prompt.trim()) return;
+    setBusy(true);
+    setError(null);
+    setLogs([]);
+    try {
+      log(`Submit ${activeVidModel.label} (${vidResolution} · ${vidDuration}s${activeVidModel.audio ? ` · audio ${vidAudio ? "on" : "off"}` : ""})`);
+      const url = await runLeonardoVideo({
+        modelKey: activeVidModel.id,
+        prompt,
+        aspectRatio: vidAspect,
+        resolution: vidResolution,
+        duration: vidDuration,
+        audio: activeVidModel.audio ? vidAudio : undefined,
+        imageFile: vidImageFile ?? undefined,
+        onProgress: (m) => log(m),
+        onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
+      });
+      setVideos((v) => [url, ...v]);
+      log(`✅ Video siap`);
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      log(`❌ ${msg}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onPickVidImage = (files: FileList | null) => {
+    const f = files?.[0];
+    if (!f) return;
+    setVidImageFile(f);
+    setVidImagePreview(URL.createObjectURL(f));
+  };
+
   return (
     <DashboardShell>
       <PageHero
         eyebrow="Generate"
         title="Leonardo"
-        highlight="Text-to-Image"
-        desc="Phoenix · Diffusion XL · Kino · Anime · Vision — via Bearer JWT dari app.leonardo.ai"
+        highlight={mode === "image" ? "Text-to-Image" : "Text/Image-to-Video"}
+        desc="Phoenix · Diffusion XL · Kino · Anime · Vision · Veo · Kling · Seedance · Wan — via Bearer JWT dari app.leonardo.ai"
       />
+
+      <div className="mt-4 inline-flex rounded-full border border-border bg-card/40 p-1 text-xs">
+        <button
+          onClick={() => setMode("image")}
+          className={`px-4 py-1.5 rounded-full transition ${mode === "image" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          🖼️ Image
+        </button>
+        <button
+          onClick={() => setMode("video")}
+          className={`px-4 py-1.5 rounded-full transition ${mode === "video" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          🎬 Video
+        </button>
+      </div>
 
       {keyCount === 0 && (
         <div className="neumorph rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm mt-4">
@@ -256,6 +331,152 @@ function LeonardoPage() {
         </div>
       )}
 
+      {mode === "video" ? (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
+          <div className="neumorph rounded-xl p-4 space-y-4">
+            <Field label="Prompt (deskripsi motion / kamera / suasana)">
+              <Textarea
+                rows={4}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Cinematic slow pan, subject centered, natural lighting…"
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Model">
+                <Select
+                  value={vidModelId}
+                  onChange={(e) => setVidModelId(e.target.value)}
+                  options={LEONARDO_VIDEO_MODELS.map((m) => ({
+                    value: m.id,
+                    label: `${m.label} — ${m.group}`,
+                  }))}
+                />
+              </Field>
+              <Field label="Aspect Ratio">
+                <Select
+                  value={vidAspect}
+                  onChange={(e) => setVidAspect(e.target.value as "16:9" | "9:16" | "1:1")}
+                  options={[
+                    { value: "9:16", label: "9:16 (vertical)" },
+                    { value: "16:9", label: "16:9 (landscape)" },
+                    { value: "1:1", label: "1:1 (square)" },
+                  ]}
+                />
+              </Field>
+              <Field label="Durasi">
+                <Select
+                  value={String(vidDuration)}
+                  onChange={(e) => setVidDuration(Number(e.target.value))}
+                  options={activeVidModel.durations.map((d) => ({ value: String(d), label: `${d}s` }))}
+                />
+              </Field>
+              <Field label="Resolusi">
+                <Select
+                  value={vidResolution}
+                  onChange={(e) => setVidResolution(e.target.value as "720p" | "1080p")}
+                  options={activeVidModel.resolutions.map((r) => ({ value: r, label: r }))}
+                />
+              </Field>
+              {activeVidModel.audio && (
+                <Field label="Audio">
+                  <Select
+                    value={vidAudio ? "on" : "off"}
+                    onChange={(e) => setVidAudio(e.target.value === "on")}
+                    options={[
+                      { value: "on", label: "On" },
+                      { value: "off", label: "Off" },
+                    ]}
+                  />
+                </Field>
+              )}
+              {activeVidModel.supportsI2V && (
+                <Field label="Image reference (opsional — untuk I2V)">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={vidInput}
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(e) => onPickVidImage(e.target.files)}
+                    />
+                    <GhostButton onClick={() => vidInput.current?.click()} disabled={busy}>
+                      {vidImagePreview ? "Ganti" : "Upload"}
+                    </GhostButton>
+                    {vidImagePreview && (
+                      <>
+                        <img
+                          src={vidImagePreview}
+                          alt=""
+                          className="h-10 w-10 rounded object-cover border border-border"
+                        />
+                        <button
+                          onClick={() => {
+                            setVidImageFile(null);
+                            setVidImagePreview(null);
+                          }}
+                          className="text-[11px] text-destructive hover:underline"
+                        >
+                          hapus
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </Field>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <PrimaryButton
+                onClick={generateVideo}
+                disabled={busy || !prompt.trim() || keyCount === 0}
+              >
+                {busy ? "Generating…" : vidImageFile ? "Generate (I2V)" : "Generate (T2V)"}
+              </PrimaryButton>
+              <GhostButton
+                onClick={() => {
+                  setPrompt("");
+                  setVideos([]);
+                  setLogs([]);
+                  setError(null);
+                  setVidImageFile(null);
+                  setVidImagePreview(null);
+                }}
+                disabled={busy}
+              >
+                Reset
+              </GhostButton>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+          </div>
+
+          <div className="neumorph rounded-xl p-4 space-y-3">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Log Proses
+            </div>
+            <div className="rounded-lg border border-border bg-black/40 p-2 h-56 overflow-auto font-mono text-[11px] leading-relaxed">
+              {logs.length === 0 ? (
+                <div className="text-muted-foreground italic">Belum ada aktivitas.</div>
+              ) : (
+                logs.map((l, i) => (
+                  <div key={i} className="text-muted-foreground">
+                    {l}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Token tersimpan: <b className="text-emerald-400">{keyCount}</b>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
         <div className="neumorph rounded-xl p-4 space-y-4">
           <Field label="Prompt">
@@ -394,43 +615,87 @@ function LeonardoPage() {
           </div>
         </div>
       </div>
+      )}
 
-      <div className="neumorph rounded-xl p-4 mt-4">
-        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
-          Hasil Generate
-        </div>
-        {images.length === 0 ? (
-          <div className="text-xs text-muted-foreground italic">Belum ada gambar.</div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {images.map((url, i) => (
-              <div
-                key={url + i}
-                className="group relative rounded-lg overflow-hidden border border-border bg-black/40"
-              >
-                <img src={url} alt={`Leonardo ${i + 1}`} className="w-full h-auto block" />
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 px-2 py-1.5 bg-black/60 opacity-0 group-hover:opacity-100 transition">
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
-                  >
-                    <ExternalLink className="h-3 w-3" /> Buka
-                  </a>
-                  <a
-                    href={url}
-                    download
-                    className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
-                  >
-                    <Download className="h-3 w-3" /> Unduh
-                  </a>
-                </div>
-              </div>
-            ))}
+      {mode === "video" ? (
+        <div className="neumorph rounded-xl p-4 mt-4">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+            Hasil Video ({videos.length})
           </div>
-        )}
-      </div>
+          {videos.length === 0 ? (
+            <div className="text-xs text-muted-foreground italic">Belum ada video.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {videos.map((url, i) => (
+                <div
+                  key={url + i}
+                  className="rounded-lg overflow-hidden border border-border bg-black/40"
+                >
+                  <video
+                    src={url}
+                    controls
+                    preload="metadata"
+                    playsInline
+                    crossOrigin="anonymous"
+                    className="w-full aspect-video object-contain bg-black"
+                  />
+                  <div className="p-2 flex justify-between text-[11px]">
+                    <a href={url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                      <ExternalLink className="h-3 w-3" /> Buka
+                    </a>
+                    <a href={url} download className="text-primary hover:underline inline-flex items-center gap-1">
+                      <Download className="h-3 w-3" /> Unduh
+                    </a>
+                    <button
+                      onClick={() => setVideos((v) => v.filter((_, idx) => idx !== i))}
+                      className="text-destructive hover:underline"
+                    >
+                      Hapus
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="neumorph rounded-xl p-4 mt-4">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+            Hasil Generate
+          </div>
+          {images.length === 0 ? (
+            <div className="text-xs text-muted-foreground italic">Belum ada gambar.</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {images.map((url, i) => (
+                <div
+                  key={url + i}
+                  className="group relative rounded-lg overflow-hidden border border-border bg-black/40"
+                >
+                  <img src={url} alt={`Leonardo ${i + 1}`} className="w-full h-auto block" />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 px-2 py-1.5 bg-black/60 opacity-0 group-hover:opacity-100 transition">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" /> Buka
+                    </a>
+                    <a
+                      href={url}
+                      download
+                      className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
+                    >
+                      <Download className="h-3 w-3" /> Unduh
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </DashboardShell>
   );
 }

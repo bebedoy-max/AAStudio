@@ -175,6 +175,18 @@ const CAPS: Cap[] = [
           { name: "Hailuo 02 Pro", cost: "~28 cr / clip 5s" },
         ],
       },
+      {
+        id: "leonardo",
+        name: "Leonardo.ai",
+        desc: "Video generation via app.leonardo.ai (Veo 3.1, Kling, Seedance, Gemini Omni, Wan 2.6, Grok Imagine). Butuh Bearer JWT dari Token Manager → Leonardo. Support I2V & T2V.",
+        models: [
+          { name: "Veo 3.1 Lite / Fast", cost: "~45–65 cr / clip 5s" },
+          { name: "Kling Video O3 Omni / 2.6", cost: "~40–55 cr / clip 5s" },
+          { name: "Seedance 2.0 / 2.0 Fast / Mini", cost: "~20–45 cr / clip 5s" },
+          { name: "Gemini Omni Flash", cost: "~25 cr / clip 5s" },
+          { name: "Wan 2.6 · Grok Imagine 1.5", cost: "~30–40 cr / clip 5s" },
+        ],
+      },
     ],
   },
   {

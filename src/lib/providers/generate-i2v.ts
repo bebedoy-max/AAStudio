@@ -49,11 +49,11 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
   throw new Error(`Upload gagal: ${lastErr}`);
 }
 
-export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia";
+export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 
 export type I2VOpts = {
   provider: I2VProvider;
-  modelKey: string; // e.g. "kling-2.1" | "seedance" | "wan-i2v" | "veo-3" | "sora" | "rn:kling-v26:std"
+  modelKey: string; // e.g. "kling-2.1" | "seedance" | "wan-i2v" | "veo-3" | "sora" | "rn:kling-v26:std" | "leo-vid:veo-3.1-lite"
   imageFile: File;
   ratio: string;
   duration: number; // seconds, 5 / 10 / 12
@@ -195,12 +195,38 @@ async function runFramiaI2V(opts: I2VOpts): Promise<string> {
   );
 }
 
+async function runLeonardoI2V(opts: I2VOpts): Promise<string> {
+  const { runLeonardoVideo } = await import("./leonardo-video");
+  // Normalize ratio ke enum yang didukung Leonardo (16:9 / 9:16 / 1:1).
+  const r = opts.ratio || "9:16";
+  const ratio: "16:9" | "9:16" | "1:1" =
+    r === "16:9" || r === "1:1" ? r : "9:16";
+  const resolution: "720p" | "1080p" =
+    opts.resolution === "1080p" ? "1080p" : "720p";
+  return runLeonardoVideo({
+    modelKey: opts.modelKey,
+    prompt: opts.prompt,
+    aspectRatio: ratio,
+    resolution,
+    duration: opts.duration,
+    audio: opts.sound ? opts.sound === "on" : undefined,
+    imageFile: opts.imageFile,
+    onProgress: opts.onProgress,
+    onRotate: (i, total, reason) =>
+      opts.onProgress?.(
+        `Leonardo token ${i}/${total} gagal (${reason.slice(0, 60)}), rotate…`,
+        20,
+      ),
+  });
+}
+
 export async function generateI2V(opts: I2VOpts): Promise<string> {
   try {
     if (opts.provider === "wavespeed") return await runWavespeedI2V(opts);
     if (opts.provider === "weavy") return await runWeavyI2V(opts);
     if (opts.provider === "roboneo") return await runRoboneoI2V(opts);
     if (opts.provider === "framia") return await runFramiaI2V(opts);
+    if (opts.provider === "leonardo") return await runLeonardoI2V(opts);
     return await runMagnificI2V(opts);
   } finally {
     notifyGenerationDone(opts.provider);
