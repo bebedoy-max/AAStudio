@@ -6,6 +6,7 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 
 
 
@@ -61,17 +62,17 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
   ],
   leonardo: [
     // Featured (tab Video di app.leonardo.ai)
-    { value: "leo-vid:gemini-omni-flash", label: "Gemini Omni Flash (Leonardo)", cr: 25 },
-    { value: "leo-vid:seedance-2.0-mini", label: "Seedance 2.0 Mini (Leonardo)", cr: 20 },
-    { value: "leo-vid:grok-imagine-1.5", label: "Grok Imagine 1.5 (Leonardo)", cr: 40 },
-    { value: "leo-vid:wan-2.6", label: "Wan 2.6 (Leonardo)", cr: 30 },
-    { value: "leo-vid:veo-3.1-lite", label: "Veo 3.1 Lite (Leonardo)", cr: 45 },
-    { value: "leo-vid:veo-3.1-fast", label: "Veo 3.1 Fast (Leonardo)", cr: 65 },
+    { value: "leo-vid:gemini-omni-flash", label: "Gemini Omni Flash (Leonardo · ~100 cr/s @ HD 720x1280)", cr: 500 },
+    { value: "leo-vid:seedance-2.0-mini", label: "Seedance 2.0 Mini (Leonardo · ~74 cr/s @ Standard 496x864)", cr: 372 },
+    { value: "leo-vid:grok-imagine-1.5", label: "Grok Imagine 1.5 (Leonardo · ~53 cr/s @ Standard 400x736)", cr: 263 },
+    { value: "leo-vid:wan-2.6", label: "Wan 2.6 (Leonardo · ~35 cr/s @ HD 720x1280)", cr: 175 },
+    { value: "leo-vid:veo-3.1-lite", label: "Veo 3.1 Lite (Leonardo · ~50 cr/s @ Quality 720x1280)", cr: 400 },
+    { value: "leo-vid:veo-3.1-fast", label: "Veo 3.1 Fast (Leonardo · ~150 cr/s @ HD 720x1280)", cr: 1200 },
     // Other Models
-    { value: "leo-vid:seedance-2.0", label: "Seedance 2.0 (Leonardo)", cr: 45 },
-    { value: "leo-vid:seedance-2.0-fast", label: "Seedance 2.0 Fast (Leonardo)", cr: 30 },
-    { value: "leo-vid:kling-o3-omni", label: "Kling Video O3 Omni (Leonardo)", cr: 55 },
-    { value: "leo-vid:kling-2.6", label: "Kling 2.6 (Leonardo)", cr: 40 },
+    { value: "leo-vid:seedance-2.0", label: "Seedance 2.0 (Leonardo · ~141 cr/s @ Standard 496x864)", cr: 2109 },
+    { value: "leo-vid:seedance-2.0-fast", label: "Seedance 2.0 Fast (Leonardo · ~113 cr/s @ Standard 496x864)", cr: 1687 },
+    { value: "leo-vid:kling-o3-omni", label: "Kling Video O3 Omni (Leonardo · ~224 cr/s @ HD 720x1280)", cr: 3360 },
+    { value: "leo-vid:kling-2.6", label: "Kling 2.6 (Leonardo · ~140 cr/s @ Full HD 1080x1920)", cr: 1400 },
   ],
 };
 
@@ -99,6 +100,8 @@ type QualityOpt = {
   resolution?: string;  // seedance-pro
   sound?: "on" | "off"; // kling-v26
   cr?: number;          // override eksplisit sesuai harga real provider (Framia)
+  sizeTier?: string;    // leonardo: id tier resolusi yang benar-benar dikirim
+  dims?: string;        // leonardo: "720x1280"
 };
 // Default (weavy/wavespeed/magnific): pilih durasi saja.
 const DEFAULT_QUALITY: QualityOpt[] = [
@@ -170,59 +173,30 @@ const FRAMIA_QUALITY: Record<string, QualityOpt[]> = {
     { value: "10s", label: "Durasi 10s", mult: 2, duration: 10, cr: 80 },
   ],
 };
-// Leonardo video — parameter valid per model (durations + resolution + sound).
-const LEONARDO_QUALITY: Record<string, QualityOpt[]> = {
-  "leo-vid:gemini-omni-flash": [
-    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 25 },
-    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 45 },
-  ],
-  "leo-vid:seedance-2.0-mini": [
-    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 20 },
-    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 35 },
-  ],
-  "leo-vid:grok-imagine-1.5": [
-    { value: "720p-5s-on", label: "720p · 5s · Sound", mult: 1,   duration: 5, resolution: "720p", sound: "on",  cr: 40 },
-    { value: "720p-8s-on", label: "720p · 8s · Sound", mult: 1.6, duration: 8, resolution: "720p", sound: "on",  cr: 60 },
-  ],
-  "leo-vid:wan-2.6": [
-    { value: "720p-5s-on",   label: "720p · 5s · Sound",  mult: 1,   duration: 5,  resolution: "720p",  sound: "on",  cr: 30 },
-    { value: "720p-10s-on",  label: "720p · 10s · Sound", mult: 2,   duration: 10, resolution: "720p",  sound: "on",  cr: 55 },
-    { value: "1080p-5s-on",  label: "1080p · 5s · Sound", mult: 1.5, duration: 5,  resolution: "1080p", sound: "on",  cr: 45 },
-  ],
-  "leo-vid:veo-3.1-lite": [
-    { value: "720p-4s-on", label: "720p · 4s · Sound", mult: 0.8, duration: 4, resolution: "720p",  sound: "on", cr: 35 },
-    { value: "720p-6s-on", label: "720p · 6s · Sound", mult: 1.2, duration: 6, resolution: "720p",  sound: "on", cr: 55 },
-    { value: "720p-8s-on", label: "720p · 8s · Sound", mult: 1.6, duration: 8, resolution: "720p",  sound: "on", cr: 70 },
-    { value: "1080p-8s-on", label: "1080p · 8s · Sound", mult: 2.2, duration: 8, resolution: "1080p", sound: "on", cr: 95 },
-  ],
-  "leo-vid:veo-3.1-fast": [
-    { value: "720p-4s-on", label: "720p · 4s · Sound", mult: 0.8, duration: 4, resolution: "720p",  sound: "on", cr: 50 },
-    { value: "720p-6s-on", label: "720p · 6s · Sound", mult: 1.2, duration: 6, resolution: "720p",  sound: "on", cr: 75 },
-    { value: "720p-8s-on", label: "720p · 8s · Sound", mult: 1.6, duration: 8, resolution: "720p",  sound: "on", cr: 100 },
-    { value: "1080p-8s-on", label: "1080p · 8s · Sound", mult: 2.2, duration: 8, resolution: "1080p", sound: "on", cr: 140 },
-  ],
-  "leo-vid:seedance-2.0": [
-    { value: "720p-5s",   label: "720p · 5s",   mult: 1,   duration: 5,  resolution: "720p",  cr: 45 },
-    { value: "720p-10s",  label: "720p · 10s",  mult: 2,   duration: 10, resolution: "720p",  cr: 85 },
-    { value: "1080p-5s",  label: "1080p · 5s",  mult: 1.5, duration: 5,  resolution: "1080p", cr: 65 },
-  ],
-  "leo-vid:seedance-2.0-fast": [
-    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 30 },
-    { value: "720p-10s", label: "720p · 10s", mult: 2, duration: 10, resolution: "720p", cr: 55 },
-  ],
-  "leo-vid:kling-o3-omni": [
-    { value: "720p-5s-on",  label: "720p · 5s · Sound",  mult: 1,   duration: 5,  resolution: "720p",  sound: "on", cr: 55 },
-    { value: "720p-10s-on", label: "720p · 10s · Sound", mult: 2,   duration: 10, resolution: "720p",  sound: "on", cr: 100 },
-    { value: "1080p-5s-on", label: "1080p · 5s · Sound", mult: 1.5, duration: 5,  resolution: "1080p", sound: "on", cr: 80 },
-  ],
-  "leo-vid:kling-2.6": [
-    { value: "720p-5s-off",  label: "720p · 5s · No Sound",  mult: 1,   duration: 5,  resolution: "720p", sound: "off", cr: 40 },
-    { value: "720p-5s-on",   label: "720p · 5s · Sound",     mult: 1.3, duration: 5,  resolution: "720p", sound: "on",  cr: 52 },
-    { value: "720p-10s-off", label: "720p · 10s · No Sound", mult: 2,   duration: 10, resolution: "720p", sound: "off", cr: 80 },
-  ],
-};
-function qualityOptsFor(model: string): QualityOpt[] {
-  return LEONARDO_QUALITY[model] || FRAMIA_QUALITY[model] || ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
+// Leonardo video — opsi kualitas dibangkitkan langsung dari katalog resmi
+// (tier resolusi x durasi) sehingga label, dimensi yang dikirim, dan biaya
+// credits selalu konsisten dengan app.leonardo.ai.
+function leonardoQualityOpts(model: string, aspect: string): QualityOpt[] {
+  const a = (["1:1", "16:9", "9:16", "3:4", "4:3"] as const).includes(aspect as never)
+    ? (aspect as "1:1" | "16:9" | "9:16" | "3:4" | "4:3")
+    : "9:16";
+  return leonardoVideoQualityOptions(model, a).map((o) => ({
+    value: o.value,
+    label: `${o.label} — ${o.cr.toLocaleString("id-ID")} cr`,
+    mult: 1,
+    duration: o.seconds,
+    sizeTier: o.tierId,
+    dims: `${o.width}x${o.height}`,
+    sound: o.audio ? ("on" as const) : ("off" as const),
+    cr: o.cr,
+  }));
+}
+function qualityOptsFor(model: string, aspect: string): QualityOpt[] {
+  if (model.startsWith("leo-vid:")) {
+    const opts = leonardoQualityOpts(model, aspect);
+    if (opts.length) return opts;
+  }
+  return FRAMIA_QUALITY[model] || ROBONEO_QUALITY[model] || DEFAULT_QUALITY;
 }
 
 
@@ -319,7 +293,7 @@ function ImageToVideo() {
 
   const models = I2V_CATALOG[provider] || I2V_CATALOG.weavy;
   const modelCr = models.find((m) => m.value === model)?.cr ?? 0;
-  const currentQualityOpts = qualityOptsFor(model);
+  const currentQualityOpts = qualityOptsFor(model, ratio);
   const activeQuality =
     currentQualityOpts.find((q) => q.value === quality) || currentQualityOpts[0];
   const qMult = activeQuality?.mult ?? 1;
@@ -361,6 +335,7 @@ function ImageToVideo() {
         ratio,
         duration: activeQuality?.duration ?? 5,
         resolution: activeQuality?.resolution,
+        sizeTier: activeQuality?.sizeTier,
         sound: activeQuality?.sound,
         prompt,
         onProgress: (msg, pct) => {

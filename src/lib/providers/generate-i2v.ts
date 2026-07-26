@@ -59,6 +59,7 @@ export type I2VOpts = {
   duration: number; // seconds, 5 / 10 / 12
   prompt: string;
   resolution?: string;   // roboneo seedance-pro: "480p" | "720p" | "1080p"
+  sizeTier?: string;     // leonardo: "standard" | "quality" | "hd" | "highQuality" | "fullHd" | "4k"
   sound?: "on" | "off";  // roboneo kling-v26: sound track on/off
   onProgress?: (msg: string, pct?: number) => void;
 };
@@ -201,15 +202,20 @@ async function runLeonardoI2V(opts: I2VOpts): Promise<string> {
   const r = opts.ratio || "9:16";
   const ratio: "16:9" | "9:16" | "1:1" =
     r === "16:9" || r === "1:1" ? r : "9:16";
-  const resolution: "720p" | "1080p" =
-    opts.resolution === "1080p" ? "1080p" : "720p";
   return runLeonardoVideo({
     modelKey: opts.modelKey,
     prompt: opts.prompt,
     aspectRatio: ratio,
-    resolution,
+    sizeTier: opts.sizeTier as
+      | "standard"
+      | "quality"
+      | "hd"
+      | "highQuality"
+      | "fullHd"
+      | "4k"
+      | undefined,
+    resolution: opts.resolution,
     duration: opts.duration,
-    audio: opts.sound ? opts.sound === "on" : undefined,
     imageFile: opts.imageFile,
     onProgress: opts.onProgress,
     onRotate: (i, total, reason) =>

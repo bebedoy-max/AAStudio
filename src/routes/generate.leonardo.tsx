@@ -11,7 +11,13 @@ import {
   fetchLeonardoPlatformModels,
   type LeonardoPlatformModel,
 } from "@/lib/providers/leonardo";
-import { LEONARDO_VIDEO_MODELS, runLeonardoVideo } from "@/lib/providers/leonardo-video";
+import {
+  LEONARDO_VIDEO_MODELS,
+  runLeonardoVideo,
+  estimateLeonardoVideoCost,
+  type LeonardoVideoAspect,
+  type LeonardoVideoSizeTier,
+} from "@/lib/providers/leonardo-video";
 
 export const Route = createFileRoute("/generate/leonardo")({
   head: () => ({
@@ -151,10 +157,9 @@ function LeonardoPage() {
 
   // Video state
   const [vidModelId, setVidModelId] = useState<string>(LEONARDO_VIDEO_MODELS[0].id);
-  const [vidAspect, setVidAspect] = useState<"16:9" | "9:16" | "1:1">("9:16");
+  const [vidAspect, setVidAspect] = useState<LeonardoVideoAspect>("9:16");
   const [vidDuration, setVidDuration] = useState<number>(5);
-  const [vidResolution, setVidResolution] = useState<"720p" | "1080p">("720p");
-  const [vidAudio, setVidAudio] = useState<boolean>(true);
+  const [vidTierId, setVidTierId] = useState<LeonardoVideoSizeTier["id"]>("hd");
   const [vidImageFile, setVidImageFile] = useState<File | null>(null);
   const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
   const [videos, setVideos] = useState<string[]>([]);
@@ -162,14 +167,25 @@ function LeonardoPage() {
   const activeVidModel =
     LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
 
-  // Sync video duration/resolution when model changes
+  // Sync video duration/tier/aspect saat ganti model
   useEffect(() => {
-    if (!activeVidModel.durations.includes(vidDuration)) setVidDuration(activeVidModel.durations[0]);
-    if (!activeVidModel.resolutions.includes(vidResolution))
-      setVidResolution(activeVidModel.resolutions[0]);
-    if (!activeVidModel.audio) setVidAudio(false);
+    if (activeVidModel.durationMode === "buttons") {
+      if (!activeVidModel.durations.includes(vidDuration)) setVidDuration(activeVidModel.durations[0]);
+    } else {
+      const [mn, mx] = [activeVidModel.durations[0], activeVidModel.durations[activeVidModel.durations.length - 1]];
+      if (vidDuration < mn || vidDuration > mx) setVidDuration(mx);
+    }
+    if (!activeVidModel.sizeTiers.some((t) => t.id === vidTierId)) {
+      setVidTierId(activeVidModel.sizeTiers[0].id);
+    }
+    if (!activeVidModel.aspectRatios.includes(vidAspect)) {
+      setVidAspect(activeVidModel.aspectRatios[0]);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vidModelId]);
+
+  const vidCostEstimate = estimateLeonardoVideoCost(activeVidModel, vidTierId, vidDuration);
+
 
   useEffect(() => {
     setKeyCount(getAllLeonardoKeys().length);
@@ -267,14 +283,14 @@ function LeonardoPage() {
     setError(null);
     setLogs([]);
     try {
-      log(`Submit ${activeVidModel.label} (${vidResolution} · ${vidDuration}s${activeVidModel.audio ? ` · audio ${vidAudio ? "on" : "off"}` : ""})`);
+      const tierLabel = activeVidModel.sizeTiers.find((t) => t.id === vidTierId)?.label ?? vidTierId;
+      log(`Submit ${activeVidModel.label} (${tierLabel} · ${vidDuration}s · ${vidAspect})`);
       const url = await runLeonardoVideo({
         modelKey: activeVidModel.id,
         prompt,
         aspectRatio: vidAspect,
-        resolution: vidResolution,
+        sizeTier: vidTierId,
         duration: vidDuration,
-        audio: activeVidModel.audio ? vidAudio : undefined,
         imageFile: vidImageFile ?? undefined,
         onProgress: (m) => log(m),
         onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
@@ -357,40 +373,53 @@ function LeonardoPage() {
               <Field label="Aspect Ratio">
                 <Select
                   value={vidAspect}
-                  onChange={(e) => setVidAspect(e.target.value as "16:9" | "9:16" | "1:1")}
-                  options={[
-                    { value: "9:16", label: "9:16 (vertical)" },
-                    { value: "16:9", label: "16:9 (landscape)" },
-                    { value: "1:1", label: "1:1 (square)" },
-                  ]}
+                  onChange={(e) => setVidAspect(e.target.value as LeonardoVideoAspect)}
+                  options={activeVidModel.aspectRatios.map((a) => ({ value: a, label: a }))}
                 />
               </Field>
-              <Field label="Durasi">
-                <Select
-                  value={String(vidDuration)}
-                  onChange={(e) => setVidDuration(Number(e.target.value))}
-                  options={activeVidModel.durations.map((d) => ({ value: String(d), label: `${d}s` }))}
-                />
-              </Field>
-              <Field label="Resolusi">
-                <Select
-                  value={vidResolution}
-                  onChange={(e) => setVidResolution(e.target.value as "720p" | "1080p")}
-                  options={activeVidModel.resolutions.map((r) => ({ value: r, label: r }))}
-                />
-              </Field>
-              {activeVidModel.audio && (
-                <Field label="Audio">
-                  <Select
-                    value={vidAudio ? "on" : "off"}
-                    onChange={(e) => setVidAudio(e.target.value === "on")}
-                    options={[
-                      { value: "on", label: "On" },
-                      { value: "off", label: "Off" },
-                    ]}
+              <Field
+                label={
+                  activeVidModel.durationMode === "slider"
+                    ? `Durasi (${vidDuration}s · slider ${activeVidModel.durations[0]}–${activeVidModel.durations[activeVidModel.durations.length - 1]}s)`
+                    : "Durasi"
+                }
+              >
+                {activeVidModel.durationMode === "slider" ? (
+                  <input
+                    type="range"
+                    min={activeVidModel.durations[0]}
+                    max={activeVidModel.durations[activeVidModel.durations.length - 1]}
+                    step={1}
+                    value={vidDuration}
+                    onChange={(e) => setVidDuration(Number(e.target.value))}
+                    className="w-full accent-primary"
                   />
-                </Field>
-              )}
+                ) : (
+                  <Select
+                    value={String(vidDuration)}
+                    onChange={(e) => setVidDuration(Number(e.target.value))}
+                    options={activeVidModel.durations.map((d) => ({ value: String(d), label: `${d}s` }))}
+                  />
+                )}
+              </Field>
+              <Field label="Ukuran (tier)">
+                <Select
+                  value={vidTierId}
+                  onChange={(e) => setVidTierId(e.target.value as LeonardoVideoSizeTier["id"])}
+                  options={activeVidModel.sizeTiers.map((t) => ({ value: t.id, label: t.label }))}
+                />
+              </Field>
+              <Field label="Estimasi biaya">
+                <div className="rounded-lg border border-border bg-card/40 px-3 py-2 text-sm">
+                  <span className="font-mono text-emerald-300">{vidCostEstimate}</span>{" "}
+                  <span className="text-muted-foreground text-xs">Leonardo credits (≈ {activeVidModel.crPerSecond}/s)</span>
+                  {activeVidModel.audio && (
+                    <span className="ml-2 text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded border border-primary/40 text-primary">
+                      audio
+                    </span>
+                  )}
+                </div>
+              </Field>
               {activeVidModel.supportsI2V && (
                 <Field label="Image reference (opsional — untuk I2V)">
                   <div className="flex items-center gap-2">
