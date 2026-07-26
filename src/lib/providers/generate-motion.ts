@@ -335,6 +335,29 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
     return j.url;
   };
+
+  const validateRoboneoMediaUrl = async (url: string, kind: "image" | "video", host: string): Promise<string> => {
+    const r = await fetch("/api/public/validate-media", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, kind }),
+    });
+    const j = (await r.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      status?: number;
+      contentType?: string;
+      finalUrl?: string;
+    };
+    if (!r.ok || !j.ok) {
+      const detail = [j.error, j.contentType ? `content-type=${j.contentType}` : null, j.finalUrl ? `final=${j.finalUrl}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      throw new Error(`${host}: ${detail || `validasi media gagal (${r.status})`}`);
+    }
+    return url;
+  };
+
   // Vercel/serverless punya body-limit ~4.5MB → server proxy hanya aman
   // untuk file kecil. Lovable preview toleran sampai ~90MB, tapi kita pakai
   // ambang lebih ketat supaya build di hosting sendiri juga jalan.
@@ -351,19 +374,19 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     const zeroEntry: [string, UploadFn] = ["0x0", uploadDirect0x0];
 
     // Prioritaskan direct host supaya tidak kena body-limit serverless
-    // (Vercel ~4.5MB). Beberapa hosting/region kadang CORS-block Uguu &
-    // Catbox — makanya tambahkan Tmpfiles/Pixeldrain/0x0 sebagai backup
-    // direct-browser. Server proxy jadi last-resort untuk file kecil.
+    // (Vercel ~4.5MB). Tmpfiles sengaja dijadikan fallback terakhir karena
+    // URL /dl-nya sering redirect ke halaman HTML; Roboneo lalu menyamarkan
+    // input invalid itu sebagai "The system is busy" saat polling.
     const canUseServer = file.size <= SERVER_PROXY_HARD_LIMIT;
     const directOrder: Array<[string, UploadFn]> = [
       uguuEntry,
       catboxEntry,
-      tmpfilesEntry,
       pixeldrainEntry,
       zeroEntry,
+      tmpfilesEntry,
     ];
     const order: Array<[string, UploadFn]> = canUseServer
-      ? [...directOrder, serverEntry]
+      ? [serverEntry, ...directOrder]
       : directOrder;
 
     for (const [host, fn] of order) {
@@ -372,7 +395,9 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
           `${kind === "video" ? "Video" : "Image"} upload via ${host === "Server" ? "server proxy" : host} (${formatBytes(file.size)})...`,
         );
         opts.onStatus?.({ index, status: `uploading ${kind} ${host}...` });
-        return await fn(file, kind);
+        const url = await fn(file, kind);
+        await validateRoboneoMediaUrl(url, kind, host);
+        return url;
       } catch (e) {
         const msg = (e as Error).message;
         errs.push(`${host}: ${msg}`);

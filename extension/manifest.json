@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "AACreative Leonardo Token Grabber",
+  "version": "1.0.0",
+  "description": "Ambil JWT Leonardo.AI dengan 1 klik lalu kirim ke AACreative.",
+  "permissions": ["activeTab", "scripting", "storage", "cookies", "clipboardWrite"],
+  "host_permissions": [
+    "https://app.leonardo.ai/*",
+    "https://*.leonardo.ai/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png",
+    "default_title": "Grab Leonardo Token"
+  },
+  "icons": { "48": "icon.png", "128": "icon.png" }
+}

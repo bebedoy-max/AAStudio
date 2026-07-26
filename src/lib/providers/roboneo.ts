@@ -94,7 +94,7 @@ function extractUid(accessToken: string): string {
  *  accepts the value shipped in `roboneo-cli/.env.bundle`). Any other value
  *  yields `error_code:98 "request fail, token error: <value>"`. */
 const ROBONEO_PARAM_TOKEN = "45C30555F10E49629098A75F95828DA6";
-const ROBONEO_TASK_ROOMS = new Map<string, string>();
+const ROBONEO_TASK_CONTEXT = new Map<string, { roomId: string; nodeId: string }>();
 
 /** Common parameter block yang diminta gateway roboneo di setiap request. */
 function baseParameter(accessToken: string, pathScene: string, roomId?: string) {
@@ -187,6 +187,7 @@ async function rnCall<T = unknown>(
       const message = obj.error_msg || `HTTP ${upstreamStatus}`;
       throw new Error(
         `Roboneo ${path}: ${message}` +
+          (obj.error_code ? ` (error_code=${obj.error_code})` : "") +
           (message === "Please log in first" ? " — access-token Roboneo perlu login ulang" : "") +
           (wrap?.raw ? ` — ${wrap.raw.slice(0, 200)}` : ""),
       );
@@ -300,7 +301,7 @@ export async function submitRoboneoMotion(opts: {
       ? result.tasks.map((task) => task.task_id).filter((id): id is string => Boolean(id))
       : Object.keys(result?.tasks || {});
   if (!ids.length) throw new Error("Roboneo: submit sukses tapi task_id tidak ditemukan");
-  ROBONEO_TASK_ROOMS.set(ids[0]!, roomId);
+  ROBONEO_TASK_CONTEXT.set(ids[0]!, { roomId, nodeId });
   return ids[0]!;
 }
 
@@ -419,7 +420,7 @@ export async function submitRoboneoI2V(opts: {
       ? result.tasks.map((task) => task.task_id).filter((id): id is string => Boolean(id))
       : Object.keys(result?.tasks || {});
   if (!ids.length) throw new Error("Roboneo: submit sukses tapi task_id tidak ditemukan");
-  ROBONEO_TASK_ROOMS.set(ids[0]!, roomId);
+  ROBONEO_TASK_CONTEXT.set(ids[0]!, { roomId, nodeId });
   return ids[0]!;
 }
 
@@ -455,7 +456,7 @@ export async function pollRoboneoTask(opts: {
 }): Promise<string> {
   const start = Date.now();
   const tm = opts.timeoutMs ?? 1_800_000;
-  const roomId = ROBONEO_TASK_ROOMS.get(opts.taskId);
+  const taskContext = ROBONEO_TASK_CONTEXT.get(opts.taskId);
   const parseMaybeJson = (value: unknown): unknown => {
     if (typeof value !== "string") return value;
     const trimmed = value.trim();
@@ -548,6 +549,44 @@ export async function pollRoboneoTask(opts: {
       null
     );
   };
+  const findRoboneoErrorMessage = (value: unknown, depth = 0): string | null => {
+    value = parseMaybeJson(value);
+    if (depth > 8 || value == null) return null;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed || /^https?:\/\//i.test(trimmed)) return null;
+      return trimmed;
+    }
+    if (typeof value !== "object") return null;
+    const obj = value as Record<string, unknown>;
+    for (const key of [
+      "task_status_msg",
+      "error_message",
+      "error_msg",
+      "message",
+      "msg",
+      "reason",
+      "fail_reason",
+      "fail_msg",
+      "tips",
+      "fail_code",
+    ]) {
+      const candidate = obj[key];
+      if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findRoboneoErrorMessage(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    for (const nested of Object.values(obj)) {
+      const found = findRoboneoErrorMessage(nested, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  };
   // Recursively scan for a numeric "progress-like" field. Meitu gateway
   // has used `progress`, `percent`, `rate`, `schedule`, `process_rate` etc.
   const PROGRESS_HINTS = ["progress", "percent", "rate", "schedule", "process"];
@@ -586,7 +625,7 @@ export async function pollRoboneoTask(opts: {
         media_info_list?: Array<{ url?: string; media_url?: string }>;
       }>("nodeexecutequery", opts.accessToken, {
         task_ids: [opts.taskId],
-        ...(roomId ? { room_id: roomId } : {}),
+        ...(taskContext ? { room_id: taskContext.roomId, node_id: taskContext.nodeId, workflow_version: "v2" } : {}),
       });
       transientPollErrors = 0;
     } catch (e) {
@@ -654,24 +693,21 @@ export async function pollRoboneoTask(opts: {
         )
       : firstVideoLikeUrl(media?.url, media?.media_url);
     if (outputUrl) {
-      ROBONEO_TASK_ROOMS.delete(opts.taskId);
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
       return outputUrl;
     }
     if (isSuccess) {
-      ROBONEO_TASK_ROOMS.delete(opts.taskId);
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
       // Meitu sometimes marks the outer task "success" while an inner step
       // actually failed (e.g. per-account concurrent-job limit, transient
       // upstream error). Surface that step error so the caller can rotate
       // tokens instead of showing a confusing "no URL" message.
       const stepErr = steps
         .map((item) => {
-          const out = parseMaybeJson(item.output);
-          const outObj = out && typeof out === "object" ? (out as Record<string, unknown>) : null;
           return (
             item.error_message ||
             item.error_msg ||
-            (typeof outObj?.error_message === "string" ? outObj.error_message : undefined) ||
-            (typeof outObj?.error_msg === "string" ? outObj.error_msg : undefined) ||
+            findRoboneoErrorMessage(item.output) ||
             item.fail_code
           );
         })
@@ -693,7 +729,7 @@ export async function pollRoboneoTask(opts: {
       throw new Error(`Roboneo: task selesai tapi URL output tidak ditemukan (${debugKeys.slice(0, 300)})`);
     }
     if (["fail", "failed", "error", "cancelled", "canceled"].includes(status)) {
-      ROBONEO_TASK_ROOMS.delete(opts.taskId);
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
       const parsedOutput = stepOutput && typeof stepOutput === "object" ? (stepOutput as Record<string, unknown>) : null;
       const message =
         t.error_message ||
@@ -702,9 +738,19 @@ export async function pollRoboneoTask(opts: {
         step?.error_msg ||
         (typeof parsedOutput?.error_message === "string" ? parsedOutput.error_message : undefined) ||
         (typeof parsedOutput?.error_msg === "string" ? parsedOutput.error_msg : undefined) ||
+        findRoboneoErrorMessage(t) ||
+        findRoboneoErrorMessage(stepOutput) ||
+        findRoboneoErrorMessage(res) ||
         step?.fail_code ||
         "unknown";
-      throw new Error("Roboneo failed: " + message);
+      const debug = JSON.stringify({
+        status,
+        taskErrorCode: t.error_code,
+        failCode: step?.fail_code,
+        stepStatus: step?.status || step?.state,
+        output: stepOutput,
+      }).slice(0, 500);
+      throw new Error(`Roboneo failed: ${message}${debug ? ` · detail=${debug}` : ""}`);
     }
   }
   throw new Error("Roboneo timeout");

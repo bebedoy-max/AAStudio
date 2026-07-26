@@ -148,6 +148,19 @@ function AccountsPage() {
       if (d && d.source === "tiktok-oauth" && d.ok) refreshTikTok();
     };
     window.addEventListener("message", onMsg);
+    // Handle #leonardo_token=... from browser extension
+    try {
+      const h = window.location.hash;
+      const m = h.match(/leonardo_token=([^&]+)/);
+      if (m) {
+        const token = decodeURIComponent(m[1]);
+        if (/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(token)) {
+          saveLeonardoIdToken(token);
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          setTimeout(() => alert("Token Leonardo dari extension berhasil disimpan."), 100);
+        }
+      }
+    } catch {}
     return () => window.removeEventListener("message", onMsg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

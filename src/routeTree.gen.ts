@@ -61,6 +61,7 @@ import { Route as ApiRouterPlanWeeklyRouteImport } from './routes/api/router/pla
 import { Route as ApiRouterImageRouteImport } from './routes/api/router/image'
 import { Route as ApiRouterChatRouteImport } from './routes/api/router/chat'
 import { Route as ApiRouterBrainAnalyzeRouteImport } from './routes/api/router/brain-analyze'
+import { Route as ApiPublicValidateMediaRouteImport } from './routes/api/public/validate-media'
 import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/upload-catbox'
 import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
@@ -345,6 +346,11 @@ const ApiRouterBrainAnalyzeRoute = ApiRouterBrainAnalyzeRouteImport.update({
   path: '/api/router/brain-analyze',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicValidateMediaRoute = ApiPublicValidateMediaRouteImport.update({
+  id: '/api/public/validate-media',
+  path: '/api/public/validate-media',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicUploadCatboxRoute = ApiPublicUploadCatboxRouteImport.update({
   id: '/api/public/upload-catbox',
   path: '/api/public/upload-catbox',
@@ -531,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/public/validate-media': typeof ApiPublicValidateMediaRoute
   '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
@@ -606,6 +613,7 @@ export interface FileRoutesByTo {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/public/validate-media': typeof ApiPublicValidateMediaRoute
   '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
@@ -684,6 +692,7 @@ export interface FileRoutesById {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/public/validate-media': typeof ApiPublicValidateMediaRoute
   '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
@@ -763,6 +772,7 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/public/validate-media'
     | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
@@ -838,6 +848,7 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/public/validate-media'
     | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
@@ -915,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/public/validate-media'
     | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
@@ -973,6 +985,7 @@ export interface RootRouteChildren {
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
   ApiPublicStoryboardBrainRoute: typeof ApiPublicStoryboardBrainRoute
   ApiPublicUploadCatboxRoute: typeof ApiPublicUploadCatboxRoute
+  ApiPublicValidateMediaRoute: typeof ApiPublicValidateMediaRoute
   ApiRouterBrainAnalyzeRoute: typeof ApiRouterBrainAnalyzeRoute
   ApiRouterChatRoute: typeof ApiRouterChatRoute
   ApiRouterImageRoute: typeof ApiRouterImageRoute
@@ -1353,6 +1366,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRouterBrainAnalyzeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/validate-media': {
+      id: '/api/public/validate-media'
+      path: '/api/public/validate-media'
+      fullPath: '/api/public/validate-media'
+      preLoaderRoute: typeof ApiPublicValidateMediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/upload-catbox': {
       id: '/api/public/upload-catbox'
       path: '/api/public/upload-catbox'
@@ -1638,6 +1658,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,
   ApiPublicStoryboardBrainRoute: ApiPublicStoryboardBrainRoute,
   ApiPublicUploadCatboxRoute: ApiPublicUploadCatboxRoute,
+  ApiPublicValidateMediaRoute: ApiPublicValidateMediaRoute,
   ApiRouterBrainAnalyzeRoute: ApiRouterBrainAnalyzeRoute,
   ApiRouterChatRoute: ApiRouterChatRoute,
   ApiRouterImageRoute: ApiRouterImageRoute,
