@@ -38,6 +38,7 @@ import { Route as GenerateImageToVideoRouteImport } from './routes/generate.imag
 import { Route as GenerateFramiaRouteImport } from './routes/generate.framia'
 import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
 import { Route as DevWeavyTestRouteImport } from './routes/dev.weavy-test'
+import { Route as DevWeavyNodeInspectRouteImport } from './routes/dev.weavy-node-inspect'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
 import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
@@ -47,7 +48,6 @@ import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influence
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
-import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
@@ -231,6 +231,11 @@ const DevWeavyTestRoute = DevWeavyTestRouteImport.update({
   path: '/dev/weavy-test',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DevWeavyNodeInspectRoute = DevWeavyNodeInspectRouteImport.update({
+  id: '/dev/weavy-node-inspect',
+  path: '/dev/weavy-node-inspect',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
@@ -274,11 +279,6 @@ const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
 const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
-  id: '/token-bank',
-  path: '/token-bank',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminRequestsRoute = AdminRequestsRouteImport.update({
@@ -484,7 +484,6 @@ export interface FileRoutesByFullPath {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
@@ -494,6 +493,7 @@ export interface FileRoutesByFullPath {
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dev/weavy-node-inspect': typeof DevWeavyNodeInspectRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
   '/generate/framia': typeof GenerateFramiaRoute
@@ -560,7 +560,6 @@ export interface FileRoutesByTo {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
@@ -570,6 +569,7 @@ export interface FileRoutesByTo {
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dev/weavy-node-inspect': typeof DevWeavyNodeInspectRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
   '/generate/framia': typeof GenerateFramiaRoute
@@ -639,7 +639,6 @@ export interface FileRoutesById {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
@@ -649,6 +648,7 @@ export interface FileRoutesById {
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dev/weavy-node-inspect': typeof DevWeavyNodeInspectRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
   '/generate/framia': typeof GenerateFramiaRoute
@@ -719,7 +719,6 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
-    | '/admin/token-bank'
     | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
@@ -729,6 +728,7 @@ export interface FileRouteTypes {
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
+    | '/dev/weavy-node-inspect'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
     | '/generate/framia'
@@ -795,7 +795,6 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
-    | '/admin/token-bank'
     | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
@@ -805,6 +804,7 @@ export interface FileRouteTypes {
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
+    | '/dev/weavy-node-inspect'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
     | '/generate/framia'
@@ -873,7 +873,6 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
-    | '/admin/token-bank'
     | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
@@ -883,6 +882,7 @@ export interface FileRouteTypes {
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
+    | '/dev/weavy-node-inspect'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
     | '/generate/framia'
@@ -950,6 +950,7 @@ export interface RootRouteChildren {
   ReffEditRoute: typeof ReffEditRouteWithChildren
   ApiProxyImageRoute: typeof ApiProxyImageRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  DevWeavyNodeInspectRoute: typeof DevWeavyNodeInspectRoute
   DevWeavyTestRoute: typeof DevWeavyTestRoute
   GenerateBulkFashionRoute: typeof GenerateBulkFashionRoute
   GenerateFramiaRoute: typeof GenerateFramiaRoute
@@ -1205,6 +1206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevWeavyTestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dev/weavy-node-inspect': {
+      id: '/dev/weavy-node-inspect'
+      path: '/dev/weavy-node-inspect'
+      fullPath: '/dev/weavy-node-inspect'
+      preLoaderRoute: typeof DevWeavyNodeInspectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/auth/callback'
@@ -1266,13 +1274,6 @@ declare module '@tanstack/react-router' {
       path: '/transactions'
       fullPath: '/admin/transactions'
       preLoaderRoute: typeof AdminTransactionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/token-bank': {
-      id: '/admin/token-bank'
-      path: '/token-bank'
-      fullPath: '/admin/token-bank'
-      preLoaderRoute: typeof AdminTokenBankRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/requests': {
@@ -1542,7 +1543,6 @@ interface AdminRouteChildren {
   AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
-  AdminTokenBankRoute: typeof AdminTokenBankRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -1552,7 +1552,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
-  AdminTokenBankRoute: AdminTokenBankRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -1623,6 +1622,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReffEditRoute: ReffEditRouteWithChildren,
   ApiProxyImageRoute: ApiProxyImageRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  DevWeavyNodeInspectRoute: DevWeavyNodeInspectRoute,
   DevWeavyTestRoute: DevWeavyTestRoute,
   GenerateBulkFashionRoute: GenerateBulkFashionRoute,
   GenerateFramiaRoute: GenerateFramiaRoute,

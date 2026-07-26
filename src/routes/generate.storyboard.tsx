@@ -68,15 +68,17 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
       key: "gptimage2",
       label: "ChatGPT Images 2.0 Edit (Weavy)",
       qualities: [
-        { v: "low@1024x1024",   label: "1024² · Low (~5 cr)",     cr: 5 },
-        { v: "medium@1024x1024",label: "1024² · Medium (~11 cr)", cr: 11, default: true },
-        { v: "high@1024x1024",  label: "1024² · High (~20 cr)",   cr: 20 },
-        { v: "medium@1536x1024",label: "1536×1024 · Medium (~13 cr)", cr: 13 },
-        { v: "high@1536x1024",  label: "1536×1024 · High (~24 cr)",   cr: 24 },
-        { v: "medium@2048x2048",label: "2048² · Medium (~17 cr)", cr: 17 },
-        { v: "high@2048x2048",  label: "2048² · High (~30 cr)",   cr: 30 },
-        { v: "high@3840x2160",  label: "3840×2160 · High (~37 cr)", cr: 37 },
-        { v: "high@2160x3840",  label: "2160×3840 · High (~37 cr)", cr: 37 },
+        // Aspect ratio dropdown decides the actual WxH; quality only picks density tier × fidelity.
+        { v: "low@1K",    label: "1K · Low (1 cr)",         cr: 1 },
+        { v: "medium@1K", label: "1K · Medium (4 cr)",      cr: 4, default: true },
+        { v: "high@1K",   label: "1K · High (17 cr)",       cr: 17 },
+        { v: "low@2K",    label: "2K · Low (1 cr)",         cr: 1 },
+        { v: "medium@2K", label: "2K · Medium (7 cr)",      cr: 7 },
+        { v: "high@2K",   label: "2K · High (28 cr)",       cr: 28 },
+        { v: "low@4K",    label: "4K · Low (1 cr)",         cr: 1 },
+        { v: "medium@4K", label: "4K · Medium (9 cr)",      cr: 9 },
+        { v: "high@4K",   label: "4K · High (37 cr)",       cr: 37 },
+
       ],
     },
     {
@@ -605,6 +607,7 @@ function StoryboardPage() {
         // --- 1. Brain ---
         patchResult(resultId, { status: "brain" });
         pushLog(`🧠 [${title.slice(0, 40)}] Brain menyusun prompt storyboard…`);
+        const refCountForPrompt = (row.selectedImages || []).slice(0, 6).length;
         const brainRes = await fetch("/api/public/storyboard-brain", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-user-gemini-keys": geminiKeys },
@@ -614,6 +617,7 @@ function StoryboardPage() {
             productType: "",
             productTypes: [],
             scenes: Number(sceneCount),
+            referenceCount: refCountForPrompt,
             aspectRatio: ratio,
             ctaTarget,
             ctaCustom: ctaTarget === "custom" ? ctaCustom : "",
@@ -631,8 +635,9 @@ function StoryboardPage() {
           throw new Error(brainJson.error || "Brain gagal — cek Gemini key di Kelola Token");
         }
         const finalPrompt = brainJson.prompt as string;
-        patchResult(resultId, { prompt: finalPrompt });
-        pushLog(`✅ [${title.slice(0, 40)}] Prompt siap (${finalPrompt.length} chars) via ${brainJson.provider || "gemini"}`);
+        const guardedPrompt = finalPrompt;
+        patchResult(resultId, { prompt: guardedPrompt });
+        pushLog(`✅ [${title.slice(0, 40)}] Prompt siap (${guardedPrompt.length} chars) via ${brainJson.provider || "gemini"}`);
 
         // --- 2. Image gen ---
         patchResult(resultId, { status: "image" });
@@ -646,16 +651,17 @@ function StoryboardPage() {
             pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy multi-ref)`);
             imgUrl = await generateWeavyStoryboard({
               modelKey,
-              prompt: finalPrompt,
+              prompt: guardedPrompt,
               quality: qualityV,
               ratio,
               referenceUrls: refUrls,
+              onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
             });
           } else {
             const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
             imgUrl = await generateWeavyImage({
               modelKey,
-              prompt: finalPrompt,
+              prompt: guardedPrompt,
               quality: qualityV,
               ratio,
             });
@@ -672,6 +678,7 @@ function StoryboardPage() {
             ? mapImgToWsEndpoint(modelKey).replace(/\/text-to-image$/, "/edit")
             : mapImgToWsEndpoint(modelKey);
           const payload: Record<string, unknown> = { prompt: finalPrompt, aspect_ratio: ratio };
+          payload.prompt = guardedPrompt;
           if (hasRef) payload.images = wsRefs;
           if (/gpt-image/.test(modelId)) payload.quality = qualityV;
           else if (/nano-banana/.test(modelId)) payload.resolution = qualityV;
@@ -684,7 +691,7 @@ function StoryboardPage() {
           if (refUrls.length) pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Framia)`);
           imgUrl = await generateFramiaImage({
             modelKey,
-            prompt: finalPrompt,
+            prompt: guardedPrompt,
             aspectRatio: ratio,
             resolution: qualityV,
             referenceUrls: refUrls,
@@ -696,7 +703,7 @@ function StoryboardPage() {
           const { generateLeonardoOne } = await import("@/lib/providers/leonardo-router");
           imgUrl = await generateLeonardoOne({
             modelKey,
-            prompt: finalPrompt,
+            prompt: guardedPrompt,
             ratio,
             quality: qualityV,
             referenceUrls: refUrls,

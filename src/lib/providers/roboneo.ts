@@ -362,39 +362,95 @@ export async function submitRoboneoI2V(opts: {
   const nodeId = uuid();
 
   const mk = (opts.modelKey || "").toLowerCase();
-  type Spec = { apiName: string; recipeCode?: string; toolLabel: string };
+  // paramFamily = himpunan parameter yang diterima recipe di Meitu:
+  //   "seedance"  → ratio + resolution + video_duration + sound
+  //   "happyhorse"→ ratio + resolution + video_duration
+  //   "kling3"    → ratio + video_duration + sound
+  //   "kling26"   → sound + video_duration (recipe lama, tidak ada ratio)
+  //   "omni"      → ratio + video_duration
+  //   "legacy21"  → ratio + duration + quality
+  type ParamFamily = "seedance" | "happyhorse" | "kling3" | "kling26" | "omni" | "legacy21";
+  type Spec = { apiName: string; recipeCode?: string; toolLabel: string; family: ParamFamily };
   const specs: Record<string, Spec> = {
+    // Confirmed dari model_list resmi Roboneo (session token user).
+    "rn:seedance-1.0": {
+      apiName: "api_v1_outsourcing_img_to_video",
+      recipeCode: "d56CL0CD7eVX",
+      toolLabel: "Seedance 1.0",
+      family: "seedance",
+    },
+    // Alias lama (backward-compat)
     "rn:seedance-pro": {
       apiName: "api_v1_outsourcing_img_to_video",
       recipeCode: "d56CL0CD7eVX",
       toolLabel: "Seedance Pro",
+      family: "seedance",
+    },
+    "rn:seedance-2.0": {
+      apiName: "video_toffee_i2v_v20",
+      toolLabel: "Seedance 2.0",
+      family: "seedance",
+    },
+    "rn:seedance-2.0-mini": {
+      apiName: "video_toffee_i2v_v20_mini",
+      toolLabel: "Seedance 2.0 Mini",
+      family: "seedance",
+    },
+    "rn:seedance-2.0-fast": {
+      apiName: "video_toffee_i2v_v20_fast",
+      toolLabel: "Seedance 2.0 Fast",
+      family: "seedance",
+    },
+    "rn:happyhorse-1.1": {
+      apiName: "images2video_edit_hydra",
+      toolLabel: "Happy Horse 1.1",
+      family: "happyhorse",
+    },
+    "rn:happyhorse-1.0": {
+      apiName: "video_happyhorse_i2v",
+      toolLabel: "Happy Horse 1.0",
+      family: "happyhorse",
+    },
+    "rn:kling-v3": {
+      apiName: "video_bonbon_img2vid_v30",
+      toolLabel: "Kling 3.0",
+      family: "kling3",
+    },
+    "rn:kling-v3-turbo": {
+      apiName: "video_bonbon_i2v_v3turbo",
+      toolLabel: "Kling 3.0 Turbo",
+      family: "kling3",
     },
     "rn:google-omni": {
       apiName: "video_barley_i2v_omni_flash",
       recipeCode: "2mXIxsFvbfXw",
       toolLabel: "Google Omni",
+      family: "omni",
     },
     "rn:kling-v26:std": {
       apiName: "video_bonbon_img2vid_v26",
       recipeCode: "xd_pUp8JDcE0",
       toolLabel: "Kling 2.6",
+      family: "kling26",
     },
     "rn:kling-v26": {
       apiName: "video_bonbon_img2vid_v26",
       recipeCode: "xd_pUp8JDcE0",
       toolLabel: "Kling 2.6",
+      family: "kling26",
     },
     // legacy fallbacks (nama apiName lama — mungkin sudah tidak dilayani gateway)
-    "rn:kling-v21": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" },
-    "rn:kling-v21:std": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" },
+    "rn:kling-v21": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" },
+    "rn:kling-v21:std": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" },
   };
   const legacyFallback: Spec =
     opts.modelVersion === "v21"
-      ? { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" }
+      ? { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" }
       : {
           apiName: "video_bonbon_img2vid_v26",
           recipeCode: "xd_pUp8JDcE0",
           toolLabel: "Kling 2.6",
+          family: "kling26",
         };
   const spec = specs[mk] || legacyFallback;
 
@@ -405,24 +461,37 @@ export async function submitRoboneoI2V(opts: {
   };
 
   const dur = opts.duration ?? 5;
-  if (spec.apiName === "api_v1_outsourcing_img_to_video") {
-    // Seedance Pro
-    params.ratio = opts.ratio ?? "9:16";
-    params.resolution = opts.resolution ?? "720p";
-    params.video_duration = dur;
-  } else if (spec.apiName === "video_barley_i2v_omni_flash") {
-    // Google Omni
-    params.ratio = opts.ratio ?? "9:16";
-    params.video_duration = dur;
-  } else if (spec.apiName === "video_bonbon_img2vid_v26") {
-    // Kling 2.6 (recipe hanya expose sound + video_duration)
-    params.sound = opts.sound ?? "off";
-    params.video_duration = dur;
-  } else {
-    // Legacy kling v21
-    params.ratio = opts.ratio ?? "9:16";
-    params.duration = dur;
-    params.quality = opts.quality ?? "std";
+  switch (spec.family) {
+    case "seedance":
+      params.ratio = opts.ratio ?? "9:16";
+      params.resolution = opts.resolution ?? "720p";
+      params.video_duration = dur;
+      params.sound = opts.sound ?? "off";
+      break;
+    case "happyhorse":
+      params.ratio = opts.ratio ?? "9:16";
+      params.resolution = opts.resolution ?? "720p";
+      params.video_duration = dur;
+      break;
+    case "kling3":
+      params.ratio = opts.ratio ?? "9:16";
+      params.video_duration = dur;
+      params.sound = opts.sound ?? "off";
+      break;
+    case "omni":
+      params.ratio = opts.ratio ?? "9:16";
+      params.video_duration = dur;
+      break;
+    case "kling26":
+      params.sound = opts.sound ?? "off";
+      params.video_duration = dur;
+      break;
+    case "legacy21":
+    default:
+      params.ratio = opts.ratio ?? "9:16";
+      params.duration = dur;
+      params.quality = opts.quality ?? "std";
+      break;
   }
   if (spec.recipeCode) params.recipe_code = spec.recipeCode;
 

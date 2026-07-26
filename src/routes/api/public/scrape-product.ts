@@ -9,6 +9,44 @@ function absolutize(url: string, base: string): string {
 
 function unique<T>(arr: T[]): T[] { return Array.from(new Set(arr)); }
 
+function imageCandidates(raw: string): string[] {
+  const out: string[] = [];
+  const add = (value: string) => {
+    const clean = decodeEntities(value).trim();
+    if (clean && !out.includes(clean)) out.push(clean);
+  };
+
+  add(raw);
+  try {
+    const u = new URL(decodeEntities(raw));
+    const host = u.hostname.toLowerCase();
+    const withoutThumbSuffix = u.toString().replace(/(_tn|_thumbnail|_thumb)(?=\?|$)/i, "");
+    add(withoutThumbSuffix);
+
+    if (/images\.tokopedia\.net|static-?tokopedia/i.test(host)) {
+      const path = u.pathname;
+      ["700", "900", "1200"].forEach((size) => {
+        const next = new URL(u.toString());
+        next.pathname = path.replace(/\/img\/cache\/[^/]+\//i, `/img/cache/${size}/`);
+        add(next.toString());
+      });
+    }
+
+    if (/susercontent|shopee|cf\.shopee/i.test(host)) {
+      const next = new URL(withoutThumbSuffix);
+      ["x-oss-process", "resize", "width", "height", "w", "h"].forEach((key) => next.searchParams.delete(key));
+      add(next.toString());
+    }
+
+    if (/slatic|lazada|static-src/i.test(host)) {
+      add(u.toString().replace(/(_\d+x\d+q\d+|_\d+x\d+|\.webp_\d+x\d+q\d+)(?=\.|\?|$)/i, ""));
+    }
+  } catch {
+    /* keep original */
+  }
+  return out;
+}
+
 function pickMeta(html: string, patterns: RegExp[]): string {
   for (const re of patterns) {
     const m = html.match(re);
@@ -215,7 +253,7 @@ export const Route = createFileRoute("/api/public/scrape-product")({
         const blockedHtmlTitle = /access\s*denied|forbidden|captcha|robot/i.test(ogTitle || acc.title || htmlTitle || "");
         const finalTitle = decodeEntities((blockedHtmlTitle ? "" : (ogTitle || acc.title || htmlTitle)) || jinaTitle || titleFromUrl(target) || "");
         const finalDesc = decodeEntities(ogDesc || acc.description || jinaDesc || jinaFirstText || "");
-        let finalImages = unique(imgs)
+        let finalImages = unique(imgs.flatMap(imageCandidates))
           .filter((u) => !/\.svg(\?|$)/i.test(u))
           .filter((u) => !/logo|favicon|icon-|sprite|placeholder|avatar|profile-picture/i.test(u))
           .slice(0, 20);

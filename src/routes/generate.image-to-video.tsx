@@ -42,9 +42,20 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
   ],
   magnific: [{ value: "kling-motion", label: "Kling Motion", cr: 45 }],
   roboneo: [
-    { value: "rn:seedance-pro", label: "Seedance Pro (Roboneo)", cr: 0 },
-    { value: "rn:google-omni", label: "Google Omni (Roboneo)", cr: 0 },
-    { value: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", cr: 0 },
+    // Cost = perkiraan Cyber Carrots per job (Roboneo return cost final setelah render).
+    // Semua opsi dibatasi di bawah 150 credit per screenshot user (Nov 2026).
+    { value: "rn:seedance-2.0", label: "Seedance 2.0 (Roboneo)", cr: 143 },
+    { value: "rn:seedance-2.0-mini", label: "Seedance 2.0 Mini (Roboneo)", cr: 140 },
+    { value: "rn:seedance-2.0-fast", label: "Seedance 2.0 Fast (Roboneo)", cr: 90 },
+    { value: "rn:happyhorse-1.1", label: "Happy Horse 1.1 (Roboneo)", cr: 144 },
+    { value: "rn:happyhorse-1.0", label: "Happy Horse 1.0 (Roboneo)", cr: 120 },
+    { value: "rn:kling-v3", label: "Kling 3.0 (Roboneo)", cr: 130 },
+    { value: "rn:kling-v3-turbo", label: "Kling 3.0 Turbo (Roboneo)", cr: 90 },
+    { value: "rn:seedance-1.0", label: "Seedance 1.0 / Pro (Roboneo)", cr: 100 },
+    { value: "rn:google-omni", label: "Google Omni Flash (Roboneo)", cr: 45 },
+    { value: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", cr: 80 },
+    // legacy alias tetap ada supaya preferensi lama tidak putus
+    { value: "rn:seedance-pro", label: "Seedance Pro — legacy alias", cr: 100 },
   ],
   framia: [
     // Model list from Framia video node (share recipe 8b83c48b70).
@@ -108,24 +119,72 @@ const DEFAULT_QUALITY: QualityOpt[] = [
   { value: "std",  label: "Standard 5s", mult: 1, duration: 5 },
   { value: "long", label: "Long 10s",    mult: 2, duration: 10 },
 ];
-// Per-model roboneo (parameter valid ikut recipe flow_share).
+// Per-model roboneo (parameter valid ikut recipe/flow_share).
+// Cap credit/durasi mengikuti screenshot user (semua ≤ 150 Cyber Carrots).
 const ROBONEO_QUALITY: Record<string, QualityOpt[]> = {
+  // Seedance 2.0 — max 10s @ 480p @ 9:16 dengan audio = 143 cr (screenshot).
+  "rn:seedance-2.0": [
+    { value: "480p-10s-audio", label: "480p · 10s · audio", mult: 1, duration: 10, resolution: "480p", sound: "on", cr: 143 },
+    { value: "480p-10s",       label: "480p · 10s",         mult: 1, duration: 10, resolution: "480p", sound: "off", cr: 120 },
+    { value: "480p-5s-audio",  label: "480p · 5s · audio",  mult: 1, duration: 5,  resolution: "480p", sound: "on", cr: 75 },
+    { value: "480p-5s",        label: "480p · 5s",          mult: 1, duration: 5,  resolution: "480p", sound: "off", cr: 60 },
+  ],
+  // Seedance 2.0 Mini — max 12s @ 480p @ 9:16 dengan audio = 140 cr.
+  "rn:seedance-2.0-mini": [
+    { value: "480p-12s-audio", label: "480p · 12s · audio", mult: 1, duration: 12, resolution: "480p", sound: "on", cr: 140 },
+    { value: "480p-10s-audio", label: "480p · 10s · audio", mult: 1, duration: 10, resolution: "480p", sound: "on", cr: 118 },
+    { value: "480p-5s-audio",  label: "480p · 5s · audio",  mult: 1, duration: 5,  resolution: "480p", sound: "on", cr: 60 },
+    { value: "480p-5s",        label: "480p · 5s",          mult: 1, duration: 5,  resolution: "480p", sound: "off", cr: 48 },
+  ],
+  // Seedance 2.0 Fast — versi hemat, cap ~90 cr utk 10s.
+  "rn:seedance-2.0-fast": [
+    { value: "480p-10s",       label: "480p · 10s",         mult: 1, duration: 10, resolution: "480p", sound: "off", cr: 90 },
+    { value: "480p-5s",        label: "480p · 5s",          mult: 1, duration: 5,  resolution: "480p", sound: "off", cr: 45 },
+    { value: "720p-5s",        label: "720p · 5s",          mult: 1, duration: 5,  resolution: "720p", sound: "off", cr: 65 },
+  ],
+  // Happy Horse 1.1 — max 14s @ 720p @ 9:16 = 144 cr (screenshot).
+  "rn:happyhorse-1.1": [
+    { value: "720p-14s", label: "720p · 14s", mult: 1, duration: 14, resolution: "720p", cr: 144 },
+    { value: "720p-10s", label: "720p · 10s", mult: 1, duration: 10, resolution: "720p", cr: 100 },
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 50 },
+    { value: "480p-14s", label: "480p · 14s", mult: 1, duration: 14, resolution: "480p", cr: 100 },
+  ],
+  "rn:happyhorse-1.0": [
+    { value: "720p-10s", label: "720p · 10s", mult: 1, duration: 10, resolution: "720p", cr: 120 },
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 60 },
+  ],
+  // Kling 3.0 — cap konservatif < 150 cr.
+  "rn:kling-v3": [
+    { value: "10s-off", label: "10s · No Sound", mult: 1, duration: 10, sound: "off", cr: 130 },
+    { value: "5s-off",  label: "5s · No Sound",  mult: 1, duration: 5,  sound: "off", cr: 65 },
+    { value: "5s-on",   label: "5s · Sound",     mult: 1, duration: 5,  sound: "on",  cr: 85 },
+  ],
+  "rn:kling-v3-turbo": [
+    { value: "10s-off", label: "10s · No Sound", mult: 1, duration: 10, sound: "off", cr: 90 },
+    { value: "5s-off",  label: "5s · No Sound",  mult: 1, duration: 5,  sound: "off", cr: 45 },
+  ],
+  // Seedance 1.0 / Pro (recipe lama).
+  "rn:seedance-1.0": [
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 50 },
+    { value: "720p-10s", label: "720p · 10s", mult: 1, duration: 10, resolution: "720p", cr: 100 },
+    { value: "720p-12s", label: "720p · 12s", mult: 1, duration: 12, resolution: "720p", cr: 120 },
+    { value: "480p-5s",  label: "480p · 5s",  mult: 1, duration: 5,  resolution: "480p", cr: 35 },
+  ],
   "rn:seedance-pro": [
-    { value: "720p-5s",  label: "720p · 5s",  mult: 1,   duration: 5,  resolution: "720p" },
-    { value: "720p-10s", label: "720p · 10s", mult: 2,   duration: 10, resolution: "720p" },
-    { value: "720p-12s", label: "720p · 12s", mult: 2.4, duration: 12, resolution: "720p" },
-    { value: "480p-5s",  label: "480p · 5s",  mult: 0.7, duration: 5,  resolution: "480p" },
-    { value: "1080p-5s", label: "1080p · 5s", mult: 1.5, duration: 5,  resolution: "1080p" },
+    { value: "720p-5s",  label: "720p · 5s",  mult: 1, duration: 5,  resolution: "720p", cr: 50 },
+    { value: "720p-10s", label: "720p · 10s", mult: 1, duration: 10, resolution: "720p", cr: 100 },
+    { value: "720p-12s", label: "720p · 12s", mult: 1, duration: 12, resolution: "720p", cr: 120 },
+    { value: "480p-5s",  label: "480p · 5s",  mult: 1, duration: 5,  resolution: "480p", cr: 35 },
   ],
   "rn:google-omni": [
-    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5 },
-    { value: "10s", label: "Durasi 10s", mult: 2, duration: 10 },
+    { value: "5s",  label: "Durasi 5s",  mult: 1, duration: 5,  cr: 25 },
+    { value: "10s", label: "Durasi 10s", mult: 1, duration: 10, cr: 45 },
   ],
   "rn:kling-v26:std": [
-    { value: "5s-off",  label: "5s · No Sound",  mult: 1,   duration: 5,  sound: "off" },
-    { value: "5s-on",   label: "5s · Sound",     mult: 1.3, duration: 5,  sound: "on"  },
-    { value: "10s-off", label: "10s · No Sound", mult: 2,   duration: 10, sound: "off" },
-    { value: "10s-on",  label: "10s · Sound",    mult: 2.6, duration: 10, sound: "on"  },
+    { value: "5s-off",  label: "5s · No Sound",  mult: 1, duration: 5,  sound: "off", cr: 40 },
+    { value: "5s-on",   label: "5s · Sound",     mult: 1, duration: 5,  sound: "on",  cr: 55 },
+    { value: "10s-off", label: "10s · No Sound", mult: 1, duration: 10, sound: "off", cr: 80 },
+    { value: "10s-on",  label: "10s · Sound",    mult: 1, duration: 10, sound: "on",  cr: 105 },
   ],
 };
 // Harga Framia diambil dari UI framia.converge.ai (720p, aspect 9:16).

@@ -23,17 +23,36 @@ function ratioToImageSizeEnum(ratio: string): string {
   return "square";
 }
 
-function parseGptQuality(input: string): { quality: string; size?: { width: number; height: number } } {
-  const s = (input || "high@1024x1024").trim();
-  const at = s.indexOf("@");
-  if (at < 0) return { quality: s };
-  const quality = s.slice(0, at) || "high";
-  const dims = s.slice(at + 1).trim();
-  if (dims.toLowerCase() === "auto") return { quality };
-  const m = /^(\d{3,5})x(\d{3,5})$/i.exec(dims);
-  if (!m) return { quality };
-  return { quality, size: { width: Number(m[1]), height: Number(m[2]) } };
+function classifyRatio(r: string): "portrait" | "landscape" | "square" {
+  if (/^(9:16|2:3|3:4|4:5)/.test(r)) return "portrait";
+  if (/^(16:9|3:2|4:3|5:4|21:9)/.test(r)) return "landscape";
+  return "square";
 }
+
+function gptImageSize(tier: string, ratio: string): { width: number; height: number } {
+  const t = classifyRatio(ratio);
+  const table: Record<string, Record<string, [number, number]>> = {
+    "1K": { square: [1024, 1024], portrait: [1024, 1536], landscape: [1536, 1024] },
+    "2K": { square: [2048, 2048], portrait: [1152, 2048], landscape: [2048, 1152] },
+    "4K": { square: [2048, 2048], portrait: [2160, 3840], landscape: [3840, 2160] },
+  };
+  const T = table[tier.toUpperCase()] || table["1K"];
+  const [w, h] = T[t];
+  return { width: w, height: h };
+}
+
+function parseGptQuality(input: string, ratio: string): { quality: string; size?: { width: number; height: number } } {
+  const s = (input || "medium@1K").trim();
+  const at = s.indexOf("@");
+  const quality = at < 0 ? s || "medium" : s.slice(0, at) || "medium";
+  const suffix = at < 0 ? "1K" : s.slice(at + 1).trim();
+  if (/^[124]K$/i.test(suffix)) return { quality, size: gptImageSize(suffix, ratio) };
+  if (suffix.toLowerCase() === "auto") return { quality };
+  const m = /^(\d{3,5})x(\d{3,5})$/i.exec(suffix);
+  if (m) return { quality, size: { width: Number(m[1]), height: Number(m[2]) } };
+  return { quality, size: gptImageSize("1K", ratio) };
+}
+
 
 function mkImportNode(id: string, url: string, name: string, y: number) {
   return {
@@ -111,9 +130,10 @@ function buildNb2BulkRecipe(prompt: string, resolution: string, ratio: string, c
 }
 
 /** ChatGPT Images 2.0 Edit — multi-image + prompt. quality format "quality@WxH". */
-function buildGptImage2EditBulkRecipe(prompt: string, quality: string, charUrl: string, outfitUrl: string) {
+function buildGptImage2EditBulkRecipe(prompt: string, quality: string, ratio: string, charUrl: string, outfitUrl: string) {
   const model = "openai/gpt-image-2/edit";
-  const parsed = parseGptQuality(quality);
+  const parsed = parseGptQuality(quality, ratio);
+
   const imageSize: unknown = parsed.size
     ? { width: parsed.size.width, height: parsed.size.height }
     : "auto";
@@ -133,7 +153,7 @@ function buildGptImage2EditBulkRecipe(prompt: string, quality: string, charUrl: 
       handles: {
         input: {
           prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: true },
-          first_frame: { id: "input-first_frame", type: "image", label: "first_frame", format: "text", required: true },
+          image: { id: "input-image", type: "image", label: "image", format: "text", required: true },
           image_2: { id: "input-image_2", type: "image", label: "image_2", format: "text", required: false },
         },
         output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
@@ -147,7 +167,7 @@ function buildGptImage2EditBulkRecipe(prompt: string, quality: string, charUrl: 
         model: { type: "predefined", name: model, version: model, service: "fal_imported" },
         inputs: [
           [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
-          [{ id: "first_frame", title: "first_frame", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }],
+          [{ id: "image", title: "image", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }],
           [{ id: "image_2", title: "image_2", validTypes: ["image"], required: false }, { nodeId: n2, outputId: "file" }],
         ],
         parameters: [
@@ -165,7 +185,7 @@ function buildGptImage2EditBulkRecipe(prompt: string, quality: string, charUrl: 
     position: { x: 600, y: 300 }, width: 460, height: 500,
   };
   const edges = [
-    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-first_frame`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" } },
+    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" } },
     { id: "e-" + mkId(), source: n2, target: n3, sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" } },
   ];
   return { model, nodes: [imgNode, outNode, modelNode], edges };
@@ -308,7 +328,7 @@ export async function generateWeavyBulkOne(opts: WeavyBulkOpts): Promise<string>
         const ver = opts.modelKey.slice("seedream-".length) || "v50"; // v40|v45|v50|v50-pro
         built = buildSeedreamEditBulkRecipe(opts.prompt, ver, opts.ratio || "1:1", charUrl, outUrl);
       } else {
-        built = buildGptImage2EditBulkRecipe(opts.prompt, opts.quality || "high@1024x1024", charUrl, outUrl);
+        built = buildGptImage2EditBulkRecipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", charUrl, outUrl);
       }
 
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);

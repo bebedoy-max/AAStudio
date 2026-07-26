@@ -442,3 +442,41 @@ export async function pollWeavyBatchVideo(
   }
   throw new Error("Weavy timeout: generation took too long");
 }
+
+// ==================== Recipe introspection (debug) ====================
+
+export type WeavyRecipeSummary = { id: string; name?: string; updatedAt?: string };
+
+/** List recipes milik akun token aktif. Dipakai /dev/weavy-node-inspect. */
+export async function listWeavyRecipes(accessToken: string): Promise<WeavyRecipeSummary[]> {
+  const endpoints = [`${WEAVY_API}/v1/recipes`, `${WEAVY_API}/v1/recipes/list`, `${WEAVY_API}/v1/recipes?scope=PERSONAL`];
+  for (const url of endpoints) {
+    try {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const arr = (Array.isArray(d) ? d : d.recipes || d.items || d.data || []) as Array<Record<string, unknown>>;
+      if (!Array.isArray(arr) || arr.length === 0) continue;
+      return arr.map((x) => ({
+        id: String(x.id || x.recipeId || ""),
+        name: (x.name || x.title) as string | undefined,
+        updatedAt: (x.lastUpdatedAt || x.updatedAt) as string | undefined,
+      })).filter((x) => x.id);
+    } catch {
+      /* try next */
+    }
+  }
+  return [];
+}
+
+/** Ambil JSON mentah sebuah recipe (nodes + edges) untuk dibandingkan dengan builder kita. */
+export async function getWeavyRecipe(recipeId: string, accessToken: string): Promise<unknown> {
+  const endpoints = [`${WEAVY_API}/v1/recipes/${recipeId}`, `${WEAVY_API}/v1/recipes/${recipeId}/load`];
+  let lastStatus = 0;
+  for (const url of endpoints) {
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    lastStatus = r.status;
+    if (r.ok) return await r.json();
+  }
+  throw new Error(`Weavy: gagal load recipe (${lastStatus})`);
+}
