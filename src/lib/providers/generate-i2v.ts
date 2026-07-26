@@ -5,6 +5,7 @@
 import { getFirstWavespeedKey, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API } from "./wavespeed";
 import {
   getAllRoboneoKeys,
+  removeRoboneoKeyFromManager,
   submitRoboneoI2V,
   pollRoboneoTask,
   isRoboneoRotatableError,
@@ -150,11 +151,19 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
       return outUrl;
     } catch (e) {
       const msg = (e as Error).message || String(e);
-      if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
-      opts.onProgress?.(`Token ${ti + 1} gagal, rotate...`, 15);
+      if (!isRoboneoRotatableError(msg)) throw e;
+      const removed = removeRoboneoKeyFromManager(at, msg);
+      opts.onProgress?.(
+        removed.removed && ti < tokens.length - 1
+          ? `Token Roboneo ${ti + 1} habis/invalid, dihapus. Rotate ke token berikutnya...`
+          : removed.removed
+            ? `Token Roboneo ${ti + 1} habis/invalid, dihapus.`
+          : `Token Roboneo ${ti + 1} gagal, rotate ke token berikutnya...`,
+        15,
+      );
     }
   }
-  throw new Error("Roboneo: semua token gagal");
+  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
 }
 
 async function runFramiaI2V(opts: I2VOpts): Promise<string> {

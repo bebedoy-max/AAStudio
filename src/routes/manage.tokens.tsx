@@ -377,7 +377,7 @@ function TokensPage() {
                       lsKey={LS.roboneo}
                       singlePlaceholder="_v2NGMz... (Roboneo access-token)"
                       bulkPlaceholder={"_v2NGMzMThk...\n_v2ABCDEF..."}
-                      helper="Roboneo access-token = login-session token (per docs roboneo.com/cli). Sekali disimpan, token tersimpan permanen di akun kamu (localStorage + user_tokens server, sinkron antar device) dan TIDAK akan auto-terhapus meski saldo terbaca 0 / gateway error. Ganti manual hanya kalau Roboneo memaksa logout. Multi-token akan auto-rotate saat quota habis."
+                      helper="Roboneo access-token = login-session token (per docs roboneo.com/cli). Token tersimpan di akun kamu (localStorage + user_tokens server, sinkron antar device). Saat generate mendeteksi credit/quota habis atau token invalid, token itu otomatis dihapus dan flow lanjut rotate ke token berikutnya."
                     />
                   )}
                   {tab === "framia" && (

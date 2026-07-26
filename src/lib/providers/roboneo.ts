@@ -13,6 +13,8 @@
 // Untuk motion control Kling 2.6 std: apiName = "video_bonbon_motioncontrol_v26",
 // parameters = { quality: "std" }, dengan image_url + video_url + optional prompt.
 
+import { pushTokenAsync } from "@/lib/tokens/sync";
+
 export const ROBONEO_GATEWAY = "https://ai-engine-gateway-roboneo.meitu.com";
 export const ROBONEO_CLIENT_ID = "1189857684";
 export const LS_ROBONEO_KEYS = "aatools.roboneo.keys";
@@ -41,6 +43,32 @@ export function getAllRoboneoKeys(): string[] {
 
 export function getFirstRoboneoKey(): string | null {
   return getAllRoboneoKeys()[0] || null;
+}
+
+export function removeRoboneoKeyFromManager(
+  accessToken: string,
+  reason?: string,
+): { removed: boolean; remaining: number } {
+  if (typeof window === "undefined") return { removed: false, remaining: 0 };
+  try {
+    const raw = localStorage.getItem(LS_ROBONEO_KEYS);
+    const list = raw ? (JSON.parse(raw) as RoboneoKey[]) : [];
+    const next = list.filter((item) => item?.key !== accessToken);
+    if (next.length === list.length) return { removed: false, remaining: next.length };
+    const value = JSON.stringify(next);
+    localStorage.setItem(LS_ROBONEO_KEYS, value);
+    pushTokenAsync(LS_ROBONEO_KEYS, value);
+    window.dispatchEvent(
+      new CustomEvent("aatools:tokens-synced", {
+        detail: { provider: "roboneo", action: "removed", reason },
+      }),
+    );
+    window.dispatchEvent(new Event("storage"));
+    return { removed: true, remaining: next.length };
+  } catch (e) {
+    console.warn("[roboneo] gagal menghapus token kosong", e);
+    return { removed: false, remaining: getAllRoboneoKeys().length };
+  }
 }
 
 /* --------------------------------- helpers --------------------------------- */
@@ -612,6 +640,7 @@ export async function pollRoboneoTask(opts: {
   };
 
   let loggedShape = false;
+  let successNoUrlAttempts = 0;
   let transientPollErrors = 0;
   while (Date.now() - start < tm) {
     await new Promise((r) => setTimeout(r, 4000));
@@ -697,7 +726,6 @@ export async function pollRoboneoTask(opts: {
       return outputUrl;
     }
     if (isSuccess) {
-      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
       // Meitu sometimes marks the outer task "success" while an inner step
       // actually failed (e.g. per-account concurrent-job limit, transient
       // upstream error). Surface that step error so the caller can rotate
@@ -713,20 +741,41 @@ export async function pollRoboneoTask(opts: {
         })
         .find((v): v is string => Boolean(v));
       if (stepErr) {
+        ROBONEO_TASK_CONTEXT.delete(opts.taskId);
         // Prefix with "quota" so isRoboneoRotatableError picks it up — most
         // real causes here (concurrency cap, credit, temporary account block)
         // benefit from switching to the next token.
         throw new Error(`Roboneo failed (quota/step): ${stepErr}`);
       }
+      // Success flag can arrive a beat before the URL is written into
+      // media_metas / last_image_urls. Give it a few extra polls before
+      // giving up — the task will typically populate within 8–16s.
+      if (successNoUrlAttempts < 5) {
+        successNoUrlAttempts++;
+        opts.onProgress?.(Math.max(pct, 96), "finalizing");
+        continue;
+      }
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
+      const rawSample = (() => {
+        try {
+          return JSON.stringify({ task: t, stepOutputs, response: res }).slice(0, 1200);
+        } catch {
+          return "";
+        }
+      })();
       const debugKeys = JSON.stringify({
         taskKeys: Object.keys(t),
         stepKeys: steps.map((item) => Object.keys(item)),
         responseKeys: Object.keys(res || {}),
         urlCount: collectMediaUrls({ task: t, output: stepOutputs, response: res }).length,
         hasLastImageUrl: Boolean(t.last_image_url),
+        hasLastImageUrls: Array.isArray(t.last_image_urls) ? t.last_image_urls.length : false,
         hasMediaMeta: Boolean(t.media_meta),
+        hasMediaMetas: Boolean((t as Record<string, unknown>).media_metas),
       });
-      throw new Error(`Roboneo: task selesai tapi URL output tidak ditemukan (${debugKeys.slice(0, 300)})`);
+      throw new Error(
+        `Roboneo credit/quota habis: task selesai tapi URL output tidak ditemukan (${debugKeys.slice(0, 400)}) sample=${rawSample}`,
+      );
     }
     if (["fail", "failed", "error", "cancelled", "canceled"].includes(status)) {
       ROBONEO_TASK_CONTEXT.delete(opts.taskId);
@@ -758,7 +807,7 @@ export async function pollRoboneoTask(opts: {
 
 /** Detect if an error looks like an auth/credit failure worth rotating tokens for. */
 export function isRoboneoRotatableError(msg: string): boolean {
-  return /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota/i.test(msg);
+  return /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL/i.test(msg);
 }
 
 /**

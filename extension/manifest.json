@@ -1,13 +1,15 @@
 {
   "manifest_version": 3,
   "name": "AACreative Leonardo Token Grabber",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Ambil JWT Leonardo.AI dengan 1 klik lalu kirim ke AACreative.",
-  "permissions": ["activeTab", "scripting", "storage", "cookies", "clipboardWrite"],
+  "permissions": ["activeTab", "scripting", "storage", "cookies", "clipboardWrite", "webRequest", "tabs"],
   "host_permissions": [
     "https://app.leonardo.ai/*",
-    "https://*.leonardo.ai/*"
+    "https://*.leonardo.ai/*",
+    "https://cloud.leonardo.ai/*"
   ],
+  "background": { "service_worker": "background.js" },
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png",

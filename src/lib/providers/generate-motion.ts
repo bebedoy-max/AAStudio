@@ -18,6 +18,7 @@ import { getFirstWavespeedKey, wsUploadMedia, wsMotionControl } from "./wavespee
 import { runMagnificMotion } from "./magnific-motion";
 import {
   getAllRoboneoKeys,
+  removeRoboneoKeyFromManager,
   submitRoboneoMotion,
   pollRoboneoTask,
   isRoboneoRotatableError,
@@ -473,13 +474,21 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
           continue;
         }
         log(`Token ${ti + 1} failed: ${msg}`, "warn");
-        if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
-        log("Rotating to next Roboneo token...", "info");
+        if (!isRoboneoRotatableError(msg)) throw e;
+        const removed = removeRoboneoKeyFromManager(at, msg);
+        log(
+          removed.removed && ti < tokens.length - 1
+            ? "Token Roboneo habis/invalid — dihapus dari Token Manager, rotate ke token berikutnya..."
+            : removed.removed
+              ? "Token Roboneo habis/invalid — dihapus dari Token Manager."
+            : "Rotating to next Roboneo token...",
+          "info",
+        );
         break;
       }
     }
   }
-  throw new Error("Roboneo: semua token gagal");
+  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
 }
 
 async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
