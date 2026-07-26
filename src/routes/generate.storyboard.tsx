@@ -66,12 +66,38 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
     },
     {
       key: "gptimage2",
-      label: "Image GPT 2 Edit (Weavy)",
+      label: "ChatGPT Images 2.0 Edit (Weavy)",
       qualities: [
-        { v: "low", label: "Low (~15 cr)", cr: 15 },
-        { v: "medium", label: "Medium (~36 cr)", cr: 36, default: true },
-        { v: "high", label: "High (~60 cr)", cr: 60 },
+        { v: "low@1024x1024",   label: "1024² · Low (~5 cr)",     cr: 5 },
+        { v: "medium@1024x1024",label: "1024² · Medium (~11 cr)", cr: 11, default: true },
+        { v: "high@1024x1024",  label: "1024² · High (~20 cr)",   cr: 20 },
+        { v: "medium@1536x1024",label: "1536×1024 · Medium (~13 cr)", cr: 13 },
+        { v: "high@1536x1024",  label: "1536×1024 · High (~24 cr)",   cr: 24 },
+        { v: "medium@2048x2048",label: "2048² · Medium (~17 cr)", cr: 17 },
+        { v: "high@2048x2048",  label: "2048² · High (~30 cr)",   cr: 30 },
+        { v: "high@3840x2160",  label: "3840×2160 · High (~37 cr)", cr: 37 },
+        { v: "high@2160x3840",  label: "2160×3840 · High (~37 cr)", cr: 37 },
       ],
+    },
+    {
+      key: "seedream-v40",
+      label: "Seedream V4.0 Edit (Weavy)",
+      qualities: [{ v: "default", label: "Standard (~8 cr)", cr: 8, default: true }],
+    },
+    {
+      key: "seedream-v45",
+      label: "Seedream V4.5 Edit (Weavy)",
+      qualities: [{ v: "default", label: "Standard (~9 cr)", cr: 9, default: true }],
+    },
+    {
+      key: "seedream-v50",
+      label: "Seedream V5.0 Edit (Weavy)",
+      qualities: [{ v: "default", label: "Standard (~10 cr)", cr: 10, default: true }],
+    },
+    {
+      key: "seedream-v50-pro",
+      label: "Seedream V5.0 Pro Edit (Weavy)",
+      qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }],
     },
   ],
   wavespeed: [
@@ -614,9 +640,10 @@ function StoryboardPage() {
         let imgUrl: string;
         const refUrls = (row.selectedImages || []).slice(0, 6);
         if (provider === "weavy") {
-          if (refUrls.length > 0 && (modelKey === "nanobanana2" || modelKey === "gptimage2")) {
+          const isEditModel = modelKey === "nanobanana2" || modelKey === "gptimage2" || modelKey.startsWith("seedream-");
+          if (refUrls.length > 0 && isEditModel) {
             const { generateWeavyStoryboard } = await import("@/lib/providers/weavy-storyboard");
-            pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy NB2/GPT-Image-2 multi-ref)`);
+            pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy multi-ref)`);
             imgUrl = await generateWeavyStoryboard({
               modelKey,
               prompt: finalPrompt,

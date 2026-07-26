@@ -253,8 +253,22 @@ function buildNb2Recipe(prompt: string, resolution: string, ratio: string, urls:
   return { model, nodes: [...importNodes, modelNode], edges };
 }
 
+function parseGptQuality(input: string): { quality: string; size?: { width: number; height: number } } {
+  const s = (input || "high@1024x1024").trim();
+  const at = s.indexOf("@");
+  if (at < 0) return { quality: s };
+  const quality = s.slice(0, at) || "high";
+  const dims = s.slice(at + 1).trim();
+  if (dims.toLowerCase() === "auto") return { quality };
+  const m = /^(\d{3,5})x(\d{3,5})$/i.exec(dims);
+  if (!m) return { quality };
+  return { quality, size: { width: Number(m[1]), height: Number(m[2]) } };
+}
+
 function buildGptImage2Recipe(prompt: string, quality: string, urls: string[]): Built {
   const model = "openai/gpt-image-2/edit";
+  const parsed = parseGptQuality(quality);
+  const imageSize: unknown = parsed.size ? { width: parsed.size.width, height: parsed.size.height } : "auto";
   const modelNodeId = "n_" + Date.now() + "_mdl";
   const importNodes = urls.map((u, i) =>
     mkImportNode("n_" + Date.now() + "_" + i, u, `ref_${i + 1}.jpg`, 100 + i * 460),
@@ -264,110 +278,128 @@ function buildGptImage2Recipe(prompt: string, quality: string, urls: string[]): 
   urls.forEach((_, i) => {
     const key = gptEditInputKey(i);
     inputHandles[key] = {
-      id: `input-${key}`,
-      type: "image",
-      label: i === 0 ? "first_frame" : key,
-      format: "text",
-      required: i === 0,
+      id: `input-${key}`, type: "image", label: i === 0 ? "first_frame" : key, format: "text", required: i === 0,
     };
     kindInputs.push([
       { id: key, title: key, validTypes: ["image"], required: i === 0 },
       { nodeId: (importNodes[i] as { id: string }).id, outputId: "file" },
     ]);
   });
-  const params = { image_urls: urls, quality, prompt };
+  const params = { image_urls: urls, quality: parsed.quality, image_size: imageSize, prompt, num_images: 1, output_format: "png" };
   const modelNode = {
-    id: modelNodeId,
-    type: "custommodelV2",
-    dragHandle: ".node-header",
-    owner: null,
-    visibility: "private",
-    isModel: true,
+    id: modelNodeId, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
     data: {
       handles: {
         input: inputHandles,
-        output: {
-          result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" },
-        },
+        output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
       },
-      name: "ChatGPT Image Edit",
+      name: "ChatGPT Images 2.0 Edit",
       color: "Red",
-      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: "ChatGPT Image Edit" },
+      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: "ChatGPT Images 2.0 Edit" },
       model: { name: model, service: "fal_imported", version: model },
-      params,
-      schema: {
-        image_urls: { type: "list", title: "image_urls", required: true },
-        prompt: { type: "string", title: "Prompt", required: true },
-        quality: {
-          type: "enum",
-          order: 0,
-          title: "Quality",
-          default: "medium",
-          options: ["low", "medium", "high"],
-        },
-      },
-      version: 3,
+      params, version: 3,
       kind: {
         type: "wildcard",
         model: { type: "predefined", name: model, version: model, service: "fal_imported" },
         inputs: kindInputs,
         parameters: [
-          [
-            {
-              id: "image_urls",
-              title: "image_urls",
-              constraint: { type: "list" },
-              defaultValue: { type: "list", value: urls },
-            },
-            { type: "value", data: { type: "list", value: urls } },
-          ],
-          [
-            {
-              id: "prompt",
-              title: "prompt",
-              constraint: { type: "string" },
-              defaultValue: { type: "string", value: prompt },
-            },
-            { type: "value", data: { type: "string", value: prompt } },
-          ],
-          [
-            {
-              id: "quality",
-              title: "quality",
-              constraint: { type: "enum" },
-              defaultValue: { type: "string", value: quality },
-            },
-            { type: "value", data: { type: "string", value: quality } },
-          ],
+          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: urls } }, { type: "value", data: { type: "list", value: urls } }],
+          [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
+          [{ id: "quality", title: "quality", constraint: { type: "enum", options: ["low", "medium", "high"] }, defaultValue: { type: "string", value: parsed.quality } }, { type: "value", data: { type: "string", value: parsed.quality } }],
+          [{ id: "image_size", title: "image_size", constraint: { type: "any" }, defaultValue: { type: parsed.size ? "object" : "string", value: imageSize } }, { type: "value", data: { type: parsed.size ? "object" : "string", value: imageSize } }],
+          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
+          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
       },
-      generations: [],
-      selectedIndex: 0,
-      cameraLocked: false,
-      result: [],
-      output: {},
-      selectedOutput: 0,
+      generations: [], selectedIndex: 0, cameraLocked: false, result: [], output: {}, selectedOutput: 0,
     },
-    position: { x: 600, y: 300 },
-    width: 460,
-    height: 500,
+    position: { x: 600, y: 300 }, width: 460, height: 500,
   };
   const edges = importNodes.map((node, i) => {
     const nodeId = (node as { id: string }).id;
     return {
       id: "e-" + mkId(),
-      source: nodeId,
-      target: modelNodeId,
+      source: nodeId, target: modelNodeId,
       sourceHandle: `${nodeId}-output-file`,
       targetHandle: `${modelNodeId}-input-${gptEditInputKey(i)}`,
       type: "custom",
-      data: {
-        sourceColor: "Yambo_Blue",
-        targetColor: "Red",
-        sourceHandleType: "any",
-        targetHandleType: "image",
+      data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" },
+    };
+  });
+  return { model, nodes: [...importNodes, modelNode], edges };
+}
+
+/** Seedream V5.0 Edit — multi-image ref (max 6). Model version dipilih via param. */
+function buildSeedreamEditRecipe(prompt: string, modelVersion: string, ratio: string, urls: string[]): Built {
+  const model = "fal-ai/bytedance/seedream/v5/edit";
+  const modelNodeId = "n_" + Date.now() + "_mdl";
+  const importNodes = urls.map((u, i) =>
+    mkImportNode("n_" + Date.now() + "_" + i, u, `ref_${i + 1}.jpg`, 100 + i * 460),
+  );
+  const inputHandles: Record<string, unknown> = {
+    prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: true },
+  };
+  const kindInputs: unknown[] = [
+    [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
+  ];
+  urls.forEach((_, i) => {
+    const key = i === 0 ? "image_1" : `image_${i + 1}`;
+    inputHandles[key] = { id: `input-${key}`, type: "image", label: key, format: "text", required: i === 0 };
+    kindInputs.push([
+      { id: key, title: key, validTypes: ["image"], required: i === 0 },
+      { nodeId: (importNodes[i] as { id: string }).id, outputId: "file" },
+    ]);
+  });
+  const validRatios = new Set(["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "21:9"]);
+  const aspectRatio = ratio && validRatios.has(ratio) ? ratio : "1:1";
+  const params = {
+    image_urls: urls, prompt,
+    model_version: modelVersion,
+    enhance_prompt_mode: "standard",
+    aspect_ratio: aspectRatio,
+    num_images: 1, output_format: "png",
+  };
+  const modelNode = {
+    id: modelNodeId, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
+    data: {
+      handles: {
+        input: inputHandles,
+        output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
       },
+      name: "Seedream V5.0 Edit", color: "Purple",
+      menu: { icon: "AutoAwesomeIcon", isModel: true, displayName: "Seedream V5.0 Edit" },
+      model: { name: model, service: "fal_imported", version: model },
+      params, version: 3,
+      kind: {
+        type: "wildcard",
+        model: { type: "predefined", name: model, version: model, service: "fal_imported" },
+        inputs: kindInputs,
+        parameters: [
+          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: urls } }, { type: "value", data: { type: "list", value: urls } }],
+          [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
+          [{ id: "model_version", title: "model_version", constraint: { type: "enum", options: ["v40", "v45", "v50", "v50-pro"] }, defaultValue: { type: "string", value: modelVersion } }, { type: "value", data: { type: "string", value: modelVersion } }],
+          [{ id: "enhance_prompt_mode", title: "enhance_prompt_mode", constraint: { type: "enum", options: ["standard", "none"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
+          [{ id: "aspect_ratio", title: "aspect_ratio", constraint: { type: "enum" }, defaultValue: { type: "string", value: aspectRatio } }, { type: "value", data: { type: "string", value: aspectRatio } }],
+          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
+          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
+        ],
+        outputs: [{ id: "result", title: "result", dataType: "image" }],
+      },
+      generations: [], selectedIndex: 0, cameraLocked: false, result: [], output: {}, selectedOutput: 0,
+    },
+    position: { x: 600 + urls.length * 40, y: 300 }, width: 460, height: 500,
+  };
+  const edges = importNodes.map((node, i) => {
+    const nodeId = (node as { id: string }).id;
+    const key = i === 0 ? "image_1" : `image_${i + 1}`;
+    return {
+      id: "e-" + mkId(),
+      source: nodeId, target: modelNodeId,
+      sourceHandle: `${nodeId}-output-file`,
+      targetHandle: `${modelNodeId}-input-${key}`,
+      type: "custom",
+      data: { sourceColor: "Yambo_Blue", targetColor: "Purple", sourceHandleType: "any", targetHandleType: "image" },
     };
   });
   return { model, nodes: [...importNodes, modelNode], edges };
@@ -478,10 +510,12 @@ export async function generateWeavyStoryboard(opts: WeavyStoryboardOpts): Promis
         uploadedUrls.push(resolveWeavyAssetUrl(up, "image"));
       }
 
-      const isNb = opts.modelKey === "nanobanana2";
-      const built = isNb
+      const mk = opts.modelKey;
+      const built = mk === "nanobanana2"
         ? buildNb2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16", uploadedUrls)
-        : buildGptImage2Recipe(opts.prompt, opts.quality || "medium", uploadedUrls);
+        : mk.startsWith("seedream-")
+          ? buildSeedreamEditRecipe(opts.prompt, mk.slice("seedream-".length) || "v50", opts.ratio || "1:1", uploadedUrls)
+          : buildGptImage2Recipe(opts.prompt, opts.quality || "high@1024x1024", uploadedUrls);
 
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
       await saveWeavyRecipe(
@@ -543,10 +577,12 @@ export async function generateWeavyEdit(opts: WeavyEditOpts): Promise<string> {
         uploadedUrls.push(resolveWeavyAssetUrl(up, "image"));
       }
 
-      const isNb = opts.modelKey === "nanobanana2";
-      const built = isNb
+      const mk = opts.modelKey;
+      const built = mk === "nanobanana2"
         ? buildNb2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16", uploadedUrls)
-        : buildGptImage2Recipe(opts.prompt, opts.quality || "medium", uploadedUrls);
+        : mk.startsWith("seedream-")
+          ? buildSeedreamEditRecipe(opts.prompt, mk.slice("seedream-".length) || "v50", opts.ratio || "1:1", uploadedUrls)
+          : buildGptImage2Recipe(opts.prompt, opts.quality || "high@1024x1024", uploadedUrls);
 
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
       await saveWeavyRecipe(

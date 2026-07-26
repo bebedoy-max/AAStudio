@@ -35,12 +35,24 @@ export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">
       ratios: RATIOS_STD,
     },
     {
+      // Nama & param mengikuti node "ChatGPT Images 2.0" di web weavy.com.
+      // Value quality diencode "quality@WIDTHxHEIGHT" — provider akan split-kan.
       key: "gptimage2",
-      label: "Image GPT 2 (Weavy)",
+      label: "ChatGPT Images 2.0 (Weavy)",
       qualities: [
-        { v: "low", label: "Low (~15 cr)" },
-        { v: "medium", label: "Medium (~36 cr)" },
-        { v: "high", label: "High (~60 cr)" },
+        { v: "low@1024x1024",   label: "1024² · Low (~5 cr)" },
+        { v: "medium@1024x1024",label: "1024² · Medium (~11 cr)" },
+        { v: "high@1024x1024",  label: "1024² · High (~20 cr)" },
+        { v: "medium@1536x1024",label: "1536×1024 · Medium (~13 cr)" },
+        { v: "high@1536x1024",  label: "1536×1024 · High (~24 cr)" },
+        { v: "medium@1024x1536",label: "1024×1536 · Medium (~13 cr)" },
+        { v: "high@1024x1536",  label: "1024×1536 · High (~24 cr)" },
+        { v: "medium@2048x2048",label: "2048² · Medium (~17 cr)" },
+        { v: "high@2048x2048",  label: "2048² · High (~30 cr)" },
+        { v: "high@2048x1152",  label: "2048×1152 · High (~24 cr)" },
+        { v: "high@3840x2160",  label: "3840×2160 · High (~37 cr)" },
+        { v: "high@2160x3840",  label: "2160×3840 · High (~37 cr)" },
+        { v: "high@auto",       label: "Auto · High (~20 cr)" },
       ],
       ratios: ["1:1", "9:16", "16:9"],
     },
@@ -107,7 +119,7 @@ export type GenerateImageOpts = {
   prompt: string;
   quality: string;
   ratio: string;
-  onProgress?: (msg: string) => void;
+  onProgress?: (msg: string, pct?: number) => void;
   onRotate?: (nextIndex: number, total: number, reason: string) => void;
 };
 
@@ -115,12 +127,13 @@ export type GenerateImageOpts = {
 export async function generateImageWithProvider(opts: GenerateImageOpts): Promise<string> {
   if (opts.provider === "weavy") {
     const { generateWeavyImage } = await import("./weavy-image");
-    opts.onProgress?.("Weavy: submit recipe…");
+    opts.onProgress?.("Weavy: submit recipe…", 5);
     return generateWeavyImage({
       modelKey: opts.modelKey,
       prompt: opts.prompt,
       quality: opts.quality,
       ratio: opts.ratio,
+      onProgress: (m, p) => opts.onProgress?.(m, p),
     });
   }
   if (opts.provider === "framia") {

@@ -159,6 +159,9 @@ function LeonardoPage() {
   const [num, setNum] = useState("1");
   const [busy, setBusy] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
+  const [status, setStatus] = useState<{ show: boolean; text: string; pct: number; time: string }>({
+    show: false, text: "", pct: 0, time: "0:00",
+  });
   const [images, setImages] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [keyCount, setKeyCount] = useState(0);
@@ -243,8 +246,20 @@ function LeonardoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genModelKey, imgProvider]);
 
-  const log = (m: string) =>
+  const log = (m: string, pct?: number) => {
     setLogs((prev) => [`${new Date().toLocaleTimeString()} — ${m}`, ...prev].slice(0, 40));
+    setStatus((s) => ({ ...s, text: m, pct: pct != null ? pct : s.pct }));
+  };
+
+  const startStatus = (text: string) => {
+    const start = Date.now();
+    setStatus({ show: true, text, pct: 5, time: "0:00" });
+    const tick = setInterval(() => {
+      const el = Math.floor((Date.now() - start) / 1000);
+      setStatus((s) => ({ ...s, time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}` }));
+    }, 1000);
+    return () => clearInterval(tick);
+  };
 
   const generateWithRoutedProvider = async () => {
     if (!prompt.trim() || !activeGenModel || imgProvider === "leonardo") return;
@@ -252,6 +267,7 @@ function LeonardoPage() {
     setError(null);
     setImages([]);
     setLogs([]);
+    const stopTick = startStatus("Memulai…");
     try {
       const count = Number(num) || 1;
       const out: string[] = [];
@@ -269,12 +285,15 @@ function LeonardoPage() {
         out.push(url);
         setImages([...out]);
       }
-      log(`✅ Selesai — ${out.length} gambar`);
+      log(`✅ Selesai — ${out.length} gambar`, 100);
+      setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
-      log(`❌ ${msg}`);
+      log(`❌ ${msg}`, 100);
+      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
     } finally {
+      stopTick();
       setBusy(false);
     }
   };
@@ -328,6 +347,7 @@ function LeonardoPage() {
     setError(null);
     setImages([]);
     setLogs([]);
+    const stopTick = startStatus("Leonardo: submit…");
     try {
       const { images } = await generateLeonardoImages(
         {
@@ -341,17 +361,20 @@ function LeonardoPage() {
           promptEnhance,
         },
         {
-          onProgress: log,
+          onProgress: (m) => log(m),
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         },
       );
       setImages(images);
-      log(`✅ Selesai — ${images.length} gambar`);
+      log(`✅ Selesai — ${images.length} gambar`, 100);
+      setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
-      log(`❌ ${msg}`);
+      log(`❌ ${msg}`, 100);
+      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
     } finally {
+      stopTick();
       setBusy(false);
     }
   };
@@ -361,6 +384,7 @@ function LeonardoPage() {
     setBusy(true);
     setError(null);
     setLogs([]);
+    const stopTick = startStatus("Leonardo Video: submit…");
     try {
       const tierLabel = activeVidModel.sizeTiers.find((t) => t.id === vidTierId)?.label ?? vidTierId;
       log(`Submit ${activeVidModel.label} (${tierLabel} · ${vidDuration}s · ${vidAspect})`);
@@ -375,12 +399,15 @@ function LeonardoPage() {
         onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
       });
       setVideos((v) => [url, ...v]);
-      log(`✅ Video siap`);
+      log(`✅ Video siap`, 100);
+      setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
-      log(`❌ ${msg}`);
+      log(`❌ ${msg}`, 100);
+      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
     } finally {
+      stopTick();
       setBusy(false);
     }
   };
@@ -568,6 +595,17 @@ function LeonardoPage() {
           </div>
 
           <div className="neumorph rounded-xl p-4 space-y-3">
+            {status.show && (
+              <div className="rounded-lg border border-border/70 bg-card/40 p-2">
+                <div className="flex justify-between items-center text-[11px] mb-1">
+                  <span className="text-foreground">{status.text}</span>
+                  <span className="font-mono text-muted-foreground">{status.time}</span>
+                </div>
+                <div className="h-1 rounded-full bg-border overflow-hidden">
+                  <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }} />
+                </div>
+              </div>
+            )}
             <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Log Proses
             </div>
@@ -666,6 +704,17 @@ function LeonardoPage() {
           </div>
 
           <div className="neumorph rounded-xl p-4 space-y-3">
+            {status.show && (
+              <div className="rounded-lg border border-border/70 bg-card/40 p-2">
+                <div className="flex justify-between items-center text-[11px] mb-1">
+                  <span className="text-foreground">{status.text}</span>
+                  <span className="font-mono text-muted-foreground">{status.time}</span>
+                </div>
+                <div className="h-1 rounded-full bg-border overflow-hidden">
+                  <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }} />
+                </div>
+              </div>
+            )}
             <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Log Proses
             </div>
@@ -803,6 +852,17 @@ function LeonardoPage() {
         </div>
 
         <div className="neumorph rounded-xl p-4 space-y-3">
+          {status.show && (
+            <div className="rounded-lg border border-border/70 bg-card/40 p-2">
+              <div className="flex justify-between items-center text-[11px] mb-1">
+                <span className="text-foreground">{status.text}</span>
+                <span className="font-mono text-muted-foreground">{status.time}</span>
+              </div>
+              <div className="h-1 rounded-full bg-border overflow-hidden">
+                <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }} />
+              </div>
+            </div>
+          )}
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
             Log Proses
           </div>
