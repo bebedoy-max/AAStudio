@@ -60,6 +60,7 @@ export const Route = createFileRoute("/api/public/leonardo-upload")({
               Accept: "application/json, text/plain, */*",
               Origin: "https://app.leonardo.ai",
               Referer: "https://app.leonardo.ai/",
+              "X-Leo-Schema-Version": "1.244.1",
               "User-Agent":
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
             },

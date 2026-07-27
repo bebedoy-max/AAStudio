@@ -958,9 +958,7 @@ function BrainPane() {
 
 /* ============ WEAVY (refresh token pool) ============ */
 function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
-  const [token, setToken] = useState("");
   const [bulkTokenText, setBulkTokenText] = useState("");
-  const [mode, setMode] = useState<"single" | "bulk">("bulk");
   const [list, setList] = useState<WeavyTok[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
@@ -1145,17 +1143,13 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
     });
   };
 
-  const connect = async () => {
-    if (!token.trim()) return;
-    await tambahTokens([token.trim()]);
-    setToken("");
-  };
   const importBulkInline = async () => {
     const tokens = parseBulkTokens(bulkTokenText);
     if (!tokens.length) return;
     await tambahTokens(tokens);
     setBulkTokenText("");
   };
+
 
   const remove = (id: string) => {
     const next = list.filter((t) => t.id !== id);
@@ -1233,52 +1227,21 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 
   return (
     <>
-      <div className="flex gap-1 rounded-full bg-card/40 border border-border p-1 w-fit">
-        {(["single", "bulk"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={[
-              "px-3 py-1 rounded-full text-xs font-medium transition",
-              mode === m ? "text-primary-foreground glow-pink" : "text-muted-foreground hover:text-foreground",
-            ].join(" ")}
-            style={mode === m ? { background: "var(--gradient-neon)" } : undefined}
-          >
-            {m === "single" ? "Single Token" : "Bulk Input"}
-          </button>
-        ))}
-      </div>
-
-      {mode === "single" ? (
-        <div className="flex gap-2">
-          <Input
-            type="password"
-            placeholder="Paste refresh token..."
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-          <PrimaryButton onClick={connect} disabled={!token.trim() || busy}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        </div>
-      ) : (
-        <Field label="Bulk Refresh Tokens (satu per baris atau pisah koma)">
-          <Textarea
-            rows={7}
-            value={bulkTokenText}
-            onChange={(e) => setBulkTokenText(e.target.value)}
-            placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
-            className="font-mono text-xs"
-          />
-        </Field>
-      )}
+      <Field label="Refresh Tokens (satu per baris atau pisah koma)">
+        <Textarea
+          rows={7}
+          value={bulkTokenText}
+          onChange={(e) => setBulkTokenText(e.target.value)}
+          placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
+          className="font-mono text-xs"
+        />
+      </Field>
 
       <div className="flex gap-2 flex-wrap">
-        {mode === "bulk" && (
-          <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        )}
+        <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
+        </PrimaryButton>
+
         <GhostButton onClick={onOpenImport} className="w-full sm:w-auto"><Upload className="h-3.5 w-3.5" /> Import dari File</GhostButton>
         <GhostButton onClick={checkAll} disabled={list.length === 0 || busy}>
           <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
@@ -1354,20 +1317,17 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 /* ============ Wavespeed / Magnific reusable ============ */
 function ProviderKeyPane({
   lsKey,
-  singlePlaceholder,
   bulkPlaceholder,
   helper,
   provider,
 }: {
   lsKey: string;
-  singlePlaceholder: string;
+  singlePlaceholder?: string;
   bulkPlaceholder: string;
   helper: string;
   provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 }) {
-  const [k, setK] = useState("");
   const [bulk, setBulk] = useState("");
-  const [mode, setMode] = useState<"single" | "bulk">("single");
   const [list, setList] = useState<SimpleKey[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -1526,14 +1486,14 @@ function ProviderKeyPane({
   };
 
   const tambah = async () => {
-    const raw = mode === "single" ? (k.trim() ? [k.trim()] : []) : parseBulk(bulk);
+    const raw = parseBulk(bulk);
     if (raw.length === 0) return;
     setBusy(true);
     const existing = new Set(list.map((x) => x.key));
     const dedup = Array.from(new Set(raw)).filter((key) => !existing.has(key));
     if (dedup.length === 0) {
       setStatus("Semua key sudah tersimpan");
-      setK(""); setBulk(""); setBusy(false);
+      setBulk(""); setBusy(false);
       return;
     }
     const badFormat = dedup.filter((key) => !isValidFormat(key));
@@ -1553,7 +1513,7 @@ function ProviderKeyPane({
     const merged = [...list, ...added];
     persist(merged);
     setProgress({ show: false, pct: 0, text: "" });
-    setK(""); setBulk("");
+    setBulk("");
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
     const summary = provider === "wavespeed"
       ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
@@ -1674,27 +1634,12 @@ function ProviderKeyPane({
   const total = list.reduce((a, x) => a + (x.balance ?? 0), 0);
   const activeCount = list.filter((x) => x.status === "active").length;
   const hasStored = list.length > 0;
-  const canAdd = (mode === "single" ? k.trim().length > 0 : bulk.trim().length > 0) && !busy;
+  const canAdd = bulk.trim().length > 0 && !busy;
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-full bg-card/40 border border-border p-1 w-fit">
-          {(["single", "bulk"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={[
-                "px-3 py-1 rounded-full text-xs font-medium transition",
-                mode === m ? "text-primary-foreground glow-pink" : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-              style={mode === m ? { background: "var(--gradient-neon)" } : undefined}
-            >
-              {m === "single" ? "Single" : "Bulk"}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>Active: <b className="text-emerald-400">{activeCount}</b>/{list.length}</span>
           {provider === "wavespeed" && (
             <span>Total: <b className="text-emerald-400">${total.toFixed(2)}</b></span>
@@ -1702,33 +1647,21 @@ function ProviderKeyPane({
         </div>
       </div>
 
-      {mode === "single" ? (
-        <div className="flex gap-2">
-          <Input type="password" placeholder={singlePlaceholder} value={k} onChange={(e) => setK(e.target.value)} />
-          <PrimaryButton onClick={tambah} disabled={!canAdd}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        </div>
-      ) : (
-        <>
-          <Field label="Bulk API Keys (satu per baris atau pisah koma)">
-            <Textarea
-              rows={5}
-              value={bulk}
-              onChange={(e) => setBulk(e.target.value)}
-              placeholder={bulkPlaceholder}
-              className="font-mono text-xs"
-            />
-          </Field>
-        </>
-      )}
+      <Field label="API Keys (satu per baris atau pisah koma)">
+        <Textarea
+          rows={5}
+          value={bulk}
+          onChange={(e) => setBulk(e.target.value)}
+          placeholder={bulkPlaceholder}
+          className="font-mono text-xs"
+        />
+      </Field>
 
       <div className="flex gap-2 flex-wrap">
-        {mode === "bulk" && (
-          <PrimaryButton onClick={tambah} disabled={!canAdd}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        )}
+        <PrimaryButton onClick={tambah} disabled={!canAdd}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
+        </PrimaryButton>
+
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
           <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
         </GhostButton>
