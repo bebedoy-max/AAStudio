@@ -43,16 +43,21 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
 import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
 import { Route as AiInfluencerPlannerRouteImport } from './routes/ai-influencer.planner'
+import { Route as AiInfluencerNewRouteImport } from './routes/ai-influencer.new'
 import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.library'
 import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
+import { Route as AiInfluencerIdRouteImport } from './routes/ai-influencer.$id'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
+import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminContactRouteImport } from './routes/admin.contact'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
+import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
 import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
 import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
 import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
@@ -256,6 +261,11 @@ const AiInfluencerPlannerRoute = AiInfluencerPlannerRouteImport.update({
   path: '/planner',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
+const AiInfluencerNewRoute = AiInfluencerNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
 const AiInfluencerLibraryRoute = AiInfluencerLibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -276,9 +286,19 @@ const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
+const AiInfluencerIdRoute = AiInfluencerIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
 const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
+  id: '/token-bank',
+  path: '/token-bank',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminRequestsRoute = AdminRequestsRouteImport.update({
@@ -289,6 +309,11 @@ const AdminRequestsRoute = AdminRequestsRouteImport.update({
 const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   id: '/payments',
   path: '/payments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminContactRoute = AdminContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminActivityLogRoute = AdminActivityLogRouteImport.update({
@@ -304,6 +329,11 @@ const AdminAccessRoute = AdminAccessRouteImport.update({
 const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
   id: '/api/router/voice',
   path: '/api/router/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterVideoRoute = ApiRouterVideoRouteImport.update({
+  id: '/api/router/video',
+  path: '/api/router/video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRouterSubtitleRoute = ApiRouterSubtitleRouteImport.update({
@@ -482,13 +512,17 @@ export interface FileRoutesByFullPath {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
+  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -546,6 +580,7 @@ export interface FileRoutesByFullPath {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
@@ -558,13 +593,17 @@ export interface FileRoutesByTo {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
+  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -622,6 +661,7 @@ export interface FileRoutesByTo {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
@@ -637,13 +677,17 @@ export interface FileRoutesById {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
+  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -701,6 +745,7 @@ export interface FileRoutesById {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
@@ -717,13 +762,17 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/requests'
+    | '/admin/token-bank'
     | '/admin/transactions'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -781,6 +830,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
@@ -793,13 +843,17 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/requests'
+    | '/admin/token-bank'
     | '/admin/transactions'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -857,6 +911,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
@@ -871,13 +926,17 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/requests'
+    | '/admin/token-bank'
     | '/admin/transactions'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -935,6 +994,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
@@ -995,6 +1055,7 @@ export interface RootRouteChildren {
   ApiRouterRenderCloudRoute: typeof ApiRouterRenderCloudRoute
   ApiRouterSttRoute: typeof ApiRouterSttRoute
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
+  ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
@@ -1241,6 +1302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiInfluencerPlannerRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
+    '/ai-influencer/new': {
+      id: '/ai-influencer/new'
+      path: '/new'
+      fullPath: '/ai-influencer/new'
+      preLoaderRoute: typeof AiInfluencerNewRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
     '/ai-influencer/library': {
       id: '/ai-influencer/library'
       path: '/library'
@@ -1269,11 +1337,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
+    '/ai-influencer/$id': {
+      id: '/ai-influencer/$id'
+      path: '/$id'
+      fullPath: '/ai-influencer/$id'
+      preLoaderRoute: typeof AiInfluencerIdRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
     '/admin/transactions': {
       id: '/admin/transactions'
       path: '/transactions'
       fullPath: '/admin/transactions'
       preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/token-bank': {
+      id: '/admin/token-bank'
+      path: '/token-bank'
+      fullPath: '/admin/token-bank'
+      preLoaderRoute: typeof AdminTokenBankRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/requests': {
@@ -1288,6 +1370,13 @@ declare module '@tanstack/react-router' {
       path: '/payments'
       fullPath: '/admin/payments'
       preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/contact': {
+      id: '/admin/contact'
+      path: '/contact'
+      fullPath: '/admin/contact'
+      preLoaderRoute: typeof AdminContactRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/activity-log': {
@@ -1309,6 +1398,13 @@ declare module '@tanstack/react-router' {
       path: '/api/router/voice'
       fullPath: '/api/router/voice'
       preLoaderRoute: typeof ApiRouterVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/video': {
+      id: '/api/router/video'
+      path: '/api/router/video'
+      fullPath: '/api/router/video'
+      preLoaderRoute: typeof ApiRouterVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/router/subtitle': {
@@ -1541,8 +1637,10 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminActivityLogRoute: typeof AdminActivityLogRoute
+  AdminContactRoute: typeof AdminContactRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
+  AdminTokenBankRoute: typeof AdminTokenBankRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -1550,8 +1648,10 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminActivityLogRoute: AdminActivityLogRoute,
+  AdminContactRoute: AdminContactRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
+  AdminTokenBankRoute: AdminTokenBankRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -1559,20 +1659,24 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AiInfluencerRouteChildren {
+  AiInfluencerIdRoute: typeof AiInfluencerIdRoute
   AiInfluencerAnalyticsRoute: typeof AiInfluencerAnalyticsRoute
   AiInfluencerBrainRoute: typeof AiInfluencerBrainRoute
   AiInfluencerCharacterRoute: typeof AiInfluencerCharacterRoute
   AiInfluencerLibraryRoute: typeof AiInfluencerLibraryRoute
+  AiInfluencerNewRoute: typeof AiInfluencerNewRoute
   AiInfluencerPlannerRoute: typeof AiInfluencerPlannerRoute
   AiInfluencerPublisherRoute: typeof AiInfluencerPublisherRoute
   AiInfluencerIndexRoute: typeof AiInfluencerIndexRoute
 }
 
 const AiInfluencerRouteChildren: AiInfluencerRouteChildren = {
+  AiInfluencerIdRoute: AiInfluencerIdRoute,
   AiInfluencerAnalyticsRoute: AiInfluencerAnalyticsRoute,
   AiInfluencerBrainRoute: AiInfluencerBrainRoute,
   AiInfluencerCharacterRoute: AiInfluencerCharacterRoute,
   AiInfluencerLibraryRoute: AiInfluencerLibraryRoute,
+  AiInfluencerNewRoute: AiInfluencerNewRoute,
   AiInfluencerPlannerRoute: AiInfluencerPlannerRoute,
   AiInfluencerPublisherRoute: AiInfluencerPublisherRoute,
   AiInfluencerIndexRoute: AiInfluencerIndexRoute,
@@ -1667,6 +1771,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterRenderCloudRoute: ApiRouterRenderCloudRoute,
   ApiRouterSttRoute: ApiRouterSttRoute,
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
+  ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
