@@ -57,7 +57,6 @@ export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">
       ratios: ["1:1", "9:16", "16:9"],
     },
     {
-<<<<<<< HEAD
       key: "seedream-v50-pro",
       label: "Seedream V5.0 Pro (Weavy)",
       qualities: [
@@ -68,29 +67,6 @@ export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">
         { v: "auto_2K",         label: "Auto 2K (12 cr)" },
         { v: "auto_3K",         label: "Auto 3K (12 cr)" },
       ],
-=======
-      key: "seedream-v40",
-      label: "Seedream V4.0 (Weavy)",
-      qualities: [{ v: "default", label: "Standard" }],
-      ratios: RATIOS_STD,
-    },
-    {
-      key: "seedream-v45",
-      label: "Seedream V4.5 (Weavy)",
-      qualities: [{ v: "default", label: "Standard" }],
-      ratios: RATIOS_STD,
-    },
-    {
-      key: "seedream-v50",
-      label: "Seedream V5.0 (Weavy)",
-      qualities: [{ v: "default", label: "Standard" }],
-      ratios: RATIOS_STD,
-    },
-    {
-      key: "seedream-v50-pro",
-      label: "Seedream V5.0 Pro (Weavy)",
-      qualities: [{ v: "default", label: "Standard" }],
->>>>>>> 50b55a82d0092548ee46ab2d11985444126759b6
       ratios: RATIOS_STD,
     },
   ],
