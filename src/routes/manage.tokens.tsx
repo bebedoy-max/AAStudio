@@ -1427,11 +1427,14 @@ function ProviderKeyPane({
               updated = { ...x, balance: null, status: "failed", note: chk.message };
             } else {
               const bal = await fetchLeonardoBalance(x.key);
+              const breakdown = bal.ok
+                ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
+                : bal.message;
               updated = {
                 ...x,
                 balance: bal.balance,
                 status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-                note: bal.ok ? chk.email || bal.email : bal.message,
+                note: breakdown,
               };
             }
           } else {
@@ -1506,12 +1509,15 @@ function ProviderKeyPane({
       const chk = await checkLeonardoToken(key);
       if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
       const bal = await fetchLeonardoBalance(key);
+      const breakdown = bal.ok
+        ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
+        : bal.message;
       return {
         id: uid(),
         key,
         balance: bal.balance,
         status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-        note: chk.email || bal.email || bal.message,
+        note: breakdown,
       };
     }
 
@@ -1623,7 +1629,9 @@ function ProviderKeyPane({
             ...x,
             balance: bal.balance,
             status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-            note: chk.email || bal.email || bal.message,
+            note: bal.ok
+              ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
+              : bal.message,
           };
         }
       } else {
@@ -1745,27 +1753,34 @@ function ProviderKeyPane({
 
       <div className="flex flex-col gap-2">
         {list.map((x) => (
-          <div key={x.id} className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
-            <span
-              className={[
-                "h-2.5 w-2.5 rounded-full shrink-0",
-                x.status === "active" ? "bg-emerald-400" : x.status === "empty" ? "bg-rose-400" : x.status === "failed" ? "bg-red-500" : "bg-amber-400",
-              ].join(" ")}
-              title={x.status}
-            />
-            <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 12)}…{x.key.slice(-4)}</div>
-            <div className="text-emerald-400 font-semibold whitespace-nowrap">
-              {provider === "wavespeed"
-                ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
-                : provider === "framia" || provider === "roboneo" || provider === "leonardo"
-                  ? x.balance == null
-                    ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
-                    : `${x.balance.toLocaleString()} cr`
-                  : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+          <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span
+                className={[
+                  "h-2.5 w-2.5 rounded-full shrink-0",
+                  x.status === "active" ? "bg-emerald-400" : x.status === "empty" ? "bg-rose-400" : x.status === "failed" ? "bg-red-500" : "bg-amber-400",
+                ].join(" ")}
+                title={x.status}
+              />
+              <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 12)}…{x.key.slice(-4)}</div>
+              <div className="text-emerald-400 font-semibold whitespace-nowrap">
+                {provider === "wavespeed"
+                  ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
+                  : provider === "framia" || provider === "roboneo" || provider === "leonardo"
+                    ? x.balance == null
+                      ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
+                      : `${x.balance.toLocaleString()} cr`
+                    : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+              </div>
+              <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
+                <Trash2 className="h-3.5 w-3.5" /> Hapus
+              </button>
             </div>
-            <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
-              <Trash2 className="h-3.5 w-3.5" /> Hapus
-            </button>
+            {x.note && (
+              <div className="pl-4 text-[10px] text-muted-foreground/80 truncate" title={x.note}>
+                {x.note}
+              </div>
+            )}
           </div>
         ))}
         {list.length === 0 && <div className="text-[11px] text-muted-foreground italic px-1">Belum ada key.</div>}

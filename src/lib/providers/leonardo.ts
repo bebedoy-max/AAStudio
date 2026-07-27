@@ -157,17 +157,39 @@ export async function leonardoFetch<T = unknown>(opts: ProxyOpts): Promise<T> {
 
 /* ---------------------- account / balance (GraphQL) --------------------- */
 
-const USER_DETAILS_QUERY = `query GetUserDetails {
-  users {
+const USER_DETAILS_QUERY = `query GetUserTokensFromSub($sub: String) {
+  user_details(where: {cognitoId: {_eq: $sub}}) {
     id
-    username
+    plan
+    auth0Email
+    tokenRenewalDate
+    streamTokens
+    paidTokens
     subscriptionTokens
+    rolloverTokens
     subscriptionGptTokens
     subscriptionModelTokens
-    email: email
-    user {
-      email
-    }
+    apiCredit
+    apiSubscriptionTokens
+    apiPaidTokens
+  }
+}`;
+
+const USER_DETAILS_FALLBACK_QUERY = `query GetUserDetails {
+  user_details {
+    id
+    plan
+    auth0Email
+    tokenRenewalDate
+    streamTokens
+    paidTokens
+    subscriptionTokens
+    rolloverTokens
+    subscriptionGptTokens
+    subscriptionModelTokens
+    apiCredit
+    apiSubscriptionTokens
+    apiPaidTokens
   }
 }`;
 
@@ -175,21 +197,35 @@ export type LeonardoUser = {
   id?: string;
   username?: string;
   email?: string;
-  subscriptionTokens?: number;
-  subscriptionGptTokens?: number;
-  subscriptionModelTokens?: number;
+  auth0Email?: string;
+  tokenRenewalDate?: string;
+  plan?: string;
+  streamTokens?: number | null;
+  paidTokens?: number | null;
+  subscriptionTokens?: number | null;
+  rolloverTokens?: number | null;
+  subscriptionGptTokens?: number | null;
+  subscriptionModelTokens?: number | null;
+  apiCredit?: number | null;
+  apiSubscriptionTokens?: number | null;
+  apiPaidTokens?: number | null;
 };
 
 export async function fetchLeonardoUser(token: string): Promise<LeonardoUser | null> {
-  const data = await leonardoFetch<{ data?: { users?: LeonardoUser[] } }>({
+  const payload = decodeLeonardoJwt(token);
+  const sub = payload?.sub;
+  const data = await leonardoFetch<{ data?: { user_details?: LeonardoUser[] } }>({
     token,
     base: "api",
     path: "/v1/graphql",
     method: "POST",
-    body: { query: USER_DETAILS_QUERY, operationName: "GetUserDetails" },
+    body: sub
+      ? { query: USER_DETAILS_QUERY, operationName: "GetUserTokensFromSub", variables: { sub } }
+      : { query: USER_DETAILS_FALLBACK_QUERY, operationName: "GetUserDetails" },
   });
-  const u = data?.data?.users?.[0];
-  return u ?? null;
+  const u = data?.data?.user_details?.[0];
+  if (!u) return null;
+  return { ...u, email: u.auth0Email };
 }
 
 export async function checkLeonardoToken(
@@ -208,14 +244,42 @@ export async function checkLeonardoToken(
 
 export async function fetchLeonardoBalance(
   token: string,
-): Promise<{ ok: boolean; balance: number | null; message?: string; email?: string }> {
+): Promise<{
+  ok: boolean;
+  balance: number | null;
+  fastTokens?: number | null;
+  rolloverTokens?: number | null;
+  gptTokens?: number | null;
+  modelTokens?: number | null;
+  paidTokens?: number | null;
+  apiCredit?: number | null;
+  renewalDate?: string;
+  message?: string;
+  email?: string;
+}> {
   try {
     const u = await fetchLeonardoUser(token);
-    const bal =
-      typeof u?.subscriptionTokens === "number"
-        ? u.subscriptionTokens
-        : null;
-    return { ok: true, balance: bal, email: u?.email || u?.username };
+    if (!u) return { ok: false, balance: null, message: "user_details kosong" };
+    const subscription = typeof u.subscriptionTokens === "number" ? u.subscriptionTokens : null;
+    const rollover = typeof u.rolloverTokens === "number" ? u.rolloverTokens : null;
+    const gpt = typeof u.subscriptionGptTokens === "number" ? u.subscriptionGptTokens : null;
+    const model = typeof u.subscriptionModelTokens === "number" ? u.subscriptionModelTokens : null;
+    const paid = typeof u.paidTokens === "number" ? u.paidTokens : null;
+    const apiCr = typeof u.apiCredit === "number" ? u.apiCredit : null;
+    const parts = [subscription, rollover].filter((v): v is number => typeof v === "number");
+    const total = parts.length ? parts.reduce((a, b) => a + b, 0) : null;
+    return {
+      ok: true,
+      balance: total,
+      fastTokens: subscription,
+      rolloverTokens: rollover,
+      gptTokens: gpt,
+      modelTokens: model,
+      paidTokens: paid,
+      apiCredit: apiCr,
+      renewalDate: u.tokenRenewalDate,
+      email: u.email || u.auth0Email,
+    };
   } catch (e) {
     return { ok: false, balance: null, message: (e as Error).message };
   }
