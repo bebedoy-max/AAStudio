@@ -84,6 +84,9 @@ import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/c
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
+import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
+import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
+import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
 const ReffEditRoute = ReffEditRouteImport.update({
@@ -466,6 +469,23 @@ const ApiPublicMidtransNotificationRoute =
     path: '/api/public/midtrans/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicExtensionRefreshRoute =
+  ApiPublicExtensionRefreshRouteImport.update({
+    id: '/api/public/extension/refresh',
+    path: '/api/public/extension/refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicExtensionPushTokenRoute =
+  ApiPublicExtensionPushTokenRouteImport.update({
+    id: '/api/public/extension/push-token',
+    path: '/api/public/extension/push-token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicExtensionLoginRoute = ApiPublicExtensionLoginRouteImport.update({
+  id: '/api/public/extension/login',
+  path: '/api/public/extension/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicDokuNotificationRoute =
   ApiPublicDokuNotificationRouteImport.update({
     id: '/api/public/doku/notification',
@@ -548,6 +568,9 @@ export interface FileRoutesByFullPath {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
+  '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
+  '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
@@ -624,6 +647,9 @@ export interface FileRoutesByTo {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
+  '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
+  '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
@@ -703,6 +729,9 @@ export interface FileRoutesById {
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
+  '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
+  '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
@@ -783,6 +812,9 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/voice'
     | '/api/public/doku/notification'
+    | '/api/public/extension/login'
+    | '/api/public/extension/push-token'
+    | '/api/public/extension/refresh'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
   fileRoutesByTo: FileRoutesByTo
@@ -859,6 +891,9 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/voice'
     | '/api/public/doku/notification'
+    | '/api/public/extension/login'
+    | '/api/public/extension/push-token'
+    | '/api/public/extension/refresh'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
   id:
@@ -937,6 +972,9 @@ export interface FileRouteTypes {
     | '/api/router/subtitle'
     | '/api/router/voice'
     | '/api/public/doku/notification'
+    | '/api/public/extension/login'
+    | '/api/public/extension/push-token'
+    | '/api/public/extension/refresh'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
   fileRoutesById: FileRoutesById
@@ -997,6 +1035,9 @@ export interface RootRouteChildren {
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
+  ApiPublicExtensionLoginRoute: typeof ApiPublicExtensionLoginRoute
+  ApiPublicExtensionPushTokenRoute: typeof ApiPublicExtensionPushTokenRoute
+  ApiPublicExtensionRefreshRoute: typeof ApiPublicExtensionRefreshRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
 }
@@ -1528,6 +1569,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/extension/refresh': {
+      id: '/api/public/extension/refresh'
+      path: '/api/public/extension/refresh'
+      fullPath: '/api/public/extension/refresh'
+      preLoaderRoute: typeof ApiPublicExtensionRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/extension/push-token': {
+      id: '/api/public/extension/push-token'
+      path: '/api/public/extension/push-token'
+      fullPath: '/api/public/extension/push-token'
+      preLoaderRoute: typeof ApiPublicExtensionPushTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/extension/login': {
+      id: '/api/public/extension/login'
+      path: '/api/public/extension/login'
+      fullPath: '/api/public/extension/login'
+      preLoaderRoute: typeof ApiPublicExtensionLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/doku/notification': {
       id: '/api/public/doku/notification'
       path: '/api/public/doku/notification'
@@ -1669,6 +1731,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
+  ApiPublicExtensionLoginRoute: ApiPublicExtensionLoginRoute,
+  ApiPublicExtensionPushTokenRoute: ApiPublicExtensionPushTokenRoute,
+  ApiPublicExtensionRefreshRoute: ApiPublicExtensionRefreshRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
 }

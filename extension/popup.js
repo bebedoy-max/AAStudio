@@ -1,37 +1,81 @@
 const $ = (id) => document.getElementById(id);
-const statusEl = $("status");
-const tokenEl = $("token");
-const grabBtn = $("grab");
-const copyBtn = $("copy");
-const sendBtn = $("send");
-const appUrlEl = $("appUrl");
+const PROVIDERS = self.AA_PROVIDERS;
 
-const setStatus = (msg, cls = "muted") => {
-  statusEl.className = "status " + cls;
-  statusEl.textContent = msg;
-};
-
-chrome.storage.local.get(["appUrl", "lastToken"], (r) => {
-  if (r.appUrl) appUrlEl.value = r.appUrl;
-  if (r.lastToken) {
-    tokenEl.value = r.lastToken;
-    copyBtn.disabled = false;
-    sendBtn.disabled = false;
-  }
+/* ------------------------------ tab switcher ------------------------------ */
+document.querySelectorAll(".tabs button").forEach((b) => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    $("tab-grab").style.display = b.dataset.tab === "grab" ? "flex" : "none";
+    $("tab-account").style.display = b.dataset.tab === "account" ? "flex" : "none";
+    if (b.dataset.tab === "account") renderAccount();
+  });
 });
-appUrlEl.addEventListener("change", () => chrome.storage.local.set({ appUrl: appUrlEl.value.trim() }));
 
-// ============================================================
-// Runs INSIDE the app.leonardo.ai tab.
-// Leonardo uses Firebase Auth -> tokens live in IndexedDB
-// (firebaseLocalStorageDb) and are injected in Authorization
-// headers, NOT in localStorage/cookies.
-// ============================================================
-async function extractToken() {
+/* ------------------------------- provider UI ------------------------------ */
+const providerSel = $("provider");
+for (const p of PROVIDERS) {
+  const o = document.createElement("option");
+  o.value = p.id;
+  o.textContent = p.label;
+  providerSel.appendChild(o);
+}
+
+function currentProvider() {
+  return PROVIDERS.find((p) => p.id === providerSel.value) ?? PROVIDERS[0];
+}
+
+function setStatus(msg, cls = "muted", el = "status") {
+  const s = $(el);
+  s.className = "status " + cls;
+  s.textContent = msg;
+}
+
+async function refreshProviderUI() {
+  const p = currentProvider();
+  $("provider-hint").textContent = p.hint;
+  const cap = (await chrome.storage.local.get(`captured::${p.id}`))[`captured::${p.id}`];
+  if (cap?.token) {
+    $("token").value = cap.token;
+    $("copy").disabled = false;
+    $("push").disabled = false;
+    setStatus(`Token siap (${cap.source}).`, "ok");
+  } else {
+    $("token").value = "";
+    $("copy").disabled = true;
+    $("push").disabled = true;
+    setStatus("Belum ada token. Login di situs provider lalu klik Ambil.", "muted");
+  }
+}
+providerSel.addEventListener("change", () => {
+  chrome.storage.local.set({ lastProvider: providerSel.value });
+  refreshProviderUI();
+});
+
+chrome.storage.local.get(["lastProvider", "autoSync"]).then((r) => {
+  if (r.lastProvider) providerSel.value = r.lastProvider;
+  $("auto").checked = r.autoSync !== false;
+  refreshProviderUI();
+});
+
+$("auto").addEventListener("change", () => {
+  chrome.storage.local.set({ autoSync: $("auto").checked });
+});
+
+/* --------------------------- open provider site --------------------------- */
+$("open").addEventListener("click", () => {
+  chrome.tabs.create({ url: currentProvider().openUrl });
+});
+
+/* ------------------------------ grab token -------------------------------- */
+// This runs in the provider's page (MAIN world). It scans every storage
+// surface Firebase / Auth0 / Cognito might have written into and picks the
+// most likely access-token JWT.
+function extractToken(scoreKeysStr) {
   const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
+  const scoreKeys = new RegExp(scoreKeysStr, "i");
   const looksJwt = (s) => typeof s === "string" && JWT_RE.test(s);
   const candidates = [];
-
   const walk = (o, key, score) => {
     if (o == null) return;
     if (typeof o === "string") {
@@ -40,25 +84,21 @@ async function extractToken() {
     }
     if (typeof o === "object") {
       for (const kk of Object.keys(o)) {
-        // Firebase stores access token under "accessToken"; refresh token is not a JWT.
-        const boost = /access.?token|idToken|stsTokenManager/i.test(kk) ? 40 : 0;
+        const boost = /access.?token|id.?token|body|stsTokenManager/i.test(kk) ? 40 : 0;
         walk(o[kk], key + "." + kk, score + boost);
       }
     }
   };
-
-  // 1) localStorage
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       const v = localStorage.getItem(k);
       if (!v) continue;
-      if (looksJwt(v)) candidates.push({ key: "ls:" + k, token: v, score: 60 });
-      try { walk(JSON.parse(v), "ls:" + k, 50); } catch {}
+      const boost = scoreKeys.test(k) ? 40 : 0;
+      if (looksJwt(v)) candidates.push({ key: "ls:" + k, token: v, score: 60 + boost });
+      try { walk(JSON.parse(v), "ls:" + k, 50 + boost); } catch {}
     }
   } catch {}
-
-  // 2) sessionStorage
   try {
     for (let i = 0; i < sessionStorage.length; i++) {
       const k = sessionStorage.key(i);
@@ -68,15 +108,11 @@ async function extractToken() {
       try { walk(JSON.parse(v), "ss:" + k, 45); } catch {}
     }
   } catch {}
-
-  // 3) cookies (readable)
   document.cookie.split(";").forEach((c) => {
     const [k, ...rest] = c.trim().split("=");
     const v = decodeURIComponent(rest.join("="));
     if (looksJwt(v)) candidates.push({ key: "cookie:" + k, token: v, score: 70 });
   });
-
-  // 4) IndexedDB — Firebase auth DB & any other DB
   const scanIDB = async () => {
     if (!indexedDB.databases) return;
     let dbs = [];
@@ -100,13 +136,12 @@ async function extractToken() {
               const doneOne = () => { if (--pending <= 0) { db.close(); finish(); } };
               stores.forEach((sn) => {
                 try {
-                  const gAll = tx.objectStore(sn).getAll();
-                  gAll.onerror = doneOne;
-                  gAll.onsuccess = () => {
-                    const rows = gAll.result || [];
-                    rows.forEach((row, idx) => {
-                      const isFb = /firebase/i.test(info.name) || /firebase/i.test(sn);
-                      walk(row, `idb:${info.name}/${sn}[${idx}]`, isFb ? 110 : 80);
+                  const g = tx.objectStore(sn).getAll();
+                  g.onerror = doneOne;
+                  g.onsuccess = () => {
+                    (g.result || []).forEach((row, idx) => {
+                      const boost = scoreKeys.test(info.name) || scoreKeys.test(sn) ? 40 : 0;
+                      walk(row, `idb:${info.name}/${sn}[${idx}]`, 80 + boost);
                     });
                     doneOne();
                   };
@@ -118,78 +153,171 @@ async function extractToken() {
       });
     }
   };
-  try { await scanIDB(); } catch {}
-
-  if (!candidates.length) return { ok: false, error: "Tidak menemukan JWT di halaman ini." };
-  // Prefer longest token at highest score (Leonardo JWT payload is large).
-  candidates.sort((a, b) => (b.score - a.score) || (b.token.length - a.token.length));
-  const best = candidates[0];
-  return { ok: true, token: best.token, source: best.key, all: candidates.length };
+  return scanIDB().then(() => {
+    if (!candidates.length) return { ok: false, error: "Tidak menemukan JWT di halaman ini." };
+    candidates.sort((a, b) => (b.score - a.score) || (b.token.length - a.token.length));
+    const best = candidates[0];
+    return { ok: true, token: best.token, source: best.key, all: candidates.length };
+  });
 }
 
-async function grab() {
-  setStatus("Membaca token...", "muted");
-
-  // 1) Try background-captured Authorization header first (most reliable).
-  const cap = await chrome.storage.local.get(["capturedToken", "capturedSource", "capturedAt"]);
-  if (cap.capturedToken && Date.now() - (cap.capturedAt || 0) < 30 * 60 * 1000) {
-    tokenEl.value = cap.capturedToken;
-    copyBtn.disabled = false;
-    sendBtn.disabled = false;
-    chrome.storage.local.set({ lastToken: cap.capturedToken });
-    setStatus(`Token diambil dari ${cap.capturedSource}.`, "ok");
+$("grab").addEventListener("click", async () => {
+  const p = currentProvider();
+  setStatus("Membaca token...");
+  const cap = (await chrome.storage.local.get(`captured::${p.id}`))[`captured::${p.id}`];
+  if (cap?.token && Date.now() - cap.at < 30 * 60 * 1000) {
+    await onGrabbed(p.id, cap.token, cap.source);
     return;
   }
-
-  // 2) Fallback: scan the page (localStorage / sessionStorage / cookies / IndexedDB).
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.url || !/https:\/\/([\w-]+\.)?leonardo\.ai\//.test(tab.url)) {
-      setStatus("Buka tab app.leonardo.ai (yang sudah login) lalu klik lagi.", "err");
+    if (!tab?.url || !p.hostMatch.test(tab.url)) {
+      setStatus(`Buka tab ${p.openUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")} dulu.`, "err");
       return;
     }
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: extractToken,
       world: "MAIN",
+      args: [p.scoreKeys.source],
     });
-    const result = results?.[0]?.result;
-    if (!result?.ok) {
-      setStatus(
-        (result?.error || "Gagal.") +
-          " Coba refresh halaman leonardo.ai (Ctrl+R), tunggu 3 detik, lalu klik lagi.",
-        "err",
-      );
+    const r = results?.[0]?.result;
+    if (!r?.ok) { setStatus(r?.error || "Gagal.", "err"); return; }
+    await chrome.storage.local.set({ [`captured::${p.id}`]: { token: r.token, source: r.source, at: Date.now() } });
+    await onGrabbed(p.id, r.token, r.source);
+  } catch (e) {
+    setStatus("Error: " + (e?.message || e), "err");
+  }
+});
+
+async function onGrabbed(providerId, token, source) {
+  $("token").value = token;
+  $("copy").disabled = false;
+  $("push").disabled = false;
+  setStatus(`Token diambil (${source}).`, "ok");
+  // If logged in + auto-sync, push immediately so user doesn't have to click.
+  const { session, autoSync } = await chrome.storage.local.get(["session", "autoSync"]);
+  if (session?.access_token && autoSync !== false) pushToApp(providerId, token, /*silent*/ true);
+}
+
+/* ------------------------------- copy / push ------------------------------ */
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("token").value); setStatus("Disalin ke clipboard.", "ok"); }
+  catch { setStatus("Gagal copy.", "err"); }
+});
+
+$("push").addEventListener("click", () => {
+  pushToApp(currentProvider().id, $("token").value);
+});
+
+async function pushToApp(providerId, token, silent = false) {
+  const { appUrl, session } = await chrome.storage.local.get(["appUrl", "session"]);
+  if (!appUrl || !session?.access_token) {
+    setStatus("Login dulu di tab Akun.", "err");
+    return;
+  }
+  if (!silent) setStatus("Mengirim ke akun...");
+  try {
+    const res = await fetch(appUrl.replace(/\/+$/, "") + "/api/public/extension/push-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+      body: JSON.stringify({ provider: providerId, token }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401 && session.refresh_token) {
+        const refreshed = await refreshSession(appUrl, session.refresh_token);
+        if (refreshed) return pushToApp(providerId, token, silent);
+      }
+      setStatus("Gagal kirim: " + (data?.error || res.status), "err");
       return;
     }
-    tokenEl.value = result.token;
-    copyBtn.disabled = false;
-    sendBtn.disabled = false;
-    chrome.storage.local.set({ lastToken: result.token });
-    setStatus(`Token diambil dari ${result.source} (${result.all} kandidat).`, "ok");
+    await chrome.storage.local.set({ [`synced::${providerId}`]: { at: Date.now(), ok: true } });
+    setStatus(data?.added ? "Token baru ditambahkan ke Token Manager." : "Token sudah ada — tidak duplikat.", "ok");
   } catch (e) {
     setStatus("Error: " + (e?.message || e), "err");
   }
 }
 
-grabBtn.addEventListener("click", grab);
-
-copyBtn.addEventListener("click", async () => {
+async function refreshSession(appUrl, refreshToken) {
   try {
-    await navigator.clipboard.writeText(tokenEl.value);
-    setStatus("Token disalin ke clipboard.", "ok");
-  } catch {
-    tokenEl.select();
-    document.execCommand("copy");
-    setStatus("Token disalin (fallback).", "ok");
+    const res = await fetch(appUrl.replace(/\/+$/, "") + "/api/public/extension/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.access_token) return null;
+    await chrome.storage.local.set({ session: data });
+    return data;
+  } catch { return null; }
+}
+
+/* --------------------------------- account -------------------------------- */
+async function renderAccount() {
+  const { appUrl, session } = await chrome.storage.local.get(["appUrl", "session"]);
+  if (appUrl) $("appUrl").value = appUrl;
+  const pill = $("account-pill");
+  if (session?.user?.email) {
+    $("account-signed-out").style.display = "none";
+    $("account-signed-in").style.display = "block";
+    $("who").textContent = session.user.email;
+    $("app-info").textContent = appUrl || "";
+    pill.textContent = "✓ " + session.user.email;
+    pill.className = "pill on";
+    // render per-provider sync status
+    const list = $("sync-list");
+    list.innerHTML = "";
+    for (const p of PROVIDERS) {
+      const syn = (await chrome.storage.local.get(`synced::${p.id}`))[`synced::${p.id}`];
+      const cap = (await chrome.storage.local.get(`captured::${p.id}`))[`captured::${p.id}`];
+      const row = document.createElement("div");
+      row.className = "toggle";
+      const when = syn?.at ? new Date(syn.at).toLocaleTimeString() : "belum";
+      row.innerHTML = `<div><div style="font-size:12px; font-weight:600;">${p.label}</div><div style="font-size:10.5px; color:#8a8aa0;">Terakhir sync: ${when}${cap ? " · token siap" : ""}</div></div><span class="pill ${syn?.ok ? "on" : ""}">${syn?.ok ? "OK" : "—"}</span>`;
+      list.appendChild(row);
+    }
+  } else {
+    $("account-signed-out").style.display = "block";
+    $("account-signed-in").style.display = "none";
+    pill.textContent = "Belum login";
+    pill.className = "muted";
+  }
+}
+
+$("appUrl")?.addEventListener("change", () => {
+  chrome.storage.local.set({ appUrl: $("appUrl").value.trim() });
+});
+
+$("login").addEventListener("click", async () => {
+  const appUrl = $("appUrl").value.trim();
+  const email = $("email").value.trim();
+  const password = $("password").value;
+  if (!appUrl || !email || !password) { setStatus("Isi URL app, email, password.", "err", "auth-status"); return; }
+  await chrome.storage.local.set({ appUrl });
+  setStatus("Login...", "muted", "auth-status");
+  try {
+    const res = await fetch(appUrl.replace(/\/+$/, "") + "/api/public/extension/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.access_token) {
+      setStatus("Gagal: " + (data?.error || res.status), "err", "auth-status");
+      return;
+    }
+    await chrome.storage.local.set({ session: data });
+    $("password").value = "";
+    setStatus("Berhasil masuk sebagai " + data.user.email, "ok", "auth-status");
+    renderAccount();
+  } catch (e) {
+    setStatus("Error: " + (e?.message || e), "err", "auth-status");
   }
 });
 
-sendBtn.addEventListener("click", async () => {
-  const url = appUrlEl.value.trim();
-  if (!url) { setStatus("Isi URL AACreative dulu.", "err"); return; }
-  chrome.storage.local.set({ appUrl: url });
-  const target = url.replace(/\/$/, "") + "/manage/accounts#leonardo_token=" + encodeURIComponent(tokenEl.value);
-  await chrome.tabs.create({ url: target });
-  setStatus("Tab AACreative dibuka.", "ok");
+$("logout").addEventListener("click", async () => {
+  await chrome.storage.local.remove("session");
+  renderAccount();
 });
