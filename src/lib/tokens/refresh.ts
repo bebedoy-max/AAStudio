@@ -7,15 +7,17 @@ import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { fetchFramiaBalance } from "@/lib/providers/framia";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "eleven" | "brain";
+export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "eleven" | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,
   wavespeed: 0.01, // USD — token dianggap habis kalau <= $0.01
   eleven: 50,
   roboneo: 1,
+  framia: 1,
 } as const;
 
 
@@ -27,6 +29,7 @@ const LS_KEYS = {
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
   roboneo: "aatools.roboneo.keys",
+  framia: "aatools.framia.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
 } as const;
@@ -151,25 +154,53 @@ async function refreshWavespeed(): Promise<void> {
 }
 
 async function refreshRoboneo(): Promise<void> {
+  // Roboneo access-tokens are login-session tokens (per Roboneo docs
+  // https://www.roboneo.com/cli/zh — "访问令牌与登录态一致"). They can transiently
+  // report 0 credits / auth errors even when still usable, and re-obtaining
+  // one requires the user to log back into roboneo.com and copy again.
+  // To avoid that friction we NEVER auto-drop stored Roboneo keys here — we
+  // only refresh their balance/status. User removes/replaces manually.
   const list = readJSON<SimpleKey[]>(LS_KEYS.roboneo, []);
   if (list.length === 0) return;
-  const kept: SimpleKey[] = [];
+  const updated: SimpleKey[] = [];
   for (const x of list) {
     const r = await fetchRoboneoBalance(x.key);
     if (!r.ok) {
-      kept.push(x); // keep, network/gateway issue
+      updated.push(x); // keep as-is on network/gateway hiccup
       continue;
     }
     const bal = r.balance;
-    if (bal !== null && bal < MIN_CREDITS.roboneo) continue; // habis → drop
-    kept.push({
+    updated.push({
       ...x,
       balance: bal,
       status: bal === null ? "active" : bal <= 0 ? "empty" : "active",
     });
   }
-  if (kept.length !== list.length || kept.some((k, i) => k.balance !== list[i]?.balance)) {
-    writeJSON(LS_KEYS.roboneo, kept);
+  if (updated.some((k, i) => k.balance !== list[i]?.balance || k.status !== list[i]?.status)) {
+    writeJSON(LS_KEYS.roboneo, updated);
+  }
+}
+
+async function refreshFramia(): Promise<void> {
+  // Framia token adalah JWT session; jangan auto-drop saat gagal network/API.
+  const list = readJSON<SimpleKey[]>(LS_KEYS.framia, []);
+  if (list.length === 0) return;
+  const updated: SimpleKey[] = [];
+  for (const x of list) {
+    const r = await fetchFramiaBalance(x.key);
+    if (!r.ok) {
+      updated.push(x);
+      continue;
+    }
+    const bal = r.balance;
+    updated.push({
+      ...x,
+      balance: bal,
+      status: bal === null ? "active" : bal <= 0 ? "empty" : "active",
+    });
+  }
+  if (updated.some((k, i) => k.balance !== list[i]?.balance || k.status !== list[i]?.status)) {
+    writeJSON(LS_KEYS.framia, updated);
   }
 }
 
@@ -204,7 +235,7 @@ let inFlight: Partial<Record<RefreshableProvider, Promise<void>>> = {};
 
 export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  if (provider === "magnific") return Promise.resolve(); // no balance endpoint
+  if (provider === "magnific" || provider === "leonardo") return Promise.resolve(); // no auto-refresh yet
   const existing = inFlight[provider];
   if (existing) return existing;
   const p = (async () => {
@@ -212,6 +243,7 @@ export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<
       if (provider === "weavy") await refreshWeavy();
       else if (provider === "wavespeed") await refreshWavespeed();
       else if (provider === "roboneo") await refreshRoboneo();
+      else if (provider === "framia") await refreshFramia();
       else if (provider === "eleven") await refreshEleven();
       else if (provider === "brain") await refreshBrain();
 
@@ -236,6 +268,7 @@ export async function refreshAllProviders(): Promise<void> {
   await refreshAndPruneProvider("brain");
   await refreshAndPruneProvider("weavy");
   await refreshAndPruneProvider("wavespeed");
+  await refreshAndPruneProvider("framia");
   // magnific has no balance endpoint — skip
 }
 

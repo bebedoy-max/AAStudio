@@ -2,12 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useCallback } from "react";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { Section } from "@/components/dashboard/os/section";
-import { CommandCenter } from "@/components/dashboard/os/command-center";
 import { BrainInsight } from "@/components/dashboard/os/brain-insight";
 import { QuickActions } from "@/components/dashboard/os/quick-actions";
 import { RunningTasks } from "@/components/dashboard/os/running-tasks";
 import { ProjectWorkspace } from "@/components/dashboard/os/project-workspace";
-import { ProviderStatus } from "@/components/dashboard/os/provider-status";
+
 import { Trending } from "@/components/dashboard/os/trending";
 import { PlaybookNews } from "@/components/dashboard/os/playbook-news";
 import { ResearchPanel, type ResearchPanelHandle } from "@/components/dashboard/os/research-panel";
@@ -62,8 +61,15 @@ function DashboardHome() {
           </div>
         </div>
 
-        {/* 1. Command Center */}
-        <CommandCenter onResearch={openResearch} />
+        {/* 1. Creative Research */}
+        <div id="research-panel" className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ResearchPanel ref={researchRef} />
+          </div>
+          <div>
+            <Trending onPick={openResearch} />
+          </div>
+        </div>
 
         {/* 2. Brain Insight */}
         <BrainInsight onKeyword={openResearch} />
@@ -73,30 +79,14 @@ function DashboardHome() {
           <QuickActions />
         </Section>
 
-        {/* 4. Running + Providers */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <RunningTasks />
-          </div>
-          <div>
-            <ProviderStatus />
-          </div>
-        </div>
+        {/* 4. Running Tasks */}
+        <RunningTasks />
 
         {/* 5. Project Workspace */}
         <Section eyebrow="03 · Memory" title="Project Workspace" desc="Setiap generate hidup di sini — pin, favorit, lanjutkan">
           <ProjectWorkspace />
         </Section>
 
-        {/* 6. Research + Trending */}
-        <div id="research-panel" className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <ResearchPanel ref={researchRef} />
-          </div>
-          <div>
-            <Trending onPick={openResearch} />
-          </div>
-        </div>
 
         {/* 7. Playbook + Asset Hub */}
         <div className="grid gap-4 lg:grid-cols-2">

@@ -8,6 +8,8 @@ import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
+import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useAuth } from "@/lib/auth-context";
@@ -86,7 +88,7 @@ export const Route = createFileRoute("/manage/tokens")({
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "eleven" | "render";
+type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "eleven" | "render";
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "brain", label: "Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
@@ -94,6 +96,8 @@ const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
   { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
   { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
+  { key: "framia", label: "Framia", desc: "Canvas workflow (Converge AI) — semua node & recipe: image, video, avatar, garment, storyboard." },
+  { key: "leonardo", label: "Leonardo.ai", desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision)." },
   { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
   { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
@@ -112,6 +116,8 @@ const LS = {
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
   roboneo: "aatools.roboneo.keys",
+  framia: "aatools.framia.keys",
+  leonardo: "aatools.leonardo.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
@@ -183,9 +189,13 @@ function TokensPage() {
                 ? LS.magnific
                 : tab === "roboneo"
                   ? LS.roboneo
-                  : tab === "eleven"
-                    ? LS.eleven
-                    : LS.shotstack;
+                  : tab === "framia"
+                    ? LS.framia
+                    : tab === "leonardo"
+                      ? LS.leonardo
+                      : tab === "eleven"
+                        ? LS.eleven
+                        : LS.shotstack;
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -367,7 +377,27 @@ function TokensPage() {
                       lsKey={LS.roboneo}
                       singlePlaceholder="_v2NGMz... (Roboneo access-token)"
                       bulkPlaceholder={"_v2NGMzMThk...\n_v2ABCDEF..."}
-                      helper="Roboneo access-token diambil dari cookie/localStorage roboneo.com (key: access-token). Multi-token akan auto-rotate saat quota habis."
+                      helper="Roboneo access-token = login-session token (per docs roboneo.com/cli). Token tersimpan di akun kamu (localStorage + user_tokens server, sinkron antar device). Saat generate mendeteksi credit/quota habis atau token invalid, token itu otomatis dihapus dan flow lanjut rotate ke token berikutnya."
+                    />
+                  )}
+                  {tab === "framia" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="framia"
+                      lsKey={LS.framia}
+                      singlePlaceholder="eyJhbGciOiJSUzI1NiIsInR5c... (Framia Bearer JWT)"
+                      bulkPlaceholder={"eyJhbGciOiJS...\neyJhbGciOiJS..."}
+                      helper="Framia Bearer JWT = auth0 session token (~24 jam). Sekali disimpan, tersimpan permanen di akunmu (localStorage + user_tokens server, sinkron antar device) dan TIDAK auto-terhapus meski expired — hanya ditandai. Multi-token akan auto-rotate. Semua node (skills) dan recipe (templates) tampil di halaman Generate → Framia begitu token aktif."
+                    />
+                  )}
+                  {tab === "leonardo" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="leonardo"
+                      lsKey={LS.leonardo}
+                      singlePlaceholder="eyJraWQiOi... (Leonardo Cognito Bearer JWT)"
+                      bulkPlaceholder={"eyJraWQi...\neyJraWQi..."}
+                      helper="Leonardo Cognito ID token (~1 jam). Sekali disimpan, tersimpan permanen di akunmu (localStorage + user_tokens server, sinkron antar device) dan TIDAK auto-terhapus meski expired — hanya ditandai. Multi-token akan auto-rotate. Halaman Generate → Leonardo akan aktif begitu token tersimpan."
                     />
                   )}
                   {tab === "eleven" && <ElevenPane key={paneKey} />}
@@ -422,9 +452,13 @@ function CompactSummary({
                 ? LS.magnific
                 : provider === "roboneo"
                   ? LS.roboneo
-                  : provider === "eleven"
-                    ? LS.eleven
-                    : LS.shotstack,
+                  : provider === "framia"
+                    ? LS.framia
+                    : provider === "leonardo"
+                      ? LS.leonardo
+                      : provider === "eleven"
+                        ? LS.eleven
+                        : LS.shotstack,
       );
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -525,17 +559,45 @@ const GUIDES: Record<ProviderKey, Guide> = {
     tip: "1 klip 5 detik Kling v2.1 Standard ≈ $0.25. Saldo $5 = ±20 klip.",
   },
   roboneo: {
-    url: "https://www.roboneo.com/ai_flow",
-    urlLabel: "roboneo.com",
-    prefix: "_v2… (access-token)",
+    url: "https://www.roboneo.com/cli/en",
+    urlLabel: "roboneo.com/cli",
+    prefix: "_v2… (ROBONEO_ACCESS_KEY dari CLI — long-lived)",
     steps: [
-      { text: "Login di roboneo.com (via Google / email)." },
-      { text: "Buka DevTools (F12) → tab Application → Storage → Local Storage → https://www.roboneo.com." },
-      { text: 'Cari key "access-token" — copy value (format _v2… panjang).' },
-      { text: "Paste ke input di sebelah. Multi-token akan auto-rotate saat quota habis." },
-      { text: "⚠️ Catatan: request ke gateway Roboneo mungkin diblok CORS di browser — kalau gagal, kita perlu proxy server." },
+      { text: "REKOMENDASI: pakai access-key dari Roboneo CLI supaya token tetap hidup meski browser di-logout." },
+      { text: "Install CLI di terminal: `npm install -g roboneo-cli` lalu jalankan `roboneo login` (browser akan terbuka untuk otorisasi)." },
+      { text: "Setelah login sukses, CLI menampilkan `export ROBONEO_ACCESS_KEY=_v2…` — copy string setelah `=` (tanpa tanda kutip)." },
+      { text: "Paste ke input di sebelah. Key ini long-lived (bulan+), tidak mati saat kamu logout dari roboneo.com di browser." },
+      { text: "Simpan beberapa key sekaligus (multi-akun) → auto-rotate saat rate-limit / credit habis. Token tersimpan di akunmu, sinkron antar device, dan bisa di-transfer via Token Bank." },
+      { text: "Alternatif (session token, cepat expired): DevTools → Application → Local Storage → https://www.roboneo.com → copy value `access-token`." },
     ],
-    tip: "Model yang didukung sekarang hanya Kling V2.6 Standard (video_bonbon_motioncontrol_v26 quality=std).",
+    tip: "Model yang didukung: Kling 2.6 Std (motion control + i2v), Seedance Pro, Google Omni. Panduan resmi: roboneo.com/cli/en.",
+  },
+  framia: {
+    url: "https://framia.converge.ai/",
+    urlLabel: "framia.converge.ai",
+    prefix: "eyJhbGci... (Auth0 Bearer JWT)",
+    steps: [
+      { text: "Login di framia.converge.ai (Google / email — akun Converge AI)." },
+      { text: "Buka DevTools (F12) → tab Network → filter 'api.framia.pro'." },
+      { text: "Klik salah satu request (mis. /video/api/v1/user/credits) → Headers → Request Headers." },
+      { text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).' },
+      { text: "Paste ke input di sebelah. Token JWT berumur ~24 jam; setelah expired, ambil ulang dari Network tab." },
+      { text: "Multi-token akan auto-rotate saat quota / expiry habis. Token tersimpan permanen di akunmu dan sinkron antar device." },
+    ],
+    tip: "Framia = platform canvas Converge AI. Semua node (skills) dan recipe (templates) muncul otomatis di halaman Generate → Framia begitu token tersimpan.",
+  },
+  leonardo: {
+    url: "https://app.leonardo.ai/",
+    urlLabel: "app.leonardo.ai",
+    prefix: "eyJ... (Cognito Bearer JWT, ~1 jam)",
+    steps: [
+      { text: "Login di app.leonardo.ai (Google / email)." },
+      { text: "Buka DevTools (F12) → tab Network → filter 'api.leonardo.ai'." },
+      { text: "Klik salah satu request GraphQL → Headers → Request Headers." },
+      { text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).' },
+      { text: "Paste ke input di sebelah. Token Cognito berumur ~1 jam; setelah expired, ambil ulang dari Network tab (multi-token akan auto-rotate)." },
+    ],
+    tip: "Model default: Phoenix, Leonardo Diffusion XL, Kino XL, Anime XL, Vision XL — semua otomatis muncul di halaman Generate → Leonardo.",
   },
   magnific: {
     url: "https://www.magnific.com/api",
@@ -1301,7 +1363,7 @@ function ProviderKeyPane({
   singlePlaceholder: string;
   bulkPlaceholder: string;
   helper: string;
-  provider: "wavespeed" | "magnific" | "roboneo";
+  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 }) {
   const [k, setK] = useState("");
   const [bulk, setBulk] = useState("");
@@ -1346,7 +1408,32 @@ function ProviderKeyPane({
                 note: bal.ok ? undefined : bal.message,
               };
             }
-
+          } else if (provider === "framia") {
+            const chk = await checkFramiaToken(x.key);
+            if (!chk.ok) {
+              updated = { ...x, balance: null, status: "failed", note: chk.message };
+            } else {
+              const bal = await fetchFramiaBalance(x.key);
+              updated = {
+                ...x,
+                balance: bal.balance,
+                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+                note: bal.ok ? chk.email || chk.plan : bal.message,
+              };
+            }
+          } else if (provider === "leonardo") {
+            const chk = await checkLeonardoToken(x.key);
+            if (!chk.ok) {
+              updated = { ...x, balance: null, status: "failed", note: chk.message };
+            } else {
+              const bal = await fetchLeonardoBalance(x.key);
+              updated = {
+                ...x,
+                balance: bal.balance,
+                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+                note: bal.ok ? chk.email || bal.email : bal.message,
+              };
+            }
           } else {
             const res = await checkMagnificKey(x.key);
             updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
@@ -1377,7 +1464,9 @@ function ProviderKeyPane({
       ? /^wsk_[A-Za-z0-9_-]{8,}$/i.test(key) || /^ws_[A-Za-z0-9_-]{8,}$/i.test(key)
       : provider === "roboneo"
         ? /^_v2[A-Za-z0-9+/=_-]{20,}$/i.test(key)
-        : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
+        : provider === "framia" || provider === "leonardo"
+          ? /^eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)
+          : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
   const probe = async (key: string): Promise<SimpleKey> => {
     if (provider === "wavespeed") {
@@ -1399,6 +1488,30 @@ function ProviderKeyPane({
         balance: bal.balance,
         status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
         note: bal.ok ? undefined : bal.message,
+      };
+    }
+    if (provider === "framia") {
+      const chk = await checkFramiaToken(key);
+      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
+      const bal = await fetchFramiaBalance(key);
+      return {
+        id: uid(),
+        key,
+        balance: bal.balance,
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+        note: chk.email || chk.plan || bal.message,
+      };
+    }
+    if (provider === "leonardo") {
+      const chk = await checkLeonardoToken(key);
+      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
+      const bal = await fetchLeonardoBalance(key);
+      return {
+        id: uid(),
+        key,
+        balance: bal.balance,
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+        note: chk.email || bal.email || bal.message,
       };
     }
 
@@ -1442,7 +1555,7 @@ function ProviderKeyPane({
     setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
@@ -1487,7 +1600,32 @@ function ProviderKeyPane({
             note: bal.ok ? undefined : bal.message,
           };
         }
-
+      } else if (provider === "framia") {
+        const chk = await checkFramiaToken(x.key);
+        if (!chk.ok) {
+          updated = { ...x, balance: null, status: "failed", note: chk.message };
+        } else {
+          const bal = await fetchFramiaBalance(x.key);
+          updated = {
+            ...x,
+            balance: bal.balance,
+            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+            note: chk.email || chk.plan || bal.message,
+          };
+        }
+      } else if (provider === "leonardo") {
+        const chk = await checkLeonardoToken(x.key);
+        if (!chk.ok) {
+          updated = { ...x, balance: null, status: "failed", note: chk.message };
+        } else {
+          const bal = await fetchLeonardoBalance(x.key);
+          updated = {
+            ...x,
+            balance: bal.balance,
+            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+            note: chk.email || bal.email || bal.message,
+          };
+        }
       } else {
         const res = await checkMagnificKey(x.key);
         updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
@@ -1503,7 +1641,7 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
@@ -1513,7 +1651,7 @@ function ProviderKeyPane({
           value:
             provider === "wavespeed"
               ? `${active}  ($${totBal.toFixed(2)})`
-              : provider === "roboneo"
+              : provider === "roboneo" || provider === "framia" || provider === "leonardo"
                 ? `${active}  (${totBal} credit)`
                 : active,
           tone: "ok",
@@ -1619,7 +1757,11 @@ function ProviderKeyPane({
             <div className="text-emerald-400 font-semibold whitespace-nowrap">
               {provider === "wavespeed"
                 ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
-                : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+                : provider === "framia" || provider === "roboneo" || provider === "leonardo"
+                  ? x.balance == null
+                    ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
+                    : `${x.balance.toLocaleString()} cr`
+                  : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
             </div>
             <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
               <Trash2 className="h-3.5 w-3.5" /> Hapus

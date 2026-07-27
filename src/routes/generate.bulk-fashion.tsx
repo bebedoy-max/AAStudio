@@ -6,6 +6,8 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
+
 
 
 export const Route = createFileRoute("/generate/bulk-fashion")({
@@ -31,11 +33,21 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "2K", label: "2K (9 cr)", cr: 9 },
       { v: "4K", label: "4K (12 cr)", cr: 12 },
     ] },
-    { key: "gptimage2", label: "Image GPT 2 (Weavy)", qualities: [
-      { v: "low", label: "Low (~15 cr)", cr: 15 },
-      { v: "medium", label: "Medium (~36 cr)", cr: 36, default: true },
-      { v: "high", label: "High (~60 cr)", cr: 60 },
+    { key: "gptimage2", label: "ChatGPT Images 2.0 Edit (Weavy)", qualities: [
+      // Aspect ratio dropdown decides the actual WxH; quality only picks density tier × fidelity.
+      { v: "low@1K",    label: "1K · Low (1 cr)",         cr: 1 },
+      { v: "medium@1K", label: "1K · Medium (4 cr)",      cr: 4, default: true },
+      { v: "high@1K",   label: "1K · High (17 cr)",       cr: 17 },
+      { v: "low@2K",    label: "2K · Low (1 cr)",         cr: 1 },
+      { v: "medium@2K", label: "2K · Medium (7 cr)",      cr: 7 },
+      { v: "high@2K",   label: "2K · High (28 cr)",       cr: 28 },
+      { v: "low@4K",    label: "4K · Low (1 cr)",         cr: 1 },
+      { v: "medium@4K", label: "4K · Medium (9 cr)",      cr: 9 },
+      { v: "high@4K",   label: "4K · High (37 cr)",       cr: 37 },
+
     ] },
+    { key: "seedream-v50-pro",label: "Seedream V5.0 Pro Edit (Weavy)", qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }] },
+
   ],
   wavespeed: [
     { key: "ws:google/nano-banana-2/edit", label: "Nano Banana 2 Edit", qualities: [
@@ -71,7 +83,59 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "default", label: "Standard (12 cr)", cr: 12, default: true },
     ] },
   ],
+  framia: [
+    { key: "framia:nano-banana-lite-edit", label: "Nano Banana Lite Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
+      { v: "2K", label: "2K (~2 cr)", cr: 2 },
+    ] },
+    { key: "framia:nano-banana-edit", label: "Nano Banana Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
+      { v: "2K", label: "2K (~3 cr)", cr: 3 },
+    ] },
+    { key: "framia:nano-banana-2-edit", label: "Nano Banana 2 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:nano-banana-pro-edit", label: "Nano Banana Pro Edit (Framia)", qualities: [
+      { v: "default", label: "Standard (~5 cr)", cr: 5, default: true },
+    ] },
+    { key: "framia:gpt-image-2-edit", label: "GPT Image 2 Edit (Framia)", qualities: [
+      { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
+      { v: "4K", label: "4K (~8 cr)", cr: 8 },
+    ] },
+    { key: "framia:seedream-4-edit", label: "Seedream 4.0 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:seedream-4-5-edit", label: "Seedream 4.5 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:seedream-5-edit", label: "Seedream 5 Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~5 cr)", cr: 5 },
+    ] },
+    { key: "framia:seedream-5-pro-edit", label: "Seedream 5 Pro Edit (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~5 cr)", cr: 5 },
+    ] },
+  ],
+  leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
+
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedImageProvider(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { image?: string };
+    const p = obj?.image;
+    return p && MODEL_CATALOG[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 type Template = { name: string; body: string };
 const DEFAULT_TPL: Template[] = [
@@ -92,6 +156,7 @@ function ratioToAspectClass(r: string): string {
 }
 
 function BulkFashion() {
+  
   const [char, setChar] = useSticky<string | null>("bf.char", null);
   const [charFile, setCharFile] = useSticky<File | null>("bf.charFile", null);
   const [outfits, setOutfits] = useSticky<string[]>("bf.outfits", []);
@@ -117,8 +182,9 @@ function BulkFashion() {
   useEffect(() => {
     if (bfBootstrapped.current) return;
     bfBootstrapped.current = true;
-    const p = (typeof window !== "undefined" && localStorage.getItem("aatools.activeProvider")) || provider || "weavy";
-    if (!MODEL_CATALOG[provider]) setProvider(p);
+    const routed = readRoutedImageProvider();
+    const p = routed || (typeof window !== "undefined" && localStorage.getItem("aatools.activeProvider")) || provider || "weavy";
+    if (routed || !MODEL_CATALOG[provider]) setProvider(p);
     const list = MODEL_CATALOG[p] || MODEL_CATALOG.weavy;
     if (!list.find((m) => m.key === model)) {
       const first = list[0];
@@ -165,10 +231,41 @@ function BulkFashion() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedImageProvider();
+      if (routed && routed !== provider) {
+        setProvider(routed);
+        const list = MODEL_CATALOG[routed] || [];
+        if (!list.find((m) => m.key === model)) {
+          const first = list[0];
+          setModel(first?.key || "");
+          const def = first?.qualities.find((q) => q.default) || first?.qualities[0];
+          setQuality(def?.v || "");
+        }
+      }
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider, model, setProvider, setModel, setQuality]);
+
 
   const models = MODEL_CATALOG[provider] || MODEL_CATALOG.weavy;
   const currentModel = models.find((m) => m.key === model) || models[0];
   const qualities = currentModel?.qualities || [];
+  useEffect(() => {
+    if (!currentModel) return;
+    if (!currentModel.qualities.find((q) => q.v === quality)) {
+      const def = currentModel.qualities.find((q) => q.default) || currentModel.qualities[0];
+      setQuality(def?.v || "");
+    }
+  }, [currentModel, quality, setQuality]);
   const modelCr = qualities.find((q) => q.v === quality)?.cr ?? qualities.find((q) => q.default)?.cr ?? 0;
   const totalCost = Math.round(modelCr * outfits.length);
 
@@ -216,7 +313,7 @@ function BulkFashion() {
     setRunning(true);
     const start = Date.now();
     setStatus({ show: true, text: `Memproses ${outfitFiles.length} outfit…`, pct: 5, time: "0:00" });
-    setResults([]);
+    // Jangan hapus hasil generate sebelumnya — hanya tambahkan hasil baru ke bawah.
     const tick = setInterval(() => {
       const el = Math.floor((Date.now() - start) / 1000);
       setStatus((s) => ({ ...s, time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}` }));
@@ -225,7 +322,7 @@ function BulkFashion() {
       const { generateBulkFashion } = await import("@/lib/providers/generate-bulk-fashion");
       const doneCount = { n: 0 };
       const urls = await generateBulkFashion({
-        provider: provider as "weavy" | "wavespeed" | "magnific",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "framia" | "leonardo",
         modelKey: model,
         quality,
         ratio,

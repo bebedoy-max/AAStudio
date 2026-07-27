@@ -1,5 +1,8 @@
 // Weavy bulk-fashion recipe: 1 karakter + 1 outfit → generate.
-// Uses NB2 /edit or GPT-Image-2 with 2 image inputs (character + outfit).
+// Node yang dipakai (mirror web weavy.com):
+//   - Nano Banana 2 Edit         → fal-ai/nano-banana-2/edit
+//   - ChatGPT Images 2.0 Edit    → openai/gpt-image-2/edit  (quality "quality@WxH")
+//   - Seedream Edit (V4/V5/Pro)  → fal-ai/bytedance/seedream/v5/edit  (quality = model_version)
 import {
   WEAVY_API,
   getActiveWeavyAccessToken,
@@ -14,11 +17,42 @@ import {
 
 const mkId = () => Math.random().toString(36).substring(2, 8);
 
-function ratioToImageSize(ratio: string): string {
-  if (ratio.startsWith("9:16")) return "portrait";
-  if (ratio.startsWith("16:9")) return "landscape";
+function ratioToImageSizeEnum(ratio: string): string {
+  if (ratio.startsWith("9:16")) return "portrait_16_9";
+  if (ratio.startsWith("16:9")) return "landscape_16_9";
   return "square";
 }
+
+function classifyRatio(r: string): "portrait" | "landscape" | "square" {
+  if (/^(9:16|2:3|3:4|4:5)/.test(r)) return "portrait";
+  if (/^(16:9|3:2|4:3|5:4|21:9)/.test(r)) return "landscape";
+  return "square";
+}
+
+function gptImageSize(tier: string, ratio: string): { width: number; height: number } {
+  const t = classifyRatio(ratio);
+  const table: Record<string, Record<string, [number, number]>> = {
+    "1K": { square: [1024, 1024], portrait: [1024, 1536], landscape: [1536, 1024] },
+    "2K": { square: [2048, 2048], portrait: [1152, 2048], landscape: [2048, 1152] },
+    "4K": { square: [2048, 2048], portrait: [2160, 3840], landscape: [3840, 2160] },
+  };
+  const T = table[tier.toUpperCase()] || table["1K"];
+  const [w, h] = T[t];
+  return { width: w, height: h };
+}
+
+function parseGptQuality(input: string, ratio: string): { quality: string; size?: { width: number; height: number } } {
+  const s = (input || "medium@1K").trim();
+  const at = s.indexOf("@");
+  const quality = at < 0 ? s || "medium" : s.slice(0, at) || "medium";
+  const suffix = at < 0 ? "1K" : s.slice(at + 1).trim();
+  if (/^[124]K$/i.test(suffix)) return { quality, size: gptImageSize(suffix, ratio) };
+  if (suffix.toLowerCase() === "auto") return { quality };
+  const m = /^(\d{3,5})x(\d{3,5})$/i.exec(suffix);
+  if (m) return { quality, size: { width: Number(m[1]), height: Number(m[2]) } };
+  return { quality, size: gptImageSize("1K", ratio) };
+}
+
 
 function mkImportNode(id: string, url: string, name: string, y: number) {
   return {
@@ -44,15 +78,9 @@ function buildNb2BulkRecipe(prompt: string, resolution: string, ratio: string, c
   const outNode = mkImportNode(n2, outfitUrl, "outfit.jpg", 550);
   const imageRefs = [charUrl, outfitUrl];
   const params = {
-    image_urls: imageRefs,
-    prompt,
-    aspect_ratio: ratio,
-    resolution,
-    num_images: 1,
-    output_format: "png",
-    safety_tolerance: "4",
-    limit_generations: false,
-    enable_web_search: false,
+    image_urls: imageRefs, prompt, aspect_ratio: ratio, resolution,
+    num_images: 1, output_format: "png", safety_tolerance: "4",
+    limit_generations: false, enable_web_search: false,
   };
   const modelNode = {
     id: n3, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
@@ -68,8 +96,7 @@ function buildNb2BulkRecipe(prompt: string, resolution: string, ratio: string, c
       name: "Gemini 3.1 Flash (Nano Banana 2)", color: "Yellow",
       menu: { icon: "AutoAwesomeIcon", isModel: true, displayName: "Gemini 3.1 Flash (Nano Banana 2)" },
       model: { name: model, service: "fal_imported", version: model },
-      params,
-      version: 3,
+      params, version: 3,
       kind: {
         type: "wildcard",
         model: { type: "predefined", name: model, version: model, service: "fal_imported" },
@@ -96,55 +123,60 @@ function buildNb2BulkRecipe(prompt: string, resolution: string, ratio: string, c
     position: { x: 600, y: 300 }, width: 460, height: 500,
   };
   const edges = [
-    {
-      id: "e-" + mkId(), source: n1, target: n3,
-      sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image`,
-      type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Yellow", sourceHandleType: "any", targetHandleType: "image" },
-    },
-    {
-      id: "e-" + mkId(), source: n2, target: n3,
-      sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`,
-      type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Yellow", sourceHandleType: "any", targetHandleType: "image" },
-    },
+    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Yellow", sourceHandleType: "any", targetHandleType: "image" } },
+    { id: "e-" + mkId(), source: n2, target: n3, sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Yellow", sourceHandleType: "any", targetHandleType: "image" } },
   ];
   return { model, nodes: [imgNode, outNode, modelNode], edges };
 }
 
-function buildGptImage2BulkRecipe(prompt: string, quality: string, imageSize: string, charUrl: string, outfitUrl: string) {
-  const model = "openai/gpt-image-2";
+/** ChatGPT Images 2.0 Edit — multi-image + prompt. quality format "quality@WxH". */
+function buildGptImage2EditBulkRecipe(prompt: string, quality: string, ratio: string, charUrl: string, outfitUrl: string) {
+  const model = "openai/gpt-image-2/edit";
+  const parsed = parseGptQuality(quality, ratio);
+
+  const imageSize: unknown = parsed.size
+    ? { width: parsed.size.width, height: parsed.size.height }
+    : "auto";
   const n1 = "n_" + Date.now() + "_char";
   const n2 = "n_" + Date.now() + "_out";
   const n3 = "n_" + Date.now() + "_mdl";
   const imgNode = mkImportNode(n1, charUrl, "character.jpg", 100);
   const outNode = mkImportNode(n2, outfitUrl, "outfit.jpg", 550);
-  const params = { prompt, quality, image_size: imageSize, image_urls: [charUrl, outfitUrl] };
+  const imageRefs = [charUrl, outfitUrl];
+  const params = {
+    image_urls: imageRefs, prompt, quality: parsed.quality,
+    image_size: imageSize, num_images: 1, output_format: "png",
+  };
   const modelNode = {
     id: n3, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
     data: {
       handles: {
         input: {
+          prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: true },
           image: { id: "input-image", type: "image", label: "image", format: "text", required: true },
           image_2: { id: "input-image_2", type: "image", label: "image_2", format: "text", required: false },
         },
         output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
       },
-      name: "ChatGPT Image", color: "Red",
-      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: "ChatGPT Image" },
+      name: "ChatGPT Images 2.0 Edit", color: "Red",
+      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: "ChatGPT Images 2.0 Edit" },
       model: { name: model, service: "fal_imported", version: model },
-      params,
-      version: 3,
+      params, version: 3,
       kind: {
         type: "wildcard",
         model: { type: "predefined", name: model, version: model, service: "fal_imported" },
         inputs: [
+          [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
           [{ id: "image", title: "image", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }],
           [{ id: "image_2", title: "image_2", validTypes: ["image"], required: false }, { nodeId: n2, outputId: "file" }],
         ],
         parameters: [
-          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: [charUrl, outfitUrl] } }, { type: "value", data: { type: "list", value: [charUrl, outfitUrl] } }],
+          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: imageRefs } }, { type: "value", data: { type: "list", value: imageRefs } }],
           [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
-          [{ id: "quality", title: "quality", constraint: { type: "enum" }, defaultValue: { type: "string", value: quality } }, { type: "value", data: { type: "string", value: quality } }],
-          [{ id: "image_size", title: "image_size", constraint: { type: "enum" }, defaultValue: { type: "string", value: imageSize } }, { type: "value", data: { type: "string", value: imageSize } }],
+          [{ id: "quality", title: "quality", constraint: { type: "enum", options: ["low", "medium", "high"] }, defaultValue: { type: "string", value: parsed.quality } }, { type: "value", data: { type: "string", value: parsed.quality } }],
+          [{ id: "image_size", title: "image_size", constraint: { type: "any" }, defaultValue: { type: parsed.size ? "object" : "string", value: imageSize } }, { type: "value", data: { type: parsed.size ? "object" : "string", value: imageSize } }],
+          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
+          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
       },
@@ -153,26 +185,86 @@ function buildGptImage2BulkRecipe(prompt: string, quality: string, imageSize: st
     position: { x: 600, y: 300 }, width: 460, height: 500,
   };
   const edges = [
-    {
-      id: "e-" + mkId(), source: n1, target: n3,
-      sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image`,
-      type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red" },
-    },
-    {
-      id: "e-" + mkId(), source: n2, target: n3,
-      sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`,
-      type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red" },
-    },
+    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" } },
+    { id: "e-" + mkId(), source: n2, target: n3, sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" } },
   ];
   return { model, nodes: [imgNode, outNode, modelNode], edges };
 }
 
+/** Seedream V5.0 Pro Edit — node natif Weavy (bukan imported model). */
+const SEEDREAM_MODEL_CANDIDATES = [
+  "fal-ai/bytedance/seedream/v5-pro/edit",
+  "fal-ai/bytedance/seedream/v5/pro/edit",
+  "fal-ai/bytedance/seedream/v5/edit",
+  "fal-ai/bytedance/seedream/v4/edit",
+];
+
+function buildSeedreamEditBulkRecipe(prompt: string, model: string, ratio: string, charUrl: string, outfitUrl: string) {
+  const n1 = "n_" + Date.now() + "_char";
+  const n2 = "n_" + Date.now() + "_out";
+  const n3 = "n_" + Date.now() + "_mdl";
+  const imgNode = mkImportNode(n1, charUrl, "character.jpg", 100);
+  const outNode = mkImportNode(n2, outfitUrl, "outfit.jpg", 550);
+  const imageRefs = [charUrl, outfitUrl];
+  const aspectRatio = ratio || "1:1";
+  const params = {
+    prompt,
+    image_urls: imageRefs,
+    aspect_ratio: aspectRatio,
+    num_images: 1,
+    max_images: 1,
+    enable_safety_checker: false,
+    output_format: "png",
+  };
+  const modelNode = {
+    id: n3, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
+    data: {
+      handles: {
+        input: {
+          prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: true },
+          image_1: { id: "input-image_1", type: "image", label: "image_1", format: "text", required: true },
+          image_2: { id: "input-image_2", type: "image", label: "image_2", format: "text", required: false },
+        },
+        output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
+      },
+      name: "Seedream V5.0 Pro Edit", color: "Purple",
+      menu: { icon: "AutoAwesomeIcon", isModel: true, displayName: "Seedream V5.0 Pro Edit" },
+      model: { name: model, service: "fal", version: model },
+      params, version: 3,
+      kind: {
+        type: "wildcard",
+        model: { type: "predefined", name: model, version: model, service: "fal" },
+        inputs: [
+          [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
+          [{ id: "image_1", title: "image_1", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }],
+          [{ id: "image_2", title: "image_2", validTypes: ["image"], required: false }, { nodeId: n2, outputId: "file" }],
+        ],
+        parameters: [
+          [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
+          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: imageRefs } }, { type: "value", data: { type: "list", value: imageRefs } }],
+          [{ id: "aspect_ratio", title: "aspect_ratio", constraint: { type: "enum" }, defaultValue: { type: "string", value: aspectRatio } }, { type: "value", data: { type: "string", value: aspectRatio } }],
+          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
+          [{ id: "max_images", title: "max_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
+          [{ id: "enable_safety_checker", title: "enable_safety_checker", constraint: { type: "boolean" }, defaultValue: { type: "boolean", value: false } }, { type: "value", data: { type: "boolean", value: false } }],
+          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
+        ],
+        outputs: [{ id: "result", title: "result", dataType: "image" }],
+      },
+      generations: [], selectedIndex: 0, cameraLocked: false, result: [], output: {}, selectedOutput: 0,
+    },
+    position: { x: 600, y: 300 }, width: 460, height: 500,
+  };
+  const edges = [
+    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image_1`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Purple", sourceHandleType: "any", targetHandleType: "image" } },
+    { id: "e-" + mkId(), source: n2, target: n3, sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Purple", sourceHandleType: "any", targetHandleType: "image" } },
+  ];
+  return { model, nodes: [imgNode, outNode, modelNode], edges };
+}
+
+
 async function pollWeavyImage(
-  recipeId: string,
-  batchId: string,
-  accessToken: string,
-  inputUrls: string[],
-  maxAttempts = 90,
+  recipeId: string, batchId: string, accessToken: string,
+  inputUrls: string[], maxAttempts = 90,
 ): Promise<string> {
   for (let a = 0; a < maxAttempts; a++) {
     const delay = a < 20 ? 5000 : a < 40 ? 8000 : 12000;
@@ -216,7 +308,7 @@ async function pollWeavyImage(
 }
 
 export type WeavyBulkOpts = {
-  modelKey: string;   // "nanobanana2" | "gptimage2"
+  modelKey: string;   // "nanobanana2" | "gptimage2" | "seedream-v40" | "seedream-v45" | "seedream-v50" | "seedream-v50-pro"
   prompt: string;
   quality: string;
   ratio: string;
@@ -234,29 +326,44 @@ export async function generateWeavyBulkOne(opts: WeavyBulkOpts): Promise<string>
     if (tried.has(active.id)) break;
     tried.add(active.id);
     try {
-      // Upload both files to Weavy asset store.
       const charUp = await uploadWeavyAssetWithRetry(opts.charFile, `char_${Date.now()}.jpg`, active.accessToken);
       const charUrl = resolveWeavyAssetUrl(charUp, "image");
       const outUp = await uploadWeavyAssetWithRetry(opts.outfitFile, `outfit_${Date.now()}.jpg`, active.accessToken);
       const outUrl = resolveWeavyAssetUrl(outUp, "image");
 
-      const isNb = opts.modelKey === "nanobanana2";
-      const built = isNb
+      if (opts.modelKey.startsWith("seedream-")) {
+        let seedErr: Error | null = null;
+        for (const candidate of SEEDREAM_MODEL_CANDIDATES) {
+          const sb = buildSeedreamEditBulkRecipe(opts.prompt, candidate, opts.ratio || "1:1", charUrl, outUrl);
+          try {
+            const { id: rid, v3: sv3 } = await createWeavyRecipe(active.accessToken);
+            await saveWeavyRecipe(rid, { nodes: sb.nodes, edges: sb.edges, v3: sv3 }, active.accessToken);
+            await approveWeavyModel(sb.model, active.accessToken);
+            const { batchId: bid } = await executeWeavyBatch(rid, sb.nodes, sb.edges, active.accessToken, sb.model);
+            return await pollWeavyImage(rid, bid, active.accessToken, [charUrl, outUrl]);
+          } catch (err) {
+            seedErr = err instanceof Error ? err : new Error(String(err));
+            if (!/imported model|paid plan|not found|unknown model|unsupported model|invalid model/i.test(seedErr.message)) throw seedErr;
+          }
+        }
+        throw seedErr ?? new Error("Seedream V5.0 Pro gagal dijalankan di Weavy");
+      }
+
+      const built = opts.modelKey === "nanobanana2"
         ? buildNb2BulkRecipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16", charUrl, outUrl)
-        : buildGptImage2BulkRecipe(opts.prompt, opts.quality || "medium", ratioToImageSize(opts.ratio), charUrl, outUrl);
+        : buildGptImage2EditBulkRecipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", charUrl, outUrl);
 
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
       await saveWeavyRecipe(recipeId, { nodes: built.nodes, edges: built.edges, v3 }, active.accessToken);
       await approveWeavyModel(built.model, active.accessToken);
       const { batchId } = await executeWeavyBatch(recipeId, built.nodes, built.edges, active.accessToken, built.model);
       return await pollWeavyImage(recipeId, batchId, active.accessToken, [charUrl, outUrl]);
+
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message || "";
       const creditLike = /insufficient|credits?|quota|balance|402|401|403|cukup|not enough|payment|unauthori[sz]ed|amount/i.test(msg);
       if (!creditLike) throw lastErr;
-      // Always rotate to next Weavy token when the model reports credit/quota/auth issues.
-      // The dashboard balance is a workspace estimate and may not reflect per-model gating.
       await rotateWeavyToken(active.id);
     }
   }

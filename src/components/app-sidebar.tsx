@@ -104,6 +104,7 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Bulk Fashion Generator", url: "/generate/bulk-fashion", icon: Shirt, permKey: "generate.bulk-fashion" },
       { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
       { title: "Upscaler / Enhance", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
+      { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
     ],
   },
   {
@@ -137,6 +138,7 @@ const DEFAULT_NAV: NavEntry[] = [
     items: [
       { title: "Token / API Manager", url: "/manage/tokens", icon: KeyRound },
       { title: "Routing Provider", url: "/manage/routing", icon: RouteIcon },
+      { title: "Account", url: "/manage/accounts", icon: UserCircle2 },
     ],
   },
   {

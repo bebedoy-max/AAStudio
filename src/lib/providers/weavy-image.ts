@@ -1,6 +1,10 @@
-// Weavy text-to-image helper — port dari legacy executeChatgptTextRecipe / executeBfNanoBananaRecipe.
-// GPT-Image-2: T2I native (dummy image + prompt/quality/image_size).
-// Nano Banana 2: pakai /edit dengan dummy image + prompt (Weavy tidak punya T2I native untuk NB2).
+// Weavy text-to-image helper.
+// Two Weavy nodes:
+//   - "ChatGPT Images 2.0" (T2I, prompt-only) → openai/gpt-image-2
+//   - "Gemini Nano Banana 2"                   → fal-ai/nano-banana-2/edit (butuh dummy image)
+//
+// Quality format untuk GPT: "quality@WIDTHxHEIGHT" (mis. "high@2160x3840"), atau
+// "quality" polos (fallback ke image_size enum berdasarkan aspect ratio).
 import {
   WEAVY_API,
   getActiveWeavyAccessToken,
@@ -17,10 +21,23 @@ const DUMMY_IMG =
 
 const mkId = () => Math.random().toString(36).substring(2, 8);
 
-function ratioToImageSize(ratio: string): string {
-  if (ratio.startsWith("9:16")) return "portrait";
-  if (ratio.startsWith("16:9")) return "landscape";
+function ratioToImageSizeEnum(ratio: string): string {
+  if (ratio.startsWith("9:16")) return "portrait_16_9";
+  if (ratio.startsWith("16:9")) return "landscape_16_9";
   return "square";
+}
+
+/** Parse "quality@WIDTHxHEIGHT" → { quality, size?:{width,height} } */
+function parseGptQuality(input: string): { quality: string; size?: { width: number; height: number } } {
+  const s = (input || "medium").trim();
+  const at = s.indexOf("@");
+  if (at < 0) return { quality: s };
+  const quality = s.slice(0, at) || "medium";
+  const dims = s.slice(at + 1).trim();
+  if (dims.toLowerCase() === "auto") return { quality };
+  const m = /^(\d{3,5})x(\d{3,5})$/i.exec(dims);
+  if (!m) return { quality };
+  return { quality, size: { width: Number(m[1]), height: Number(m[2]) } };
 }
 
 async function pollWeavyImage(
@@ -91,41 +108,58 @@ function mkImportNode(id: string, url: string, name = "dummy.png") {
   };
 }
 
-function buildGptImage2Recipe(prompt: string, quality: string, imageSize: string) {
+/**
+ * ChatGPT Images 2.0 (T2I) — prompt only, tidak butuh image ref.
+ * image_size: object { width, height } saat pixel eksplisit; enum fallback saat "auto".
+ */
+function buildGptImage2Recipe(prompt: string, quality: string, ratio: string) {
   const model = "openai/gpt-image-2";
-  const n1 = "n_" + Date.now() + "_img";
+  const parsed = parseGptQuality(quality);
+  const imageSize: unknown = parsed.size
+    ? { width: parsed.size.width, height: parsed.size.height }
+    : ratioToImageSizeEnum(ratio);
   const n2 = "n_" + Date.now() + "_model";
-  const imgNode = mkImportNode(n1, DUMMY_IMG);
-  const params = { prompt, quality, image_size: imageSize };
+  const params = {
+    prompt,
+    image_size: imageSize,
+    quality: parsed.quality,
+    num_images: 1,
+    output_format: "png",
+  };
   const modelNode = {
     id: n2, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
     data: {
       handles: {
-        input: { image: { id: "input-image", type: "image", label: "image", format: "text", required: true } },
+        input: {
+          prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: true },
+        },
         output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
       },
-      name: "ChatGPT Image", color: "Red",
-      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: "ChatGPT Image" },
+      name: "ChatGPT Images 2.0", color: "Red",
+      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: "ChatGPT Images 2.0" },
       model: { name: model, service: "fal_imported", version: model },
       params,
       version: 3,
       kind: {
         type: "wildcard",
         model: { type: "predefined", name: model, version: model, service: "fal_imported" },
-        inputs: [[{ id: "image", title: "image", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }]],
-        parameters: [],
+        inputs: [
+          [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
+        ],
+        parameters: [
+          [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
+          [{ id: "image_size", title: "image_size", constraint: { type: "any" }, defaultValue: { type: parsed.size ? "object" : "string", value: imageSize } }, { type: "value", data: { type: parsed.size ? "object" : "string", value: imageSize } }],
+          [{ id: "quality", title: "quality", constraint: { type: "enum", options: ["low", "medium", "high"] }, defaultValue: { type: "string", value: parsed.quality } }, { type: "value", data: { type: "string", value: parsed.quality } }],
+          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
+          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
+        ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
       },
       generations: [], selectedIndex: 0, cameraLocked: false, result: [], output: {}, selectedOutput: 0,
     },
     position: { x: 600, y: 300 }, width: 460, height: 500,
   };
-  const edges = [{
-    id: "e-" + mkId(), source: n1, target: n2,
-    sourceHandle: `${n1}-output-file`, targetHandle: `${n2}-input-image`,
-    type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red" },
-  }];
-  return { model, nodes: [imgNode, modelNode], edges };
+  return { model, nodes: [modelNode], edges: [] };
 }
 
 function buildNanoBanana2Recipe(prompt: string, resolution: string, ratio: string) {
@@ -195,15 +229,18 @@ function buildNanoBanana2Recipe(prompt: string, resolution: string, ratio: strin
 export type WeavyImgOpts = {
   modelKey: string;   // "gptimage2" | "nanobanana2"
   prompt: string;
-  quality: string;    // gpt: low/medium/high | nb: 0.5K/1K/2K/4K
+  quality: string;    // gpt: "quality@WxH" atau low/medium/high | nb: 0.5K/1K/2K/4K
   ratio: string;      // 9:16 / 16:9 / 1:1
+  onProgress?: (msg: string, pct?: number) => void;
 };
 
 export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
   const isNb = opts.modelKey === "nanobanana2";
   const built = isNb
     ? buildNanoBanana2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16")
-    : buildGptImage2Recipe(opts.prompt, opts.quality || "medium", ratioToImageSize(opts.ratio));
+    : buildGptImage2Recipe(opts.prompt, opts.quality || "high@1024x1024", opts.ratio || "1:1");
+
+  const log = (m: string, p?: number) => opts.onProgress?.(m, p);
 
   const tried = new Set<string>();
   let lastErr: Error | null = null;
@@ -214,9 +251,13 @@ export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
     if (tried.has(active.id)) break;
     tried.add(active.id);
     try {
+      log("Weavy: create recipe…", 10);
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
+      log("Weavy: save recipe…", 25);
       await saveWeavyRecipe(recipeId, { nodes: built.nodes, edges: built.edges, v3 }, active.accessToken);
+      log("Weavy: approve model…", 40);
       await approveWeavyModel(built.model, active.accessToken);
+      log("Weavy: execute batch…", 55);
       const { batchId } = await executeWeavyBatch(
         recipeId,
         built.nodes,
@@ -224,21 +265,23 @@ export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
         active.accessToken,
         built.model,
       );
-      return await pollWeavyImage(recipeId, batchId, active.accessToken, DUMMY_IMG);
+      log("Weavy: rendering image…", 70);
+      const url = await pollWeavyImage(recipeId, batchId, active.accessToken, DUMMY_IMG);
+      log("Weavy: image ready", 95);
+      return url;
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message || "";
       const creditLike = /insufficient|credits?|quota|balance|402|cukup|not enough/i.test(msg);
       if (!creditLike) throw lastErr;
-      // Verify real credit balance before marking this token as empty.
       const bal = await fetchWeavyCredits(active.accessToken).catch(() => null);
       if (bal !== null && bal > 5) {
         throw new Error(
           `Weavy menolak: "${msg}" — padahal saldo token masih ${bal} cr. Coba turunkan kualitas/model atau pilih token lain di Kelola Token.`,
         );
       }
+      log(`↻ token habis, rotate…`);
       await rotateWeavyToken(active.id);
-      // loop to try next token
     }
   }
   throw lastErr ?? new Error("Belum ada Weavy token aktif di Kelola Token");

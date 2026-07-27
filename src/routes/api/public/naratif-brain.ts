@@ -118,9 +118,9 @@ Aturan JSON output (WAJIB dipatuhi persis):
       "title": "<judul scene 2-4 kata Indonesia>",
       "narration": "<naskah voice-over Bahasa Indonesia natural, 15-35 kata, gaya bercerita/edukatif, tanpa emoji, tanpa tanda kutip. Ini yang akan dibaca ElevenLabs TTS>",
       "duration_sec": <angka 5..10>,
-      "image_prompt": "<prompt English untuk image-generation model (GPT-Image-2). Deskripsi visual sinematik untuk scene ini: subjek, komposisi, mood, lighting, color palette, aspect ratio ${ratio}. Jika ada karakter manusia WAJIB Indonesian/Southeast Asian appearance. Tambahkan small overlay text bertuliskan judul scene Bahasa Indonesia di lower-third. Photo-realistic atau editorial illustration konsisten antar scene>",
-      "motion_prompt": "<prompt English pendek untuk image-to-video model: kamera & motion apa (slow zoom in, pan left, dolly forward, parallax, subtle push-in). Tidak boleh mengganti subjek. 1-2 kalimat.>",
-      "on_screen_text": "<opsional, headline besar 3-6 kata Bahasa Indonesia yang muncul di frame; boleh string kosong>"
+      "image_prompt": "<prompt English untuk image-generation model (GPT-Image-2). Deskripsi visual sinematik untuk scene ini: subjek, komposisi, mood, lighting, color palette, aspect ratio ${ratio}. Jika ada karakter manusia WAJIB Indonesian/Southeast Asian appearance. Photo-realistic atau editorial illustration konsisten antar scene. WAJIB tanpa text/tulisan/typography/caption/subtitle/watermark/logo apapun di dalam gambar — pure visual only. Akhiri prompt dengan frasa: 'no text, no words, no captions, no typography, no logos, no watermarks, no subtitles anywhere in the image'.>",
+      "motion_prompt": "<prompt English pendek untuk image-to-video model: kamera & motion apa (slow zoom in, pan left, dolly forward, parallax, subtle push-in). Tidak boleh mengganti subjek. 1-2 kalimat. WAJIB tambahkan 'no text, no captions, no typography appearing during motion'.>",
+      "on_screen_text": ""
     }
   ],
   "outro": "<kalimat penutup 8-15 kata Bahasa Indonesia, biasanya CTA/kesimpulan>"
@@ -131,7 +131,8 @@ Panduan:
 - Total durasi seluruh scene idealnya 30-70 detik.
 - Konsisten visual style antar scene (satu palette, satu genre visual).
 - Narration harus mengalir jadi satu narasi utuh saat digabung, TIDAK boleh mengulang kalimat scene sebelumnya.
-- Semua "narration" dan "title" dan "on_screen_text" Bahasa Indonesia. Semua "image_prompt" dan "motion_prompt" Bahasa Inggris.
+- Semua "narration" dan "title" Bahasa Indonesia. Semua "image_prompt" dan "motion_prompt" Bahasa Inggris. Field "on_screen_text" WAJIB selalu string kosong "" (tidak ada text di frame).
+- LARANGAN KERAS: TIDAK BOLEH ADA text/tulisan/typography/caption/subtitle/watermark/logo di dalam image_prompt maupun motion_prompt. Frame harus pure visual sinematik.
 - Balas HANYA objek JSON, TANPA markdown code fence, TANPA komentar.`;
 
         const user = `Materi:

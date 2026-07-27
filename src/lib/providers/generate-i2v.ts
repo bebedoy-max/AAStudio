@@ -5,6 +5,7 @@
 import { getFirstWavespeedKey, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API } from "./wavespeed";
 import {
   getAllRoboneoKeys,
+  removeRoboneoKeyFromManager,
   submitRoboneoI2V,
   pollRoboneoTask,
   isRoboneoRotatableError,
@@ -48,16 +49,17 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
   throw new Error(`Upload gagal: ${lastErr}`);
 }
 
-export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo";
+export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 
 export type I2VOpts = {
   provider: I2VProvider;
-  modelKey: string; // e.g. "kling-2.1" | "seedance" | "wan-i2v" | "veo-3" | "sora" | "rn:kling-v26:std"
+  modelKey: string; // e.g. "kling-2.1" | "seedance" | "wan-i2v" | "veo-3" | "sora" | "rn:kling-v26:std" | "leo-vid:veo-3.1-lite"
   imageFile: File;
   ratio: string;
   duration: number; // seconds, 5 / 10 / 12
   prompt: string;
   resolution?: string;   // roboneo seedance-pro: "480p" | "720p" | "1080p"
+  sizeTier?: string;     // leonardo: "standard" | "quality" | "hd" | "highQuality" | "fullHd" | "4k"
   sound?: "on" | "off";  // roboneo kling-v26: sound track on/off
   onProgress?: (msg: string, pct?: number) => void;
 };
@@ -150,11 +152,78 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
       return outUrl;
     } catch (e) {
       const msg = (e as Error).message || String(e);
-      if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
-      opts.onProgress?.(`Token ${ti + 1} gagal, rotate...`, 15);
+      if (!isRoboneoRotatableError(msg)) throw e;
+      const removed = removeRoboneoKeyFromManager(at, msg);
+      opts.onProgress?.(
+        removed.removed && ti < tokens.length - 1
+          ? `Token Roboneo ${ti + 1} habis/invalid, dihapus. Rotate ke token berikutnya...`
+          : removed.removed
+            ? `Token Roboneo ${ti + 1} habis/invalid, dihapus.`
+          : `Token Roboneo ${ti + 1} gagal, rotate ke token berikutnya...`,
+        15,
+      );
     }
   }
-  throw new Error("Roboneo: semua token gagal");
+  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+}
+
+async function runFramiaI2V(opts: I2VOpts): Promise<string> {
+  const { getAllFramiaKeys, runFramiaWithRotation } = await import("./framia");
+  const { runFramiaI2V: runRecipe } = await import("./framia-i2v");
+  if (getAllFramiaKeys().length === 0) {
+    throw new Error(
+      "Framia belum di-connect. Buka Token Manager → Framia dan tempel Bearer JWT terlebih dulu.",
+    );
+  }
+  const normalized = await normalizeImage(opts.imageFile);
+  return runFramiaWithRotation(
+    (token) =>
+      runRecipe({
+        token,
+        imageFile: normalized,
+        filename: normalized.name || `framia_i2v_${Date.now()}.jpg`,
+        prompt: opts.prompt,
+        modelKey: opts.modelKey,
+        aspectRatio: opts.ratio,
+        resolution: opts.resolution || "720p",
+        durationSec: opts.duration,
+        onProgress: opts.onProgress,
+      }),
+    {
+      onRotate: (next, total, reason) =>
+        opts.onProgress?.(`Framia token ${next - 1}/${total} gagal (${reason.slice(0, 60)}), rotate…`, 15),
+    },
+  );
+}
+
+async function runLeonardoI2V(opts: I2VOpts): Promise<string> {
+  const { runLeonardoVideo } = await import("./leonardo-video");
+  // Normalize ratio ke enum yang didukung Leonardo (16:9 / 9:16 / 1:1).
+  const r = opts.ratio || "9:16";
+  const ratio: "16:9" | "9:16" | "1:1" =
+    r === "16:9" || r === "1:1" ? r : "9:16";
+  return runLeonardoVideo({
+    modelKey: opts.modelKey,
+    prompt: opts.prompt,
+    aspectRatio: ratio,
+    sizeTier: opts.sizeTier as
+      | "standard"
+      | "quality"
+      | "hd"
+      | "highQuality"
+      | "fullHd"
+      | "4k"
+      | undefined,
+    resolution: opts.resolution,
+    duration: opts.duration,
+    imageFile: opts.imageFile,
+    onProgress: opts.onProgress,
+    onRotate: (i, total, reason) =>
+      opts.onProgress?.(
+        `Leonardo token ${i}/${total} gagal (${reason.slice(0, 60)}), rotate…`,
+        20,
+      ),
+  });
 }
 
 export async function generateI2V(opts: I2VOpts): Promise<string> {
@@ -162,6 +231,8 @@ export async function generateI2V(opts: I2VOpts): Promise<string> {
     if (opts.provider === "wavespeed") return await runWavespeedI2V(opts);
     if (opts.provider === "weavy") return await runWeavyI2V(opts);
     if (opts.provider === "roboneo") return await runRoboneoI2V(opts);
+    if (opts.provider === "framia") return await runFramiaI2V(opts);
+    if (opts.provider === "leonardo") return await runLeonardoI2V(opts);
     return await runMagnificI2V(opts);
   } finally {
     notifyGenerationDone(opts.provider);

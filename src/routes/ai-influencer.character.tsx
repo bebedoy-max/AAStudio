@@ -25,6 +25,7 @@ import {
   CHAR_MODEL_CATALOG,
   generateCharacterSlot,
   getActiveProvider,
+  type CharacterSlotProvider,
 } from "@/lib/ai-influencer/character-slots";
 import { insertAsset } from "@/lib/ai-influencer/studio.functions";
 
@@ -45,7 +46,7 @@ function CharacterPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI generator settings — provider aktif (dari Manage Routing) + model/quality/ratio.
-  const [provider, setProvider] = useState<"weavy" | "wavespeed">(() => getActiveProvider());
+  const [provider, setProvider] = useState<CharacterSlotProvider>(() => getActiveProvider());
   const modelsForProvider = CHAR_MODEL_CATALOG[provider];
   const [modelKey, setModelKey] = useState<string>(modelsForProvider[0].key);
   const currentModel = modelsForProvider.find((m) => m.key === modelKey) ?? modelsForProvider[0];
@@ -64,9 +65,20 @@ function CharacterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider]);
   useEffect(() => {
+    if (!currentModel.qualities.find((q) => q.v === quality)) {
+      setQuality(currentModel.qualities.find((q) => q.default)?.v ?? currentModel.qualities[0].v);
+    }
+  }, [currentModel, quality]);
+  useEffect(() => {
     const onStorage = () => setProvider(getActiveProvider());
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("focus", onStorage);
+    window.addEventListener("aatools:routing-changed", onStorage as EventListener);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onStorage);
+      window.removeEventListener("aatools:routing-changed", onStorage as EventListener);
+    };
   }, []);
   const active = useMemo(() => items?.find((c) => c.id === activeId) ?? null, [items, activeId]);
 
@@ -538,10 +550,11 @@ function CharacterPage() {
                   <Field label="Provider">
                     <Select
                       value={provider}
-                      onChange={(e) => setProvider(e.target.value as "weavy" | "wavespeed")}
+                      onChange={(e) => setProvider(e.target.value as CharacterSlotProvider)}
                       options={[
                         { value: "weavy", label: "Weavy" },
                         { value: "wavespeed", label: "Wavespeed" },
+                        { value: "framia", label: "Framia" },
                       ]}
                     />
                   </Field>

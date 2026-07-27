@@ -5,6 +5,8 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const GATEWAY = "https://ai-engine-gateway-roboneo.meitu.com";
 const CLIENT_ID = "1189857684";
+const ROBONEO_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -57,6 +59,7 @@ export const Route = createFileRoute("/api/public/roboneo")({
             "client-id": CLIENT_ID,
             Origin: "https://www.roboneo.com",
             Referer: "https://www.roboneo.com/ai_flow",
+            "User-Agent": ROBONEO_USER_AGENT,
           },
           body: JSON.stringify({ parameter: body.parameter }),
         });

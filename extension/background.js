@@ -1,0 +1,43 @@
+// Capture Authorization: Bearer <jwt> from Leonardo API requests.
+// MV3 webRequest can READ headers with "webRequest" permission (no blocking needed).
+const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
+
+const URL_FILTERS = {
+  urls: [
+    "https://api.leonardo.ai/*",
+    "https://cloud.leonardo.ai/*",
+    "https://app.leonardo.ai/*",
+    "https://*.leonardo.ai/*",
+  ],
+};
+
+function saveToken(token, source) {
+  if (!token || !JWT_RE.test(token)) return;
+  chrome.storage.local.set({
+    capturedToken: token,
+    capturedSource: source,
+    capturedAt: Date.now(),
+  });
+}
+
+try {
+  chrome.webRequest.onBeforeSendHeaders.addListener(
+    (details) => {
+      const headers = details.requestHeaders || [];
+      for (const h of headers) {
+        if (!h.name) continue;
+        if (h.name.toLowerCase() === "authorization" && typeof h.value === "string") {
+          const m = h.value.match(/Bearer\s+(\S+)/i);
+          if (m && JWT_RE.test(m[1])) {
+            saveToken(m[1], "header:" + new URL(details.url).hostname);
+            return;
+          }
+        }
+      }
+    },
+    URL_FILTERS,
+    ["requestHeaders", "extraHeaders"],
+  );
+} catch (e) {
+  console.warn("webRequest listener failed", e);
+}

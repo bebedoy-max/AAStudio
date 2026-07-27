@@ -5,7 +5,7 @@
 import { getAllWavespeedKeys, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API, isWavespeedRotatableError } from "./wavespeed";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
-export type BulkProvider = "weavy" | "wavespeed" | "magnific";
+export type BulkProvider = "weavy" | "wavespeed" | "magnific" | "framia" | "leonardo";
 
 export type BulkFashionOpts = {
   provider: BulkProvider;
@@ -128,13 +128,71 @@ async function runWeavyBulk(opts: BulkFashionOpts): Promise<string[]> {
   return results.filter(Boolean);
 }
 
+async function runFramiaBulk(opts: BulkFashionOpts): Promise<string[]> {
+  const { generateFramiaImage } = await import("./framia-image");
+  const results: string[] = [];
+  for (let i = 0; i < opts.outfitFiles.length; i++) {
+    if (opts.signal?.aborted) break;
+    try {
+      opts.onProgress?.(i, `Generate outfit #${i + 1} (Framia)...`);
+      const url = await generateFramiaImage({
+        modelKey: opts.modelKey,
+        prompt: buildPrompt(opts.promptTemplate, opts.productType, i),
+        aspectRatio: opts.ratio,
+        resolution: opts.quality,
+        referenceFiles: [opts.charFile, opts.outfitFiles[i]],
+        onRotate: (next, total, reason) =>
+          opts.onProgress?.(i, `Token Framia habis (${reason}) → token #${next + 1}/${total}`),
+        onProgress: (msg) => opts.onProgress?.(i, msg),
+      });
+      if (opts.signal?.aborted) break;
+      results.push(url);
+      opts.onProgress?.(i, "done", url);
+    } catch (e) {
+      if (opts.signal?.aborted) break;
+      opts.onProgress?.(i, "error", undefined, (e as Error).message || String(e));
+    }
+  }
+  return results;
+}
+
+async function runLeonardoBulk(opts: BulkFashionOpts): Promise<string[]> {
+  const { generateLeonardoOne } = await import("./leonardo-router");
+  const results: string[] = [];
+  for (let i = 0; i < opts.outfitFiles.length; i++) {
+    if (opts.signal?.aborted) break;
+    try {
+      opts.onProgress?.(i, `Generate outfit #${i + 1} (Leonardo)…`);
+      const url = await generateLeonardoOne({
+        modelKey: opts.modelKey,
+        prompt: buildPrompt(opts.promptTemplate, opts.productType, i),
+        ratio: opts.ratio,
+        quality: opts.quality,
+        referenceFiles: [opts.charFile, opts.outfitFiles[i]],
+        onProgress: (m) => opts.onProgress?.(i, m),
+        onRotate: (n, t, r) =>
+          opts.onProgress?.(i, `Token Leonardo habis (${r}) → token #${n + 1}/${t}`),
+      });
+      if (opts.signal?.aborted) break;
+      results.push(url);
+      opts.onProgress?.(i, "done", url);
+    } catch (e) {
+      if (opts.signal?.aborted) break;
+      opts.onProgress?.(i, "error", undefined, (e as Error).message || String(e));
+    }
+  }
+  return results;
+}
+
 export async function generateBulkFashion(opts: BulkFashionOpts): Promise<string[]> {
   try {
     if (opts.provider === "wavespeed") return await runWavespeedBulk(opts);
     if (opts.provider === "weavy") return await runWeavyBulk(opts);
+    if (opts.provider === "framia") return await runFramiaBulk(opts);
+    if (opts.provider === "leonardo") return await runLeonardoBulk(opts);
     throw new Error("Magnific belum menyediakan bulk fashion edit endpoint di proxy.");
   } finally {
-    if (opts.provider === "wavespeed" || opts.provider === "weavy") {
+    if (opts.provider === "wavespeed" || opts.provider === "weavy" || opts.provider === "framia" || opts.provider === "leonardo") {
       notifyGenerationDone(opts.provider);
     }
   }

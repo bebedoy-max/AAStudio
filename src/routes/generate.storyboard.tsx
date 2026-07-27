@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { logGenerate } from "@/lib/activity/log";
+import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
-  Search,
+  ClipboardPaste,
   Download,
   Trash2,
   Plus,
@@ -28,6 +29,7 @@ import {
 import { createRunStore } from "@/lib/stores/run-store";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
+
 import { confirmDialog } from "@/components/ui-confirm";
 
 
@@ -46,7 +48,7 @@ export const Route = createFileRoute("/generate/storyboard")({
 });
 
 // ---- Model catalog (mirror MODEL_CATALOG.storyboard from legacy) ----
-type Provider = "weavy" | "wavespeed" | "magnific";
+type Provider = "weavy" | "wavespeed" | "magnific" | "framia" | "leonardo";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type SbModel = { key: string; label: string; qualities: Quality[] };
 
@@ -64,13 +66,27 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
     },
     {
       key: "gptimage2",
-      label: "Image GPT 2 Edit (Weavy)",
+      label: "ChatGPT Images 2.0 Edit (Weavy)",
       qualities: [
-        { v: "low", label: "Low (~15 cr)", cr: 15 },
-        { v: "medium", label: "Medium (~36 cr)", cr: 36, default: true },
-        { v: "high", label: "High (~60 cr)", cr: 60 },
+        // Aspect ratio dropdown decides the actual WxH; quality only picks density tier × fidelity.
+        { v: "low@1K",    label: "1K · Low (1 cr)",         cr: 1 },
+        { v: "medium@1K", label: "1K · Medium (4 cr)",      cr: 4, default: true },
+        { v: "high@1K",   label: "1K · High (17 cr)",       cr: 17 },
+        { v: "low@2K",    label: "2K · Low (1 cr)",         cr: 1 },
+        { v: "medium@2K", label: "2K · Medium (7 cr)",      cr: 7 },
+        { v: "high@2K",   label: "2K · High (28 cr)",       cr: 28 },
+        { v: "low@4K",    label: "4K · Low (1 cr)",         cr: 1 },
+        { v: "medium@4K", label: "4K · Medium (9 cr)",      cr: 9 },
+        { v: "high@4K",   label: "4K · High (37 cr)",       cr: 37 },
+
       ],
     },
+    {
+      key: "seedream-v50-pro",
+      label: "Seedream V5.0 Pro Edit (Weavy)",
+      qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }],
+    },
+
   ],
   wavespeed: [
     {
@@ -107,13 +123,117 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
     },
   ],
   magnific: [],
+  framia: [
+    {
+      key: "framia:nano-banana-lite",
+      label: "Nano Banana Lite (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
+        { v: "2K", label: "2K (~2 cr)", cr: 2 },
+      ],
+    },
+    {
+      key: "framia:nano-banana",
+      label: "Nano Banana (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
+        { v: "2K", label: "2K (~3 cr)", cr: 3 },
+      ],
+    },
+    {
+      key: "framia:nano-banana-2",
+      label: "Nano Banana 2 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:nano-banana-pro",
+      label: "Nano Banana Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)", cr: 5, default: true }],
+    },
+    {
+      key: "framia:gpt-image-2",
+      label: "GPT Image 2 (Framia)",
+      qualities: [
+        { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
+        { v: "4K", label: "4K (~8 cr)", cr: 8 },
+      ],
+    },
+    {
+      key: "framia:seedream-4",
+      label: "Seedream 4.0 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:seedream-4-5",
+      label: "Seedream 4.5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:seedream-5",
+      label: "Seedream 5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+        { v: "2K", label: "2K (~5 cr)", cr: 5 },
+      ],
+    },
+    {
+      key: "framia:seedream-5-pro",
+      label: "Seedream 5 Pro (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+        { v: "2K", label: "2K (~5 cr)", cr: 5 },
+      ],
+    },
+    {
+      key: "framia:flux-1.1-pro",
+      label: "Flux 1.1 Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~3 cr)", cr: 3, default: true }],
+    },
+    {
+      key: "framia:flux-max",
+      label: "Flux Max (Framia)",
+      qualities: [{ v: "default", label: "Standard (~6 cr)", cr: 6, default: true }],
+    },
+    {
+      key: "framia:ideogram-v3",
+      label: "Ideogram v3 (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)", cr: 5, default: true }],
+    },
+  ],
+  leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
+
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   weavy: "Weavy",
   wavespeed: "Wavespeed",
   magnific: "Magnific",
+  framia: "Framia",
+  leonardo: "Leonardo.ai",
 };
+
+const LS_ROUTING = "aatools.routing.v2";
+function readRoutedImageProvider(): Provider | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_ROUTING);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { image?: string };
+    const p = obj?.image as Provider | undefined;
+    return p && SB_MODELS[p] ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 const SB_MAX_ROWS = 12;
 const SB_DEFAULT_TYPES = [
@@ -201,6 +321,11 @@ function newRow(): ProductRow {
   };
 }
 
+function extractFirstUrl(text: string): string {
+  const match = text.match(/https?:\/\/[^\s<>"]+/i);
+  return (match?.[0] ?? text).trim();
+}
+
 // Module-level generation state — survives route navigation.
 type GenResult = {
   resultId: string;
@@ -223,6 +348,7 @@ function ratioToAspect(r: string | undefined): string {
 }
 
 function StoryboardPage() {
+  
   const navigate = useNavigate();
   // Provider — same localStorage key as legacy (arkx_activeProvider) so it stays in sync
   const [provider, setProvider] = useSticky<Provider>("sb.provider", "weavy");
@@ -231,12 +357,32 @@ function StoryboardPage() {
     if (sbBootstrapped.current) return;
     sbBootstrapped.current = true;
     try {
+      const routed = readRoutedImageProvider();
+      if (routed) {
+        setProvider(routed);
+        return;
+      }
       const p = (localStorage.getItem("arkx_activeProvider") ||
         localStorage.getItem("aatools:activeProvider")) as Provider | null;
       if (p && SB_MODELS[p] && !SB_MODELS[provider]) setProvider(p);
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const sync = () => {
+      const routed = readRoutedImageProvider();
+      if (routed && routed !== provider) setProvider(routed);
+    };
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+  }, [provider, setProvider]);
 
   const models = SB_MODELS[provider];
   const defaultModelKey =
@@ -268,7 +414,7 @@ function StoryboardPage() {
       setQualityV(def?.v ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModel]);
+  }, [activeModel, qualityV]);
 
   const [sceneCount, setSceneCount] = useSticky<string>("sb.sceneCount", "6");
   const [ratio, setRatio] = useSticky<string>("sb.ratio", "9:16");
@@ -326,10 +472,10 @@ function StoryboardPage() {
       }),
     );
   };
-  const fetchRow = async (rowId: string) => {
+  const fetchRow = async (rowId: string, overrideUrl?: string) => {
     const row = rows.find((r) => r.rowId === rowId);
     if (!row) return;
-    const url = row.url.trim();
+    const url = (overrideUrl ?? row.url).trim();
     if (!/^https?:\/\//i.test(url)) {
       patchRow(rowId, { status: "err", error: "URL tidak valid" });
       return;
@@ -349,6 +495,23 @@ function StoryboardPage() {
       patchRow(rowId, {
         status: "err",
         error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+
+  const pasteAndFetchRow = async (rowId: string) => {
+    try {
+      const pasted = extractFirstUrl(await navigator.clipboard.readText());
+      if (!/^https?:\/\//i.test(pasted)) {
+        patchRow(rowId, { status: "err", error: "Clipboard tidak berisi URL valid" });
+        return;
+      }
+      patchRow(rowId, { url: pasted });
+      await fetchRow(rowId, pasted);
+    } catch (e) {
+      patchRow(rowId, {
+        status: "err",
+        error: e instanceof Error ? e.message : "Browser menolak akses clipboard",
       });
     }
   };
@@ -430,6 +593,7 @@ function StoryboardPage() {
         // --- 1. Brain ---
         patchResult(resultId, { status: "brain" });
         pushLog(`🧠 [${title.slice(0, 40)}] Brain menyusun prompt storyboard…`);
+        const refCountForPrompt = (row.selectedImages || []).slice(0, 6).length;
         const brainRes = await fetch("/api/public/storyboard-brain", {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-user-gemini-keys": geminiKeys },
@@ -439,6 +603,7 @@ function StoryboardPage() {
             productType: "",
             productTypes: [],
             scenes: Number(sceneCount),
+            referenceCount: refCountForPrompt,
             aspectRatio: ratio,
             ctaTarget,
             ctaCustom: ctaTarget === "custom" ? ctaCustom : "",
@@ -456,8 +621,9 @@ function StoryboardPage() {
           throw new Error(brainJson.error || "Brain gagal — cek Gemini key di Kelola Token");
         }
         const finalPrompt = brainJson.prompt as string;
-        patchResult(resultId, { prompt: finalPrompt });
-        pushLog(`✅ [${title.slice(0, 40)}] Prompt siap (${finalPrompt.length} chars) via ${brainJson.provider || "gemini"}`);
+        const guardedPrompt = finalPrompt;
+        patchResult(resultId, { prompt: guardedPrompt });
+        pushLog(`✅ [${title.slice(0, 40)}] Prompt siap (${guardedPrompt.length} chars) via ${brainJson.provider || "gemini"}`);
 
         // --- 2. Image gen ---
         patchResult(resultId, { status: "image" });
@@ -465,21 +631,23 @@ function StoryboardPage() {
         let imgUrl: string;
         const refUrls = (row.selectedImages || []).slice(0, 6);
         if (provider === "weavy") {
-          if (refUrls.length > 0 && (modelKey === "nanobanana2" || modelKey === "gptimage2")) {
+          const isEditModel = modelKey === "nanobanana2" || modelKey === "gptimage2" || modelKey.startsWith("seedream-");
+          if (refUrls.length > 0 && isEditModel) {
             const { generateWeavyStoryboard } = await import("@/lib/providers/weavy-storyboard");
-            pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy NB2/GPT-Image-2 multi-ref)`);
+            pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy multi-ref)`);
             imgUrl = await generateWeavyStoryboard({
               modelKey,
-              prompt: finalPrompt,
+              prompt: guardedPrompt,
               quality: qualityV,
               ratio,
               referenceUrls: refUrls,
+              onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
             });
           } else {
             const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
             imgUrl = await generateWeavyImage({
               modelKey,
-              prompt: finalPrompt,
+              prompt: guardedPrompt,
               quality: qualityV,
               ratio,
             });
@@ -496,6 +664,7 @@ function StoryboardPage() {
             ? mapImgToWsEndpoint(modelKey).replace(/\/text-to-image$/, "/edit")
             : mapImgToWsEndpoint(modelKey);
           const payload: Record<string, unknown> = { prompt: finalPrompt, aspect_ratio: ratio };
+          payload.prompt = guardedPrompt;
           if (hasRef) payload.images = wsRefs;
           if (/gpt-image/.test(modelId)) payload.quality = qualityV;
           else if (/nano-banana/.test(modelId)) payload.resolution = qualityV;
@@ -503,6 +672,31 @@ function StoryboardPage() {
           const data = await wsPost(modelId, payload, key);
           const getUrl = data.urls?.get || `${WAVESPEED_API}/predictions/${data.id}/result`;
           imgUrl = await wsPoll(getUrl, key, { timeoutMs: 300000 });
+        } else if (provider === "framia") {
+          const { generateFramiaImage } = await import("@/lib/providers/framia-image");
+          if (refUrls.length) pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Framia)`);
+          imgUrl = await generateFramiaImage({
+            modelKey,
+            prompt: guardedPrompt,
+            aspectRatio: ratio,
+            resolution: qualityV,
+            referenceUrls: refUrls,
+            onRotate: (next, total, reason) =>
+              pushLog(`🔄 [${title.slice(0, 40)}] Token Framia habis/invalid (${reason}) → pindah ke token #${next + 1}/${total}`),
+            onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
+          });
+        } else if (provider === "leonardo") {
+          const { generateLeonardoOne } = await import("@/lib/providers/leonardo-router");
+          imgUrl = await generateLeonardoOne({
+            modelKey,
+            prompt: guardedPrompt,
+            ratio,
+            quality: qualityV,
+            referenceUrls: refUrls,
+            onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
+            onRotate: (next, total, reason) =>
+              pushLog(`🔄 [${title.slice(0, 40)}] Token Leonardo (${reason}) → #${next + 1}/${total}`),
+          });
         } else {
           throw new Error(`Provider ${provider} belum di-wire untuk storyboard`);
         }
@@ -579,7 +773,7 @@ function StoryboardPage() {
         <div className="lg:col-span-2 order-1 lg:order-none">
           <Card
             title={`Link Produk (${rows.length}/${SB_MAX_ROWS})`}
-            sub="Tempel URL e-commerce, klik scrape, pilih hingga 6 gambar per produk"
+            sub="Paste URL e-commerce untuk scrape otomatis, lalu pilih hingga 6 gambar per produk"
             right={
               <div className="flex gap-2 shrink-0">
                 <GhostButton
@@ -620,7 +814,7 @@ function StoryboardPage() {
                   row={r}
                   canRemove={rows.length > 1}
                   onUrl={(v) => patchRow(r.rowId, { url: v })}
-                  onFetch={() => fetchRow(r.rowId)}
+                  onPaste={() => pasteAndFetchRow(r.rowId)}
                   onRemove={() => removeRow(r.rowId)}
                   onToggleImage={(u) => toggleRowImage(r.rowId, u)}
                 />
@@ -881,7 +1075,7 @@ function ProductRowCard({
   row,
   canRemove,
   onUrl,
-  onFetch,
+  onPaste,
   onRemove,
   onToggleImage,
 }: {
@@ -889,7 +1083,7 @@ function ProductRowCard({
   row: ProductRow;
   canRemove: boolean;
   onUrl: (v: string) => void;
-  onFetch: () => void;
+  onPaste: () => void;
   onRemove: () => void;
   onToggleImage: (url: string) => void;
 }) {
@@ -904,18 +1098,18 @@ function ProductRowCard({
         <StatusBadge status={row.status} error={row.error} />
         <span className="flex-1" />
         <button
-          onClick={onFetch}
+          onClick={onPaste}
           disabled={row.status === "loading"}
           className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] text-primary-foreground disabled:opacity-50"
           style={{ background: "var(--gradient-neon)" }}
-          title="Scrape URL"
+          title="Paste URL lalu scrape otomatis"
         >
           {row.status === "loading" ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Search className="h-3.5 w-3.5" />
+            <ClipboardPaste className="h-3.5 w-3.5" />
           )}
-          Scrape
+          Paste
         </button>
         <button
           onClick={onRemove}

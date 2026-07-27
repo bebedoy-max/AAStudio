@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
+import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
+import { LEONARDO_VIDEO_MODELS, leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
-import { Rocket, Play, Search, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
+import { Rocket, Play, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -12,6 +14,18 @@ function ratioClass(r: string): string {
   if (r.startsWith("9:16")) return "aspect-[9/16]";
   if (r.startsWith("1:1")) return "aspect-square";
   return "aspect-video";
+}
+
+function extractFirstUrl(text: string): string {
+  const match = text.match(/https?:\/\/[^\s<>"]+/i);
+  return (match?.[0] ?? text).trim();
+}
+
+const NO_TEXT_GUARD = "no text, no words, no captions, no typography, no logos, no watermarks, no subtitles anywhere in the image or during motion";
+function withNoTextGuard(prompt: string): string {
+  const p = (prompt || "").trim();
+  if (/no\s+text/i.test(p)) return p;
+  return `${p}${p.endsWith(".") ? "" : "."} ${NO_TEXT_GUARD}.`;
 }
 
 export const Route = createFileRoute("/generate/naratif")({
@@ -25,7 +39,7 @@ export const Route = createFileRoute("/generate/naratif")({
 });
 
 // ============ Model Catalog (mirror legacy MODEL_CATALOG structure) ============
-type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo";
+type Provider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 type Quality = { v: string; label: string; cr: number; default?: boolean };
 type ModelDef = { key: string; label: string; qualities: Quality[] };
 
@@ -75,6 +89,50 @@ const IMG_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "1K", label: "1K (6 cr)", cr: 6, default: true },
     ] },
   ],
+  framia: [
+    { key: "framia:nano-banana-lite", label: "Nano Banana Lite (Framia)", qualities: [
+      { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
+      { v: "2K", label: "2K (~2 cr)", cr: 2 },
+    ] },
+    { key: "framia:nano-banana", label: "Nano Banana (Framia)", qualities: [
+      { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
+      { v: "2K", label: "2K (~3 cr)", cr: 3 },
+    ] },
+    { key: "framia:nano-banana-2", label: "Nano Banana 2 (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:nano-banana-pro", label: "Nano Banana Pro (Framia)", qualities: [
+      { v: "default", label: "Standard (~5 cr)", cr: 5, default: true },
+    ] },
+    { key: "framia:gpt-image-2", label: "GPT Image 2 (Framia)", qualities: [
+      { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
+      { v: "4K", label: "4K (~8 cr)", cr: 8 },
+    ] },
+    { key: "framia:seedream-4", label: "Seedream 4.0 (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:seedream-4-5", label: "Seedream 4.5 (Framia)", qualities: [
+      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+      { v: "2K", label: "2K (~4 cr)", cr: 4 },
+    ] },
+    { key: "framia:seedream-5", label: "Seedream 5 (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~5 cr)", cr: 5 },
+    ] },
+    { key: "framia:seedream-5-pro", label: "Seedream 5 Pro (Framia)", qualities: [
+      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+      { v: "2K", label: "2K (~5 cr)", cr: 5 },
+    ] },
+    { key: "framia:flux-1.1-pro", label: "Flux 1.1 Pro (Framia)", qualities: [
+      { v: "default", label: "Standard (~3 cr)", cr: 3, default: true },
+    ] },
+    { key: "framia:flux-max", label: "Flux Max (Framia)", qualities: [
+      { v: "default", label: "Standard (~6 cr)", cr: 6, default: true },
+    ] },
+  ],
+  leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
 
 // Video models — pilihan kualitas = resolusi (durasi fix per model)
@@ -137,7 +195,58 @@ const VID_CATALOG: Record<Provider, ModelDef[]> = {
       { v: "10s-on",  label: "10s · Sound (kuota)",    cr: 0 },
     ] },
   ],
-
+  framia: [
+    // Model list from Framia video node (share recipe 8b83c48b70).
+    { key: "framia:seedance-2.0", label: "Seedance 2.0 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~45 cr)",  cr: 45, default: true },
+      { v: "1080p-5s", label: "1080p · 5s (~65 cr)", cr: 65 },
+      { v: "720p-10s", label: "720p · 10s (~90 cr)", cr: 90 },
+    ] },
+    { key: "framia:seedance-2.0-fast", label: "Seedance 2.0 Fast (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~30 cr)",  cr: 30, default: true },
+      { v: "720p-10s", label: "720p · 10s (~60 cr)", cr: 60 },
+    ] },
+    { key: "framia:kling-3.0-omni", label: "Kling 3.0 Omni (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~60 cr)",  cr: 60, default: true },
+      { v: "1080p-5s", label: "1080p · 5s (~90 cr)", cr: 90 },
+    ] },
+    { key: "framia:kling-3.0", label: "Kling 3.0 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~50 cr)",  cr: 50, default: true },
+      { v: "1080p-5s", label: "1080p · 5s (~75 cr)", cr: 75 },
+    ] },
+    { key: "framia:veo-3.1", label: "Veo 3.1 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~90 cr)",  cr: 90, default: true },
+    ] },
+    { key: "framia:veo-3.1-fast", label: "Veo 3.1 Fast (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~65 cr)",  cr: 65, default: true },
+    ] },
+    { key: "framia:wan-2.7", label: "Wan 2.7 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~25 cr)",  cr: 25, default: true },
+    ] },
+    { key: "framia:gemini-omni-flash", label: "Gemini Omni Flash (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~20 cr)",  cr: 20, default: true },
+      { v: "720p-10s", label: "720p · 10s (~40 cr)", cr: 40 },
+    ] },
+    { key: "framia:happyhorse-1.1", label: "HappyHorse 1.1 (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~28 cr)",  cr: 28, default: true },
+    ] },
+    { key: "framia:kling-avatar", label: "Kling Avatar (Framia)", qualities: [
+      { v: "720p-5s",  label: "720p · 5s (~40 cr)",  cr: 40, default: true },
+    ] },
+  ],
+  leonardo: LEONARDO_VIDEO_MODELS.map((m) => {
+    const opts = leonardoVideoQualityOptions(m.id, "9:16");
+    return {
+      key: m.id,
+      label: `${m.label} (Leonardo${m.audio ? " · Audio" : ""})`,
+      qualities: opts.map((o, idx) => ({
+        v: o.value,
+        label: `${o.label} (${o.cr.toLocaleString("id-ID")} cr)`,
+        cr: o.cr,
+        ...(idx === 0 ? { default: true as const } : {}),
+      })),
+    };
+  }),
 };
 
 const LS_ROUTING = "aatools.routing.v2";
@@ -194,6 +303,126 @@ type BulkKind = "img" | "vo" | "vid" | "merge";
 type BulkBusy = Record<BulkKind, boolean>;
 const EMPTY_BUSY: BulkBusy = { img: false, vo: false, vid: false, merge: false };
 
+// Subtitle style catalog — preview CSS + ffmpeg ASS force_style equivalent.
+// Colors ASS format: &HAABBGGRR (alpha BGR reversed).
+type SubStyleDef = {
+  key: string;
+  label: string;
+  preview: React.CSSProperties;
+  // ffmpeg force_style string used by subtitles=... filter
+  force: string;
+};
+const SUB_STYLES: SubStyleDef[] = [
+  {
+    key: "modern",
+    label: "Modern",
+    preview: {
+      color: "#ffffff",
+      background: "rgba(0,0,0,0.55)",
+      padding: "4px 10px",
+      borderRadius: 6,
+      fontWeight: 600,
+    },
+    force: "FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H80000000&,BorderStyle=3,Outline=1,Shadow=0,Bold=1,MarginV=60",
+  },
+  {
+    key: "minimal",
+    label: "Minimal",
+    preview: {
+      color: "#ffffff",
+      textShadow: "0 1px 3px rgba(0,0,0,0.85)",
+      fontWeight: 500,
+    },
+    force: "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=2,Shadow=1,MarginV=60",
+  },
+  {
+    key: "tiktok",
+    label: "TikTok",
+    preview: {
+      color: "#ffffff",
+      background: "#000",
+      padding: "3px 8px",
+      borderRadius: 4,
+      fontWeight: 900,
+      textTransform: "uppercase",
+      letterSpacing: "0.02em",
+    },
+    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H00000000&,BorderStyle=3,Outline=2,Shadow=0,Bold=1,MarginV=80",
+  },
+  {
+    key: "capcut",
+    label: "CapCut",
+    preview: {
+      color: "#ffe600",
+      WebkitTextStroke: "2px black",
+      textShadow: "0 0 6px rgba(0,0,0,.8)",
+      fontWeight: 800,
+    },
+    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H0000E6FF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
+  },
+  {
+    key: "cinematic",
+    label: "Sinematik",
+    preview: {
+      color: "#ffffff",
+      fontStyle: "italic",
+      fontWeight: 300,
+      letterSpacing: "0.05em",
+      textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+    },
+    force: "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=1,Shadow=1,Italic=1,MarginV=50",
+  },
+  {
+    key: "anime",
+    label: "Anime Pop",
+    preview: {
+      color: "#ffffff",
+      WebkitTextStroke: "3px #d946ef",
+      textShadow: "0 0 12px rgba(217,70,239,.7)",
+      fontWeight: 900,
+    },
+    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00EE46D9&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
+  },
+];
+function findSubStyle(k: string): SubStyleDef {
+  return SUB_STYLES.find((s) => s.key === k) || SUB_STYLES[0];
+}
+// Format seconds → SRT timestamp HH:MM:SS,mmm
+function srtTs(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.max(0, Math.floor((sec - Math.floor(sec)) * 1000));
+  const p = (n: number, w = 2) => n.toString().padStart(w, "0");
+  return `${p(h)}:${p(m)}:${p(s)},${p(ms, 3)}`;
+}
+// Split narration into short cues (~40 chars/word groups) for readable subs.
+function narrationToCues(text: string, totalDur: number): Array<{ start: number; end: number; text: string }> {
+  const clean = (text || "").replace(/\s+/g, " ").trim();
+  if (!clean || totalDur <= 0.3) return [];
+  const words = clean.split(" ");
+  const groups: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (next.length > 42 && cur) {
+      groups.push(cur);
+      cur = w;
+    } else {
+      cur = next;
+    }
+  }
+  if (cur) groups.push(cur);
+  if (groups.length === 0) return [];
+  const per = totalDur / groups.length;
+  return groups.map((g, i) => ({
+    start: i * per,
+    end: Math.min(totalDur, (i + 1) * per),
+    text: g,
+  }));
+}
+
+
 function NaratifPage() {
   const [url, setUrl] = useSticky<string>("naratif.url", "");
   const [scraping, setScraping] = useSticky<boolean>("naratif.scraping", false);
@@ -219,9 +448,93 @@ function NaratifPage() {
   const [xfadeDur, setXfadeDur] = useSticky<number>("naratif.xfadeDur", 0.5);
   const [leadOutDur, setLeadOutDur] = useSticky<number>("naratif.leadOutDur", 0.4);
 
+  // Backsound (background music) options
+  type BgTrack = { title: string; url: string; duration: number };
+  const [bgMood, setBgMood] = useSticky<string>("naratif.bgMood", "cinematic");
+  const [bgVol, setBgVol] = useSticky<number>("naratif.bgVol", 0.18);
+  const [bgTrack, setBgTrack] = useSticky<BgTrack | null>("naratif.bgTrack", null);
+  const [bgLibrary, setBgLibrary] = useState<BgTrack[]>([]);
+  const [bgLoading, setBgLoading] = useState(false);
+  const [bgUploadName, setBgUploadName] = useSticky<string>("naratif.bgUploadName", "");
+  const bgAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [bgPlaying, setBgPlaying] = useState(false);
+  const [bgSource, setBgSource] = useSticky<"none" | "library" | "upload">("naratif.bgSource", "none");
+
+  const BG_MOODS: Array<{ key: string; label: string }> = [
+    { key: "cinematic", label: "🎬 Cinematic" },
+    { key: "dark-cinematic", label: "🌑 Dark Cinematic" },
+    { key: "horror", label: "👻 Horror" },
+    { key: "inspiration", label: "✨ Inspirational" },
+    { key: "comedy", label: "😄 Comedy / Fun" },
+    { key: "upbeat", label: "⚡ Upbeat / Energetic" },
+    { key: "documentary", label: "📽️ Documentary" },
+  ];
+
+  const loadBgLibrary = async (mood: string): Promise<BgTrack[]> => {
+    setBgLoading(true);
+    try {
+      const r = await fetch(`/api/public/backsound-search?mood=${encodeURIComponent(mood)}`);
+      const j = await r.json();
+      const tracks: BgTrack[] = Array.isArray(j.tracks) ? j.tracks : [];
+      setBgLibrary(tracks);
+      return tracks;
+    } catch {
+      setBgLibrary([]);
+      return [];
+    } finally {
+      setBgLoading(false);
+    }
+  };
+
+  const shuffleBgTrack = async () => {
+    let list = bgLibrary;
+    if (!list.length) list = await loadBgLibrary(bgMood);
+    if (!list.length) return;
+    const t = list[Math.floor(Math.random() * list.length)];
+    setBgTrack(t);
+    setBgSource("library");
+    setBgUploadName("");
+    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+  };
+
+  const toggleBgPlay = () => {
+    if (!bgTrack?.url) return;
+    const el = bgAudioRef.current;
+    if (!el) return;
+    if (bgPlaying) { el.pause(); setBgPlaying(false); }
+    else { el.play().then(() => setBgPlaying(true)).catch(() => setBgPlaying(false)); }
+  };
+
+  const onBgUpload = async (file: File | null) => {
+    if (!file) return;
+    const buf = await file.arrayBuffer();
+    const blob = new Blob([buf], { type: file.type || "audio/mpeg" });
+    const url = URL.createObjectURL(blob);
+    setBgTrack({ title: file.name, url, duration: 0 });
+    setBgSource("upload");
+    setBgUploadName(file.name);
+    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+  };
+
+  const clearBg = () => {
+    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+    setBgTrack(null);
+    setBgSource("none");
+    setBgUploadName("");
+  };
+
+  // Subtitle burn-in options (default: aktif)
+  const [subEnable, setSubEnable] = useSticky<boolean>("naratif.subEnable", true);
+  const [subStyle, setSubStyle] = useSticky<string>("naratif.subStyle", "modern");
+
   const [brainStatus, setBrainStatus] = useSticky<string>("naratif.brainStatus", "");
   const [scenes, setScenes] = useSticky<Scene[]>("naratif.scenes", []);
   const [mergeStatus, setMergeStatus] = useSticky<string>("naratif.mergeStatus", "");
+  const [bulkLogs, setBulkLogs] = useSticky<string[]>("naratif.bulkLogs", []);
+  const [bulkPct, setBulkPct] = useSticky<number>("naratif.bulkPct", 0);
+  const pushBulkLog = (s: string) =>
+    setBulkLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
+  const setPct = (p: number) => setBulkPct(Math.max(0, Math.min(100, p)));
   const [finalUrl, setFinalUrl] = useSticky<string | null>("naratif.finalUrl", null);
   const [testingVoice, setTestingVoice] = useSticky<boolean>("naratif.testingVoice", false);
 
@@ -346,7 +659,7 @@ function NaratifPage() {
       setImgQuality(def?.v ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeImgModel]);
+  }, [activeImgModel, imgQuality]);
   useEffect(() => {
     if (!activeVidModel) return;
     if (!activeVidModel.qualities.find((q) => q.v === vidQuality)) {
@@ -354,7 +667,7 @@ function NaratifPage() {
       setVidQuality(def?.v ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeVidModel]);
+  }, [activeVidModel, vidQuality]);
 
   // ref agar effect bootstrap bisa memanggil scrape yang dideklarasikan di bawah
   const scrapeRef = useRef<((overrideUrl?: string) => Promise<void>) | null>(null);
@@ -434,6 +747,20 @@ function NaratifPage() {
   };
   scrapeRef.current = scrape;
 
+  const pasteAndScrape = async () => {
+    try {
+      const pasted = extractFirstUrl(await navigator.clipboard.readText());
+      if (!/^https?:\/\//i.test(pasted)) {
+        setScrapeStatus("❌ Clipboard tidak berisi URL valid");
+        return;
+      }
+      setUrl(pasted);
+      await scrape(pasted);
+    } catch (e) {
+      setScrapeStatus("❌ " + ((e as Error).message || "Browser menolak akses clipboard"));
+    }
+  };
+
 
   const runBrain = async () => {
     if (!material) return;
@@ -479,13 +806,29 @@ function NaratifPage() {
       let imgUrl: string;
       if (imgProvider === "weavy") {
         const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
-        imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: scene.prompt, quality: imgQuality, ratio });
+        imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: withNoTextGuard(scene.prompt), quality: imgQuality, ratio });
+      } else if (imgProvider === "framia") {
+        const { generateFramiaImage } = await import("@/lib/providers/framia-image");
+        imgUrl = await generateFramiaImage({
+          modelKey: imgModel,
+          prompt: withNoTextGuard(scene.prompt),
+          aspectRatio: ratio,
+          resolution: imgQuality,
+        });
+      } else if (imgProvider === "leonardo") {
+        const { generateLeonardoOne } = await import("@/lib/providers/leonardo-router");
+        imgUrl = await generateLeonardoOne({
+          modelKey: imgModel,
+          prompt: withNoTextGuard(scene.prompt),
+          ratio,
+          quality: imgQuality,
+        });
       } else {
         const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import("@/lib/providers/wavespeed");
         const key = getFirstWavespeedKey();
         if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${imgProvider})`);
         const modelId = mapImgToWsEndpoint(imgModel);
-        const payload: Record<string, unknown> = { prompt: scene.prompt, aspect_ratio: ratio };
+        const payload: Record<string, unknown> = { prompt: withNoTextGuard(scene.prompt), aspect_ratio: ratio };
         if (/gpt-image/.test(modelId)) payload.quality = imgQuality;
         else if (/nano-banana/.test(modelId)) payload.resolution = imgQuality;
         const data = await wsPost(modelId, payload, key);
@@ -566,6 +909,8 @@ function NaratifPage() {
       const imgResp = await fetch(scene.imgUrl);
       const imgFile = new File([await imgResp.blob()], `scene_${i}.jpg`, { type: "image/jpeg" });
       const q = parseVidQuality(vidQuality);
+      const leoTier =
+        provider === "leonardo" ? (vidQuality || "").split("-")[0] || undefined : undefined;
       const videoUrl = await generateI2V({
         provider,
         modelKey: vidModel,
@@ -573,8 +918,9 @@ function NaratifPage() {
         ratio,
         duration: q.duration,
         resolution: q.resolution,
+        sizeTier: leoTier,
         sound: q.sound,
-        prompt: scene.videoPrompt || scene.prompt,
+        prompt: withNoTextGuard(scene.videoPrompt || scene.prompt),
       });
       patchScene(i, { videoUrl, busy: null });
     } catch (e) {
@@ -593,17 +939,28 @@ function NaratifPage() {
       trackGeneration({ kind: "narrative", title, counts: { images: scenes.length } });
     } catch { /* ignore */ }
     setBusy("img", true);
-    setBrainStatus("🖼️ Generate semua gambar…");
+    setBrainStatus(`🖼️ Generate ${scenes.length} gambar paralel…`);
+    pushBulkLog(`🚀 Mulai generate ${scenes.length} gambar · ${imgProvider} · ${imgModel}`);
+    setPct(5);
+    let done = 0;
     try {
-      for (let i = 0; i < scenes.length; i++) {
-        setBrainStatus(`🖼️ Gambar #${i + 1}/${scenes.length}…`);
-        await genImageAt(i);
+      const results = await Promise.allSettled(scenes.map((_, i) =>
+        genImageAt(i).then((v) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`✅ Gambar scene #${i + 1} selesai (${done}/${scenes.length})`); return v; })
+                     .catch((e) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`❌ Gambar scene #${i + 1} gagal: ${(e as Error).message || e}`); throw e; })
+      ));
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        const first = (failed[0] as PromiseRejectedResult).reason;
+        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
       }
       setBrainStatus("✅ Semua gambar selesai");
+      setPct(100);
+      pushBulkLog(`🏁 Semua gambar selesai`);
       logGenerate("naratif_images", { provider, modelKey: imgModel, status: "success", scenes: scenes.length });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setBrainStatus("❌ " + msg);
+      pushBulkLog(`❌ ${msg}`);
       logGenerate("naratif_images", { provider, modelKey: imgModel, status: "error", error: msg });
     } finally {
       setBusy("img", false);
@@ -614,17 +971,28 @@ function NaratifPage() {
     if (bulkBusy.vo) return;
     logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "started", scenes: scenes.length });
     setBusy("vo", true);
-    setBrainStatus("🎙️ Generate semua voice-over…");
+    setBrainStatus(`🎙️ Generate ${scenes.length} voice-over paralel…`);
+    pushBulkLog(`🚀 Mulai generate ${scenes.length} voice-over · ElevenLabs · ${voice}`);
+    setPct(5);
+    let done = 0;
     try {
-      for (let i = 0; i < scenes.length; i++) {
-        setBrainStatus(`🎙️ VO #${i + 1}/${scenes.length}…`);
-        await genVOAt(i);
+      const results = await Promise.allSettled(scenes.map((_, i) =>
+        genVOAt(i).then((v) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`✅ VO scene #${i + 1} selesai (${done}/${scenes.length})`); return v; })
+                  .catch((e) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`❌ VO scene #${i + 1} gagal: ${(e as Error).message || e}`); throw e; })
+      ));
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        const first = (failed[0] as PromiseRejectedResult).reason;
+        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
       }
       setBrainStatus("✅ Semua VO selesai");
+      setPct(100);
+      pushBulkLog(`🏁 Semua voice-over selesai`);
       logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "success", scenes: scenes.length });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setBrainStatus("❌ " + msg);
+      pushBulkLog(`❌ ${msg}`);
       logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "error", error: msg });
     } finally {
       setBusy("vo", false);
@@ -640,17 +1008,28 @@ function NaratifPage() {
       trackGeneration({ kind: "narrative", title, counts: { videos: scenes.length }, progress: 60 });
     } catch { /* ignore */ }
     setBusy("vid", true);
-    setBrainStatus("🎬 Generate semua image→video…");
+    setBrainStatus(`🎬 Generate ${scenes.length} image→video paralel…`);
+    pushBulkLog(`🚀 Mulai generate ${scenes.length} video · ${provider} · ${vidModel}`);
+    setPct(5);
+    let done = 0;
     try {
-      for (let i = 0; i < scenes.length; i++) {
-        setBrainStatus(`🎬 Video #${i + 1}/${scenes.length}…`);
-        await genVideoAt(i);
+      const results = await Promise.allSettled(scenes.map((_, i) =>
+        genVideoAt(i).then((v) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`✅ Video scene #${i + 1} selesai (${done}/${scenes.length})`); return v; })
+                     .catch((e) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`❌ Video scene #${i + 1} gagal: ${(e as Error).message || e}`); throw e; })
+      ));
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length) {
+        const first = (failed[0] as PromiseRejectedResult).reason;
+        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
       }
       setBrainStatus("✅ Semua video selesai");
+      setPct(100);
+      pushBulkLog(`🏁 Semua video selesai`);
       logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "success", scenes: scenes.length });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setBrainStatus("❌ " + msg);
+      pushBulkLog(`❌ ${msg}`);
       logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "error", error: msg });
     } finally {
       setBusy("vid", false);
@@ -677,6 +1056,8 @@ function NaratifPage() {
     if (bulkBusy.merge) return;
     setBusy("merge", true);
     setMergeStatus("⏳ Menyiapkan FFmpeg…");
+    pushBulkLog(`🧵 Mulai gabung ${scenes.length} scene jadi video naratif`);
+    setPct(2);
     setFinalUrl(null);
     try {
       const { getFfmpeg } = await import("@/lib/mixing/ffmpeg-render");
@@ -689,13 +1070,39 @@ function NaratifPage() {
       const XFADE = Math.max(0.1, Math.min(1.5, Number(xfadeDur) || 0.5));
       const GAP = Math.max(0, Math.min(4, Number(sceneGap) || 0));
       const TAIL_LAST = Math.max(0, Math.min(4, Number(leadOutDur) || 0));
+      const activeSubStyle = findSubStyle(subStyle);
+      const burnSubs = !!subEnable;
+
+      // Preload font TTF supaya libass punya font untuk render subtitle
+      // (ffmpeg.wasm tidak ship font sistem; tanpa ini subtitle tidak muncul).
+      let fontsReady = false;
+      if (burnSubs) {
+        try {
+          setMergeStatus("🔤 Memuat font untuk subtitle…");
+          pushBulkLog("🔤 Memuat font DejaVu Sans untuk subtitle…");
+          const fontResp = await fetch("https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf");
+          if (fontResp.ok) {
+            const buf = new Uint8Array(await fontResp.arrayBuffer());
+            await ff.writeFile("DejaVuSans.ttf", buf);
+            fontsReady = true;
+            pushBulkLog(`✅ Font subtitle siap (${(buf.byteLength / 1024).toFixed(0)} KB)`);
+          } else {
+            pushBulkLog(`⚠️ Font gagal dimuat (HTTP ${fontResp.status}); subtitle mungkin tidak tampil`);
+          }
+        } catch (fe) {
+          pushBulkLog(`⚠️ Font gagal dimuat: ${(fe as Error).message}; subtitle mungkin tidak tampil`);
+        }
+      }
 
       const parts: string[] = [];
       const durs: number[] = [];
+      const subFilesToClean: string[] = [];
       for (let i = 0; i < scenes.length; i++) {
         const s = scenes[i];
         if (!s.videoUrl || !s.audioUrl) throw new Error(`Scene #${i + 1} belum lengkap`);
         setMergeStatus(`🎬 Mux scene ${i + 1}/${scenes.length}…`);
+        pushBulkLog(`🎬 Mux scene ${i + 1}/${scenes.length}…`);
+        setPct(5 + Math.round((i / scenes.length) * 70));
 
         const [aDur, vDur] = await Promise.all([
           getMediaDuration(s.audioUrl, "audio"),
@@ -720,9 +1127,24 @@ function NaratifPage() {
         await ff.writeFile(vName, await fetchFile(s.videoUrl));
         await ff.writeFile(aName, await fetchFile(s.audioUrl));
 
-        const vFilter =
+        let vFilter =
           `${scaleVf},setpts=${ptsFactor.toFixed(6)}*PTS` +
           (vTail > 0 ? `,tpad=stop_mode=clone:stop_duration=${vTail.toFixed(3)}` : "");
+
+        if (burnSubs && s.narration && s.narration.trim()) {
+          const cues = narrationToCues(s.narration, voDur);
+          if (cues.length > 0) {
+            const srt = cues
+              .map((c, k) => `${k + 1}\n${srtTs(c.start)} --> ${srtTs(c.end)}\n${c.text}\n`)
+              .join("\n");
+            const subName = `s${i}.srt`;
+            await ff.writeFile(subName, new TextEncoder().encode(srt));
+            subFilesToClean.push(subName);
+            const subOpts = fontsReady ? `fontsdir=.:force_style='${activeSubStyle.force}'` : `force_style='${activeSubStyle.force}'`;
+            vFilter += `,subtitles=${subName}:${subOpts}`;
+          }
+        }
+
         const aFilter =
           tailPad > 0
             ? `apad=pad_dur=${tailPad.toFixed(3)},atrim=0:${partDur.toFixed(3)},asetpts=N/SR/TB`
@@ -753,72 +1175,143 @@ function NaratifPage() {
         durs.push(vClipDur);
       }
 
-      setMergeStatus("🧵 Menggabung scene dengan crossfade…");
+      // Cleanup subtitle files after mux (safe to remove; already burned in).
+      for (const sf of subFilesToClean) { try { await ff.deleteFile(sf); } catch { /* noop */ } }
+
+
+      setMergeStatus("🧵 Menggabung scene…");
+
+      // Load backsound (jika ada) ke ffmpeg FS
+      const HAS_BG = !!bgTrack?.url;
+      const BG_NAME = "bg_music.mp3";
+      const BG_VOL = Math.max(0, Math.min(1, Number(bgVol) || 0));
+      if (HAS_BG) {
+        try {
+          setMergeStatus("🎵 Memuat backsound…");
+          pushBulkLog(`🎵 Memuat backsound: ${bgTrack!.title}`);
+          await ff.writeFile(BG_NAME, await fetchFile(bgTrack!.url));
+        } catch (be) {
+          pushBulkLog(`⚠️ Backsound gagal dimuat: ${(be as Error).message}. Lanjut tanpa backsound.`);
+        }
+      }
+      const hasBgFile = HAS_BG; // simplified
 
       if (parts.length === 1) {
-        // No transitions needed
-        const data = (await ff.readFile(parts[0])) as Uint8Array;
+        // Single scene: langsung finalize (dengan opsi backsound loop+mix)
+        if (!hasBgFile) {
+          const data = (await ff.readFile(parts[0])) as Uint8Array;
+          const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
+          const url = URL.createObjectURL(blob);
+          setFinalUrl(url);
+          setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+          try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+          logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
+          return;
+        }
+        const t = durs[0];
+        const filt =
+          `[1:a]aloop=loop=-1:size=2147483647,atrim=0:${t.toFixed(3)},volume=${BG_VOL.toFixed(2)}[bg];` +
+          `[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`;
+        const sret = await ff.exec([
+          "-i", parts[0],
+          "-i", BG_NAME,
+          "-filter_complex", filt,
+          "-map", "0:v", "-map", "[aout]",
+          "-t", t.toFixed(3),
+          "-c:v", "copy",
+          "-c:a", "aac", "-b:a", "160k",
+          "-movflags", "+faststart",
+          "-y", "final.mp4",
+        ]);
+        if (sret !== 0) throw new Error("FFmpeg gagal mix backsound");
+        const data = (await ff.readFile("final.mp4")) as Uint8Array;
         const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
         const url = URL.createObjectURL(blob);
         setFinalUrl(url);
         setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
         try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+        try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
+        try { await ff.deleteFile(BG_NAME); } catch { /* noop */ }
         logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
         return;
       }
 
-      // Build filter_complex with xfade (video) + acrossfade (audio)
+      // Multi-scene: video crossfade + audio concat (tanpa crossfade — hindari volume dip).
+      // Total durasi setelah xfade video = sum(durs) - (N-1)*XFADE.
+      // Audio tiap part non-terakhir dipangkas XFADE agar total audio == total video.
+      const totalDur = durs.reduce((a, b) => a + b, 0) - (parts.length - 1) * XFADE;
       const inputs: string[] = [];
       parts.forEach((p) => { inputs.push("-i", p); });
+      if (hasBgFile) inputs.push("-i", BG_NAME);
 
       const filters: string[] = [];
       let vPrev = "[0:v]";
-      let aPrev = "[0:a]";
       let cumOffset = 0;
       for (let i = 1; i < parts.length; i++) {
         const prevDur = durs[i - 1];
         cumOffset += prevDur - XFADE;
         const vOut = `[v${i}]`;
-        const aOut = `[a${i}]`;
         filters.push(
           `${vPrev}[${i}:v]xfade=transition=fade:duration=${XFADE}:offset=${cumOffset.toFixed(3)}${vOut}`,
         );
-        filters.push(
-          `${aPrev}[${i}:a]acrossfade=d=${XFADE}:c1=tri:c2=tri${aOut}`,
-        );
         vPrev = vOut;
-        aPrev = aOut;
+      }
+
+      // Trim audio per part (potong XFADE dari akhir setiap part non-terakhir) lalu concat.
+      const aLabels: string[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        const isLast = i === parts.length - 1;
+        const cut = isLast ? durs[i] : Math.max(0.1, durs[i] - XFADE);
+        const lbl = `[ac${i}]`;
+        filters.push(`[${i}:a]atrim=0:${cut.toFixed(3)},asetpts=N/SR/TB${lbl}`);
+        aLabels.push(lbl);
+      }
+      filters.push(`${aLabels.join("")}concat=n=${parts.length}:v=0:a=1[avo]`);
+
+      let finalAudioLabel = "[avo]";
+      if (hasBgFile) {
+        const bgIdx = parts.length;
+        filters.push(
+          `[${bgIdx}:a]aloop=loop=-1:size=2147483647,atrim=0:${totalDur.toFixed(3)},volume=${BG_VOL.toFixed(2)}[bg]`,
+        );
+        filters.push(`[bg][avo]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[amixed]`);
+        finalAudioLabel = "[amixed]";
       }
 
       const cret = await ff.exec([
         ...inputs,
         "-filter_complex", filters.join(";"),
         "-map", vPrev,
-        "-map", aPrev,
+        "-map", finalAudioLabel,
         "-c:v", "libx264",
         "-preset", "ultrafast",
         "-crf", "26",
         "-pix_fmt", "yuv420p",
         "-c:a", "aac",
-        "-b:a", "128k",
+        "-b:a", "160k",
         "-movflags", "+faststart",
         "-y", "final.mp4",
       ]);
-      if (cret !== 0) throw new Error("FFmpeg crossfade gagal");
+      if (cret !== 0) throw new Error("FFmpeg merge gagal");
 
       const data = (await ff.readFile("final.mp4")) as Uint8Array;
       const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
       const url = URL.createObjectURL(blob);
       setFinalUrl(url);
-      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB${hasBgFile ? " · + backsound" : ""}`);
+      pushBulkLog(`🏁 Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
+      setPct(100);
 
       for (const p of parts) { try { await ff.deleteFile(p); } catch { /* noop */ } }
       try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
+      if (hasBgFile) { try { await ff.deleteFile(BG_NAME); } catch { /* noop */ } }
+
 
       logGenerate("naratif_merge", { status: "success", scenes: scenes.length, bytes: blob.size });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setMergeStatus("❌ " + msg);
+      pushBulkLog(`❌ Merge gagal: ${msg}`);
       logGenerate("naratif_merge", { status: "error", error: msg });
     } finally {
       setBusy("merge", false);
@@ -836,8 +1329,8 @@ function NaratifPage() {
       <Card title="🔗 Sumber Artikel">
         <div className="flex gap-2">
           <Input type="url" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
-          <PrimaryButton onClick={() => { void scrape(); }} disabled={scraping || !url.trim()} className="whitespace-nowrap shrink-0">
-            <Search className="h-4 w-4" /> Ambil Materi
+          <PrimaryButton onClick={() => { void pasteAndScrape(); }} disabled={scraping} className="whitespace-nowrap shrink-0">
+            {scraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardPaste className="h-4 w-4" />} Paste
           </PrimaryButton>
         </div>
         {scrapeStatus && <div className="mt-2 text-[11px] text-muted-foreground">{scrapeStatus}</div>}
@@ -1027,6 +1520,136 @@ function NaratifPage() {
               </label>
             </div>
           </div>
+          <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+              <div className="text-[11px] font-medium text-muted-foreground">💬 Subtitle (burn-in ke video)</div>
+              <label className="inline-flex items-center gap-2 text-[11px] cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={subEnable}
+                  onChange={(e) => setSubEnable(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                <span>{subEnable ? "Aktif — subtitle akan dibakar ke video" : "Nonaktif — video tanpa subtitle"}</span>
+              </label>
+            </div>
+            {subEnable && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                {SUB_STYLES.map((st) => {
+                  const active = st.key === subStyle;
+                  return (
+                    <button
+                      key={st.key}
+                      type="button"
+                      onClick={() => setSubStyle(st.key)}
+                      className={`text-left rounded-lg border transition p-2 flex flex-col gap-1.5 ${active ? "border-primary ring-2 ring-primary/50 bg-primary/5" : "border-border hover:border-primary/60 bg-black/20"}`}
+                      title={st.label}
+                    >
+                      <div
+                        className="w-full h-14 rounded-md relative overflow-hidden grid place-items-center"
+                        style={{
+                          background:
+                            "linear-gradient(135deg,#2a2a3d 0%,#4a3a5e 50%,#2a3a4d 100%)",
+                        }}
+                      >
+                        <span
+                          className="text-[10px] leading-tight text-center px-1 max-w-[95%] whitespace-nowrap overflow-hidden text-ellipsis"
+                          style={st.preview}
+                        >
+                          Contoh subtitle
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-medium">{st.label}</span>
+                        {active && <span className="text-[9px] text-primary font-mono">AKTIF</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+              <div className="text-[11px] font-medium text-muted-foreground">🎵 Backsound (musik latar) — auto-loop menyesuaikan durasi video</div>
+              {bgTrack && (
+                <button
+                  type="button"
+                  onClick={clearBg}
+                  className="text-[10px] text-red-400 hover:text-red-300 underline"
+                >
+                  Hapus backsound
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Mood (dari internet, gratis)</span>
+                <select
+                  value={bgMood}
+                  onChange={(e) => { setBgMood(e.target.value); setBgLibrary([]); }}
+                  className="h-8 rounded-md border border-border bg-black/30 px-2 text-[12px]"
+                >
+                  {BG_MOODS.map((m) => (
+                    <option key={m.key} value={m.key}>{m.label}</option>
+                  ))}
+                </select>
+              </label>
+              <div className="text-[11px] flex flex-col gap-1">
+                <span>Aksi</span>
+                <div className="flex gap-1.5">
+                  <GhostButton
+                    onClick={shuffleBgTrack}
+                    disabled={bgLoading}
+                    className="!px-2 !py-1 text-[11px] flex-1"
+                    title="Ambil track random dari mood ini"
+                  >
+                    {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Shuffle
+                  </GhostButton>
+                  <GhostButton
+                    onClick={toggleBgPlay}
+                    disabled={!bgTrack?.url}
+                    className="!px-2 !py-1 text-[11px] flex-1"
+                    title="Play / pause preview"
+                  >
+                    <Play className="h-3 w-3" /> {bgPlaying ? "Pause" : "Play"}
+                  </GhostButton>
+                </div>
+              </div>
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Volume backsound: <b>{Math.round(bgVol * 100)}%</b></span>
+                <input type="range" min={0} max={0.6} step={0.02} value={bgVol} onChange={(e) => setBgVol(Number(e.target.value))} />
+              </label>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-md border border-border bg-black/20 px-2 py-1 hover:border-primary/60">
+                <span>📁 Upload manual (MP3/WAV)</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.currentTarget.files?.[0] || null; onBgUpload(f); e.currentTarget.value = ""; }}
+                />
+              </label>
+              {bgTrack && (
+                <span className="truncate max-w-[60%]">
+                  🎶 <b>{bgSource === "upload" ? bgUploadName || bgTrack.title : bgTrack.title}</b>
+                  {bgSource === "library" ? " (Kevin MacLeod · CC-BY)" : ""}
+                </span>
+              )}
+              {!bgTrack && <span className="opacity-70">Tidak ada backsound dipilih — video akan hanya pakai voice-over.</span>}
+            </div>
+            {bgTrack?.url && (
+              <audio
+                ref={bgAudioRef}
+                src={bgTrack.url}
+                onEnded={() => setBgPlaying(false)}
+                onPause={() => setBgPlaying(false)}
+                onPlay={() => setBgPlaying(true)}
+                className="hidden"
+              />
+            )}
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <PrimaryButton onClick={genAllImages} disabled={bulkBusy.img || bulkBusy.vid || bulkBusy.merge}>
               {bulkBusy.img ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
@@ -1056,6 +1679,33 @@ function NaratifPage() {
             </PrimaryButton>
           </div>
 
+          {(anyBusy || bulkPct > 0 || bulkLogs.length > 0) && (
+            <div className="mt-4 rounded-xl border border-border/70 bg-card/40 p-3 space-y-3">
+              <div>
+                <div className="flex justify-between items-center text-xs mb-1">
+                  <span className="text-muted-foreground">Progress bulk</span>
+                  <span className="font-mono text-muted-foreground">{bulkPct}%</span>
+                </div>
+                <div className="h-1 rounded-full bg-border overflow-hidden">
+                  <div className="h-full transition-all" style={{ width: `${bulkPct}%`, background: "var(--gradient-neon)" }} />
+                </div>
+              </div>
+              {bulkLogs.length > 0 && (
+                <div className="rounded-lg border border-border/60 bg-black/40 p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Log Proses</div>
+                    <button onClick={() => { setBulkLogs([]); setPct(0); }} className="text-[10px] text-muted-foreground hover:text-destructive">Clear</button>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
+                    {bulkLogs.map((l, i) => (
+                      <div key={i} className="whitespace-pre-wrap break-all min-w-0">{l}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {mergeStatus && <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>}
           {finalUrl && finalUrl !== "#" && (
             <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 space-y-3">
@@ -1078,7 +1728,7 @@ function NaratifPage() {
         <Card>
           <div className="py-10 text-center text-sm text-muted-foreground">
             <Rocket className="mx-auto h-8 w-8 opacity-50" />
-            <div className="mt-2">Paste URL artikel di atas lalu klik <b>Ambil Materi</b> untuk memulai.</div>
+            <div className="mt-2">Paste URL artikel di atas untuk mengambil materi otomatis.</div>
           </div>
         </Card>
       )}

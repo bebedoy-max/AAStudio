@@ -18,6 +18,7 @@ import { getFirstWavespeedKey, wsUploadMedia, wsMotionControl } from "./wavespee
 import { runMagnificMotion } from "./magnific-motion";
 import {
   getAllRoboneoKeys,
+  removeRoboneoKeyFromManager,
   submitRoboneoMotion,
   pollRoboneoTask,
   isRoboneoRotatableError,
@@ -55,7 +56,7 @@ async function generateOneMagnific(slot: MotionSlotInput, opts: MotionOpts): Pro
   });
 }
 
-export type MotionProvider = "weavy" | "wavespeed" | "magnific" | "roboneo";
+export type MotionProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia";
 
 export type MotionSlotInput = {
   index: number;
@@ -185,22 +186,239 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const tokens = getAllRoboneoKeys();
   if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
 
-  // Upload media ke public host (catbox/litterbox/uguu) — Roboneo cukup butuh
-  // URL publik yang bisa di-fetch gateway Meitu, tidak perlu provider lain.
-  const uploadPublic = async (file: File): Promise<string> => {
+  // Upload media. Untuk file besar, hindari edge worker (limit ~100MB / 413).
+  // Coba direct browser → Uguu / Catbox dulu (keduanya set CORS *), lalu
+  // fallback ke server proxy. Roboneo engine kadang menolak URL litterbox
+  // sebagai input, jadi litterbox hanya sebagai upaya terakhir.
+  const DIRECT_UPLOAD_TIMEOUT_MS = 8 * 60 * 1000;
+  const DIRECT_UPLOAD_STALL_MS = 45 * 1000;
+
+  const formatBytes = (bytes: number) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+    return `${bytes}B`;
+  };
+
+  const postFormWithProgress = async (
+    host: string,
+    url: string,
+    form: FormData,
+    kind: "image" | "video",
+    parse: (text: string, status: number) => string,
+  ): Promise<string> =>
+    new Promise((resolve, reject) => {
+      if (typeof XMLHttpRequest === "undefined") {
+        reject(new Error(`${host}: browser upload tidak tersedia`));
+        return;
+      }
+
+      const xhr = new XMLHttpRequest();
+      let settled = false;
+      let stallTimer: ReturnType<typeof setTimeout> | null = null;
+      let lastPct = -1;
+
+      const cleanup = () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = null;
+      };
+
+      const fail = (message: string) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error(message));
+      };
+
+      const resetStallTimer = () => {
+        cleanup();
+        stallTimer = setTimeout(() => {
+          xhr.abort();
+          fail(`${host}: upload tidak bergerak > ${Math.round(DIRECT_UPLOAD_STALL_MS / 1000)} detik`);
+        }, DIRECT_UPLOAD_STALL_MS);
+      };
+
+      xhr.open("POST", url);
+      xhr.timeout = DIRECT_UPLOAD_TIMEOUT_MS;
+
+      xhr.upload.onloadstart = () => resetStallTimer();
+      xhr.upload.onprogress = (event) => {
+        resetStallTimer();
+        if (event.lengthComputable && event.total > 0) {
+          const pct = Math.max(0, Math.min(99, Math.round((event.loaded / event.total) * 100)));
+          if (pct !== lastPct) {
+            lastPct = pct;
+            opts.onStatus?.({ index, status: `uploading ${kind} ${host} ${pct}%` });
+          }
+          return;
+        }
+        opts.onStatus?.({ index, status: `uploading ${kind} ${host} ${formatBytes(event.loaded)}` });
+      };
+      xhr.upload.onload = () => {
+        resetStallTimer();
+        opts.onStatus?.({ index, status: `uploading ${kind} ${host} selesai, menunggu URL...` });
+      };
+
+      xhr.onload = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        try {
+          const text = typeof xhr.responseText === "string" ? xhr.responseText.trim() : "";
+          resolve(parse(text, xhr.status));
+        } catch (error) {
+          reject(error);
+        }
+      };
+      xhr.onerror = () => fail(`${host}: network/CORS gagal`);
+      xhr.ontimeout = () => fail(`${host}: timeout upload`);
+      xhr.onabort = () => fail(`${host}: upload dibatalkan`);
+
+      resetStallTimer();
+      xhr.send(form);
+    });
+
+  const uploadDirectUguu = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("files[]", file, file.name || "upload.bin");
+    return postFormWithProgress("Uguu", "https://uguu.se/upload.php", fd, kind, (text, status) => {
+      const j = JSON.parse(text || "null") as { files?: Array<{ url?: string }>; error?: string } | null;
+      const url = j?.files?.[0]?.url;
+      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) return url.replace(/\\\//g, "/");
+      throw new Error(j?.error || `Uguu HTTP ${status}`);
+    });
+  };
+  const uploadDirectCatbox = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("reqtype", "fileupload");
+    fd.append("fileToUpload", file, file.name || "upload.bin");
+    return postFormWithProgress("Catbox", "https://catbox.moe/user/api.php", fd, kind, (text, status) => {
+      if (status >= 200 && status < 300 && /^https?:\/\//i.test(text)) return text;
+      throw new Error(text || `Catbox HTTP ${status}`);
+    });
+  };
+  const uploadDirectTmpfiles = async (file: File, kind: "image" | "video"): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name || "upload.bin");
+    return postFormWithProgress("Tmpfiles", "https://tmpfiles.org/api/v1/upload", fd, kind, (text, status) => {
+      const j = JSON.parse(text || "null") as { status?: string; data?: { url?: string } } | null;
+      const url = j?.data?.url;
+      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) {
+        // Convert viewer URL → direct download URL (insert /dl/ after host)
+        return url.replace(/^(https?:\/\/tmpfiles\.org)\/(?!dl\/)/i, "$1/dl/");
+      }
+      throw new Error(`Tmpfiles HTTP ${status}`);
+    });
+  };
+  const uploadDirect0x0 = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    return postFormWithProgress("0x0", "https://0x0.st", fd, kind, (text, status) => {
+      const t = (text || "").trim();
+      if (status >= 200 && status < 300 && /^https?:\/\//i.test(t)) return t;
+      throw new Error(t || `0x0 HTTP ${status}`);
+    });
+  };
+  const uploadDirectPixeldrain = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    return postFormWithProgress("Pixeldrain", "https://pixeldrain.com/api/file", fd, kind, (text, status) => {
+      const j = JSON.parse(text || "null") as { id?: string; message?: string } | null;
+      if (status >= 200 && status < 300 && j?.id) return `https://pixeldrain.com/api/file/${j.id}`;
+      throw new Error(j?.message || `Pixeldrain HTTP ${status}`);
+    });
+  };
+  const uploadViaServer = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file, file.name || "upload.bin");
+    fd.append("prefer", "roboneo");
     const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
     const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
     return j.url;
   };
 
+  const validateRoboneoMediaUrl = async (url: string, kind: "image" | "video", host: string): Promise<string> => {
+    const r = await fetch("/api/public/validate-media", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url, kind }),
+    });
+    const j = (await r.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      status?: number;
+      contentType?: string;
+      finalUrl?: string;
+    };
+    if (!r.ok || !j.ok) {
+      const detail = [j.error, j.contentType ? `content-type=${j.contentType}` : null, j.finalUrl ? `final=${j.finalUrl}` : null]
+        .filter(Boolean)
+        .join(" · ");
+      throw new Error(`${host}: ${detail || `validasi media gagal (${r.status})`}`);
+    }
+    return url;
+  };
+
+  // Vercel/serverless punya body-limit ~4.5MB → server proxy hanya aman
+  // untuk file kecil. Lovable preview toleran sampai ~90MB, tapi kita pakai
+  // ambang lebih ketat supaya build di hosting sendiri juga jalan.
+  const SERVER_PROXY_HARD_LIMIT = 4 * 1024 * 1024;
+
+  const uploadPublic = async (file: File, kind: "image" | "video"): Promise<string> => {
+    const errs: string[] = [];
+    type UploadFn = (f: File, k: "image" | "video") => Promise<string>;
+    const serverEntry: [string, UploadFn] = ["Server", (f) => uploadViaServer(f)];
+    const uguuEntry: [string, UploadFn] = ["Uguu", uploadDirectUguu];
+    const catboxEntry: [string, UploadFn] = ["Catbox", uploadDirectCatbox];
+    const tmpfilesEntry: [string, UploadFn] = ["Tmpfiles", uploadDirectTmpfiles];
+    const pixeldrainEntry: [string, UploadFn] = ["Pixeldrain", uploadDirectPixeldrain];
+    const zeroEntry: [string, UploadFn] = ["0x0", uploadDirect0x0];
+
+    // Prioritaskan direct host supaya tidak kena body-limit serverless
+    // (Vercel ~4.5MB). Tmpfiles sengaja dijadikan fallback terakhir karena
+    // URL /dl-nya sering redirect ke halaman HTML; Roboneo lalu menyamarkan
+    // input invalid itu sebagai "The system is busy" saat polling.
+    const canUseServer = file.size <= SERVER_PROXY_HARD_LIMIT;
+    const directOrder: Array<[string, UploadFn]> = [
+      uguuEntry,
+      catboxEntry,
+      pixeldrainEntry,
+      zeroEntry,
+      tmpfilesEntry,
+    ];
+    const order: Array<[string, UploadFn]> = canUseServer
+      ? [serverEntry, ...directOrder]
+      : directOrder;
+
+    for (const [host, fn] of order) {
+      try {
+        log(
+          `${kind === "video" ? "Video" : "Image"} upload via ${host === "Server" ? "server proxy" : host} (${formatBytes(file.size)})...`,
+        );
+        opts.onStatus?.({ index, status: `uploading ${kind} ${host}...` });
+        const url = await fn(file, kind);
+        await validateRoboneoMediaUrl(url, kind, host);
+        return url;
+      } catch (e) {
+        const msg = (e as Error).message;
+        errs.push(`${host}: ${msg}`);
+        log(`${host} gagal: ${msg}`, "warn");
+      }
+    }
+
+    if (!canUseServer) {
+      errs.push(`skip server proxy (${formatBytes(file.size)} > ${formatBytes(SERVER_PROXY_HARD_LIMIT)})`);
+    }
+    throw new Error(`Upload gagal: ${errs.join(" | ")}`);
+  };
+
+
   opts.onStatus?.({ index, status: "uploading img..." });
   log("Upload image ke public host...");
   const imgBlob = await maybeCompress(slot.image);
   const imageUrl = await uploadPublic(
     new File([imgBlob], `rn_img_${index}_${Date.now()}.jpg`, { type: imgBlob.type || "image/jpeg" }),
+    "image",
   );
   log(`Image: ${imageUrl.substring(0, 60)}...`);
 
@@ -208,6 +426,7 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   log("Upload video ke public host...");
   const videoUrl = await uploadPublic(
     new File([slot.video], `rn_vid_${index}_${Date.now()}.mp4`, { type: slot.video.type || "video/mp4" }),
+    "video",
   );
   log(`Video: ${videoUrl.substring(0, 60)}...`);
 
@@ -215,35 +434,67 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const parts = opts.modelKey.split(":");
   const quality = (parts[2] as "std" | "pro") || "std";
 
+  const MAX_BUSY_RETRIES = 3;
   for (let ti = 0; ti < tokens.length; ti++) {
     const at = tokens[ti]!;
-    try {
-      opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
-      log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
-      const taskId = await submitRoboneoMotion({
-        accessToken: at,
-        imageUrl,
-        videoUrl,
-        prompt: opts.prompt,
-        quality,
-      });
-      log(`Task: ${taskId}`);
-      opts.onStatus?.({ index, status: "processing" });
-      const outUrl = await pollRoboneoTask({
-        accessToken: at,
-        taskId,
-        onProgress: (pct, st) => opts.onStatus?.({ index, status: `${st} ${pct}%` }),
-      });
-      if (!outUrl) throw new Error("Roboneo: no output URL");
-      return outUrl;
-    } catch (e) {
-      const msg = (e as Error).message || String(e);
-      log(`Token ${ti + 1} failed: ${msg}`, "warn");
-      if (!isRoboneoRotatableError(msg) || ti === tokens.length - 1) throw e;
-      log("Rotating to next Roboneo token...", "info");
+    let busyRetry = 0;
+    // Retry loop for the same token to absorb transient upstream congestion
+    // ("system is busy") before rotating or giving up.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
+        log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
+        const taskId = await submitRoboneoMotion({
+          accessToken: at,
+          imageUrl,
+          videoUrl,
+          prompt: opts.prompt,
+          quality,
+          orientation: opts.orientation,
+        });
+        log(`Task: ${taskId}`);
+        opts.onStatus?.({ index, status: "processing" });
+        const outUrl = await pollRoboneoTask({
+          accessToken: at,
+          taskId,
+          onProgress: (pct, st) => opts.onStatus?.({ index, status: `${st} ${pct}%` }),
+        });
+        if (!outUrl) throw new Error("Roboneo: no output URL");
+        return outUrl;
+      } catch (e) {
+        const msg = (e as Error).message || String(e);
+        const isBusy = /system is busy|try again later|busy.*try again|too many requests|429/i.test(msg);
+        if (isBusy && busyRetry < MAX_BUSY_RETRIES) {
+          busyRetry++;
+          const waitMs = 5000 * busyRetry;
+          log(`Upstream busy — retry ${busyRetry}/${MAX_BUSY_RETRIES} in ${waitMs / 1000}s...`, "warn");
+          opts.onStatus?.({ index, status: `busy, retry ${busyRetry}/${MAX_BUSY_RETRIES}` });
+          await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+        log(`Token ${ti + 1} failed: ${msg}`, "warn");
+        if (!isRoboneoRotatableError(msg)) throw e;
+        const removed = removeRoboneoKeyFromManager(at, msg);
+        log(
+          removed.removed && ti < tokens.length - 1
+            ? "Token Roboneo habis/invalid — dihapus dari Token Manager, rotate ke token berikutnya..."
+            : removed.removed
+              ? "Token Roboneo habis/invalid — dihapus dari Token Manager."
+            : "Rotating to next Roboneo token...",
+          "info",
+        );
+        break;
+      }
     }
   }
-  throw new Error("Roboneo: semua token gagal");
+  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+}
+
+async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
+  void slot;
+  void opts;
+  throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
 }
 
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
@@ -257,6 +508,7 @@ export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOp
         else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
         else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
         else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
+        else if (opts.provider === "framia") url = await generateOneFramia(slot, opts);
         else throw new Error("Provider tidak dikenal: " + opts.provider);
         opts.onStatus?.({ index: slot.index, status: "done", url });
         opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");

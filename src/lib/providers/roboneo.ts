@@ -13,6 +13,8 @@
 // Untuk motion control Kling 2.6 std: apiName = "video_bonbon_motioncontrol_v26",
 // parameters = { quality: "std" }, dengan image_url + video_url + optional prompt.
 
+import { pushTokenAsync } from "@/lib/tokens/sync";
+
 export const ROBONEO_GATEWAY = "https://ai-engine-gateway-roboneo.meitu.com";
 export const ROBONEO_CLIENT_ID = "1189857684";
 export const LS_ROBONEO_KEYS = "aatools.roboneo.keys";
@@ -41,6 +43,32 @@ export function getAllRoboneoKeys(): string[] {
 
 export function getFirstRoboneoKey(): string | null {
   return getAllRoboneoKeys()[0] || null;
+}
+
+export function removeRoboneoKeyFromManager(
+  accessToken: string,
+  reason?: string,
+): { removed: boolean; remaining: number } {
+  if (typeof window === "undefined") return { removed: false, remaining: 0 };
+  try {
+    const raw = localStorage.getItem(LS_ROBONEO_KEYS);
+    const list = raw ? (JSON.parse(raw) as RoboneoKey[]) : [];
+    const next = list.filter((item) => item?.key !== accessToken);
+    if (next.length === list.length) return { removed: false, remaining: next.length };
+    const value = JSON.stringify(next);
+    localStorage.setItem(LS_ROBONEO_KEYS, value);
+    pushTokenAsync(LS_ROBONEO_KEYS, value);
+    window.dispatchEvent(
+      new CustomEvent("aatools:tokens-synced", {
+        detail: { provider: "roboneo", action: "removed", reason },
+      }),
+    );
+    window.dispatchEvent(new Event("storage"));
+    return { removed: true, remaining: next.length };
+  } catch (e) {
+    console.warn("[roboneo] gagal menghapus token kosong", e);
+    return { removed: false, remaining: getAllRoboneoKeys().length };
+  }
 }
 
 /* --------------------------------- helpers --------------------------------- */
@@ -94,7 +122,7 @@ function extractUid(accessToken: string): string {
  *  accepts the value shipped in `roboneo-cli/.env.bundle`). Any other value
  *  yields `error_code:98 "request fail, token error: <value>"`. */
 const ROBONEO_PARAM_TOKEN = "45C30555F10E49629098A75F95828DA6";
-const ROBONEO_TASK_ROOMS = new Map<string, string>();
+const ROBONEO_TASK_CONTEXT = new Map<string, { roomId: string; nodeId: string }>();
 
 /** Common parameter block yang diminta gateway roboneo di setiap request. */
 function baseParameter(accessToken: string, pathScene: string, roomId?: string) {
@@ -187,6 +215,7 @@ async function rnCall<T = unknown>(
       const message = obj.error_msg || `HTTP ${upstreamStatus}`;
       throw new Error(
         `Roboneo ${path}: ${message}` +
+          (obj.error_code ? ` (error_code=${obj.error_code})` : "") +
           (message === "Please log in first" ? " — access-token Roboneo perlu login ulang" : "") +
           (wrap?.raw ? ` — ${wrap.raw.slice(0, 200)}` : ""),
       );
@@ -260,9 +289,11 @@ export async function submitRoboneoMotion(opts: {
   videoUrl: string;
   prompt?: string;
   quality?: "std" | "pro";
+  orientation?: "image" | "video";
 }): Promise<string> {
   const roomId = genRoomId();
   const nodeId = uuid();
+  const orientation = opts.orientation ?? "video";
   const node = {
     tool_abstract_name: { cn: "Motion Control", en: "Motion Control" },
     node_id: nodeId,
@@ -271,6 +302,8 @@ export async function submitRoboneoMotion(opts: {
       quality: opts.quality ?? "std",
       image_url: opts.imageUrl,
       video_url: opts.videoUrl,
+      character_orientation: orientation,
+      orientation,
       prompt: opts.prompt ?? "",
       random: `${Date.now()}-${Math.floor(10_000_000 + Math.random() * 89_999_999)}`,
     },
@@ -296,7 +329,7 @@ export async function submitRoboneoMotion(opts: {
       ? result.tasks.map((task) => task.task_id).filter((id): id is string => Boolean(id))
       : Object.keys(result?.tasks || {});
   if (!ids.length) throw new Error("Roboneo: submit sukses tapi task_id tidak ditemukan");
-  ROBONEO_TASK_ROOMS.set(ids[0]!, roomId);
+  ROBONEO_TASK_CONTEXT.set(ids[0]!, { roomId, nodeId });
   return ids[0]!;
 }
 
@@ -329,39 +362,95 @@ export async function submitRoboneoI2V(opts: {
   const nodeId = uuid();
 
   const mk = (opts.modelKey || "").toLowerCase();
-  type Spec = { apiName: string; recipeCode?: string; toolLabel: string };
+  // paramFamily = himpunan parameter yang diterima recipe di Meitu:
+  //   "seedance"  → ratio + resolution + video_duration + sound
+  //   "happyhorse"→ ratio + resolution + video_duration
+  //   "kling3"    → ratio + video_duration + sound
+  //   "kling26"   → sound + video_duration (recipe lama, tidak ada ratio)
+  //   "omni"      → ratio + video_duration
+  //   "legacy21"  → ratio + duration + quality
+  type ParamFamily = "seedance" | "happyhorse" | "kling3" | "kling26" | "omni" | "legacy21";
+  type Spec = { apiName: string; recipeCode?: string; toolLabel: string; family: ParamFamily };
   const specs: Record<string, Spec> = {
+    // Confirmed dari model_list resmi Roboneo (session token user).
+    "rn:seedance-1.0": {
+      apiName: "api_v1_outsourcing_img_to_video",
+      recipeCode: "d56CL0CD7eVX",
+      toolLabel: "Seedance 1.0",
+      family: "seedance",
+    },
+    // Alias lama (backward-compat)
     "rn:seedance-pro": {
       apiName: "api_v1_outsourcing_img_to_video",
       recipeCode: "d56CL0CD7eVX",
       toolLabel: "Seedance Pro",
+      family: "seedance",
+    },
+    "rn:seedance-2.0": {
+      apiName: "video_toffee_i2v_v20",
+      toolLabel: "Seedance 2.0",
+      family: "seedance",
+    },
+    "rn:seedance-2.0-mini": {
+      apiName: "video_toffee_i2v_v20_mini",
+      toolLabel: "Seedance 2.0 Mini",
+      family: "seedance",
+    },
+    "rn:seedance-2.0-fast": {
+      apiName: "video_toffee_i2v_v20_fast",
+      toolLabel: "Seedance 2.0 Fast",
+      family: "seedance",
+    },
+    "rn:happyhorse-1.1": {
+      apiName: "images2video_edit_hydra",
+      toolLabel: "Happy Horse 1.1",
+      family: "happyhorse",
+    },
+    "rn:happyhorse-1.0": {
+      apiName: "video_happyhorse_i2v",
+      toolLabel: "Happy Horse 1.0",
+      family: "happyhorse",
+    },
+    "rn:kling-v3": {
+      apiName: "video_bonbon_img2vid_v30",
+      toolLabel: "Kling 3.0",
+      family: "kling3",
+    },
+    "rn:kling-v3-turbo": {
+      apiName: "video_bonbon_i2v_v3turbo",
+      toolLabel: "Kling 3.0 Turbo",
+      family: "kling3",
     },
     "rn:google-omni": {
       apiName: "video_barley_i2v_omni_flash",
       recipeCode: "2mXIxsFvbfXw",
       toolLabel: "Google Omni",
+      family: "omni",
     },
     "rn:kling-v26:std": {
       apiName: "video_bonbon_img2vid_v26",
       recipeCode: "xd_pUp8JDcE0",
       toolLabel: "Kling 2.6",
+      family: "kling26",
     },
     "rn:kling-v26": {
       apiName: "video_bonbon_img2vid_v26",
       recipeCode: "xd_pUp8JDcE0",
       toolLabel: "Kling 2.6",
+      family: "kling26",
     },
     // legacy fallbacks (nama apiName lama — mungkin sudah tidak dilayani gateway)
-    "rn:kling-v21": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" },
-    "rn:kling-v21:std": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" },
+    "rn:kling-v21": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" },
+    "rn:kling-v21:std": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" },
   };
   const legacyFallback: Spec =
     opts.modelVersion === "v21"
-      ? { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1" }
+      ? { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" }
       : {
           apiName: "video_bonbon_img2vid_v26",
           recipeCode: "xd_pUp8JDcE0",
           toolLabel: "Kling 2.6",
+          family: "kling26",
         };
   const spec = specs[mk] || legacyFallback;
 
@@ -372,24 +461,37 @@ export async function submitRoboneoI2V(opts: {
   };
 
   const dur = opts.duration ?? 5;
-  if (spec.apiName === "api_v1_outsourcing_img_to_video") {
-    // Seedance Pro
-    params.ratio = opts.ratio ?? "9:16";
-    params.resolution = opts.resolution ?? "720p";
-    params.video_duration = dur;
-  } else if (spec.apiName === "video_barley_i2v_omni_flash") {
-    // Google Omni
-    params.ratio = opts.ratio ?? "9:16";
-    params.video_duration = dur;
-  } else if (spec.apiName === "video_bonbon_img2vid_v26") {
-    // Kling 2.6 (recipe hanya expose sound + video_duration)
-    params.sound = opts.sound ?? "off";
-    params.video_duration = dur;
-  } else {
-    // Legacy kling v21
-    params.ratio = opts.ratio ?? "9:16";
-    params.duration = dur;
-    params.quality = opts.quality ?? "std";
+  switch (spec.family) {
+    case "seedance":
+      params.ratio = opts.ratio ?? "9:16";
+      params.resolution = opts.resolution ?? "720p";
+      params.video_duration = dur;
+      params.sound = opts.sound ?? "off";
+      break;
+    case "happyhorse":
+      params.ratio = opts.ratio ?? "9:16";
+      params.resolution = opts.resolution ?? "720p";
+      params.video_duration = dur;
+      break;
+    case "kling3":
+      params.ratio = opts.ratio ?? "9:16";
+      params.video_duration = dur;
+      params.sound = opts.sound ?? "off";
+      break;
+    case "omni":
+      params.ratio = opts.ratio ?? "9:16";
+      params.video_duration = dur;
+      break;
+    case "kling26":
+      params.sound = opts.sound ?? "off";
+      params.video_duration = dur;
+      break;
+    case "legacy21":
+    default:
+      params.ratio = opts.ratio ?? "9:16";
+      params.duration = dur;
+      params.quality = opts.quality ?? "std";
+      break;
   }
   if (spec.recipeCode) params.recipe_code = spec.recipeCode;
 
@@ -415,7 +517,7 @@ export async function submitRoboneoI2V(opts: {
       ? result.tasks.map((task) => task.task_id).filter((id): id is string => Boolean(id))
       : Object.keys(result?.tasks || {});
   if (!ids.length) throw new Error("Roboneo: submit sukses tapi task_id tidak ditemukan");
-  ROBONEO_TASK_ROOMS.set(ids[0]!, roomId);
+  ROBONEO_TASK_CONTEXT.set(ids[0]!, { roomId, nodeId });
   return ids[0]!;
 }
 
@@ -451,7 +553,7 @@ export async function pollRoboneoTask(opts: {
 }): Promise<string> {
   const start = Date.now();
   const tm = opts.timeoutMs ?? 1_800_000;
-  const roomId = ROBONEO_TASK_ROOMS.get(opts.taskId);
+  const taskContext = ROBONEO_TASK_CONTEXT.get(opts.taskId);
   const parseMaybeJson = (value: unknown): unknown => {
     if (typeof value !== "string") return value;
     const trimmed = value.trim();
@@ -544,6 +646,44 @@ export async function pollRoboneoTask(opts: {
       null
     );
   };
+  const findRoboneoErrorMessage = (value: unknown, depth = 0): string | null => {
+    value = parseMaybeJson(value);
+    if (depth > 8 || value == null) return null;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed || /^https?:\/\//i.test(trimmed)) return null;
+      return trimmed;
+    }
+    if (typeof value !== "object") return null;
+    const obj = value as Record<string, unknown>;
+    for (const key of [
+      "task_status_msg",
+      "error_message",
+      "error_msg",
+      "message",
+      "msg",
+      "reason",
+      "fail_reason",
+      "fail_msg",
+      "tips",
+      "fail_code",
+    ]) {
+      const candidate = obj[key];
+      if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findRoboneoErrorMessage(item, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    for (const nested of Object.values(obj)) {
+      const found = findRoboneoErrorMessage(nested, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  };
   // Recursively scan for a numeric "progress-like" field. Meitu gateway
   // has used `progress`, `percent`, `rate`, `schedule`, `process_rate` etc.
   const PROGRESS_HINTS = ["progress", "percent", "rate", "schedule", "process"];
@@ -569,6 +709,7 @@ export async function pollRoboneoTask(opts: {
   };
 
   let loggedShape = false;
+  let successNoUrlAttempts = 0;
   let transientPollErrors = 0;
   while (Date.now() - start < tm) {
     await new Promise((r) => setTimeout(r, 4000));
@@ -582,7 +723,7 @@ export async function pollRoboneoTask(opts: {
         media_info_list?: Array<{ url?: string; media_url?: string }>;
       }>("nodeexecutequery", opts.accessToken, {
         task_ids: [opts.taskId],
-        ...(roomId ? { room_id: roomId } : {}),
+        ...(taskContext ? { room_id: taskContext.roomId, node_id: taskContext.nodeId, workflow_version: "v2" } : {}),
       });
       transientPollErrors = 0;
     } catch (e) {
@@ -650,46 +791,63 @@ export async function pollRoboneoTask(opts: {
         )
       : firstVideoLikeUrl(media?.url, media?.media_url);
     if (outputUrl) {
-      ROBONEO_TASK_ROOMS.delete(opts.taskId);
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
       return outputUrl;
     }
     if (isSuccess) {
-      ROBONEO_TASK_ROOMS.delete(opts.taskId);
       // Meitu sometimes marks the outer task "success" while an inner step
       // actually failed (e.g. per-account concurrent-job limit, transient
       // upstream error). Surface that step error so the caller can rotate
       // tokens instead of showing a confusing "no URL" message.
       const stepErr = steps
         .map((item) => {
-          const out = parseMaybeJson(item.output);
-          const outObj = out && typeof out === "object" ? (out as Record<string, unknown>) : null;
           return (
             item.error_message ||
             item.error_msg ||
-            (typeof outObj?.error_message === "string" ? outObj.error_message : undefined) ||
-            (typeof outObj?.error_msg === "string" ? outObj.error_msg : undefined) ||
+            findRoboneoErrorMessage(item.output) ||
             item.fail_code
           );
         })
         .find((v): v is string => Boolean(v));
       if (stepErr) {
+        ROBONEO_TASK_CONTEXT.delete(opts.taskId);
         // Prefix with "quota" so isRoboneoRotatableError picks it up — most
         // real causes here (concurrency cap, credit, temporary account block)
         // benefit from switching to the next token.
         throw new Error(`Roboneo failed (quota/step): ${stepErr}`);
       }
+      // Success flag can arrive a beat before the URL is written into
+      // media_metas / last_image_urls. Give it a few extra polls before
+      // giving up — the task will typically populate within 8–16s.
+      if (successNoUrlAttempts < 5) {
+        successNoUrlAttempts++;
+        opts.onProgress?.(Math.max(pct, 96), "finalizing");
+        continue;
+      }
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
+      const rawSample = (() => {
+        try {
+          return JSON.stringify({ task: t, stepOutputs, response: res }).slice(0, 1200);
+        } catch {
+          return "";
+        }
+      })();
       const debugKeys = JSON.stringify({
         taskKeys: Object.keys(t),
         stepKeys: steps.map((item) => Object.keys(item)),
         responseKeys: Object.keys(res || {}),
         urlCount: collectMediaUrls({ task: t, output: stepOutputs, response: res }).length,
         hasLastImageUrl: Boolean(t.last_image_url),
+        hasLastImageUrls: Array.isArray(t.last_image_urls) ? t.last_image_urls.length : false,
         hasMediaMeta: Boolean(t.media_meta),
+        hasMediaMetas: Boolean((t as Record<string, unknown>).media_metas),
       });
-      throw new Error(`Roboneo: task selesai tapi URL output tidak ditemukan (${debugKeys.slice(0, 300)})`);
+      throw new Error(
+        `Roboneo credit/quota habis: task selesai tapi URL output tidak ditemukan (${debugKeys.slice(0, 400)}) sample=${rawSample}`,
+      );
     }
     if (["fail", "failed", "error", "cancelled", "canceled"].includes(status)) {
-      ROBONEO_TASK_ROOMS.delete(opts.taskId);
+      ROBONEO_TASK_CONTEXT.delete(opts.taskId);
       const parsedOutput = stepOutput && typeof stepOutput === "object" ? (stepOutput as Record<string, unknown>) : null;
       const message =
         t.error_message ||
@@ -698,9 +856,19 @@ export async function pollRoboneoTask(opts: {
         step?.error_msg ||
         (typeof parsedOutput?.error_message === "string" ? parsedOutput.error_message : undefined) ||
         (typeof parsedOutput?.error_msg === "string" ? parsedOutput.error_msg : undefined) ||
+        findRoboneoErrorMessage(t) ||
+        findRoboneoErrorMessage(stepOutput) ||
+        findRoboneoErrorMessage(res) ||
         step?.fail_code ||
         "unknown";
-      throw new Error("Roboneo failed: " + message);
+      const debug = JSON.stringify({
+        status,
+        taskErrorCode: t.error_code,
+        failCode: step?.fail_code,
+        stepStatus: step?.status || step?.state,
+        output: stepOutput,
+      }).slice(0, 500);
+      throw new Error(`Roboneo failed: ${message}${debug ? ` · detail=${debug}` : ""}`);
     }
   }
   throw new Error("Roboneo timeout");
@@ -708,7 +876,7 @@ export async function pollRoboneoTask(opts: {
 
 /** Detect if an error looks like an auth/credit failure worth rotating tokens for. */
 export function isRoboneoRotatableError(msg: string): boolean {
-  return /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota/i.test(msg);
+  return /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL/i.test(msg);
 }
 
 /**

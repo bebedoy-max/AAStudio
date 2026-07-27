@@ -11,13 +11,41 @@ export type MagnificMotionOpts = {
   onProgress?: (msg: string) => void;
 };
 
-async function uploadPublic(file: File): Promise<string> {
+async function uploadViaServer(file: File): Promise<string> {
   const fd = new FormData();
   fd.append("file", file, file.name || "upload.bin");
   const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || !j?.url) throw new Error(j?.error || `Upload gagal (${r.status})`);
+  if (!r.ok || !j?.url) throw new Error(j?.error || `Server upload ${r.status}`);
   return j.url as string;
+}
+
+// Direct browser → litterbox. Litterbox sets `access-control-allow-origin: *`
+// so we bypass the edge worker's request-body limit entirely (fixes 413/403 on big video).
+async function uploadDirectLitterbox(file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("reqtype", "fileupload");
+  fd.append("time", "72h");
+  fd.append("fileToUpload", file, file.name || "upload.bin");
+  const r = await fetch("https://litterbox.catbox.moe/resources/internals/api.php", {
+    method: "POST",
+    body: fd,
+  });
+  const text = (await r.text()).trim();
+  if (r.ok && /^https?:\/\//i.test(text)) return text;
+  throw new Error(text || `Litterbox HTTP ${r.status}`);
+}
+
+async function uploadPublic(file: File): Promise<string> {
+  const errs: string[] = [];
+  for (const fn of [uploadDirectLitterbox, uploadViaServer]) {
+    try {
+      return await fn(file);
+    } catch (e) {
+      errs.push((e as Error).message);
+    }
+  }
+  throw new Error(`Upload gagal: ${errs.join(" | ")}`);
 }
 
 async function magnificCall(action: "submit" | "status", body: Record<string, unknown>) {

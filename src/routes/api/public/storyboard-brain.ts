@@ -9,6 +9,7 @@ type Body = {
   productType?: string;
   productTypes?: string[];
   scenes?: number;
+  referenceCount?: number;
   aspectRatio?: string;
   extraPrompt?: string;
   ctaTarget?: string;
@@ -16,21 +17,6 @@ type Body = {
   ctaCustom?: string;
 };
 
-function gridLayout(n: number): string {
-  const map: Record<number, string> = {
-    1: "1 panel penuh",
-    2: "2 panel (1 baris × 2 kolom)",
-    3: "3 panel (1 baris × 3 kolom)",
-    4: "4 panel (2 baris × 2 kolom)",
-    5: "5 panel (2 baris atas × 2 kolom, 1 baris bawah × 1 kolom lebar)",
-    6: "6 panel (2 baris × 3 kolom)",
-    7: "7 panel (2 baris × 3 kolom + 1 panel lebar bawah)",
-    8: "8 panel (2 baris × 4 kolom)",
-    9: "9 panel (3 baris × 3 kolom)",
-    10: "10 panel (2 baris × 5 kolom)",
-  };
-  return map[n] || `${n} panel grid`;
-}
 
 function isRotatable(s: number): boolean {
   return s === 401 || s === 403 || s === 429 || s === 402 || s >= 500;
@@ -107,71 +93,43 @@ export const Route = createFileRoute("/api/public/storyboard-brain")({
         }
         const scenes = Math.min(10, Math.max(1, Number(body.scenes) || 4));
         const ratio = body.aspectRatio || "1:1";
+        const refCount = Math.min(6, Math.max(0, Number(body.referenceCount) || 0));
         const types = (body.productTypes || []).filter(Boolean);
         const primaryType = (body.productType || types[0] || "").trim();
         const title = (body.title || "").slice(0, 300);
-        const description = (body.description || "").slice(0, 1200);
-        const extra = (body.extraPrompt || "").slice(0, 800);
-        const ctaTarget = (body.ctaTarget || "").trim();
-        const ctaCustom = (body.ctaCustom || "").trim();
-        const ctaLabel = (body.ctaLabel || "").trim();
+        const description = (body.description || "").slice(0, 600);
+        const extra = (body.extraPrompt || "").slice(0, 400);
 
-        const CTA_GUIDES: Record<string, string> = {
-          tiktok:
-            "Platform: TikTok Shop. CTA final harus mengarahkan ke KERANJANG KUNING TikTok. Contoh frasa yang boleh dipakai: \"Cek keranjang kuning sekarang!\", \"Klik keranjang kuning di pojok\", \"Checkout via keranjang kuning\". Boleh tampilkan ikon panah menunjuk pojok kanan bawah. Jangan sebut Shopee/Tokopedia.",
-          "facebook-shopee":
-            "Platform: Facebook Ads yang mengarahkan ke Shopee. CTA final: \"Klik link Shopee di bawah\", \"Beli sekarang di Shopee — link di caption\", \"Swipe up ke Shopee\". Tampilkan logo/warna oranye Shopee di panel CTA. Jangan sebut TikTok/Tokopedia.",
-          "facebook-tokopedia":
-            "Platform: Facebook Ads yang mengarahkan ke Tokopedia. CTA final: \"Klik link Tokopedia di bawah\", \"Beli sekarang di Tokopedia — link di caption\". Tampilkan aksen hijau Tokopedia di panel CTA. Jangan sebut TikTok/Shopee.",
-          tokopedia:
-            "Platform: Tokopedia. CTA final: \"Beli di Tokopedia sekarang\", \"Klik link Tokopedia\", \"Cek toko kami di Tokopedia\". Warna aksen hijau. Jangan sebut Shopee/TikTok.",
-          shopee:
-            "Platform: Shopee. CTA final: \"Beli di Shopee sekarang\", \"Klik keranjang Shopee\", \"Free ongkir di Shopee\". Warna aksen oranye. Jangan sebut TikTok/Tokopedia.",
-          instagram:
-            "Platform: Instagram. CTA final: \"Link in bio\", \"Klik link di bio\", \"DM untuk order\". Style feed Instagram modern.",
-          whatsapp:
-            "Platform: WhatsApp. CTA final: \"Chat admin sekarang\", \"Order via WA\", tampilkan ikon WhatsApp hijau.",
-        };
-        const ctaGuidance =
-          ctaTarget === "custom" && ctaCustom
-            ? `CTA custom dari user (WAJIB dipakai sebagai arah CTA final panel): "${ctaCustom}". Tulis ulang jadi headline marketing Indonesia yang persuasif tapi tetap sesuai maksudnya.`
-            : (CTA_GUIDES[ctaTarget] ||
-                "Platform generik: CTA final harus ajakan beli yang jelas dan persuasif dalam Bahasa Indonesia.");
+        const refList =
+          refCount > 1
+            ? `${Array.from({ length: refCount - 1 }, (_, i) => i + 1).join(", ")} dan ${refCount}`
+            : refCount === 1
+              ? "1"
+              : "";
 
-        const system = `Kamu adalah art director Indonesia yang membuat prompt untuk model image-generation (GPT-Image-2) agar menghasilkan SATU gambar berisi grid storyboard produk ala storyboard iklan / comic-strip marketing untuk pasar Indonesia.
+        const ctaLabel = (body.ctaCustom || body.ctaLabel || "").trim().slice(0, 120);
+        const ctaClause = ctaLabel ? `, scene terakhir tampilkan CTA ${ctaLabel}` : "";
 
-Aturan output:
-- Balas HANYA prompt final (tanpa penjelasan, tanpa markdown, tanpa quote).
-- Prompt utama boleh dalam Bahasa Inggris agar image model lebih akurat, TAPI semua teks yang terlihat di dalam gambar wajib Bahasa Indonesia.
-- Prompt WAJIB menyebutkan: "Create ONE single image composed of ${gridLayout(scenes)}, each panel clearly numbered 1 to ${scenes} in the top-left corner, thin white borders between panels, aspect ratio ${ratio}, designed for Indonesian marketplace product advertising".
-- Setiap panel menampilkan produk yang sama (identitas produk konsisten: warna, bentuk, logo, detail).
-- Jika ada karakter/manusia/model di scene: WAJIB gunakan wajah dan penampilan orang Asia Tenggara, khususnya Indonesia; natural Indonesian facial features, skin tone, hair style, wardrobe, dan lifestyle setting yang terasa lokal Indonesia. Hindari wajah Caucasian, East Asian yang terlalu Jepang/Korea/China, Afrika, atau Latino kecuali produk memang membutuhkan itu.
-- Setting visual harus cocok untuk market Indonesia: rumah/apartemen modern Indonesia, café lokal, jalan urban Jakarta/Bandung/Surabaya, kampus/kantor Indonesia, marketplace product shoot, atau outdoor tropis Indonesia sesuai produk.
-- WAJIB: setiap panel HARUS memuat TEKS yang tercetak langsung di dalam panel (rendered typography, bukan caption di luar gambar), terdiri dari:
-    (a) SCENE LABEL kecil di pojok atas dalam Bahasa Indonesia: "SCENE {n}: <2-4 kata judul adegan>" atau "ADEGAN {n}: <2-4 kata>".
-    (b) BIG OVERLAY TEXT / HEADLINE besar tebal (bold sans-serif, high contrast, drop shadow atau stroke agar terbaca) berupa hook marketing Bahasa Indonesia 3-6 kata yang menonjolkan benefit / kelebihan produk pada scene tsb.
-    (c) SUB-CAPTION 1 baris kecil di bawah headline: kalimat pendek Bahasa Indonesia 6-12 kata menjelaskan fitur / kegunaan produk di scene itu.
-  Semua teks visible HARUS dalam Bahasa Indonesia natural untuk iklan e-commerce Indonesia, ejaan benar, tidak boleh gibberish, tidak boleh campur Inggris kecuali nama brand/fitur produk, tidak boleh tumpang tindih dengan wajah subjek utama.
-- Tulis di prompt daftar eksplisit teks per panel dalam format: Panel 1 → label: "...", headline: "...", caption: "..."; Panel 2 → ...; dst sampai Panel ${scenes}.
-- Alur naratif ${scenes} panel: hook / problem → product reveal → key features → in-use lifestyle → benefit / emotion → call-to-action final panel.
-- PANEL TERAKHIR (Panel ${scenes}) WAJIB berupa CALL-TO-ACTION eksplisit sesuai platform target berikut:
-  ${ctaGuidance}
-  Panel CTA final: headline besar berisi ajakan platform tsb + sub-caption pendukung + visual cue (ikon panah / tombol / logo marketplace) yang konsisten dengan platform. Jangan gunakan CTA generik "beli sekarang" saja — HARUS mention platform target di atas.
-- Adegan/setting/pose model, environment, dan cara pemakaian HARUS disesuaikan dengan kategori produk utama: "${primaryType || "generic"}".
-- Gunakan referensi gambar produk yang di-attach sebagai sumber identitas visual produk (bentuk, warna, tekstur).
-- Gaya visual: pencahayaan sinematik, warna clean modern, resolusi tinggi, foto commercial berkualitas, tipografi modern editorial yang terbaca jelas.`;
+        const system = `Kamu menulis SATU kalimat prompt singkat Bahasa Indonesia untuk image model.
+Format WAJIB persis seperti contoh, tanpa tambahan apa pun:
+"buat 1 gambar storyboard iklan produk <nama produk singkat> ${scenes} scene${refList ? ` dari gambar referensi ${refList} yang saya lampirkan` : ""}${ctaClause}"
+Aturan:
+- Balas HANYA satu kalimat itu, tanpa markdown, tanpa tanda kutip, tanpa penjelasan.
+- <nama produk singkat> = 1-3 kata dari judul produk (contoh: "pisau", "tas wanita", "blender").
+- Jangan menambah deskripsi gaya, kamera, teks panel, atau instruksi lain.
+${ctaClause ? "- WAJIB pertahankan bagian CTA di akhir kalimat persis seperti format." : ""}`;
 
-        const user = `Data produk:
-Judul: ${title || "(tidak ada)"}
+        const user = `Judul produk: ${title || "(tidak ada)"}
 Deskripsi: ${description || "(tidak ada)"}
-Kategori produk utama (WAJIB dijadikan acuan adegan): ${primaryType || "(tidak dispesifikkan)"}
-Semua jenis produk terdaftar user: ${types.length ? types.join(", ") : "(tidak ada)"}
+Kategori: ${primaryType || "(tidak ada)"}
 Jumlah scene: ${scenes}
+Jumlah gambar referensi: ${refCount}
 Aspek rasio: ${ratio}
-Target CTA platform: ${ctaLabel || ctaTarget || "(tidak dispesifikkan)"}${ctaTarget === "custom" && ctaCustom ? `\nCTA custom user: ${ctaCustom}` : ""}
-Instruksi tambahan dari user: ${extra || "(tidak ada)"}
+CTA scene terakhir: ${ctaLabel || "(tidak ada)"}
+Catatan user: ${extra || "(tidak ada)"}
 
-Tulis prompt image-generation final sekarang.`;
+Tulis kalimat promptnya sekarang.`;
+
 
         const errors: string[] = [];
         const providers: Array<{
@@ -192,7 +150,11 @@ Tulis prompt image-generation final sekarang.`;
           try {
             const r = await p.fn();
             if (r.ok) {
-              return json({ prompt: r.text, scenes, ratio, provider: p.name });
+              let out = r.text.trim().replace(/^["']|["']$/g, "");
+              if (ctaLabel && !out.toLowerCase().includes("cta")) {
+                out = `${out}${ctaClause}`;
+              }
+              return json({ prompt: out, scenes, ratio, provider: p.name });
             }
             errors.push(`${p.name}: ${r.status} ${r.body}`);
             if (!isRotatable(r.status)) continue;

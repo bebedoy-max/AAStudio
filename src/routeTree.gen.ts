@@ -28,13 +28,17 @@ import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
 import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
 import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
 import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
+import { Route as ManageAccountsRouteImport } from './routes/manage.accounts'
 import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
+import { Route as GenerateLeonardoRouteImport } from './routes/generate.leonardo'
 import { Route as GenerateImageToVideoRouteImport } from './routes/generate.image-to-video'
+import { Route as GenerateFramiaRouteImport } from './routes/generate.framia'
 import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
 import { Route as DevWeavyTestRouteImport } from './routes/dev.weavy-test'
+import { Route as DevWeavyNodeInspectRouteImport } from './routes/dev.weavy-node-inspect'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
 import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
@@ -44,13 +48,11 @@ import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influence
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
-import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
-import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
 import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
 import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
 import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
@@ -59,6 +61,7 @@ import { Route as ApiRouterPlanWeeklyRouteImport } from './routes/api/router/pla
 import { Route as ApiRouterImageRouteImport } from './routes/api/router/image'
 import { Route as ApiRouterChatRouteImport } from './routes/api/router/chat'
 import { Route as ApiRouterBrainAnalyzeRouteImport } from './routes/api/router/brain-analyze'
+import { Route as ApiPublicValidateMediaRouteImport } from './routes/api/public/validate-media'
 import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/upload-catbox'
 import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
@@ -68,12 +71,18 @@ import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/pro
 import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
+import { Route as ApiPublicLeonardoUploadRouteImport } from './routes/api/public/leonardo-upload'
+import { Route as ApiPublicLeonardoCognitoRouteImport } from './routes/api/public/leonardo-cognito'
+import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
+import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
 import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
 import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
+import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
+import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 
@@ -172,6 +181,11 @@ const ManageRoutingRoute = ManageRoutingRouteImport.update({
   path: '/manage/routing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManageAccountsRoute = ManageAccountsRouteImport.update({
+  id: '/manage/accounts',
+  path: '/manage/accounts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
   id: '/generate/upscaler',
   path: '/generate/upscaler',
@@ -192,9 +206,19 @@ const GenerateMotionRoute = GenerateMotionRouteImport.update({
   path: '/generate/motion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GenerateLeonardoRoute = GenerateLeonardoRouteImport.update({
+  id: '/generate/leonardo',
+  path: '/generate/leonardo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GenerateImageToVideoRoute = GenerateImageToVideoRouteImport.update({
   id: '/generate/image-to-video',
   path: '/generate/image-to-video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GenerateFramiaRoute = GenerateFramiaRouteImport.update({
+  id: '/generate/framia',
+  path: '/generate/framia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateBulkFashionRoute = GenerateBulkFashionRouteImport.update({
@@ -205,6 +229,11 @@ const GenerateBulkFashionRoute = GenerateBulkFashionRouteImport.update({
 const DevWeavyTestRoute = DevWeavyTestRouteImport.update({
   id: '/dev/weavy-test',
   path: '/dev/weavy-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevWeavyNodeInspectRoute = DevWeavyNodeInspectRouteImport.update({
+  id: '/dev/weavy-node-inspect',
+  path: '/dev/weavy-node-inspect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -252,11 +281,6 @@ const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
-  id: '/token-bank',
-  path: '/token-bank',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminRequestsRoute = AdminRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
@@ -280,11 +304,6 @@ const AdminAccessRoute = AdminAccessRouteImport.update({
 const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
   id: '/api/router/voice',
   path: '/api/router/voice',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiRouterVideoRoute = ApiRouterVideoRouteImport.update({
-  id: '/api/router/video',
-  path: '/api/router/video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRouterSubtitleRoute = ApiRouterSubtitleRouteImport.update({
@@ -325,6 +344,11 @@ const ApiRouterChatRoute = ApiRouterChatRouteImport.update({
 const ApiRouterBrainAnalyzeRoute = ApiRouterBrainAnalyzeRouteImport.update({
   id: '/api/router/brain-analyze',
   path: '/api/router/brain-analyze',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicValidateMediaRoute = ApiPublicValidateMediaRouteImport.update({
+  id: '/api/public/validate-media',
+  path: '/api/public/validate-media',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicUploadCatboxRoute = ApiPublicUploadCatboxRouteImport.update({
@@ -373,6 +397,27 @@ const ApiPublicMagnificRoute = ApiPublicMagnificRouteImport.update({
   path: '/api/public/magnific',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLeonardoUploadRoute = ApiPublicLeonardoUploadRouteImport.update({
+  id: '/api/public/leonardo-upload',
+  path: '/api/public/leonardo-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeonardoCognitoRoute =
+  ApiPublicLeonardoCognitoRouteImport.update({
+    id: '/api/public/leonardo-cognito',
+    path: '/api/public/leonardo-cognito',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicLeonardoRoute = ApiPublicLeonardoRouteImport.update({
+  id: '/api/public/leonardo',
+  path: '/api/public/leonardo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFramiaRoute = ApiPublicFramiaRouteImport.update({
+  id: '/api/public/framia',
+  path: '/api/public/framia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFfmpegCdnRoute = ApiPublicFfmpegCdnRouteImport.update({
   id: '/api/public/ffmpeg-cdn',
   path: '/api/public/ffmpeg-cdn',
@@ -404,6 +449,17 @@ const ApiPublicClipperBrainRoute = ApiPublicClipperBrainRouteImport.update({
   path: '/api/public/clipper-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBacksoundSearchRoute =
+  ApiPublicBacksoundSearchRouteImport.update({
+    id: '/api/public/backsound-search',
+    path: '/api/public/backsound-search',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
+  id: '/api/public/tiktok/callback',
+  path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicMidtransNotificationRoute =
   ApiPublicMidtransNotificationRouteImport.update({
     id: '/api/public/midtrans/notification',
@@ -428,7 +484,6 @@ export interface FileRoutesByFullPath {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
@@ -438,13 +493,17 @@ export interface FileRoutesByFullPath {
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dev/weavy-node-inspect': typeof DevWeavyNodeInspectRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
+  '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
+  '/generate/leonardo': typeof GenerateLeonardoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
+  '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -458,12 +517,17 @@ export interface FileRoutesByFullPath {
   '/system/settings': typeof SystemSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/ai-influencer/': typeof AiInfluencerIndexRoute
+  '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/framia': typeof ApiPublicFramiaRoute
+  '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -473,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/public/validate-media': typeof ApiPublicValidateMediaRoute
   '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
@@ -481,10 +546,10 @@ export interface FileRoutesByFullPath {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
-  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -495,7 +560,6 @@ export interface FileRoutesByTo {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
@@ -505,13 +569,17 @@ export interface FileRoutesByTo {
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dev/weavy-node-inspect': typeof DevWeavyNodeInspectRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
+  '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
+  '/generate/leonardo': typeof GenerateLeonardoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
+  '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -525,12 +593,17 @@ export interface FileRoutesByTo {
   '/system/settings': typeof SystemSettingsRoute
   '/admin': typeof AdminIndexRoute
   '/ai-influencer': typeof AiInfluencerIndexRoute
+  '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/framia': typeof ApiPublicFramiaRoute
+  '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -540,6 +613,7 @@ export interface FileRoutesByTo {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/public/validate-media': typeof ApiPublicValidateMediaRoute
   '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
@@ -548,10 +622,10 @@ export interface FileRoutesByTo {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
-  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -565,7 +639,6 @@ export interface FileRoutesById {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
-  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
@@ -575,13 +648,17 @@ export interface FileRoutesById {
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
   '/auth/callback': typeof AuthCallbackRoute
+  '/dev/weavy-node-inspect': typeof DevWeavyNodeInspectRoute
   '/dev/weavy-test': typeof DevWeavyTestRoute
   '/generate/bulk-fashion': typeof GenerateBulkFashionRoute
+  '/generate/framia': typeof GenerateFramiaRoute
   '/generate/image-to-video': typeof GenerateImageToVideoRoute
+  '/generate/leonardo': typeof GenerateLeonardoRoute
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
+  '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
   '/manage/tokens': typeof ManageTokensRoute
   '/mixing/clipper': typeof MixingClipperRoute
@@ -595,12 +672,17 @@ export interface FileRoutesById {
   '/system/settings': typeof SystemSettingsRoute
   '/admin/': typeof AdminIndexRoute
   '/ai-influencer/': typeof AiInfluencerIndexRoute
+  '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/framia': typeof ApiPublicFramiaRoute
+  '/api/public/leonardo': typeof ApiPublicLeonardoRoute
+  '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -610,6 +692,7 @@ export interface FileRoutesById {
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
   '/api/public/upload-catbox': typeof ApiPublicUploadCatboxRoute
+  '/api/public/validate-media': typeof ApiPublicValidateMediaRoute
   '/api/router/brain-analyze': typeof ApiRouterBrainAnalyzeRoute
   '/api/router/chat': typeof ApiRouterChatRoute
   '/api/router/image': typeof ApiRouterImageRoute
@@ -618,10 +701,10 @@ export interface FileRoutesById {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
-  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -636,7 +719,6 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
-    | '/admin/token-bank'
     | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
@@ -646,13 +728,17 @@ export interface FileRouteTypes {
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
+    | '/dev/weavy-node-inspect'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
+    | '/generate/framia'
     | '/generate/image-to-video'
+    | '/generate/leonardo'
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
     | '/generate/upscaler'
+    | '/manage/accounts'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -666,12 +752,17 @@ export interface FileRouteTypes {
     | '/system/settings'
     | '/admin/'
     | '/ai-influencer/'
+    | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/framia'
+    | '/api/public/leonardo'
+    | '/api/public/leonardo-cognito'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -681,6 +772,7 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/public/validate-media'
     | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
@@ -689,10 +781,10 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
-    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
+    | '/api/public/tiktok/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -703,7 +795,6 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
-    | '/admin/token-bank'
     | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
@@ -713,13 +804,17 @@ export interface FileRouteTypes {
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
+    | '/dev/weavy-node-inspect'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
+    | '/generate/framia'
     | '/generate/image-to-video'
+    | '/generate/leonardo'
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
     | '/generate/upscaler'
+    | '/manage/accounts'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -733,12 +828,17 @@ export interface FileRouteTypes {
     | '/system/settings'
     | '/admin'
     | '/ai-influencer'
+    | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/framia'
+    | '/api/public/leonardo'
+    | '/api/public/leonardo-cognito'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -748,6 +848,7 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/public/validate-media'
     | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
@@ -756,10 +857,10 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
-    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
+    | '/api/public/tiktok/callback'
   id:
     | '__root__'
     | '/'
@@ -772,7 +873,6 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
-    | '/admin/token-bank'
     | '/admin/transactions'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
@@ -782,13 +882,17 @@ export interface FileRouteTypes {
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
     | '/auth/callback'
+    | '/dev/weavy-node-inspect'
     | '/dev/weavy-test'
     | '/generate/bulk-fashion'
+    | '/generate/framia'
     | '/generate/image-to-video'
+    | '/generate/leonardo'
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
     | '/generate/upscaler'
+    | '/manage/accounts'
     | '/manage/routing'
     | '/manage/tokens'
     | '/mixing/clipper'
@@ -802,12 +906,17 @@ export interface FileRouteTypes {
     | '/system/settings'
     | '/admin/'
     | '/ai-influencer/'
+    | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/framia'
+    | '/api/public/leonardo'
+    | '/api/public/leonardo-cognito'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -817,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
     | '/api/public/upload-catbox'
+    | '/api/public/validate-media'
     | '/api/router/brain-analyze'
     | '/api/router/chat'
     | '/api/router/image'
@@ -825,10 +935,10 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
-    | '/api/router/video'
     | '/api/router/voice'
     | '/api/public/doku/notification'
     | '/api/public/midtrans/notification'
+    | '/api/public/tiktok/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -840,24 +950,33 @@ export interface RootRouteChildren {
   ReffEditRoute: typeof ReffEditRouteWithChildren
   ApiProxyImageRoute: typeof ApiProxyImageRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  DevWeavyNodeInspectRoute: typeof DevWeavyNodeInspectRoute
   DevWeavyTestRoute: typeof DevWeavyTestRoute
   GenerateBulkFashionRoute: typeof GenerateBulkFashionRoute
+  GenerateFramiaRoute: typeof GenerateFramiaRoute
   GenerateImageToVideoRoute: typeof GenerateImageToVideoRoute
+  GenerateLeonardoRoute: typeof GenerateLeonardoRoute
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
   GenerateUpscalerRoute: typeof GenerateUpscalerRoute
+  ManageAccountsRoute: typeof ManageAccountsRoute
   ManageRoutingRoute: typeof ManageRoutingRoute
   ManageTokensRoute: typeof ManageTokensRoute
   SystemAnalyticRoute: typeof SystemAnalyticRoute
   SystemHelpRoute: typeof SystemHelpRoute
   SystemSettingsRoute: typeof SystemSettingsRoute
+  ApiPublicBacksoundSearchRoute: typeof ApiPublicBacksoundSearchRoute
   ApiPublicClipperBrainRoute: typeof ApiPublicClipperBrainRoute
   ApiPublicCreativeBrainRoute: typeof ApiPublicCreativeBrainRoute
   ApiPublicDubbingBrainRoute: typeof ApiPublicDubbingBrainRoute
   ApiPublicElevenlabsTtsRoute: typeof ApiPublicElevenlabsTtsRoute
   ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
+  ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
+  ApiPublicLeonardoRoute: typeof ApiPublicLeonardoRoute
+  ApiPublicLeonardoCognitoRoute: typeof ApiPublicLeonardoCognitoRoute
+  ApiPublicLeonardoUploadRoute: typeof ApiPublicLeonardoUploadRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
@@ -867,6 +986,7 @@ export interface RootRouteChildren {
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
   ApiPublicStoryboardBrainRoute: typeof ApiPublicStoryboardBrainRoute
   ApiPublicUploadCatboxRoute: typeof ApiPublicUploadCatboxRoute
+  ApiPublicValidateMediaRoute: typeof ApiPublicValidateMediaRoute
   ApiRouterBrainAnalyzeRoute: typeof ApiRouterBrainAnalyzeRoute
   ApiRouterChatRoute: typeof ApiRouterChatRoute
   ApiRouterImageRoute: typeof ApiRouterImageRoute
@@ -875,10 +995,10 @@ export interface RootRouteChildren {
   ApiRouterRenderCloudRoute: typeof ApiRouterRenderCloudRoute
   ApiRouterSttRoute: typeof ApiRouterSttRoute
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
-  ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
+  ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1016,6 +1136,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ManageRoutingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/manage/accounts': {
+      id: '/manage/accounts'
+      path: '/manage/accounts'
+      fullPath: '/manage/accounts'
+      preLoaderRoute: typeof ManageAccountsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/generate/upscaler': {
       id: '/generate/upscaler'
       path: '/generate/upscaler'
@@ -1044,11 +1171,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GenerateMotionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/generate/leonardo': {
+      id: '/generate/leonardo'
+      path: '/generate/leonardo'
+      fullPath: '/generate/leonardo'
+      preLoaderRoute: typeof GenerateLeonardoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/generate/image-to-video': {
       id: '/generate/image-to-video'
       path: '/generate/image-to-video'
       fullPath: '/generate/image-to-video'
       preLoaderRoute: typeof GenerateImageToVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/generate/framia': {
+      id: '/generate/framia'
+      path: '/generate/framia'
+      fullPath: '/generate/framia'
+      preLoaderRoute: typeof GenerateFramiaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/bulk-fashion': {
@@ -1063,6 +1204,13 @@ declare module '@tanstack/react-router' {
       path: '/dev/weavy-test'
       fullPath: '/dev/weavy-test'
       preLoaderRoute: typeof DevWeavyTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/weavy-node-inspect': {
+      id: '/dev/weavy-node-inspect'
+      path: '/dev/weavy-node-inspect'
+      fullPath: '/dev/weavy-node-inspect'
+      preLoaderRoute: typeof DevWeavyNodeInspectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
@@ -1128,13 +1276,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTransactionsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/token-bank': {
-      id: '/admin/token-bank'
-      path: '/token-bank'
-      fullPath: '/admin/token-bank'
-      preLoaderRoute: typeof AdminTokenBankRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/requests': {
       id: '/admin/requests'
       path: '/requests'
@@ -1168,13 +1309,6 @@ declare module '@tanstack/react-router' {
       path: '/api/router/voice'
       fullPath: '/api/router/voice'
       preLoaderRoute: typeof ApiRouterVoiceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/router/video': {
-      id: '/api/router/video'
-      path: '/api/router/video'
-      fullPath: '/api/router/video'
-      preLoaderRoute: typeof ApiRouterVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/router/subtitle': {
@@ -1231,6 +1365,13 @@ declare module '@tanstack/react-router' {
       path: '/api/router/brain-analyze'
       fullPath: '/api/router/brain-analyze'
       preLoaderRoute: typeof ApiRouterBrainAnalyzeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/validate-media': {
+      id: '/api/public/validate-media'
+      path: '/api/public/validate-media'
+      fullPath: '/api/public/validate-media'
+      preLoaderRoute: typeof ApiPublicValidateMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/upload-catbox': {
@@ -1296,6 +1437,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMagnificRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leonardo-upload': {
+      id: '/api/public/leonardo-upload'
+      path: '/api/public/leonardo-upload'
+      fullPath: '/api/public/leonardo-upload'
+      preLoaderRoute: typeof ApiPublicLeonardoUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leonardo-cognito': {
+      id: '/api/public/leonardo-cognito'
+      path: '/api/public/leonardo-cognito'
+      fullPath: '/api/public/leonardo-cognito'
+      preLoaderRoute: typeof ApiPublicLeonardoCognitoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leonardo': {
+      id: '/api/public/leonardo'
+      path: '/api/public/leonardo'
+      fullPath: '/api/public/leonardo'
+      preLoaderRoute: typeof ApiPublicLeonardoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/framia': {
+      id: '/api/public/framia'
+      path: '/api/public/framia'
+      fullPath: '/api/public/framia'
+      preLoaderRoute: typeof ApiPublicFramiaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ffmpeg-cdn': {
       id: '/api/public/ffmpeg-cdn'
       path: '/api/public/ffmpeg-cdn'
@@ -1338,6 +1507,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicClipperBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/backsound-search': {
+      id: '/api/public/backsound-search'
+      path: '/api/public/backsound-search'
+      fullPath: '/api/public/backsound-search'
+      preLoaderRoute: typeof ApiPublicBacksoundSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tiktok/callback': {
+      id: '/api/public/tiktok/callback'
+      path: '/api/public/tiktok/callback'
+      fullPath: '/api/public/tiktok/callback'
+      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/midtrans/notification': {
       id: '/api/public/midtrans/notification'
       path: '/api/public/midtrans/notification'
@@ -1360,7 +1543,6 @@ interface AdminRouteChildren {
   AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
-  AdminTokenBankRoute: typeof AdminTokenBankRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -1370,7 +1552,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
-  AdminTokenBankRoute: AdminTokenBankRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -1441,24 +1622,33 @@ const rootRouteChildren: RootRouteChildren = {
   ReffEditRoute: ReffEditRouteWithChildren,
   ApiProxyImageRoute: ApiProxyImageRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  DevWeavyNodeInspectRoute: DevWeavyNodeInspectRoute,
   DevWeavyTestRoute: DevWeavyTestRoute,
   GenerateBulkFashionRoute: GenerateBulkFashionRoute,
+  GenerateFramiaRoute: GenerateFramiaRoute,
   GenerateImageToVideoRoute: GenerateImageToVideoRoute,
+  GenerateLeonardoRoute: GenerateLeonardoRoute,
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
   GenerateUpscalerRoute: GenerateUpscalerRoute,
+  ManageAccountsRoute: ManageAccountsRoute,
   ManageRoutingRoute: ManageRoutingRoute,
   ManageTokensRoute: ManageTokensRoute,
   SystemAnalyticRoute: SystemAnalyticRoute,
   SystemHelpRoute: SystemHelpRoute,
   SystemSettingsRoute: SystemSettingsRoute,
+  ApiPublicBacksoundSearchRoute: ApiPublicBacksoundSearchRoute,
   ApiPublicClipperBrainRoute: ApiPublicClipperBrainRoute,
   ApiPublicCreativeBrainRoute: ApiPublicCreativeBrainRoute,
   ApiPublicDubbingBrainRoute: ApiPublicDubbingBrainRoute,
   ApiPublicElevenlabsTtsRoute: ApiPublicElevenlabsTtsRoute,
   ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
+  ApiPublicFramiaRoute: ApiPublicFramiaRoute,
+  ApiPublicLeonardoRoute: ApiPublicLeonardoRoute,
+  ApiPublicLeonardoCognitoRoute: ApiPublicLeonardoCognitoRoute,
+  ApiPublicLeonardoUploadRoute: ApiPublicLeonardoUploadRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
@@ -1468,6 +1658,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,
   ApiPublicStoryboardBrainRoute: ApiPublicStoryboardBrainRoute,
   ApiPublicUploadCatboxRoute: ApiPublicUploadCatboxRoute,
+  ApiPublicValidateMediaRoute: ApiPublicValidateMediaRoute,
   ApiRouterBrainAnalyzeRoute: ApiRouterBrainAnalyzeRoute,
   ApiRouterChatRoute: ApiRouterChatRoute,
   ApiRouterImageRoute: ApiRouterImageRoute,
@@ -1476,10 +1667,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterRenderCloudRoute: ApiRouterRenderCloudRoute,
   ApiRouterSttRoute: ApiRouterSttRoute,
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
-  ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
+  ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
