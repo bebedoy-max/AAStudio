@@ -236,9 +236,39 @@ export type WeavyImgOpts = {
 
 export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
   const isNb = opts.modelKey === "nanobanana2";
-  const built = isNb
-    ? buildNanoBanana2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16")
-    : buildGptImage2Recipe(opts.prompt, opts.quality || "high@1024x1024", opts.ratio || "1:1");
+  const isSeedream = opts.modelKey.startsWith("seedream-");
+  let built: { model: string; nodes: unknown[]; edges: unknown[] };
+  if (isSeedream) {
+    const { buildSeedreamEditRecipe } = await import("./weavy-storyboard");
+    built = buildSeedreamEditRecipe(opts.prompt, opts.modelKey, opts.ratio || "1:1", [DUMMY_IMG]);
+    // T2I: override image_size (match_input akan mengikuti dummy 1×1). Pilih preset
+    // Weavy berdasar aspect ratio yang dipilih user.
+    const r = opts.ratio || "1:1";
+    const preset =
+      r === "9:16" || r === "2:3" || r === "4:5"
+        ? "portrait_16_9"
+        : r === "16:9" || r === "3:2"
+          ? "landscape_16_9"
+          : "square_hd";
+    for (const n of built.nodes as Array<{ isModel?: boolean; data?: { params?: Record<string, unknown>; kind?: { parameters?: unknown[] } } }>) {
+      if (!n.isModel || !n.data) continue;
+      const params = n.data.params || {};
+      params.image_size = { type: "built_in", value: preset };
+      const kp = n.data.kind?.parameters as Array<Array<Record<string, unknown>>> | undefined;
+      if (kp) {
+        for (const entry of kp) {
+          const meta = entry[0] as { id?: string };
+          if (meta?.id === "image_size") {
+            entry[1] = { type: "value", data: { type: "image_size", value: { type: "built_in", value: preset } } };
+          }
+        }
+      }
+    }
+  } else if (isNb) {
+    built = buildNanoBanana2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16");
+  } else {
+    built = buildGptImage2Recipe(opts.prompt, opts.quality || "high@1024x1024", opts.ratio || "1:1");
+  }
 
   const log = (m: string, p?: number) => opts.onProgress?.(m, p);
 

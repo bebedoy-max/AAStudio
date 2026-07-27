@@ -60,17 +60,17 @@ export function LoginCard() {
   }
 
   return (
-    <div className="w-full max-w-md neumorph neon-border p-8 relative overflow-hidden">
+    <div className="w-full max-w-md mx-auto neumorph neon-border p-5 sm:p-8 relative overflow-hidden">
       <div
         className="absolute -top-16 -right-16 h-40 w-40 rounded-full opacity-40 blur-3xl"
         style={{ background: "var(--gradient-neon)" }}
       />
-      <div className="relative">
-        <div className="text-[16.5px] font-mono uppercase tracking-[0.3em] text-muted-foreground">
+      <div className="relative min-w-0">
+        <div className="text-[12px] sm:text-[16.5px] font-mono uppercase tracking-[0.25em] sm:tracking-[0.3em] text-muted-foreground break-words">
           {mode === "signin" ? "Selamat datang" : "Buat akun baru"}
         </div>
-        <div className="mt-5 flex items-center justify-start gap-5">
-          <div className="relative h-[5.6rem] w-[5.6rem] shrink-0">
+        <div className="mt-5 flex items-center justify-start gap-3 sm:gap-5 min-w-0">
+          <div className="relative h-16 w-16 sm:h-[5.6rem] sm:w-[5.6rem] shrink-0">
             <div
               className="pointer-events-none absolute inset-[-10%] rounded-full border border-foreground/30 opacity-60 blur-[2px] animate-[logo-smoke_3.5s_ease-in-out_infinite]"
             />
@@ -80,12 +80,12 @@ export function LoginCard() {
             <img
               src="/api/public/proxy-image?url=https%3A%2F%2Fdrive.usercontent.google.com%2Fdownload%3Fid%3D1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4%26export%3Dview"
               alt="AA Logo"
-              className="relative h-[5.6rem] w-[5.6rem] rounded-full object-cover border border-foreground/20 shadow-[0_0_24px_-8px_var(--color-foreground)]"
+              className="relative h-16 w-16 sm:h-[5.6rem] sm:w-[5.6rem] rounded-full object-cover border border-foreground/20 shadow-[0_0_24px_-8px_var(--color-foreground)]"
             />
           </div>
-          <div className="flex flex-col items-start leading-none">
-            <span className="font-display text-[2.7rem] font-black tracking-tight text-gradient">Creative</span>
-            <span className="font-display text-[2.7rem] font-black tracking-tight text-gradient">Studio</span>
+          <div className="flex flex-col items-start leading-none min-w-0">
+            <span className="font-display text-[2rem] sm:text-[2.7rem] font-black tracking-tight text-gradient">Creative</span>
+            <span className="font-display text-[2rem] sm:text-[2.7rem] font-black tracking-tight text-gradient">Studio</span>
           </div>
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
