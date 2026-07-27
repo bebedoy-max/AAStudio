@@ -82,25 +82,19 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
       ],
     },
     {
-      key: "seedream-v40",
-      label: "Seedream V4.0 Edit (Weavy)",
-      qualities: [{ v: "default", label: "Standard (~8 cr)", cr: 8, default: true }],
-    },
-    {
-      key: "seedream-v45",
-      label: "Seedream V4.5 Edit (Weavy)",
-      qualities: [{ v: "default", label: "Standard (~9 cr)", cr: 9, default: true }],
-    },
-    {
-      key: "seedream-v50",
-      label: "Seedream V5.0 Edit (Weavy)",
-      qualities: [{ v: "default", label: "Standard (~10 cr)", cr: 10, default: true }],
-    },
-    {
       key: "seedream-v50-pro",
       label: "Seedream V5.0 Pro Edit (Weavy)",
-      qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }],
+      qualities: [
+        { v: "match_input",     label: "Match Input (12 cr)", cr: 12, default: true },
+        { v: "square_hd",       label: "Square HD (12 cr)", cr: 12 },
+        { v: "square",          label: "Square (12 cr)", cr: 12 },
+        { v: "portrait",        label: "Portrait (12 cr)", cr: 12 },
+        { v: "landscape",       label: "Landscape (12 cr)", cr: 12 },
+        { v: "auto_2K",         label: "Auto 2K (12 cr)", cr: 12 },
+        { v: "auto_3K",         label: "Auto 3K (12 cr)", cr: 12 },
+      ],
     },
+
   ],
   wavespeed: [
     {

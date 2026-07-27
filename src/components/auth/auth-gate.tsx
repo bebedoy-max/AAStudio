@@ -35,7 +35,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </div>
 
       {/* Overlay login */}
-      <div className="fixed inset-0 z-50 grid place-items-center px-4 py-8 bg-background/40 backdrop-blur-sm overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 bg-background/40 backdrop-blur-sm overflow-y-auto overflow-x-hidden">
         <LoginCard />
       </div>
     </div>

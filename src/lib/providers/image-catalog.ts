@@ -56,6 +56,19 @@ export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">
       ],
       ratios: ["1:1", "9:16", "16:9"],
     },
+    {
+      key: "seedream-v50-pro",
+      label: "Seedream V5.0 Pro (Weavy)",
+      qualities: [
+        { v: "square_hd",       label: "Square HD (12 cr)" },
+        { v: "square",          label: "Square (12 cr)" },
+        { v: "portrait",        label: "Portrait (12 cr)" },
+        { v: "landscape",       label: "Landscape (12 cr)" },
+        { v: "auto_2K",         label: "Auto 2K (12 cr)" },
+        { v: "auto_3K",         label: "Auto 3K (12 cr)" },
+      ],
+      ratios: RATIOS_STD,
+    },
   ],
   framia: [
     { key: "framia:nano-banana-lite", label: "Nano Banana Lite (Framia)", qualities: [{ v: "1K", label: "1K (~1 cr)" }, { v: "2K", label: "2K (~2 cr)" }] },

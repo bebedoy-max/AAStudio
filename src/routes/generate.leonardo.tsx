@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useSticky } from "@/lib/stores/use-sticky";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
@@ -148,22 +149,22 @@ function computeDims(
 
 
 function LeonardoPage() {
-  const [mode, setMode] = useState<"image" | "video">("image");
-  const [prompt, setPrompt] = useState("");
-  const [neg, setNeg] = useState("");
-  const [modelId, setModelId] = useState<string>(LEONARDO_MODELS[0].id);
-  const [aspect, setAspect] = useState<string>("1:1");
-  const [tier, setTier] = useState<string>("small");
-  const [quality, setQuality] = useState<"low" | "medium" | "high">("medium");
-  const [promptEnhance, setPromptEnhance] = useState<"OFF" | "AUTO">("OFF");
-  const [num, setNum] = useState("1");
-  const [busy, setBusy] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [status, setStatus] = useState<{ show: boolean; text: string; pct: number; time: string }>({
+  const [mode, setMode] = useSticky<"image" | "video">("t2i.mode", "image");
+  const [prompt, setPrompt] = useSticky("t2i.prompt", "");
+  const [neg, setNeg] = useSticky("t2i.neg", "");
+  const [modelId, setModelId] = useSticky<string>("t2i.modelId", LEONARDO_MODELS[0].id);
+  const [aspect, setAspect] = useSticky<string>("t2i.aspect", "1:1");
+  const [tier, setTier] = useSticky<string>("t2i.tier", "small");
+  const [quality, setQuality] = useSticky<"low" | "medium" | "high">("t2i.quality", "medium");
+  const [promptEnhance, setPromptEnhance] = useSticky<"OFF" | "AUTO">("t2i.promptEnhance", "OFF");
+  const [num, setNum] = useSticky("t2i.num", "1");
+  const [busy, setBusy] = useSticky("t2i.busy", false);
+  const [logs, setLogs] = useSticky<string[]>("t2i.logs", []);
+  const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>("t2i.status", {
     show: false, text: "", pct: 0, time: "0:00",
   });
-  const [images, setImages] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useSticky<string[]>("t2i.images", []);
+  const [error, setError] = useSticky<string | null>("t2i.error", null);
   const [keyCount, setKeyCount] = useState(0);
   const [remoteModels, setRemoteModels] = useState<LeonardoPlatformModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -175,7 +176,7 @@ function LeonardoPage() {
   const [vidTierId, setVidTierId] = useState<LeonardoVideoSizeTier["id"]>("hd");
   const [vidImageFile, setVidImageFile] = useState<File | null>(null);
   const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
-  const [videos, setVideos] = useState<string[]>([]);
+  const [videos, setVideos] = useSticky<string[]>("t2i.videos", []);
   const vidInput = useRef<HTMLInputElement>(null);
   const activeVidModel =
     LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
@@ -265,8 +266,6 @@ function LeonardoPage() {
     if (!prompt.trim() || !activeGenModel || imgProvider === "leonardo") return;
     setBusy(true);
     setError(null);
-    setImages([]);
-    setLogs([]);
     const stopTick = startStatus("Memulai…");
     try {
       const count = Number(num) || 1;
@@ -283,7 +282,7 @@ function LeonardoPage() {
           onRotate: (idx, total, reason) => log(`↻ rotate token #${idx}/${total}: ${reason}`),
         });
         out.push(url);
-        setImages([...out]);
+        setImages((prev) => [url, ...prev]);
       }
       log(`✅ Selesai — ${out.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -345,8 +344,6 @@ function LeonardoPage() {
     if (!prompt.trim()) return;
     setBusy(true);
     setError(null);
-    setImages([]);
-    setLogs([]);
     const stopTick = startStatus("Leonardo: submit…");
     try {
       const { images } = await generateLeonardoImages(
@@ -365,7 +362,7 @@ function LeonardoPage() {
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         },
       );
-      setImages(images);
+      setImages((prev) => [...images, ...prev]);
       log(`✅ Selesai — ${images.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
@@ -383,7 +380,6 @@ function LeonardoPage() {
     if (!prompt.trim()) return;
     setBusy(true);
     setError(null);
-    setLogs([]);
     const stopTick = startStatus("Leonardo Video: submit…");
     try {
       const tierLabel = activeVidModel.sizeTiers.find((t) => t.id === vidTierId)?.label ?? vidTierId;

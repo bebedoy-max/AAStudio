@@ -14,6 +14,7 @@ import {
   uploadWeavyAssetWithRetry,
   resolveWeavyAssetUrl,
 } from "./weavy";
+import { resolveSeedreamImageSize } from "./weavy-storyboard";
 
 const mkId = () => Math.random().toString(36).substring(2, 8);
 
@@ -191,21 +192,59 @@ function buildGptImage2EditBulkRecipe(prompt: string, quality: string, ratio: st
   return { model, nodes: [imgNode, outNode, modelNode], edges };
 }
 
-/** Seedream V5 Edit (V4.0/V4.5/V5.0/V5.0 Pro) — pilihan model_version di params. */
-function buildSeedreamEditBulkRecipe(prompt: string, modelVersion: string, ratio: string, charUrl: string, outfitUrl: string) {
-  const model = "fal-ai/bytedance/seedream/v5/edit";
+/** Seedream Edit — endpoint Weavy tunggal (fal_imported), varian via params.model. */
+const SEEDREAM_MODEL_ID = "fal-ai/bytedance/seedream/v5/lite/edit";
+
+function seedreamVariant(modelKey: string): string {
+  const k = (modelKey || "").toLowerCase();
+  if (k.includes("v40") || k.includes("-4-0")) return "V4.0";
+  if (k.includes("v45") || k.includes("-4-5")) return "V4.5";
+  if (k.includes("pro")) return "V5.0 Pro";
+  if (k.includes("v50")) return "V5.0";
+  return "V5.0 Pro";
+}
+
+function seedreamSlot(url: string, index: number) {
+  return {
+    type: "image",
+    url,
+    thumbnailUrl: url,
+    publicId: "uploads/" + mkId(),
+    id: mkId(),
+    name: index === 0 ? "character.jpg" : "outfit.jpg",
+    insertionOrder: 0,
+  };
+}
+
+function buildSeedreamEditBulkRecipe(prompt: string, modelKey: string, ratio: string, charUrl: string, outfitUrl: string, imageSize?: string) {
+  const model = SEEDREAM_MODEL_ID;
+  const variant = seedreamVariant(modelKey);
+  const validPresets = new Set([
+    "match_input", "square_hd", "square",
+    "portrait_4_3", "portrait_16_9",
+    "landscape_4_3", "landscape_16_9",
+    "auto_2K", "auto_3K",
+  ]);
+  const sizePreset = resolveSeedreamImageSize(imageSize, ratio, validPresets);
+  const sizeValue = { type: "built_in", value: sizePreset };
   const n1 = "n_" + Date.now() + "_char";
   const n2 = "n_" + Date.now() + "_out";
   const n3 = "n_" + Date.now() + "_mdl";
   const imgNode = mkImportNode(n1, charUrl, "character.jpg", 100);
   const outNode = mkImportNode(n2, outfitUrl, "outfit.jpg", 550);
-  const imageRefs = [charUrl, outfitUrl];
-  const params = {
-    image_urls: imageRefs, prompt,
-    model_version: modelVersion, // v40 | v45 | v50 | v50-pro
+  const slot1 = seedreamSlot(charUrl, 0);
+  const slot2 = seedreamSlot(outfitUrl, 1);
+  const params: Record<string, unknown> = {
+    seed: { seed: Math.floor(Math.random() * 1_000_000), isRandom: true },
+    image_size: sizeValue,
+    max_images: 1,
+    num_images: 1,
     enhance_prompt_mode: "standard",
-    aspect_ratio: ratio || "1:1",
-    num_images: 1, output_format: "png",
+    enable_safety_checker: true,
+    prompt,
+    model: variant,
+    image_1: slot1,
+    image_2: slot2,
   };
   const modelNode = {
     id: n3, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
@@ -213,31 +252,28 @@ function buildSeedreamEditBulkRecipe(prompt: string, modelVersion: string, ratio
       handles: {
         input: {
           prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: true },
-          image_1: { id: "input-image_1", type: "image", label: "image_1", format: "text", required: true },
-          image_2: { id: "input-image_2", type: "image", label: "image_2", format: "text", required: false },
+          image_1: { id: "input-image_1", type: "image", label: "image_1", format: "uri", required: false },
+          image_2: { id: "input-image_2", type: "image", label: "image_2", format: "uri", required: false },
         },
         output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
       },
-      name: "Seedream V5.0 Edit", color: "Purple",
-      menu: { icon: "AutoAwesomeIcon", isModel: true, displayName: "Seedream V5.0 Edit" },
+      name: `Seedream ${variant} Edit`, color: "Red",
+      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: `Seedream ${variant}` },
       model: { name: model, service: "fal_imported", version: model },
       params, version: 3,
       kind: {
         type: "wildcard",
-        model: { type: "predefined", name: model, version: model, service: "fal_imported" },
+        model: { type: "user_defined", name: model, version: model, service: "fal_imported", description: "Fal.ai Model" },
         inputs: [
           [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
-          [{ id: "image_1", title: "image_1", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }],
-          [{ id: "image_2", title: "image_2", validTypes: ["image"], required: false }, { nodeId: n2, outputId: "file" }],
+          [{ id: "image_1", title: "image_1", validTypes: ["image"], required: false }, { nodeId: n1, outputId: "file", file: slot1 }],
+          [{ id: "image_2", title: "Image 2", validTypes: ["image"], required: false }, { nodeId: n2, outputId: "file", file: slot2 }],
         ],
         parameters: [
-          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: imageRefs } }, { type: "value", data: { type: "list", value: imageRefs } }],
-          [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
-          [{ id: "model_version", title: "model_version", constraint: { type: "enum", options: ["v40", "v45", "v50", "v50-pro"] }, defaultValue: { type: "string", value: modelVersion } }, { type: "value", data: { type: "string", value: modelVersion } }],
-          [{ id: "enhance_prompt_mode", title: "enhance_prompt_mode", constraint: { type: "enum", options: ["standard", "none"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
-          [{ id: "aspect_ratio", title: "aspect_ratio", constraint: { type: "enum" }, defaultValue: { type: "string", value: ratio || "1:1" } }, { type: "value", data: { type: "string", value: ratio || "1:1" } }],
-          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
-          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
+          [{ id: "model", title: "Model", constraint: { type: "enum", options: ["V4.0", "V4.5", "V5.0", "V5.0 Pro"] }, defaultValue: { type: "string", value: "V5.0 Pro" } }, { type: "value", data: { type: "string", value: variant } }],
+          [{ id: "seed", title: "Seed", constraint: { type: "seed" }, defaultValue: { type: "seed", value: { seed: 1, isRandom: false } } }, { type: "value", data: { type: "seed", value: (params.seed as { seed: number; isRandom: boolean }) } }],
+          [{ id: "image_size", title: "Image Size", constraint: { type: "image_size", options: ["match_input", "custom", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "auto_2K", "auto_3K"] }, defaultValue: { type: "image_size", value: { type: "built_in", value: "match_input" } } }, { type: "value", data: { type: "image_size", value: sizeValue } }],
+          [{ id: "enhance_prompt_mode", title: "Enhance Prompt Mode", constraint: { type: "enum", options: ["standard", "fast"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
       },
@@ -246,11 +282,12 @@ function buildSeedreamEditBulkRecipe(prompt: string, modelVersion: string, ratio
     position: { x: 600, y: 300 }, width: 460, height: 500,
   };
   const edges = [
-    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image_1`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Purple", sourceHandleType: "any", targetHandleType: "image" } },
-    { id: "e-" + mkId(), source: n2, target: n3, sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Purple", sourceHandleType: "any", targetHandleType: "image" } },
+    { id: "e-" + mkId(), source: n1, target: n3, sourceHandle: `${n1}-output-file`, targetHandle: `${n3}-input-image_1`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "image", targetHandleType: "image" } },
+    { id: "e-" + mkId(), source: n2, target: n3, sourceHandle: `${n2}-output-file`, targetHandle: `${n3}-input-image_2`, type: "custom", data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "image", targetHandleType: "image" } },
   ];
   return { model, nodes: [imgNode, outNode, modelNode], edges };
 }
+
 
 async function pollWeavyImage(
   recipeId: string, batchId: string, accessToken: string,
@@ -321,21 +358,25 @@ export async function generateWeavyBulkOne(opts: WeavyBulkOpts): Promise<string>
       const outUp = await uploadWeavyAssetWithRetry(opts.outfitFile, `outfit_${Date.now()}.jpg`, active.accessToken);
       const outUrl = resolveWeavyAssetUrl(outUp, "image");
 
-      let built;
-      if (opts.modelKey === "nanobanana2") {
-        built = buildNb2BulkRecipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16", charUrl, outUrl);
-      } else if (opts.modelKey.startsWith("seedream-")) {
-        const ver = opts.modelKey.slice("seedream-".length) || "v50"; // v40|v45|v50|v50-pro
-        built = buildSeedreamEditBulkRecipe(opts.prompt, ver, opts.ratio || "1:1", charUrl, outUrl);
-      } else {
-        built = buildGptImage2EditBulkRecipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", charUrl, outUrl);
+      if (opts.modelKey.startsWith("seedream-")) {
+        const sb = buildSeedreamEditBulkRecipe(opts.prompt, opts.modelKey, opts.ratio || "1:1", charUrl, outUrl, opts.quality);
+        const { id: rid, v3: sv3 } = await createWeavyRecipe(active.accessToken);
+        await saveWeavyRecipe(rid, { nodes: sb.nodes, edges: sb.edges, v3: sv3 }, active.accessToken);
+        await approveWeavyModel(sb.model, active.accessToken);
+        const { batchId: bid } = await executeWeavyBatch(rid, sb.nodes, sb.edges, active.accessToken, sb.model);
+        return await pollWeavyImage(rid, bid, active.accessToken, [charUrl, outUrl]);
       }
+
+      const built = opts.modelKey === "nanobanana2"
+        ? buildNb2BulkRecipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16", charUrl, outUrl)
+        : buildGptImage2EditBulkRecipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", charUrl, outUrl);
 
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
       await saveWeavyRecipe(recipeId, { nodes: built.nodes, edges: built.edges, v3 }, active.accessToken);
       await approveWeavyModel(built.model, active.accessToken);
       const { batchId } = await executeWeavyBatch(recipeId, built.nodes, built.edges, active.accessToken, built.model);
       return await pollWeavyImage(recipeId, batchId, active.accessToken, [charUrl, outUrl]);
+
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message || "";

@@ -718,9 +718,65 @@ function buildGptImage2Recipe(prompt: string, quality: string, ratio: string, ur
 
 
 
-/** Seedream V5.0 Edit — multi-image ref (max 6). Model version dipilih via param. */
-function buildSeedreamEditRecipe(prompt: string, modelVersion: string, ratio: string, urls: string[]): Built {
-  const model = "fal-ai/bytedance/seedream/v5/edit";
+/**
+ * Seedream Edit — endpoint Weavy tunggal (fal_imported).
+ * Weavy meng-host V4.0 / V4.5 / V5.0 / V5.0 Pro pada satu model id yang sama;
+ * varian dipilih lewat `params.model` (bukan lewat id endpoint).
+ */
+export const SEEDREAM_MODEL_ID = "fal-ai/bytedance/seedream/v5/lite/edit";
+
+function seedreamVariantLabel(modelKey: string): string {
+  const k = (modelKey || "").toLowerCase();
+  if (k.includes("v40") || k.endsWith("-4") || k.includes("-4-0")) return "V4.0";
+  if (k.includes("v45") || k.includes("-4-5")) return "V4.5";
+  if (k.includes("pro")) return "V5.0 Pro";
+  if (k.includes("v50")) return "V5.0";
+  return "V5.0 Pro";
+}
+
+function seedreamImageSlot(url: string, index: number) {
+  return {
+    type: "image",
+    url,
+    thumbnailUrl: url,
+    publicId: "uploads/" + mkId(),
+    id: mkId(),
+    name: `ref_${index + 1}.jpg`,
+    insertionOrder: 0,
+  };
+}
+
+// Resolve the "Kualitas / Resolusi" dropdown into a concrete Weavy image_size preset.
+// Aliases "portrait" / "landscape" pick 4_3 vs 16_9 based on the chosen aspect ratio,
+// so users don't see duplicated portrait_4_3 / portrait_16_9 entries in the quality menu.
+export function resolveSeedreamImageSize(
+  quality: string | undefined,
+  ratio: string,
+  validPresets: Set<string>,
+): string {
+  const q = (quality || "").trim();
+  const r = (ratio || "").trim();
+  if (q === "portrait") {
+    return r === "4:5" || r === "3:4" || r === "4:3" ? "portrait_4_3" : "portrait_16_9";
+  }
+  if (q === "landscape") {
+    return r === "4:3" || r === "3:2" ? "landscape_4_3" : "landscape_16_9";
+  }
+  return q && validPresets.has(q) ? q : "match_input";
+}
+
+export function buildSeedreamEditRecipe(prompt: string, modelKey: string, ratio: string, urls: string[], imageSize?: string): Built {
+  const model = SEEDREAM_MODEL_ID;
+  const variant = seedreamVariantLabel(modelKey);
+  // ratio helps resolve "portrait"/"landscape" quality aliases into concrete 4_3/16_9 presets.
+  const validPresets = new Set([
+    "match_input", "square_hd", "square",
+    "portrait_4_3", "portrait_16_9",
+    "landscape_4_3", "landscape_16_9",
+    "auto_2K", "auto_3K",
+  ]);
+  const sizePreset = resolveSeedreamImageSize(imageSize, ratio, validPresets);
+  const sizeValue = { type: "built_in", value: sizePreset };
   const modelNodeId = "n_" + Date.now() + "_mdl";
   const importNodes = urls.map((u, i) =>
     mkImportNode("n_" + Date.now() + "_" + i, u, `ref_${i + 1}.jpg`, 100 + i * 460),
@@ -731,22 +787,28 @@ function buildSeedreamEditRecipe(prompt: string, modelVersion: string, ratio: st
   const kindInputs: unknown[] = [
     [{ id: "prompt", title: "prompt", validTypes: ["text"], required: true }, null],
   ];
-  urls.forEach((_, i) => {
-    const key = i === 0 ? "image_1" : `image_${i + 1}`;
-    inputHandles[key] = { id: `input-${key}`, type: "image", label: key, format: "text", required: i === 0 };
+  const imageSlots: Record<string, unknown> = {};
+  urls.forEach((u, i) => {
+    const key = `image_${i + 1}`;
+    inputHandles[key] = { id: `input-${key}`, type: "image", label: key, format: "uri", required: false };
+    const slot = seedreamImageSlot(u, i);
+    imageSlots[key] = slot;
     kindInputs.push([
-      { id: key, title: key, validTypes: ["image"], required: i === 0 },
-      { nodeId: (importNodes[i] as { id: string }).id, outputId: "file" },
+      { id: key, title: i === 0 ? key : `Image ${i + 1}`, validTypes: ["image"], required: false },
+      { nodeId: (importNodes[i] as { id: string }).id, outputId: "file", file: slot },
     ]);
   });
-  const validRatios = new Set(["1:1", "3:4", "4:3", "9:16", "16:9", "2:3", "3:2", "21:9"]);
-  const aspectRatio = ratio && validRatios.has(ratio) ? ratio : "1:1";
-  const params = {
-    image_urls: urls, prompt,
-    model_version: modelVersion,
+  // Parameter natif Seedream Edit di Weavy (fal_imported).
+  const params: Record<string, unknown> = {
+    seed: { seed: Math.floor(Math.random() * 1_000_000), isRandom: true },
+    image_size: sizeValue,
+    max_images: 1,
+    num_images: 1,
     enhance_prompt_mode: "standard",
-    aspect_ratio: aspectRatio,
-    num_images: 1, output_format: "png",
+    enable_safety_checker: true,
+    prompt,
+    model: variant,
+    ...imageSlots,
   };
   const modelNode = {
     id: modelNodeId, type: "custommodelV2", dragHandle: ".node-header", owner: null, visibility: "private", isModel: true,
@@ -755,22 +817,19 @@ function buildSeedreamEditRecipe(prompt: string, modelVersion: string, ratio: st
         input: inputHandles,
         output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
       },
-      name: "Seedream V5.0 Edit", color: "Purple",
-      menu: { icon: "AutoAwesomeIcon", isModel: true, displayName: "Seedream V5.0 Edit" },
+      name: `Seedream ${variant} Edit`, color: "Red",
+      menu: { icon: "EmojiObjectsIcon", isModel: true, displayName: `Seedream ${variant}` },
       model: { name: model, service: "fal_imported", version: model },
       params, version: 3,
       kind: {
         type: "wildcard",
-        model: { type: "predefined", name: model, version: model, service: "fal_imported" },
+        model: { type: "user_defined", name: model, version: model, service: "fal_imported", description: "Fal.ai Model" },
         inputs: kindInputs,
         parameters: [
-          [{ id: "image_urls", title: "image_urls", constraint: { type: "list" }, defaultValue: { type: "list", value: urls } }, { type: "value", data: { type: "list", value: urls } }],
-          [{ id: "prompt", title: "prompt", constraint: { type: "string" }, defaultValue: { type: "string", value: prompt } }, { type: "value", data: { type: "string", value: prompt } }],
-          [{ id: "model_version", title: "model_version", constraint: { type: "enum", options: ["v40", "v45", "v50", "v50-pro"] }, defaultValue: { type: "string", value: modelVersion } }, { type: "value", data: { type: "string", value: modelVersion } }],
-          [{ id: "enhance_prompt_mode", title: "enhance_prompt_mode", constraint: { type: "enum", options: ["standard", "none"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
-          [{ id: "aspect_ratio", title: "aspect_ratio", constraint: { type: "enum" }, defaultValue: { type: "string", value: aspectRatio } }, { type: "value", data: { type: "string", value: aspectRatio } }],
-          [{ id: "num_images", title: "num_images", constraint: { type: "number" }, defaultValue: { type: "number", value: 1 } }, { type: "value", data: { type: "number", value: 1 } }],
-          [{ id: "output_format", title: "output_format", constraint: { type: "enum", options: ["png", "jpeg", "webp"] }, defaultValue: { type: "string", value: "png" } }, { type: "value", data: { type: "string", value: "png" } }],
+          [{ id: "model", title: "Model", constraint: { type: "enum", options: ["V4.0", "V4.5", "V5.0", "V5.0 Pro"] }, defaultValue: { type: "string", value: "V5.0 Pro" } }, { type: "value", data: { type: "string", value: variant } }],
+          [{ id: "seed", title: "Seed", constraint: { type: "seed" }, defaultValue: { type: "seed", value: { seed: 1, isRandom: false } } }, { type: "value", data: { type: "seed", value: (params.seed as { seed: number; isRandom: boolean }) } }],
+          [{ id: "image_size", title: "Image Size", constraint: { type: "image_size", options: ["match_input", "custom", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "auto_2K", "auto_3K"] }, defaultValue: { type: "image_size", value: { type: "built_in", value: "match_input" } } }, { type: "value", data: { type: "image_size", value: sizeValue } }],
+          [{ id: "enhance_prompt_mode", title: "Enhance Prompt Mode", constraint: { type: "enum", options: ["standard", "fast"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
       },
@@ -780,18 +839,19 @@ function buildSeedreamEditRecipe(prompt: string, modelVersion: string, ratio: st
   };
   const edges = importNodes.map((node, i) => {
     const nodeId = (node as { id: string }).id;
-    const key = i === 0 ? "image_1" : `image_${i + 1}`;
+    const key = `image_${i + 1}`;
     return {
       id: "e-" + mkId(),
       source: nodeId, target: modelNodeId,
       sourceHandle: `${nodeId}-output-file`,
       targetHandle: `${modelNodeId}-input-${key}`,
       type: "custom",
-      data: { sourceColor: "Yambo_Blue", targetColor: "Purple", sourceHandleType: "any", targetHandleType: "image" },
+      data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "image", targetHandleType: "image" },
     };
   });
   return { model, nodes: [...importNodes, modelNode], edges };
 }
+
 
 async function pollWeavyImage(
   recipeId: string,
@@ -954,34 +1014,20 @@ export async function generateWeavyStoryboard(opts: WeavyStoryboardOpts): Promis
         const meta = (f as File & { __storyboardMeta?: { width: number; height: number } }).__storyboardMeta;
         return { width: meta?.width, height: meta?.height, name: f.name };
       });
+      if (mk.startsWith("seedream-")) {
+        return await runSeedreamWithFallback(
+          opts.prompt, opts.ratio || "1:1", uploadedUrls, active.accessToken, opts.modelKey, opts.onProgress, opts.quality,
+        );
+      }
       const built = mk === "nanobanana2"
         ? buildNb2Recipe(opts.prompt, opts.quality || "2K", opts.ratio || "9:16", uploadedUrls, refMetas)
-
-        : mk.startsWith("seedream-")
-          ? buildSeedreamEditRecipe(opts.prompt, mk.slice("seedream-".length) || "v50", opts.ratio || "1:1", uploadedUrls)
-          : buildGptImage2Recipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", uploadedUrls);
+        : buildGptImage2Recipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", uploadedUrls);
 
       assertStoryboardWiring(built, uploadedUrls, opts.modelKey);
       logStoryboard(opts.onProgress, `Recipe Weavy tervalidasi: ${describeStoryboardWiring(opts.modelKey, uploadedUrls.length)}`);
 
-      const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
-      logStoryboard(opts.onProgress, `Recipe Weavy dibuat (${recipeId}); menyimpan ${built.nodes.length} node dan ${built.edges.length} koneksi…`);
-      await saveWeavyRecipe(
-        recipeId,
-        { nodes: built.nodes, edges: built.edges, v3 },
-        active.accessToken,
-      );
-      await approveWeavyModel(built.model, active.accessToken);
-      logStoryboard(opts.onProgress, `Submit batch Weavy dengan ${uploadedUrls.length} referensi visual nyata…`);
-      const { batchId } = await executeWeavyBatch(
-        recipeId,
-        built.nodes,
-        built.edges,
-        active.accessToken,
-        built.model,
-      );
-      logStoryboard(opts.onProgress, `Batch Weavy berjalan (${batchId}); menunggu hasil gambar…`);
-      return await pollWeavyImage(recipeId, batchId, active.accessToken, uploadedUrls);
+      return await runBuiltRecipe(built, active.accessToken, uploadedUrls, opts.onProgress);
+
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message || "";
@@ -1041,30 +1087,19 @@ export async function generateWeavyEdit(opts: WeavyEditOpts): Promise<string> {
 
       const mk = opts.modelKey;
       const refMetas: RefMeta[] = files.map((f) => ({ name: f.name }));
+      if (mk.startsWith("seedream-")) {
+        return await runSeedreamWithFallback(
+          opts.prompt, opts.ratio || "1:1", uploadedUrls, active.accessToken, opts.modelKey, opts.onProgress, opts.quality,
+        );
+      }
       const built = mk === "nanobanana2"
         ? buildNb2Recipe(opts.prompt, opts.quality || "2K", opts.ratio || "9:16", uploadedUrls, refMetas)
-
-        : mk.startsWith("seedream-")
-          ? buildSeedreamEditRecipe(opts.prompt, mk.slice("seedream-".length) || "v50", opts.ratio || "1:1", uploadedUrls)
-          : buildGptImage2Recipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", uploadedUrls);
+        : buildGptImage2Recipe(opts.prompt, opts.quality || "medium@1K", opts.ratio || "1:1", uploadedUrls);
 
       assertStoryboardWiring(built, uploadedUrls, opts.modelKey);
       logStoryboard(opts.onProgress, `Recipe Weavy tervalidasi: ${describeStoryboardWiring(opts.modelKey, uploadedUrls.length)}`);
-      const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
-      await saveWeavyRecipe(
-        recipeId,
-        { nodes: built.nodes, edges: built.edges, v3 },
-        active.accessToken,
-      );
-      await approveWeavyModel(built.model, active.accessToken);
-      const { batchId } = await executeWeavyBatch(
-        recipeId,
-        built.nodes,
-        built.edges,
-        active.accessToken,
-        built.model,
-      );
-      return await pollWeavyImage(recipeId, batchId, active.accessToken, uploadedUrls);
+      return await runBuiltRecipe(built, active.accessToken, uploadedUrls, opts.onProgress);
+
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message || "";
@@ -1077,4 +1112,42 @@ export async function generateWeavyEdit(opts: WeavyEditOpts): Promise<string> {
     }
   }
   throw lastErr ?? new Error("Belum ada Weavy token aktif di Kelola Token");
+}
+
+/** Jalankan recipe yang sudah dibangun: create → save → approve → execute → poll. */
+async function runBuiltRecipe(
+  built: Built,
+  accessToken: string,
+  uploadedUrls: string[],
+  onProgress?: StoryboardProgress,
+): Promise<string> {
+  const { id: recipeId, v3 } = await createWeavyRecipe(accessToken);
+  logStoryboard(onProgress, `Recipe Weavy dibuat (${recipeId}); menyimpan ${built.nodes.length} node dan ${built.edges.length} koneksi…`);
+  await saveWeavyRecipe(recipeId, { nodes: built.nodes, edges: built.edges, v3 }, accessToken);
+  await approveWeavyModel(built.model, accessToken);
+  logStoryboard(onProgress, `Submit batch Weavy dengan ${uploadedUrls.length} referensi visual nyata…`);
+  const { batchId } = await executeWeavyBatch(recipeId, built.nodes, built.edges, accessToken, built.model);
+  logStoryboard(onProgress, `Batch Weavy berjalan (${batchId}); menunggu hasil gambar…`);
+  return await pollWeavyImage(recipeId, batchId, accessToken, uploadedUrls);
+}
+
+/**
+ * Seedream V5.0 Pro: coba id model natif Weavy satu per satu. Kalau Weavy
+ * menolak karena dianggap imported model / model tidak dikenal, lanjut ke
+ * kandidat berikutnya sampai ada yang jalan.
+ */
+async function runSeedreamWithFallback(
+  prompt: string,
+  ratio: string,
+  uploadedUrls: string[],
+  accessToken: string,
+  modelKey: string,
+  onProgress?: StoryboardProgress,
+  imageSize?: string,
+): Promise<string> {
+  void ratio;
+  const built = buildSeedreamEditRecipe(prompt, modelKey, ratio, uploadedUrls, imageSize);
+  assertStoryboardWiring(built, uploadedUrls, modelKey);
+  logStoryboard(onProgress, `Seedream Edit (Weavy fal_imported) → ${seedreamVariantLabel(modelKey)}`);
+  return await runBuiltRecipe(built, accessToken, uploadedUrls, onProgress);
 }

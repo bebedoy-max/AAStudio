@@ -217,3 +217,7 @@
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
+
+/* Cegah horizontal scroll di viewport mobile — konten wide (dashboard, kartu) */
+/* tidak boleh mendorong body sehingga overlay/modal ikut geser ke luar layar. */
+html, body { overflow-x: hidden; }

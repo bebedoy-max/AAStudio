@@ -30,6 +30,8 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 import { useAuth } from "@/lib/auth-context";
 import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
 import { confirmDialog } from "@/components/ui-confirm";
+import { toast } from "sonner";
+import { compressMediaFile, fmtMB, ROBONEO_MAX_BYTES } from "@/lib/media/compress";
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -272,6 +274,7 @@ function MotionControl() {
   };
 
   const [exporting, setExporting] = useState(false);
+  const [compressing, setCompressing] = useState<{ msg: string; pct?: number } | null>(null);
   const exportAll = async () => {
     const list = results.filter((r) => !search || r.prompt.toLowerCase().includes(search.toLowerCase()));
     if (list.length === 0 || exporting) return;
@@ -335,7 +338,7 @@ function MotionControl() {
   const removeSlot = (id: string) => {
     setSlots((prev) => (prev.length === 1 ? prev : prev.filter((s) => s.id !== id)));
   };
-  const setSlotFile = (id: string, kind: "image" | "video", file: File | null) => {
+  const applySlotFile = (id: string, kind: "image" | "video", file: File | null) => {
     setSlots((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
@@ -347,6 +350,37 @@ function MotionControl() {
         return { ...s, video: file, videoUrl: file ? URL.createObjectURL(file) : null };
       }),
     );
+  };
+
+  // Khusus Roboneo: upload dibatasi 4MB → tawarkan kompresi otomatis.
+  const setSlotFile = async (id: string, kind: "image" | "video", file: File | null) => {
+    if (compressing) return;
+    if (!file || provider !== "roboneo" || file.size <= ROBONEO_MAX_BYTES) {
+      applySlotFile(id, kind, file);
+      return;
+    }
+    const label = kind === "image" ? "Gambar" : "Video";
+    const ok = await confirmDialog({
+      title: `${label} lebih dari 4MB`,
+      description: `File "${file.name}" berukuran ${fmtMB(file.size)}. Roboneo membatasi upload maksimal 4MB. Klik OK untuk mengompres file secara otomatis, atau tutup dialog untuk upload ulang file di bawah 4MB.`,
+      confirmLabel: "OK, kompres file",
+      cancelLabel: "Tutup",
+      tone: "default",
+    });
+    if (!ok) return;
+
+    setCompressing({ msg: `Mengompres ${label.toLowerCase()}…` });
+    try {
+      const out = await compressMediaFile(file, kind, ROBONEO_MAX_BYTES, (msg, pct) =>
+        setCompressing({ msg, pct }),
+      );
+      applySlotFile(id, kind, out);
+      toast.success(`${label} dikompres: ${fmtMB(file.size)} → ${fmtMB(out.size)}`);
+    } catch (e) {
+      toast.error((e as Error).message || "Kompresi gagal");
+    } finally {
+      setCompressing(null);
+    }
   };
 
   const runGenerate = async () => {
@@ -458,19 +492,36 @@ function MotionControl() {
       >
         {/* References */}
         <div style={{ gridArea: "refs" }}>
-
+          {compressing ? (
+            <div className="mb-3 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground shadow-sm">
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate">{compressing.msg}</div>
+                {typeof compressing.pct === "number" ? (
+                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${Math.max(0, Math.min(100, compressing.pct))}%` }}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <Card
             title={`Referensi (${slots.length}/${MAX_REFS})`}
             sub="Setiap pasang gambar + video menghasilkan 1 video"
             right={
-              <GhostButton onClick={addSlot} disabled={slots.length >= MAX_REFS}>
+              <GhostButton onClick={addSlot} disabled={slots.length >= MAX_REFS || !!compressing}>
                 <Plus className="h-3.5 w-3.5" /> Tambah
               </GhostButton>
             }
           >
             <div
+              aria-busy={!!compressing}
               className={
                 "grid gap-3 grid-cols-1 " +
+                (compressing ? "pointer-events-none opacity-60 " : "") +
                 (slots.length === 1
                   ? "lg:grid-cols-1"
                   : slots.length === 2
