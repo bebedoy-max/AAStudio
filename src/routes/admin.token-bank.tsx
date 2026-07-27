@@ -23,6 +23,7 @@ import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
   BANK_PROVIDERS,
@@ -693,6 +694,22 @@ async function runProviderCheck(provider: BankProvider, key: string): Promise<Ch
           return { label: chk.message || "Aktif", tone: "ok" };
         } catch {
           return { label: chk.message || "Aktif", tone: "ok" };
+        }
+      }
+      case "framia": {
+        const chk = await checkFramiaToken(key);
+        if (!chk.ok) return { label: chk.message || "Invalid", tone: "bad" };
+        try {
+          const bal = await fetchFramiaBalance(key);
+          if (bal.ok && bal.balance != null) {
+            return {
+              label: `${bal.balance} cr${chk.email ? ` · ${chk.email}` : ""}`,
+              tone: bal.balance <= 0 ? "bad" : bal.balance < 5 ? "warn" : "ok",
+            };
+          }
+          return { label: chk.email || chk.plan || "Aktif", tone: "ok" };
+        } catch {
+          return { label: chk.email || "Aktif", tone: "ok" };
         }
       }
       case "shotstack":

@@ -46,8 +46,15 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "high@4K",   label: "4K · High (37 cr)",       cr: 37 },
 
     ] },
+<<<<<<< HEAD
     { key: "seedream-v50-pro",label: "Seedream V5.0 Pro Edit (Weavy)", qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }] },
 
+=======
+    { key: "seedream-v40",    label: "Seedream V4.0 Edit (Weavy)",     qualities: [{ v: "default", label: "Standard (~8 cr)", cr: 8, default: true }] },
+    { key: "seedream-v45",    label: "Seedream V4.5 Edit (Weavy)",     qualities: [{ v: "default", label: "Standard (~9 cr)", cr: 9, default: true }] },
+    { key: "seedream-v50",    label: "Seedream V5.0 Edit (Weavy)",     qualities: [{ v: "default", label: "Standard (~10 cr)", cr: 10, default: true }] },
+    { key: "seedream-v50-pro",label: "Seedream V5.0 Pro Edit (Weavy)", qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }] },
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
   ],
   wavespeed: [
     { key: "ws:google/nano-banana-2/edit", label: "Nano Banana 2 Edit", qualities: [

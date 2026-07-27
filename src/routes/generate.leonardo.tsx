@@ -1,6 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+<<<<<<< HEAD
 import { useSticky } from "@/lib/stores/use-sticky";
+=======
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
@@ -149,6 +152,7 @@ function computeDims(
 
 
 function LeonardoPage() {
+<<<<<<< HEAD
   const [mode, setMode] = useSticky<"image" | "video">("t2i.mode", "image");
   const [prompt, setPrompt] = useSticky("t2i.prompt", "");
   const [neg, setNeg] = useSticky("t2i.neg", "");
@@ -165,6 +169,24 @@ function LeonardoPage() {
   });
   const [images, setImages] = useSticky<string[]>("t2i.images", []);
   const [error, setError] = useSticky<string | null>("t2i.error", null);
+=======
+  const [mode, setMode] = useState<"image" | "video">("image");
+  const [prompt, setPrompt] = useState("");
+  const [neg, setNeg] = useState("");
+  const [modelId, setModelId] = useState<string>(LEONARDO_MODELS[0].id);
+  const [aspect, setAspect] = useState<string>("1:1");
+  const [tier, setTier] = useState<string>("small");
+  const [quality, setQuality] = useState<"low" | "medium" | "high">("medium");
+  const [promptEnhance, setPromptEnhance] = useState<"OFF" | "AUTO">("OFF");
+  const [num, setNum] = useState("1");
+  const [busy, setBusy] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [status, setStatus] = useState<{ show: boolean; text: string; pct: number; time: string }>({
+    show: false, text: "", pct: 0, time: "0:00",
+  });
+  const [images, setImages] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
   const [keyCount, setKeyCount] = useState(0);
   const [remoteModels, setRemoteModels] = useState<LeonardoPlatformModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -176,7 +198,11 @@ function LeonardoPage() {
   const [vidTierId, setVidTierId] = useState<LeonardoVideoSizeTier["id"]>("hd");
   const [vidImageFile, setVidImageFile] = useState<File | null>(null);
   const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
+<<<<<<< HEAD
   const [videos, setVideos] = useSticky<string[]>("t2i.videos", []);
+=======
+  const [videos, setVideos] = useState<string[]>([]);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
   const vidInput = useRef<HTMLInputElement>(null);
   const activeVidModel =
     LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
@@ -266,6 +292,11 @@ function LeonardoPage() {
     if (!prompt.trim() || !activeGenModel || imgProvider === "leonardo") return;
     setBusy(true);
     setError(null);
+<<<<<<< HEAD
+=======
+    setImages([]);
+    setLogs([]);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
     const stopTick = startStatus("Memulai…");
     try {
       const count = Number(num) || 1;
@@ -282,7 +313,11 @@ function LeonardoPage() {
           onRotate: (idx, total, reason) => log(`↻ rotate token #${idx}/${total}: ${reason}`),
         });
         out.push(url);
+<<<<<<< HEAD
         setImages((prev) => [url, ...prev]);
+=======
+        setImages([...out]);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
       }
       log(`✅ Selesai — ${out.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -344,6 +379,11 @@ function LeonardoPage() {
     if (!prompt.trim()) return;
     setBusy(true);
     setError(null);
+<<<<<<< HEAD
+=======
+    setImages([]);
+    setLogs([]);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
     const stopTick = startStatus("Leonardo: submit…");
     try {
       const { images } = await generateLeonardoImages(
@@ -362,7 +402,11 @@ function LeonardoPage() {
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         },
       );
+<<<<<<< HEAD
       setImages((prev) => [...images, ...prev]);
+=======
+      setImages(images);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
       log(`✅ Selesai — ${images.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
@@ -380,6 +424,10 @@ function LeonardoPage() {
     if (!prompt.trim()) return;
     setBusy(true);
     setError(null);
+<<<<<<< HEAD
+=======
+    setLogs([]);
+>>>>>>> 1f0861d65daccbc0d0c7412434535c51bff70ce4
     const stopTick = startStatus("Leonardo Video: submit…");
     try {
       const tierLabel = activeVidModel.sizeTiers.find((t) => t.id === vidTierId)?.label ?? vidTierId;

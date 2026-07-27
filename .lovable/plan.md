@@ -1,113 +1,53 @@
-# REFF EDIT — AI Reference-Based Editing Workspace
+## Tujuan
+Sesuaikan node Weavy di aplikasi dengan yang ada di web weavy.com:
+1. Pisahkan **ChatGPT Images 2.0** (T2I, prompt only) vs **ChatGPT Images 2.0 Edit** (multi-image + prompt) — sekarang keduanya masih pakai nama sama "Image GPT 2" dan params tidak lengkap.
+2. Tambahkan pilihan **Resolution/Size** (1024², 1536×1024, 1024×1536, 2048², 2048×1152, 3840×2160, 2160×3840, auto) sesuai dropdown Weavy — sekarang hanya ada Low/Medium/High tanpa pilihan ukuran.
+3. Perbaiki angka konsumsi credit sesuai Weavy (contoh: high @ 2160×3840 = **37 credits**, bukan 60).
+4. Tambahkan model **Seedream Edit** dengan varian **V4.0 / V4.5 / V5.0 / V5.0 Pro** dan slot multi-image (sampai 5+ ref) ke menu yang pakai image edit.
 
-Modul baru dengan konsep "AI Creative Director": user memberi referensi (image/video), AI mengekstrak "Reference DNA", membuat Edit Blueprint, lalu menerapkannya ke target content.
+## Ruang lingkup per menu
+| Menu | Model yang berubah | Alur |
+|------|-------------------|------|
+| Text-to-Image (`/generate/leonardo`) | ChatGPT Images 2.0 (Weavy) | text-only, tambah dropdown Resolution |
+| Bulk Fashion (`/generate/bulk-fashion`) | ChatGPT Images 2.0 Edit (Weavy) + Seedream Edit (Weavy) | 2 image (char + outfit) + prompt |
+| Storyboard (`/generate/storyboard`) | ChatGPT Images 2.0 Edit (Weavy) + Seedream Edit (Weavy) | N image ref (max 6) + prompt |
 
-## Sidebar (baru)
+Seedream Edit **tidak** ditambahkan ke T2I karena Seedream V5.0 Edit adalah model edit (butuh image reference); T2I hanya text prompt.
 
-Group **Reff EDIT** (icon `Wand2`/`Palette`) ditambah di `src/components/app-sidebar.tsx`:
+## Perubahan file
+1. **`src/lib/providers/weavy-image.ts`** — T2I:
+   - Rename display "ChatGPT Image" → "ChatGPT Images 2.0"
+   - Terima format `quality@WIDTHxHEIGHT` (mis. `high@2160x3840`); kirim `image_size: { width, height }` ke fal (object form yang dipakai Weavy) untuk ukuran pixel; fallback ke enum (`square`/`portrait_16_9`/dll) untuk `auto`.
+   - Hapus dummy image node — GPT-Image-2 T2I di Weavy hanya butuh prompt.
 
-- Image Reference Edit → `/reff-edit/image`
-- Video Reference Edit → `/reff-edit/video`
-- Reference Library → `/reff-edit/library`
-- Edit History → `/reff-edit/history`
+2. **`src/lib/providers/weavy-bulk-fashion.ts`** — Edit:
+   - GPT Image 2: ganti model id `openai/gpt-image-2` → `openai/gpt-image-2/edit`, rename ke "ChatGPT Images 2.0 Edit", pakai param `image_urls` + `quality` + `image_size` (object).
+   - Tambah builder Seedream V5 Edit: model id `fal-ai/bytedance/seedream/v5/edit`; params `image_urls`, `prompt`, `model_version` (`v40`/`v45`/`v50`/`v50-pro`), `enhance_prompt_mode` (`standard`), `num_images: 1`.
 
-Group ini didaftarkan di `DEFAULT_NAV` dengan `permKey` `reff-edit.image`, `reff-edit.video`, `reff-edit.library`, `reff-edit.history` (bisa dikelola dari Admin → Pengaturan Halaman).
+3. **`src/lib/providers/weavy-storyboard.ts`** — Edit multi-ref:
+   - Rename display "ChatGPT Image Edit" → "ChatGPT Images 2.0 Edit"; tambah param `image_size` (object) selain `quality`.
+   - Tambah builder Seedream V5 Edit dengan N image_urls (max 6).
 
-## Route baru
+4. **`src/lib/providers/image-catalog.ts`** — catalog Weavy T2I:
+   - Ganti label ke "ChatGPT Images 2.0 (Weavy)".
+   - Quality list jadi kombinasi qualitas×ukuran: `low@1024x1024`, `medium@1024x1024`, `high@1024x1024`, `medium@1536x1024`, `high@1536x1024`, `medium@2048x2048`, `high@2048x2048`, `high@3840x2160`, `high@2160x3840`, dsb.
+   - Label credit sesuai Weavy: 1024² low ~5 / medium ~11 / high ~20; 1536×1024 medium ~13 / high ~24; 2048² medium ~17 / high ~30; 3840×2160 & 2160×3840 high **~37**. (Angka ini dikalibrasi dari data point yang terlihat di screenshot; low/medium untuk ukuran besar diinterpolasi. Bila user punya matriks resmi Weavy nanti tinggal isi ulang.)
 
-```
-src/routes/reff-edit.tsx              (layout, <Outlet />)
-src/routes/reff-edit.image.tsx        (Image Reference Edit workspace)
-src/routes/reff-edit.video.tsx        (Video Reference Edit workspace)
-src/routes/reff-edit.library.tsx      (Reference Library)
-src/routes/reff-edit.history.tsx      (Edit History)
-```
+5. **`src/routes/generate.bulk-fashion.tsx`** — `MODEL_CATALOG.weavy`:
+   - Rename `gptimage2` → "ChatGPT Images 2.0 Edit (Weavy)" dan ganti list quality ke qualitas×resolution seperti di atas.
+   - Tambah 4 entry Seedream Edit (Weavy): V4.0 (~8 cr), V4.5 (~9 cr), V5.0 (~10 cr), V5.0 Pro (**12 cr** — sesuai screenshot).
 
-Layout memakai `DashboardShell` + `PageHero` konsisten dengan modul lain (mis. `generate.motion.tsx`).
+6. **`src/routes/generate.storyboard.tsx`** — `SB_MODELS.weavy`:
+   - Perubahan sama dengan bulk-fashion (rename + resolution matrix + tambah Seedream Edit 4 tier).
+   - Cabang provider Weavy di generator: tambah `modelKey.startsWith("seedream")` supaya routing storyboard mengarah ke builder Seedream V5 di `weavy-storyboard.ts`.
 
-## UI layout workspace (Image & Video)
+## Catatan teknis
+- `image_size` di fal-ai/openai/gpt-image-2 mendukung dua bentuk: enum (`square`, `portrait_16_9`, dll.) dan object `{ width, height }`. Kita pakai object form supaya cocok 1:1 dengan pilihan Weavy (mis. 2160×3840).
+- Untuk Seedream, model id `fal-ai/bytedance/seedream/v5/edit` adalah nama endpoint fal yang dipakai Weavy untuk node "Seedream V5.0 Edit" (varian V4.0/V4.5/V5.0/V5.0 Pro dipilih via param `model_version`). Kalau ternyata Weavy pakai id lain, tinggal ubah 1 konstanta di builder — struktur node & wiring sama.
+- Angka credit yang belum ada di screenshot memakai estimasi konservatif yang deket dengan skala Weavy; label tetap pakai "~". Kalau user punya tabel resmi tinggal update konstanta di catalog & builder tanpa nyentuh UI.
 
-Grid 3 kolom dark futuristic (AA SuperTools style):
-
-```text
-+----------------------+----------------------+----------------------+
-| LEFT                 | CENTER               | RIGHT                |
-| Reference Upload     | AI Analysis +        | Target Upload +      |
-|  - drop zone (multi) |  Reference DNA card  |  Output Preview      |
-|  - per-file:         |  Edit Blueprint      |  Output Settings     |
-|    role select       |  (editable JSON/     |   (aspect, quality)  |
-|    weight slider     |   scene list)        |  AI Chat Adjustment  |
-|  - "Analyze"         |  "Send to Engine"    |  (revise iteratively)|
-+----------------------+----------------------+----------------------+
-| BOTTOM: Render Timeline (progress log per scene)                   |
-+--------------------------------------------------------------------+
-```
-
-Reusable subkomponen di `src/components/reff-edit/`:
-- `reference-upload.tsx` — multi-file, role (Style/Camera/Lighting/Color/Motion/Composition), weight 0–100.
-- `dna-card.tsx` — render output analisa AI (visual style, palette, lighting, camera, mood, dst).
-- `blueprint-editor.tsx` — daftar scene editable (duration + apply steps).
-- `target-panel.tsx` — upload target + preview hasil.
-- `chat-adjust.tsx` — chat AI untuk revisi ("buat lebih cinematic", dst) → memicu regenerate.
-- `render-timeline.tsx` — log/progres tiap scene.
-
-## Backend / server routes
-
-Semua endpoint melewati AI Router yang sudah ada (`/api/router/chat`, `/api/router/image`, `/api/router/video`, `/api/router/render`) untuk provider routing + fallback + logging.
-
-Baru:
-- `src/routes/api/router/reff-analyze.ts` — POST { referenceUrls, mode: "image"|"video" }. Panggil Gemini Vision (multimodal) via router, output structured JSON = **Reference DNA**.
-- `src/routes/api/router/reff-blueprint.ts` — POST { dna, target, mode }. Router chat → JSON Edit Blueprint (list of scenes).
-- `src/routes/api/router/reff-image.ts` — POST { dna, blueprint, targetUrl }. Router image (Gemini Image / OpenAI Image) → apply style transfer.
-- `src/routes/api/router/reff-video.ts` — POST { dna, blueprint, targetUrl }. Trigger pipeline video: AI instruction + FFmpeg pipeline (reuse `src/lib/mixing/ffmpeg-render.ts` untuk cutting/transition/color/speed).
-- `src/routes/api/router/reff-adjust.ts` — POST { previousOutput, revisionPrompt } → blueprint delta + regenerate.
-
-Upload file publik memakai `/api/public/upload-catbox` (sudah ada).
-
-## Library & History (persistence)
-
-Simpan ke Supabase (butuh Lovable Cloud). Tabel + RLS + grants dibuat via migrasi baru:
-
-- `reff_edit_references` — id, user_id, name, type (image|video), category, thumbnail_url, source_url, dna jsonb, created_at.
-- `reff_edit_history` — id, user_id, mode, reference_ids[], blueprint jsonb, target_url, output_url, provider_used, tokens_used, duration_ms, status, error, created_at.
-
-Server functions (client-safe):
-- `src/lib/reff-edit/references.functions.ts` — list/create/delete reference, semua via `requireSupabaseAuth`.
-- `src/lib/reff-edit/history.functions.ts` — list/create history, semua via `requireSupabaseAuth`.
-
-Grants standar (`GRANT ... TO authenticated`, `GRANT ALL ... TO service_role`), RLS `auth.uid() = user_id`.
-
-## Provider routing
-
-Reuse pola routing yang ada:
-- Analysis (multimodal): Gemini Vision primary → OpenAI vision fallback (via router chat dengan image_url content blocks).
-- Image edit: Gemini Image → OpenAI Image → provider image aktif user (`/api/router/image`).
-- Video edit AI: router chat + FFmpeg (`ffmpeg-render.ts`) untuk processing layer.
-
-Setiap request mencatat: provider_used, token_usage, processing_time, error_log ke `reff_edit_history`.
-
-## Output Settings
-
-- Image: Original / 1:1 / 4:5 / 9:16 / 16:9
-- Video: 9:16 / 16:9 / 1:1
-- Quality: Draft / Standard / High (mapping ke param provider + ffmpeg CRF)
-
-## Integrasi cross-module
-
-Reuse `src/lib/creative/handoff.ts`: hasil edit bisa dilempar ke Motion Control, AI Clipper, Storyboard, dll. Tombol "Kirim ke ..." di panel output.
-
-## Scope MVP (untuk implementasi awal, 1 iterasi)
-
-1. Sidebar entry + 4 route files dengan layout + PageHero + placeholder panels.
-2. `reference-upload`, `dna-card`, `blueprint-editor`, `target-panel`, `chat-adjust`, `render-timeline` sebagai komponen fungsional (state lokal + `useSticky`).
-3. Endpoint `reff-analyze` + `reff-blueprint` live (memakai `/api/router/chat` dgn Gemini vision).
-4. `reff-image` live pakai `/api/router/image` yang ada.
-5. `reff-video` mengembalikan blueprint + memakai pipeline FFmpeg yang sudah ada di `mixing/ffmpeg-render.ts` (basic cut+transition).
-6. Reference Library & Edit History memakai localStorage dulu; migrasi Supabase menyusul (butuh Lovable Cloud enable — akan saya minta konfirmasi sebelum bikin tabel).
-
-## Yang akan saya tanyakan sebelum full-build
-
-- Aktifkan Lovable Cloud untuk Library/History persistent? (kalau tidak, tetap localStorage saja).
-- Prefer icon sidebar: `Wand2`, `Palette`, atau `Clapperboard`?
-
-Setelah plan disetujui, saya mulai dari sidebar + route shells + komponen UI, lalu wire endpoint router step-by-step.
+## Verifikasi
+Setelah edit:
+- `bunx tsgo --noEmit` untuk pastikan tipe aman.
+- Coba generate di menu T2I (Weavy GPT `high@2160x3840`) — payload harus punya `image_size: { width: 2160, height: 3840 }` dan tidak ada `image_urls` kosong.
+- Bulk fashion & storyboard — payload GPT harus pakai endpoint `openai/gpt-image-2/edit`; entry Seedream muncul di dropdown model.
