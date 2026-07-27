@@ -46,6 +46,7 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "high@4K",   label: "4K · High (37 cr)",       cr: 37 },
 
     ] },
+<<<<<<< HEAD
     { key: "seedream-v50-pro",label: "Seedream V5.0 Pro Edit (Weavy)", qualities: [
       { v: "match_input",     label: "Match Input (12 cr)", cr: 12, default: true },
       { v: "square_hd",       label: "Square HD (12 cr)", cr: 12 },
@@ -55,6 +56,9 @@ const MODEL_CATALOG: Record<string, ModelOpt[]> = {
       { v: "auto_2K",         label: "Auto 2K (12 cr)", cr: 12 },
       { v: "auto_3K",         label: "Auto 3K (12 cr)", cr: 12 },
     ] },
+=======
+    { key: "seedream-v50-pro",label: "Seedream V5.0 Pro Edit (Weavy)", qualities: [{ v: "default", label: "Standard (12 cr)", cr: 12, default: true }] },
+>>>>>>> 50b55a82d0092548ee46ab2d11985444126759b6
 
   ],
   wavespeed: [
