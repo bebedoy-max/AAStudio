@@ -56,6 +56,7 @@ chrome.storage.local.get(["lastProvider", "autoSync"]).then((r) => {
   if (r.lastProvider) providerSel.value = r.lastProvider;
   $("auto").checked = r.autoSync !== false;
   refreshProviderUI();
+  renderAccount(); // sync header pill on popup open
 });
 
 $("auto").addEventListener("change", () => {
@@ -255,18 +256,20 @@ async function refreshSession(appUrl, refreshToken) {
 }
 
 /* --------------------------------- account -------------------------------- */
+const DEFAULT_APP_URL = "https://aacreative.vercel.app/";
+
 async function renderAccount() {
-  const { appUrl, session } = await chrome.storage.local.get(["appUrl", "session"]);
-  if (appUrl) $("appUrl").value = appUrl;
+  const { appUrl, session, savedAccounts } = await chrome.storage.local.get(["appUrl", "session", "savedAccounts"]);
+  const effectiveUrl = appUrl || DEFAULT_APP_URL;
+  if ($("appUrl")) $("appUrl").value = effectiveUrl;
   const pill = $("account-pill");
   if (session?.user?.email) {
     $("account-signed-out").style.display = "none";
     $("account-signed-in").style.display = "block";
     $("who").textContent = session.user.email;
-    $("app-info").textContent = appUrl || "";
+    $("app-info").textContent = effectiveUrl;
     pill.textContent = "✓ " + session.user.email;
     pill.className = "pill on";
-    // render per-provider sync status
     const list = $("sync-list");
     list.innerHTML = "";
     for (const p of PROVIDERS) {
@@ -283,17 +286,55 @@ async function renderAccount() {
     $("account-signed-in").style.display = "none";
     pill.textContent = "Belum login";
     pill.className = "muted";
+    renderSavedAccounts(savedAccounts || []);
   }
 }
 
+function renderSavedAccounts(accounts) {
+  const wrap = $("saved-wrap");
+  const list = $("saved-list");
+  if (!wrap || !list) return;
+  if (!accounts.length) { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  list.innerHTML = "";
+  accounts.forEach((acc, idx) => {
+    const row = document.createElement("div");
+    row.className = "toggle";
+    row.innerHTML = `<div style="min-width:0; flex:1;"><div style="font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${acc.email}</div><div style="font-size:10.5px; color:#8a8aa0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${acc.appUrl}</div></div><div style="display:flex; gap:6px;"><button data-act="use" data-i="${idx}" style="flex:0 0 auto; padding:5px 9px;">Masuk</button><button data-act="del" data-i="${idx}" style="flex:0 0 auto; padding:5px 9px;">✕</button></div>`;
+    list.appendChild(row);
+  });
+  list.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const i = Number(btn.dataset.i);
+      const { savedAccounts = [] } = await chrome.storage.local.get("savedAccounts");
+      const acc = savedAccounts[i];
+      if (!acc) return;
+      if (btn.dataset.act === "del") {
+        savedAccounts.splice(i, 1);
+        await chrome.storage.local.set({ savedAccounts });
+        renderSavedAccounts(savedAccounts);
+        return;
+      }
+      $("appUrl").value = acc.appUrl;
+      $("email").value = acc.email;
+      $("password").value = acc.password || "";
+      await chrome.storage.local.set({ appUrl: acc.appUrl });
+      if (acc.password) $("login").click();
+      else setStatus("Isi password untuk akun ini.", "muted", "auth-status");
+    });
+  });
+}
+
 $("appUrl")?.addEventListener("change", () => {
-  chrome.storage.local.set({ appUrl: $("appUrl").value.trim() });
+  const v = $("appUrl").value.trim() || DEFAULT_APP_URL;
+  chrome.storage.local.set({ appUrl: v });
 });
 
 $("login").addEventListener("click", async () => {
-  const appUrl = $("appUrl").value.trim();
+  const appUrl = ($("appUrl").value.trim() || DEFAULT_APP_URL);
   const email = $("email").value.trim();
   const password = $("password").value;
+  const remember = $("remember")?.checked;
   if (!appUrl || !email || !password) { setStatus("Isi URL app, email, password.", "err", "auth-status"); return; }
   await chrome.storage.local.set({ appUrl });
   setStatus("Login...", "muted", "auth-status");
@@ -309,6 +350,12 @@ $("login").addEventListener("click", async () => {
       return;
     }
     await chrome.storage.local.set({ session: data });
+    if (remember) {
+      const { savedAccounts = [] } = await chrome.storage.local.get("savedAccounts");
+      const filtered = savedAccounts.filter((a) => !(a.email === email && a.appUrl === appUrl));
+      filtered.unshift({ appUrl, email, password });
+      await chrome.storage.local.set({ savedAccounts: filtered.slice(0, 10) });
+    }
     $("password").value = "";
     setStatus("Berhasil masuk sebagai " + data.user.email, "ok", "auth-status");
     renderAccount();

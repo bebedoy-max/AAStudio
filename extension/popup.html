@@ -76,15 +76,28 @@
 <main id="tab-account" style="display:none;">
   <div id="account-signed-out">
     <label>URL AA Creative Studio</label>
-    <input id="appUrl" placeholder="https://your-app.lovable.app" />
+    <input id="appUrl" placeholder="https://aacreative.vercel.app/" />
     <label style="margin-top:8px;">Email</label>
     <input id="email" type="email" autocomplete="username" placeholder="you@example.com" />
     <label style="margin-top:8px;">Password</label>
     <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+    <div class="toggle" style="margin-top:8px;">
+      <div>
+        <div style="font-size:12px; font-weight:600;">Simpan akun</div>
+        <div style="font-size:10.5px; color:#8a8aa0;">Login ulang cukup satu klik.</div>
+      </div>
+      <input id="remember" type="checkbox" style="width:auto;" checked />
+    </div>
     <div class="row" style="margin-top:10px;">
       <button id="login" class="primary">Masuk</button>
     </div>
     <div class="status muted" id="auth-status" style="margin-top:6px;"></div>
+
+    <div id="saved-wrap" style="display:none; margin-top:12px;">
+      <div class="divider"></div>
+      <div style="font-size:11px; color:#a0a0b8; margin-bottom:6px;">Akun tersimpan</div>
+      <div id="saved-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
   </div>
 
   <div id="account-signed-in" style="display:none;">

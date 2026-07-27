@@ -21,13 +21,20 @@ for (const p of self.AA_PROVIDERS) {
   }
 }
 
+// Providers use different header names to carry the JWT:
+//   Leonardo   → Authorization: Bearer <jwt>
+//   Framia     → Authorization: Bearer <jwt>  OR  x-framia-token / token / access-token
+// Scan every request header and pick the first value that looks like a JWT.
 async function handleHeaders(details, provider) {
   const headers = details.requestHeaders || [];
   for (const h of headers) {
-    if (!h?.name || h.name.toLowerCase() !== "authorization") continue;
-    const m = typeof h.value === "string" ? h.value.match(/Bearer\s+(\S+)/i) : null;
-    if (!m || !JWT_RE.test(m[1])) continue;
-    await onTokenCaptured(provider.id, m[1], "header:" + new URL(details.url).hostname);
+    if (!h?.name || typeof h.value !== "string") continue;
+    const name = h.name.toLowerCase();
+    if (name === "cookie" || name === "user-agent" || name === "referer" || name === "origin") continue;
+    // Strip an optional "Bearer " / "Token " prefix.
+    const raw = h.value.replace(/^\s*(Bearer|Token)\s+/i, "").trim();
+    if (!JWT_RE.test(raw)) continue;
+    await onTokenCaptured(provider.id, raw, `header:${name}@${new URL(details.url).hostname}`);
     return;
   }
 }
