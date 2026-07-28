@@ -125,7 +125,7 @@ function writeTokens(list: StoredWeavyTok[]) {
   if (typeof window !== "undefined") {
     const serialized = JSON.stringify(list);
     localStorage.setItem(LS_WEAVY_TOKENS, serialized);
-    pushTokenAsync(LS_WEAVY_TOKENS, serialized);
+    void pushTokenAsync(LS_WEAVY_TOKENS, serialized);
   }
 }
 
@@ -163,7 +163,7 @@ function writeActiveId(id: string | null) {
   const serialized = JSON.stringify(id);
   if (id) localStorage.setItem(LS_WEAVY_ACTIVE, serialized);
   else localStorage.removeItem(LS_WEAVY_ACTIVE);
-  pushTokenAsync(LS_WEAVY_ACTIVE, serialized);
+  void pushTokenAsync(LS_WEAVY_ACTIVE, serialized);
 }
 
 function isUsable(t: StoredWeavyTok): boolean {
@@ -193,6 +193,68 @@ export async function getActiveWeavyAccessToken(): Promise<{ id: string; accessT
     }
   }
   return null;
+}
+
+export type WeavyCreditSkip = { id: string; credits: number };
+
+export type WeavyCreditSelection = {
+  token: { id: string; accessToken: string; credits: number | null } | null;
+  skipped: WeavyCreditSkip[];
+};
+
+/**
+ * Select a token before an expensive job starts. Every candidate with a known
+ * balance below `minimumCredits` is skipped without marking it empty, because
+ * it may still be usable by a cheaper model later.
+ */
+export async function selectWeavyTokenForCredits(
+  minimumCredits: number,
+  excludedIds: ReadonlySet<string> = new Set<string>(),
+): Promise<WeavyCreditSelection> {
+  if (typeof window === "undefined") return { token: null, skipped: [] };
+
+  const list = readTokens();
+  const activeId = readActiveId();
+  const candidates = [
+    ...list.filter((t) => t.id === activeId && t.status !== "failed"),
+    ...list.filter((t) => t.id !== activeId && isUsable(t)),
+    ...list.filter((t) => t.id !== activeId && t.status === "empty"),
+  ].filter((t, index, all) => !excludedIds.has(t.id) && all.findIndex((x) => x.id === t.id) === index);
+
+  const skipped: WeavyCreditSkip[] = [];
+  let unknownFallback: { id: string; accessToken: string; credits: null } | null = null;
+
+  for (const candidate of candidates) {
+    const accessToken = await getWeavyAccessTokenById(candidate.id);
+    if (!accessToken) continue;
+
+    const credits = await fetchWeavyCredits(accessToken);
+    const fresh = readTokens();
+    const stored = fresh.find((t) => t.id === candidate.id);
+    if (stored) {
+      stored.credits = credits;
+      if (credits !== null) stored.status = credits <= 0 ? "empty" : "active";
+      writeTokens(fresh);
+    }
+
+    if (credits === null) {
+      unknownFallback ??= { id: candidate.id, accessToken, credits: null };
+      continue;
+    }
+    if (credits < minimumCredits) {
+      skipped.push({ id: candidate.id, credits });
+      continue;
+    }
+
+    writeActiveId(candidate.id);
+    return { token: { id: candidate.id, accessToken, credits }, skipped };
+  }
+
+  if (unknownFallback) {
+    writeActiveId(unknownFallback.id);
+    return { token: unknownFallback, skipped };
+  }
+  return { token: null, skipped };
 }
 
 /**

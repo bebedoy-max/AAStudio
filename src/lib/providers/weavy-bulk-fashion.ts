@@ -14,6 +14,7 @@ import {
   uploadWeavyAssetWithRetry,
   resolveWeavyAssetUrl,
 } from "./weavy";
+import { resolveSeedreamImageSize } from "./weavy-storyboard";
 
 const mkId = () => Math.random().toString(36).substring(2, 8);
 
@@ -215,10 +216,17 @@ function seedreamSlot(url: string, index: number) {
   };
 }
 
-function buildSeedreamEditBulkRecipe(prompt: string, modelKey: string, ratio: string, charUrl: string, outfitUrl: string) {
-  void ratio;
+function buildSeedreamEditBulkRecipe(prompt: string, modelKey: string, ratio: string, charUrl: string, outfitUrl: string, imageSize?: string) {
   const model = SEEDREAM_MODEL_ID;
   const variant = seedreamVariant(modelKey);
+  const validPresets = new Set([
+    "match_input", "square_hd", "square",
+    "portrait_4_3", "portrait_16_9",
+    "landscape_4_3", "landscape_16_9",
+    "auto_2K", "auto_3K",
+  ]);
+  const sizePreset = resolveSeedreamImageSize(imageSize, ratio, validPresets);
+  const sizeValue = { type: "built_in", value: sizePreset };
   const n1 = "n_" + Date.now() + "_char";
   const n2 = "n_" + Date.now() + "_out";
   const n3 = "n_" + Date.now() + "_mdl";
@@ -228,7 +236,7 @@ function buildSeedreamEditBulkRecipe(prompt: string, modelKey: string, ratio: st
   const slot2 = seedreamSlot(outfitUrl, 1);
   const params: Record<string, unknown> = {
     seed: { seed: Math.floor(Math.random() * 1_000_000), isRandom: true },
-    image_size: null,
+    image_size: sizeValue,
     max_images: 1,
     num_images: 1,
     enhance_prompt_mode: "standard",
@@ -264,7 +272,7 @@ function buildSeedreamEditBulkRecipe(prompt: string, modelKey: string, ratio: st
         parameters: [
           [{ id: "model", title: "Model", constraint: { type: "enum", options: ["V4.0", "V4.5", "V5.0", "V5.0 Pro"] }, defaultValue: { type: "string", value: "V5.0 Pro" } }, { type: "value", data: { type: "string", value: variant } }],
           [{ id: "seed", title: "Seed", constraint: { type: "seed" }, defaultValue: { type: "seed", value: { seed: 1, isRandom: false } } }, { type: "value", data: { type: "seed", value: (params.seed as { seed: number; isRandom: boolean }) } }],
-          [{ id: "image_size", title: "Image Size", constraint: { type: "image_size", options: ["Default", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "auto_2K", "auto_3K"] }, defaultValue: { type: "image_size", value: { type: "built_in", value: "match_input" } } }, { type: "value", data: { type: "image_size", value: { type: "built_in", value: "match_input" } } }],
+          [{ id: "image_size", title: "Image Size", constraint: { type: "image_size", options: ["match_input", "custom", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "auto_2K", "auto_3K"] }, defaultValue: { type: "image_size", value: { type: "built_in", value: "match_input" } } }, { type: "value", data: { type: "image_size", value: sizeValue } }],
           [{ id: "enhance_prompt_mode", title: "Enhance Prompt Mode", constraint: { type: "enum", options: ["standard", "fast"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
@@ -351,7 +359,7 @@ export async function generateWeavyBulkOne(opts: WeavyBulkOpts): Promise<string>
       const outUrl = resolveWeavyAssetUrl(outUp, "image");
 
       if (opts.modelKey.startsWith("seedream-")) {
-        const sb = buildSeedreamEditBulkRecipe(opts.prompt, opts.modelKey, opts.ratio || "1:1", charUrl, outUrl);
+        const sb = buildSeedreamEditBulkRecipe(opts.prompt, opts.modelKey, opts.ratio || "1:1", charUrl, outUrl, opts.quality);
         const { id: rid, v3: sv3 } = await createWeavyRecipe(active.accessToken);
         await saveWeavyRecipe(rid, { nodes: sb.nodes, edges: sb.edges, v3: sv3 }, active.accessToken);
         await approveWeavyModel(sb.model, active.accessToken);

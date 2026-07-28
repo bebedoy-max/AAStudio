@@ -82,6 +82,16 @@ const GPT_IMAGE_2_DIMS: Record<string, Record<string, { w: number; h: number }>>
   "3:2":  { small: { w: 1376, h: 768 }, medium: { w: 2048, h: 1136 }, large: { w: 3584, h: 2016 } },
 };
 
+// Seedream 5.0 Pro on Leonardo caps at ~2048 per side (validation fails
+// when long side exceeds 2048). Table mirrors app.leonardo.ai presets.
+const SEEDREAM_DIMS: Record<string, Record<string, { w: number; h: number }>> = {
+  "1:1":  { small: { w: 1024, h: 1024 }, medium: { w: 1536, h: 1536 }, large: { w: 2048, h: 2048 } },
+  "16:9": { small: { w: 1360, h: 768 }, medium: { w: 1728, h: 976 },   large: { w: 2048, h: 1152 } },
+  "9:16": { small: { w: 768, h: 1360 }, medium: { w: 976, h: 1728 },   large: { w: 1152, h: 2048 } },
+  "2:3":  { small: { w: 848, h: 1280 }, medium: { w: 1088, h: 1632 },  large: { w: 1280, h: 1920 } },
+  "3:2":  { small: { w: 1280, h: 848 }, medium: { w: 1632, h: 1088 },  large: { w: 1920, h: 1280 } },
+};
+
 const MODEL_PRESETS: Record<string, ModelPreset> = {
   "gpt-image-2": {
     aspects: ASPECTS_STD,
@@ -104,9 +114,9 @@ const MODEL_PRESETS: Record<string, ModelPreset> = {
   "seedream-5.0-pro": {
     aspects: ASPECTS_STD,
     tiers: [
-      { value: "small", label: "Small", short: 1024 },
-      { value: "medium", label: "Medium", short: 1536 },
-      { value: "large", label: "Large", short: 2048 },
+      { value: "small", label: "Small", short: 768 },
+      { value: "medium", label: "Medium", short: 976 },
+      { value: "large", label: "Large", short: 1152 },
     ],
     promptEnhance: true,
   },
@@ -139,6 +149,11 @@ function computeDims(
 ): { w: number; h: number } {
   if (modelId === "gpt-image-2") {
     const table = GPT_IMAGE_2_DIMS[aspectValue];
+    const hit = table?.[tierValue];
+    if (hit) return hit;
+  }
+  if (modelId === "seedream-5.0-pro") {
+    const table = SEEDREAM_DIMS[aspectValue];
     const hit = table?.[tierValue];
     if (hit) return hit;
   }

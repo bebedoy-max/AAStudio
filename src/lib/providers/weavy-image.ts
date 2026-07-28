@@ -7,8 +7,7 @@
 // "quality" polos (fallback ke image_size enum berdasarkan aspect ratio).
 import {
   WEAVY_API,
-  getActiveWeavyAccessToken,
-  rotateWeavyToken,
+  selectWeavyTokenForCredits,
   createWeavyRecipe,
   saveWeavyRecipe,
   approveWeavyModel,
@@ -18,6 +17,23 @@ import {
 
 const DUMMY_IMG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+function seedreamDummyForRatio(ratio: string): string {
+  if (typeof document === "undefined") return DUMMY_IMG;
+  const [rawW, rawH] = ratio.split(":").map(Number);
+  if (!Number.isFinite(rawW) || !Number.isFinite(rawH) || rawW <= 0 || rawH <= 0) return DUMMY_IMG;
+
+  const scale = 160 / Math.max(rawW, rawH);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(32, Math.round(rawW * scale));
+  canvas.height = Math.max(32, Math.round(rawH * scale));
+  const context = canvas.getContext("2d");
+  if (context) {
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  return canvas.toDataURL("image/png");
+}
 
 const mkId = () => Math.random().toString(36).substring(2, 8);
 
@@ -234,36 +250,59 @@ export type WeavyImgOpts = {
   onProgress?: (msg: string, pct?: number) => void;
 };
 
+function estimateWeavyImageCredits(modelKey: string, quality: string): number {
+  if (modelKey.startsWith("seedream-")) return 12;
+  if (modelKey === "nanobanana2") {
+    return ({ "0.5K": 4.5, "1K": 6, "2K": 9, "4K": 12 } as Record<string, number>)[quality] ?? 12;
+  }
+  const knownGptCosts: Record<string, number> = {
+    "low@1024x1024": 5,
+    "medium@1024x1024": 11,
+    "high@1024x1024": 20,
+    "medium@1536x1024": 13,
+    "high@1536x1024": 24,
+    "medium@1024x1536": 13,
+    "high@1024x1536": 24,
+    "medium@2048x2048": 17,
+    "high@2048x2048": 30,
+    "high@2048x1152": 24,
+    "high@3840x2160": 37,
+    "high@2160x3840": 37,
+    "high@auto": 20,
+  };
+  return knownGptCosts[quality] ?? 20;
+}
+
 export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
   const isNb = opts.modelKey === "nanobanana2";
   const isSeedream = opts.modelKey.startsWith("seedream-");
+  const seedreamInput = isSeedream ? seedreamDummyForRatio(opts.ratio || "1:1") : DUMMY_IMG;
   let built: { model: string; nodes: unknown[]; edges: unknown[] };
   if (isSeedream) {
-    const { buildSeedreamEditRecipe } = await import("./weavy-storyboard");
-    built = buildSeedreamEditRecipe(opts.prompt, opts.modelKey, opts.ratio || "1:1", [DUMMY_IMG]);
-    // T2I: override image_size (match_input akan mengikuti dummy 1×1). Pilih preset
-    // Weavy berdasar aspect ratio yang dipilih user.
-    const r = opts.ratio || "1:1";
-    const preset =
-      r === "9:16" || r === "2:3" || r === "4:5"
-        ? "portrait_16_9"
-        : r === "16:9" || r === "3:2"
-          ? "landscape_16_9"
-          : "square_hd";
-    for (const n of built.nodes as Array<{ isModel?: boolean; data?: { params?: Record<string, unknown>; kind?: { parameters?: unknown[] } } }>) {
-      if (!n.isModel || !n.data) continue;
-      const params = n.data.params || {};
-      params.image_size = { type: "built_in", value: preset };
-      const kp = n.data.kind?.parameters as Array<Array<Record<string, unknown>>> | undefined;
-      if (kp) {
-        for (const entry of kp) {
-          const meta = entry[0] as { id?: string };
-          if (meta?.id === "image_size") {
-            entry[1] = { type: "value", data: { type: "image_size", value: { type: "built_in", value: preset } } };
-          }
-        }
-      }
-    }
+    const { buildSeedreamEditRecipe, resolveSeedreamImageSize } = await import("./weavy-storyboard");
+    // T2I: dummy 1×1 input, so "match_input" is a no-go — resolve quality against a
+    // preset set that omits match_input and treats "portrait"/"landscape" as aliases.
+    const validPresets = new Set([
+      "square_hd", "square",
+      "portrait_4_3", "portrait_16_9",
+      "landscape_4_3", "landscape_16_9",
+      "auto_2K", "auto_3K",
+    ]);
+    const resolved = resolveSeedreamImageSize(opts.quality, opts.ratio || "1:1", validPresets);
+    const preset = resolved === "match_input"
+      ? (() => {
+          const r = opts.ratio || "1:1";
+          return r === "9:16" || r === "2:3" || r === "4:5"
+            ? "portrait_16_9"
+            : r === "16:9" || r === "3:2"
+              ? "landscape_16_9"
+              : "square_hd";
+        })()
+      : resolved;
+    // auto_2K/auto_3K preserve the input image's aspect ratio. A ratio-shaped
+    // blank reference therefore makes T2I honor the user's separate ratio
+    // dropdown instead of inheriting the old 1×1 dummy's square ratio.
+    built = buildSeedreamEditRecipe(opts.prompt, opts.modelKey, opts.ratio || "1:1", [seedreamInput], preset);
   } else if (isNb) {
     built = buildNanoBanana2Recipe(opts.prompt, opts.quality || "1K", opts.ratio || "9:16");
   } else {
@@ -274,11 +313,19 @@ export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
 
   const tried = new Set<string>();
   let lastErr: Error | null = null;
+  const requiredCredits = estimateWeavyImageCredits(opts.modelKey, opts.quality);
+  let highestSkippedBalance = 0;
 
   while (true) {
-    const active = await getActiveWeavyAccessToken();
+    log(`Weavy: mencari token dengan saldo minimal ${requiredCredits} cr…`, 7);
+    const selection = await selectWeavyTokenForCredits(requiredCredits, tried);
+    for (const skipped of selection.skipped) {
+      tried.add(skipped.id);
+      highestSkippedBalance = Math.max(highestSkippedBalance, skipped.credits);
+      log(`↻ saldo ${skipped.credits} cr kurang dari ${requiredCredits} cr, skip token…`, 8);
+    }
+    const active = selection.token;
     if (!active) break;
-    if (tried.has(active.id)) break;
     tried.add(active.id);
     try {
       log("Weavy: create recipe…", 10);
@@ -296,7 +343,7 @@ export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
         built.model,
       );
       log("Weavy: rendering image…", 70);
-      const url = await pollWeavyImage(recipeId, batchId, active.accessToken, DUMMY_IMG);
+      const url = await pollWeavyImage(recipeId, batchId, active.accessToken, seedreamInput);
       log("Weavy: image ready", 95);
       return url;
     } catch (e) {
@@ -305,14 +352,12 @@ export async function generateWeavyImage(opts: WeavyImgOpts): Promise<string> {
       const creditLike = /insufficient|credits?|quota|balance|402|cukup|not enough/i.test(msg);
       if (!creditLike) throw lastErr;
       const bal = await fetchWeavyCredits(active.accessToken).catch(() => null);
-      if (bal !== null && bal > 5) {
-        throw new Error(
-          `Weavy menolak: "${msg}" — padahal saldo token masih ${bal} cr. Coba turunkan kualitas/model atau pilih token lain di Kelola Token.`,
-        );
-      }
-      log(`↻ token habis, rotate…`);
-      await rotateWeavyToken(active.id);
+      if (bal !== null) highestSkippedBalance = Math.max(highestSkippedBalance, bal);
+      log(`↻ token ditolak (${msg.slice(0, 80)}${bal !== null ? ` · saldo ${bal} cr` : ""}), rotate ke token berikutnya…`);
     }
+  }
+  if (highestSkippedBalance > 0) {
+    throw new Error(`Tidak ada token Weavy dengan saldo minimal ${requiredCredits} cr (saldo tertinggi ${highestSkippedBalance} cr).`);
   }
   throw lastErr ?? new Error("Belum ada Weavy token aktif di Kelola Token");
 }

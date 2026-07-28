@@ -12,6 +12,7 @@ import {
   type UpscalerMode,
   type TopazParams,
   type MagnificParams,
+  type LeonardoAuroraParams,
 } from "@/lib/providers/upscaler";
 import { logGenerate } from "@/lib/activity/log";
 import { useAuth } from "@/lib/auth-context";
@@ -90,6 +91,12 @@ function UpscalerPage() {
   const [magResemblance, setMagResemblance] = useState(50);
   const [magFractality, setMagFractality] = useState(2);
   const [magPrompt, setMagPrompt] = useState("");
+
+  // Leonardo Aurora params — sesuai dashboard Leonardo (Upscaler, Type, Multiplier, Fix AI Artifacts)
+  const [leoUpscaler, setLeoUpscaler] = useState<LeonardoAuroraParams["upscaler"]>("pro");
+  const [leoProType, setLeoProType] = useState<LeonardoAuroraParams["pro_type"]>("precise");
+  const [leoFactor, setLeoFactor] = useState<LeonardoAuroraParams["upscale_factor"]>(2);
+  const [leoFixArtifacts, setLeoFixArtifacts] = useState(true);
 
   const canRun = useMemo(() => rows.length > 0 && !running, [rows.length, running]);
 
@@ -173,6 +180,7 @@ function UpscalerPage() {
           fractality: magFractality,
           prompt: magPrompt || undefined,
         },
+        leonardo: { upscaler: leoUpscaler, pro_type: leoProType, upscale_factor: leoFactor, fix_artifacts: leoFixArtifacts },
         concurrency: 2,
         onLog: (m, level) => pushLog(m, level || "info"),
         onStatus: ({ index, status, url, error }) => {
@@ -284,6 +292,7 @@ function UpscalerPage() {
                   options={[
                     { value: "topaz", label: "Topaz Upscale (Weavy node)" },
                     { value: "magnific", label: "Magnific Upscale (Weavy node)" },
+                    { value: "leonardo", label: "Aurora (Leonardo)" },
                   ]}
                 />
               </Field>
@@ -383,6 +392,65 @@ function UpscalerPage() {
                   </Field>
                 </>
               )}
+
+              {provider === "leonardo" && (
+                <>
+                  <Field label="Upscaler">
+                    <Select
+                      value={leoUpscaler}
+                      onChange={(e) => setLeoUpscaler(e.target.value as LeonardoAuroraParams["upscaler"])}
+                      options={[
+                        { value: "legacy", label: "Legacy" },
+                        { value: "ultra", label: "Ultra" },
+                        { value: "pro", label: "Pro (New)" },
+                      ]}
+                    />
+                  </Field>
+                  {leoUpscaler === "pro" && (
+                    <Field label="Type">
+                      <Select
+                        value={leoProType}
+                        onChange={(e) => setLeoProType(e.target.value as LeonardoAuroraParams["pro_type"])}
+                        options={[
+                          { value: "precise", label: "Precise" },
+                          { value: "creative", label: "Creative" },
+                        ]}
+                      />
+                    </Field>
+                  )}
+                  <Field label={`Upscale Multiplier (${leoFactor}x)`}>
+                    <input
+                      type="range"
+                      min={2}
+                      max={8}
+                      step={1}
+                      value={leoFactor}
+                      onChange={(e) => {
+                        const raw = Number(e.target.value);
+                        const snapped = (raw === 7 ? 8 : raw) as LeonardoAuroraParams["upscale_factor"];
+                        setLeoFactor(snapped);
+                      }}
+                      className="w-full accent-primary"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                      <span>2x</span><span>3x</span><span>4x</span><span>5x</span><span>6x</span><span>8x</span>
+                    </div>
+                  </Field>
+                  <label className="flex items-center gap-2 text-sm text-foreground/90">
+                    <input
+                      type="checkbox"
+                      checked={leoFixArtifacts}
+                      onChange={(e) => setLeoFixArtifacts(e.target.checked)}
+                    />
+                    Fix AI Image Artifacts
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Multiplier Leonardo: 2, 3, 4, 5, 6, atau 8x. Jika hasil melewati limit Aurora ±105MP, sistem otomatis menurunkan multiplier supaya job tidak gagal.
+                  </p>
+                </>
+              )}
+
+
 
               <div className="flex gap-2 pt-2">
                 <PrimaryButton onClick={handleRun} disabled={!canRun}>

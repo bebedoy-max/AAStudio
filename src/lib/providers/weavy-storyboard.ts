@@ -746,9 +746,37 @@ function seedreamImageSlot(url: string, index: number) {
   };
 }
 
-export function buildSeedreamEditRecipe(prompt: string, modelKey: string, ratio: string, urls: string[]): Built {
+// Resolve the "Kualitas / Resolusi" dropdown into a concrete Weavy image_size preset.
+// Aliases "portrait" / "landscape" pick 4_3 vs 16_9 based on the chosen aspect ratio,
+// so users don't see duplicated portrait_4_3 / portrait_16_9 entries in the quality menu.
+export function resolveSeedreamImageSize(
+  quality: string | undefined,
+  ratio: string,
+  validPresets: Set<string>,
+): string {
+  const q = (quality || "").trim();
+  const r = (ratio || "").trim();
+  if (q === "portrait") {
+    return r === "4:5" || r === "3:4" || r === "4:3" ? "portrait_4_3" : "portrait_16_9";
+  }
+  if (q === "landscape") {
+    return r === "4:3" || r === "3:2" ? "landscape_4_3" : "landscape_16_9";
+  }
+  return q && validPresets.has(q) ? q : "match_input";
+}
+
+export function buildSeedreamEditRecipe(prompt: string, modelKey: string, ratio: string, urls: string[], imageSize?: string): Built {
   const model = SEEDREAM_MODEL_ID;
   const variant = seedreamVariantLabel(modelKey);
+  // ratio helps resolve "portrait"/"landscape" quality aliases into concrete 4_3/16_9 presets.
+  const validPresets = new Set([
+    "match_input", "square_hd", "square",
+    "portrait_4_3", "portrait_16_9",
+    "landscape_4_3", "landscape_16_9",
+    "auto_2K", "auto_3K",
+  ]);
+  const sizePreset = resolveSeedreamImageSize(imageSize, ratio, validPresets);
+  const sizeValue = { type: "built_in", value: sizePreset };
   const modelNodeId = "n_" + Date.now() + "_mdl";
   const importNodes = urls.map((u, i) =>
     mkImportNode("n_" + Date.now() + "_" + i, u, `ref_${i + 1}.jpg`, 100 + i * 460),
@@ -773,7 +801,7 @@ export function buildSeedreamEditRecipe(prompt: string, modelKey: string, ratio:
   // Parameter natif Seedream Edit di Weavy (fal_imported).
   const params: Record<string, unknown> = {
     seed: { seed: Math.floor(Math.random() * 1_000_000), isRandom: true },
-    image_size: null,
+    image_size: sizeValue,
     max_images: 1,
     num_images: 1,
     enhance_prompt_mode: "standard",
@@ -800,7 +828,7 @@ export function buildSeedreamEditRecipe(prompt: string, modelKey: string, ratio:
         parameters: [
           [{ id: "model", title: "Model", constraint: { type: "enum", options: ["V4.0", "V4.5", "V5.0", "V5.0 Pro"] }, defaultValue: { type: "string", value: "V5.0 Pro" } }, { type: "value", data: { type: "string", value: variant } }],
           [{ id: "seed", title: "Seed", constraint: { type: "seed" }, defaultValue: { type: "seed", value: { seed: 1, isRandom: false } } }, { type: "value", data: { type: "seed", value: (params.seed as { seed: number; isRandom: boolean }) } }],
-          [{ id: "image_size", title: "Image Size", constraint: { type: "image_size", options: ["Default", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "auto_2K", "auto_3K"] }, defaultValue: { type: "image_size", value: { type: "built_in", value: "match_input" } } }, { type: "value", data: { type: "image_size", value: { type: "built_in", value: "match_input" } } }],
+          [{ id: "image_size", title: "Image Size", constraint: { type: "image_size", options: ["match_input", "custom", "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9", "auto_2K", "auto_3K"] }, defaultValue: { type: "image_size", value: { type: "built_in", value: "match_input" } } }, { type: "value", data: { type: "image_size", value: sizeValue } }],
           [{ id: "enhance_prompt_mode", title: "Enhance Prompt Mode", constraint: { type: "enum", options: ["standard", "fast"] }, defaultValue: { type: "string", value: "standard" } }, { type: "value", data: { type: "string", value: "standard" } }],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
@@ -988,7 +1016,7 @@ export async function generateWeavyStoryboard(opts: WeavyStoryboardOpts): Promis
       });
       if (mk.startsWith("seedream-")) {
         return await runSeedreamWithFallback(
-          opts.prompt, opts.ratio || "1:1", uploadedUrls, active.accessToken, opts.modelKey, opts.onProgress,
+          opts.prompt, opts.ratio || "1:1", uploadedUrls, active.accessToken, opts.modelKey, opts.onProgress, opts.quality,
         );
       }
       const built = mk === "nanobanana2"
@@ -1061,7 +1089,7 @@ export async function generateWeavyEdit(opts: WeavyEditOpts): Promise<string> {
       const refMetas: RefMeta[] = files.map((f) => ({ name: f.name }));
       if (mk.startsWith("seedream-")) {
         return await runSeedreamWithFallback(
-          opts.prompt, opts.ratio || "1:1", uploadedUrls, active.accessToken, opts.modelKey, opts.onProgress,
+          opts.prompt, opts.ratio || "1:1", uploadedUrls, active.accessToken, opts.modelKey, opts.onProgress, opts.quality,
         );
       }
       const built = mk === "nanobanana2"
@@ -1115,9 +1143,10 @@ async function runSeedreamWithFallback(
   accessToken: string,
   modelKey: string,
   onProgress?: StoryboardProgress,
+  imageSize?: string,
 ): Promise<string> {
   void ratio;
-  const built = buildSeedreamEditRecipe(prompt, modelKey, ratio, uploadedUrls);
+  const built = buildSeedreamEditRecipe(prompt, modelKey, ratio, uploadedUrls, imageSize);
   assertStoryboardWiring(built, uploadedUrls, modelKey);
   logStoryboard(onProgress, `Seedream Edit (Weavy fal_imported) → ${seedreamVariantLabel(modelKey)}`);
   return await runBuiltRecipe(built, accessToken, uploadedUrls, onProgress);

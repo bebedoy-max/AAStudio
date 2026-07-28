@@ -7,7 +7,7 @@ import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from
 import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
-import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
@@ -958,9 +958,7 @@ function BrainPane() {
 
 /* ============ WEAVY (refresh token pool) ============ */
 function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
-  const [token, setToken] = useState("");
   const [bulkTokenText, setBulkTokenText] = useState("");
-  const [mode, setMode] = useState<"single" | "bulk">("bulk");
   const [list, setList] = useState<WeavyTok[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
@@ -1145,17 +1143,13 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
     });
   };
 
-  const connect = async () => {
-    if (!token.trim()) return;
-    await tambahTokens([token.trim()]);
-    setToken("");
-  };
   const importBulkInline = async () => {
     const tokens = parseBulkTokens(bulkTokenText);
     if (!tokens.length) return;
     await tambahTokens(tokens);
     setBulkTokenText("");
   };
+
 
   const remove = (id: string) => {
     const next = list.filter((t) => t.id !== id);
@@ -1233,52 +1227,21 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 
   return (
     <>
-      <div className="flex gap-1 rounded-full bg-card/40 border border-border p-1 w-fit">
-        {(["single", "bulk"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={[
-              "px-3 py-1 rounded-full text-xs font-medium transition",
-              mode === m ? "text-primary-foreground glow-pink" : "text-muted-foreground hover:text-foreground",
-            ].join(" ")}
-            style={mode === m ? { background: "var(--gradient-neon)" } : undefined}
-          >
-            {m === "single" ? "Single Token" : "Bulk Input"}
-          </button>
-        ))}
-      </div>
-
-      {mode === "single" ? (
-        <div className="flex gap-2">
-          <Input
-            type="password"
-            placeholder="Paste refresh token..."
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-          <PrimaryButton onClick={connect} disabled={!token.trim() || busy}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        </div>
-      ) : (
-        <Field label="Bulk Refresh Tokens (satu per baris atau pisah koma)">
-          <Textarea
-            rows={7}
-            value={bulkTokenText}
-            onChange={(e) => setBulkTokenText(e.target.value)}
-            placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
-            className="font-mono text-xs"
-          />
-        </Field>
-      )}
+      <Field label="Refresh Tokens (satu per baris atau pisah koma)">
+        <Textarea
+          rows={7}
+          value={bulkTokenText}
+          onChange={(e) => setBulkTokenText(e.target.value)}
+          placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
+          className="font-mono text-xs"
+        />
+      </Field>
 
       <div className="flex gap-2 flex-wrap">
-        {mode === "bulk" && (
-          <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        )}
+        <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
+        </PrimaryButton>
+
         <GhostButton onClick={onOpenImport} className="w-full sm:w-auto"><Upload className="h-3.5 w-3.5" /> Import dari File</GhostButton>
         <GhostButton onClick={checkAll} disabled={list.length === 0 || busy}>
           <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
@@ -1354,20 +1317,17 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 /* ============ Wavespeed / Magnific reusable ============ */
 function ProviderKeyPane({
   lsKey,
-  singlePlaceholder,
   bulkPlaceholder,
   helper,
   provider,
 }: {
   lsKey: string;
-  singlePlaceholder: string;
+  singlePlaceholder?: string;
   bulkPlaceholder: string;
   helper: string;
   provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
 }) {
-  const [k, setK] = useState("");
   const [bulk, setBulk] = useState("");
-  const [mode, setMode] = useState<"single" | "bulk">("single");
   const [list, setList] = useState<SimpleKey[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -1379,7 +1339,7 @@ function ProviderKeyPane({
     setList(initial);
     // Auto-probe key yang balance null / status pending (mis. baru saja
     // ditransfer oleh admin dari Token Bank) supaya sisa saldo langsung tampil.
-    const pending = initial.filter((x) => x.balance === null || x.status === "pending");
+    const pending = initial.filter((x) => x.balance == null || x.status === "pending");
     if (pending.length === 0) return;
     let cancelled = false;
     (async () => {
@@ -1396,18 +1356,13 @@ function ProviderKeyPane({
               status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
             };
           } else if (provider === "roboneo") {
-            const chk = await checkRoboneoToken(x.key);
-            if (!chk.ok) {
-              updated = { ...x, balance: null, status: "failed", note: chk.message };
-            } else {
-              const bal = await fetchRoboneoBalance(x.key);
-              updated = {
-                ...x,
-                balance: bal.balance,
-                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-                note: bal.ok ? undefined : bal.message,
-              };
-            }
+            const bal = await fetchRoboneoBalance(x.key);
+            updated = {
+              ...x,
+              balance: bal.balance,
+              status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+              note: bal.message,
+            };
           } else if (provider === "framia") {
             const chk = await checkFramiaToken(x.key);
             if (!chk.ok) {
@@ -1427,11 +1382,14 @@ function ProviderKeyPane({
               updated = { ...x, balance: null, status: "failed", note: chk.message };
             } else {
               const bal = await fetchLeonardoBalance(x.key);
+              const breakdown = bal.ok
+                ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
+                : bal.message;
               updated = {
                 ...x,
                 balance: bal.balance,
                 status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-                note: bal.ok ? chk.email || bal.email : bal.message,
+                note: breakdown,
               };
             }
           } else {
@@ -1479,15 +1437,13 @@ function ProviderKeyPane({
       };
     }
     if (provider === "roboneo") {
-      const chk = await checkRoboneoToken(key);
-      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
       const bal = await fetchRoboneoBalance(key);
       return {
         id: uid(),
         key,
         balance: bal.balance,
-        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-        note: bal.ok ? undefined : bal.message,
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+        note: bal.message,
       };
     }
     if (provider === "framia") {
@@ -1506,12 +1462,15 @@ function ProviderKeyPane({
       const chk = await checkLeonardoToken(key);
       if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
       const bal = await fetchLeonardoBalance(key);
+      const breakdown = bal.ok
+        ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
+        : bal.message;
       return {
         id: uid(),
         key,
         balance: bal.balance,
         status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-        note: chk.email || bal.email || bal.message,
+        note: breakdown,
       };
     }
 
@@ -1520,14 +1479,14 @@ function ProviderKeyPane({
   };
 
   const tambah = async () => {
-    const raw = mode === "single" ? (k.trim() ? [k.trim()] : []) : parseBulk(bulk);
+    const raw = parseBulk(bulk);
     if (raw.length === 0) return;
     setBusy(true);
     const existing = new Set(list.map((x) => x.key));
     const dedup = Array.from(new Set(raw)).filter((key) => !existing.has(key));
     if (dedup.length === 0) {
       setStatus("Semua key sudah tersimpan");
-      setK(""); setBulk(""); setBusy(false);
+      setBulk(""); setBusy(false);
       return;
     }
     const badFormat = dedup.filter((key) => !isValidFormat(key));
@@ -1547,10 +1506,12 @@ function ProviderKeyPane({
     const merged = [...list, ...added];
     persist(merged);
     setProgress({ show: false, pct: 0, text: "" });
-    setK(""); setBulk("");
+    setBulk("");
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
     const summary = provider === "wavespeed"
       ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
+      : provider === "roboneo" || provider === "framia" || provider === "leonardo"
+        ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
       : `${merged.length} key tersimpan`;
     setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
     setBusy(false);
@@ -1567,7 +1528,11 @@ function ProviderKeyPane({
         { label: "Saldo kosong (tetap disimpan)", value: empty, tone: empty ? "warn" : "muted" },
         { label: "Ditolak (invalid / gagal)", value: failed, tone: failed ? "bad" : "muted" },
       ],
-      footer: `Total key tersimpan sekarang: ${merged.length}`,
+      footer:
+        `Total key tersimpan sekarang: ${merged.length}` +
+        (provider === "roboneo" || provider === "framia" || provider === "leonardo"
+          ? ` · Total credit: ${total.toLocaleString()} cr`
+          : ""),
     });
   };
 
@@ -1588,18 +1553,13 @@ function ProviderKeyPane({
         const res = await checkWavespeedBalance(x.key);
         updated = { ...x, balance: res.balance, status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed" };
       } else if (provider === "roboneo") {
-        const chk = await checkRoboneoToken(x.key);
-        if (!chk.ok) {
-          updated = { ...x, balance: null, status: "failed", note: chk.message };
-        } else {
-          const bal = await fetchRoboneoBalance(x.key);
-          updated = {
-            ...x,
-            balance: bal.balance,
-            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-            note: bal.ok ? undefined : bal.message,
-          };
-        }
+        const bal = await fetchRoboneoBalance(x.key);
+        updated = {
+          ...x,
+          balance: bal.balance,
+          status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+          note: bal.message,
+        };
       } else if (provider === "framia") {
         const chk = await checkFramiaToken(x.key);
         if (!chk.ok) {
@@ -1623,7 +1583,9 @@ function ProviderKeyPane({
             ...x,
             balance: bal.balance,
             status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-            note: chk.email || bal.email || bal.message,
+            note: bal.ok
+              ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
+              : bal.message,
           };
         }
       } else {
@@ -1666,61 +1628,37 @@ function ProviderKeyPane({
   const total = list.reduce((a, x) => a + (x.balance ?? 0), 0);
   const activeCount = list.filter((x) => x.status === "active").length;
   const hasStored = list.length > 0;
-  const canAdd = (mode === "single" ? k.trim().length > 0 : bulk.trim().length > 0) && !busy;
+  const canAdd = bulk.trim().length > 0 && !busy;
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-full bg-card/40 border border-border p-1 w-fit">
-          {(["single", "bulk"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={[
-                "px-3 py-1 rounded-full text-xs font-medium transition",
-                mode === m ? "text-primary-foreground glow-pink" : "text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-              style={mode === m ? { background: "var(--gradient-neon)" } : undefined}
-            >
-              {m === "single" ? "Single" : "Bulk"}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>Active: <b className="text-emerald-400">{activeCount}</b>/{list.length}</span>
           {provider === "wavespeed" && (
             <span>Total: <b className="text-emerald-400">${total.toFixed(2)}</b></span>
           )}
+          {provider === "roboneo" && (
+            <span>Total credit: <b className="text-emerald-400">{total.toLocaleString()} cr</b></span>
+          )}
         </div>
       </div>
 
-      {mode === "single" ? (
-        <div className="flex gap-2">
-          <Input type="password" placeholder={singlePlaceholder} value={k} onChange={(e) => setK(e.target.value)} />
-          <PrimaryButton onClick={tambah} disabled={!canAdd}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        </div>
-      ) : (
-        <>
-          <Field label="Bulk API Keys (satu per baris atau pisah koma)">
-            <Textarea
-              rows={5}
-              value={bulk}
-              onChange={(e) => setBulk(e.target.value)}
-              placeholder={bulkPlaceholder}
-              className="font-mono text-xs"
-            />
-          </Field>
-        </>
-      )}
+      <Field label="API Keys (satu per baris atau pisah koma)">
+        <Textarea
+          rows={5}
+          value={bulk}
+          onChange={(e) => setBulk(e.target.value)}
+          placeholder={bulkPlaceholder}
+          className="font-mono text-xs"
+        />
+      </Field>
 
       <div className="flex gap-2 flex-wrap">
-        {mode === "bulk" && (
-          <PrimaryButton onClick={tambah} disabled={!canAdd}>
-            <Plus className="h-3.5 w-3.5" /> Tambah
-          </PrimaryButton>
-        )}
+        <PrimaryButton onClick={tambah} disabled={!canAdd}>
+          <Plus className="h-3.5 w-3.5" /> Tambah
+        </PrimaryButton>
+
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
           <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
         </GhostButton>
@@ -1745,27 +1683,38 @@ function ProviderKeyPane({
 
       <div className="flex flex-col gap-2">
         {list.map((x) => (
-          <div key={x.id} className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
-            <span
-              className={[
-                "h-2.5 w-2.5 rounded-full shrink-0",
-                x.status === "active" ? "bg-emerald-400" : x.status === "empty" ? "bg-rose-400" : x.status === "failed" ? "bg-red-500" : "bg-amber-400",
-              ].join(" ")}
-              title={x.status}
-            />
-            <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 12)}…{x.key.slice(-4)}</div>
-            <div className="text-emerald-400 font-semibold whitespace-nowrap">
-              {provider === "wavespeed"
-                ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
-                : provider === "framia" || provider === "roboneo" || provider === "leonardo"
-                  ? x.balance == null
-                    ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
-                    : `${x.balance.toLocaleString()} cr`
-                  : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+          <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span
+                className={[
+                  "h-2.5 w-2.5 rounded-full shrink-0",
+                  x.status === "active" ? "bg-emerald-400" : x.status === "empty" ? "bg-rose-400" : x.status === "failed" ? "bg-red-500" : "bg-amber-400",
+                ].join(" ")}
+                title={x.status}
+              />
+              <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 12)}…{x.key.slice(-4)}</div>
+              <div className="text-emerald-400 font-semibold whitespace-nowrap">
+                {provider === "wavespeed"
+                  ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
+                  : provider === "roboneo"
+                    ? x.balance == null
+                      ? x.status === "failed" ? "❌" : "— cr"
+                      : `${x.balance.toLocaleString()} cr`
+                  : provider === "framia" || provider === "leonardo"
+                    ? x.balance == null
+                      ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
+                      : `${x.balance.toLocaleString()} cr`
+                    : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+              </div>
+              <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
+                <Trash2 className="h-3.5 w-3.5" /> Hapus
+              </button>
             </div>
-            <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
-              <Trash2 className="h-3.5 w-3.5" /> Hapus
-            </button>
+            {x.note && (
+              <div className="pl-4 text-[10px] text-muted-foreground/80 truncate" title={x.note}>
+                {x.note}
+              </div>
+            )}
           </div>
         ))}
         {list.length === 0 && <div className="text-[11px] text-muted-foreground italic px-1">Belum ada key.</div>}

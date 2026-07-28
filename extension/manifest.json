@@ -1,19 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "AACreative Leonardo Token Grabber",
-  "version": "1.1.0",
-  "description": "Ambil JWT Leonardo.AI dengan 1 klik lalu kirim ke AACreative.",
-  "permissions": ["activeTab", "scripting", "storage", "cookies", "clipboardWrite", "webRequest", "tabs"],
+  "name": "AA Creative Token Grabber",
+  "version": "2.0.0",
+  "description": "Ambil JWT dari Framia / Leonardo dan sinkronkan langsung ke Token Manager akun AA Creative Studio kamu. Auto-update saat token di-refresh.",
+  "permissions": ["activeTab", "scripting", "storage", "cookies", "webRequest", "tabs", "alarms", "notifications"],
   "host_permissions": [
     "https://app.leonardo.ai/*",
     "https://*.leonardo.ai/*",
-    "https://cloud.leonardo.ai/*"
+    "https://cloud.leonardo.ai/*",
+    "https://framia.converge.ai/*",
+    "https://*.converge.ai/*",
+    "https://api.framia.pro/*",
+    "https://*.framia.pro/*",
+    "http://localhost:*/*",
+    "https://*.lovable.app/*",
+    "https://*.lovable.dev/*"
   ],
   "background": { "service_worker": "background.js" },
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png",
-    "default_title": "Grab Leonardo Token"
+    "default_title": "AA Creative Token Grabber"
   },
   "icons": { "48": "icon.png", "128": "icon.png" }
 }

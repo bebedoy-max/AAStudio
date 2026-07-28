@@ -12,12 +12,34 @@ import {
   rotateWeavyToken,
   WEAVY_API,
 } from "./weavy";
+import {
+  getFirstLeonardoKey,
+  uploadLeonardoInitImage,
+  leonardoFetch,
+  isLeonardoTokenExpired,
+} from "./leonardo";
 
 // ------------------------------------------------------------------
 // Catalog
 // ------------------------------------------------------------------
-export type UpscalerProvider = "topaz" | "magnific";
+export type UpscalerProvider = "topaz" | "magnific" | "leonardo";
 export type UpscalerMode = "upscale" | "enhance";
+
+export type LeonardoUpscalerKind = "legacy" | "ultra" | "pro";
+export type LeonardoProType = "precise" | "creative";
+export type LeonardoUpscaleMultiplier = 2 | 3 | 4 | 5 | 6 | 8;
+
+export type LeonardoAuroraParams = {
+  /** Upscaler family di dashboard Leonardo. */
+  upscaler: LeonardoUpscalerKind;
+  /** Sub-type khusus Pro (Precise / Creative). */
+  pro_type: LeonardoProType;
+  /** Upscale Multiplier (2x – 8x). */
+  upscale_factor: LeonardoUpscaleMultiplier;
+  /** "Fix AI Image Artifacts" toggle. ON → clean, OFF → detailed. */
+  fix_artifacts: boolean;
+};
+
 
 export type TopazParams = {
   model:
@@ -340,6 +362,427 @@ async function runMagnificOne(file: File, mode: UpscalerMode, params: MagnificPa
 }
 
 // ------------------------------------------------------------------
+// Leonardo Aurora — GraphQL Generate + poll UpscaleVariation
+// ------------------------------------------------------------------
+async function getImageDims(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      resolve({ width: img.naturalWidth || 1024, height: img.naturalHeight || 1024 });
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      resolve({ width: 1024, height: 1024 });
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+}
+
+const AURORA_GENERATE_QUERY = `mutation Generate($request: CreateGenerationRequest!) {
+  generate(request: $request) {
+    apiCreditCost
+    generationId
+    __typename
+  }
+}`;
+
+const AURORA_POLL_QUERY = `query GetLatestPendingUpscaleVariationForGeneration($generationId: uuid!) {
+  generations_by_pk(id: $generationId) {
+    generated_images(order_by: [{createdAt: desc}]) {
+      generated_image_variation_generics(
+        where: {transformType: {_eq: UPSCALE}}
+        order_by: [{createdAt: desc}]
+        limit: 5
+      ) {
+        id
+        createdAt
+        status
+        url
+        transformType
+        upscale_details {
+          id
+          variationId
+          upscaleMultiplier
+          width
+          height
+          mode
+          modelId
+          optional_metadata
+          generated_image_variation_generic {
+            id
+            status
+            url
+            __typename
+          }
+          __typename
+        }
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}`;
+
+const AURORA_GET_VARIATION_QUERY = `query GetImageVariationGeneric($where: generated_image_variation_generic_bool_exp) {
+  generated_image_variation_generic(where: $where) {
+    id
+    createdAt
+    status
+    url
+    transformType
+    upscale_details {
+      id
+      variationId
+      upscaleMultiplier
+      width
+      height
+      mode
+      modelId
+      optional_metadata
+      generated_image_variation_generic {
+        id
+        status
+        url
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}`;
+
+type AuroraVariation = {
+  id: string;
+  status?: string;
+  url?: string;
+  upscale_details?: Array<{
+    optional_metadata?: unknown;
+    generated_image_variation_generic?: { status?: string; url?: string } | null;
+  }> | {
+    optional_metadata?: unknown;
+    generated_image_variation_generic?: { status?: string; url?: string } | null;
+  } | null;
+};
+
+function firstAuroraUpscaleDetail(v: AuroraVariation) {
+  if (Array.isArray(v.upscale_details)) return v.upscale_details[0] ?? null;
+  return v.upscale_details ?? null;
+}
+
+function stringifyAuroraDetail(value: unknown): string {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  try {
+    const json = JSON.stringify(value);
+    return json === "{}" || json === "null" ? "" : json.slice(0, 400);
+  } catch {
+    return String(value).slice(0, 400);
+  }
+}
+
+function readAuroraVariationStatus(v: AuroraVariation): string {
+  return String(firstAuroraUpscaleDetail(v)?.generated_image_variation_generic?.status || v.status || "").toUpperCase();
+}
+
+function readAuroraVariationUrl(v: AuroraVariation): string | null {
+  return firstAuroraUpscaleDetail(v)?.generated_image_variation_generic?.url || v.url || null;
+}
+
+type LeonardoRestImage = {
+  url?: string | null;
+  generated_image_variation_generics?: AuroraVariation[] | null;
+};
+
+type LeonardoRestGeneration = {
+  id?: string;
+  status?: string;
+  generated_images?: LeonardoRestImage[] | null;
+  error?: unknown;
+  failureReason?: unknown;
+};
+
+function unwrapRestGeneration(res: unknown): LeonardoRestGeneration | null {
+  if (!res || typeof res !== "object") return null;
+  const r = res as Record<string, unknown>;
+  const direct = r.generations_by_pk ?? r.generation ?? r.data;
+  if (direct && typeof direct === "object") {
+    const d = direct as Record<string, unknown>;
+    const nested = d.generations_by_pk ?? d.generation;
+    return ((nested && typeof nested === "object" ? nested : direct) as LeonardoRestGeneration) ?? null;
+  }
+  return r as LeonardoRestGeneration;
+}
+
+async function fetchAuroraRestGeneration(token: string, generationId: string): Promise<LeonardoRestGeneration | null> {
+  const res = await leonardoFetch<unknown>({
+    token,
+    base: "api",
+    path: `/api/rest/v1/generations/${encodeURIComponent(generationId)}`,
+    method: "GET",
+  });
+  return unwrapRestGeneration(res);
+}
+
+function resolveAuroraModel(params: LeonardoAuroraParams): string {
+  if (params.upscaler === "legacy") return "legacy-upscaler";
+  if (params.upscaler === "ultra") return "universal-upscaler";
+  return params.pro_type === "creative" ? "aurora-upscaler-creative" : "aurora-upscaler-precise";
+}
+
+const AURORA_MAX_OUTPUT_MEGAPIXELS = 105;
+const AURORA_FACTORS: LeonardoUpscaleMultiplier[] = [2, 3, 4, 5, 6, 8];
+
+function outputMegapixels(width: number, height: number, factor: LeonardoUpscaleMultiplier): number {
+  return (width * height * factor * factor) / 1_000_000;
+}
+
+function getSafeAuroraFactor(width: number, height: number, requested: LeonardoUpscaleMultiplier): LeonardoUpscaleMultiplier {
+  const requestedIndex = AURORA_FACTORS.indexOf(requested);
+  const allowed = AURORA_FACTORS.slice(0, requestedIndex + 1).reverse();
+  return allowed.find((factor) => outputMegapixels(width, height, factor) <= AURORA_MAX_OUTPUT_MEGAPIXELS) ?? 2;
+}
+
+function buildAuroraRequest(params: LeonardoAuroraParams, imageId: string, width: number, height: number) {
+  const model = resolveAuroraModel(params);
+  const upscale_mode: "clean" | "detailed" = params.fix_artifacts ? "clean" : "detailed";
+  const request = {
+    model,
+    public: false,
+    parameters: {
+      guidances: {
+        image_reference: [
+          { image: { id: imageId, type: "UPLOADED" } },
+        ],
+      },
+      upscale_factor: params.upscale_factor,
+      width,
+      height,
+    },
+  };
+  if (params.upscaler === "pro" && params.pro_type === "creative") {
+    return {
+      ...request,
+      parameters: {
+        ...request.parameters,
+        creativity: params.fix_artifacts ? "low" : "mid",
+      },
+    };
+  }
+  return {
+    ...request,
+    parameters: {
+      ...request.parameters,
+      upscale_mode,
+    },
+  };
+}
+
+function extractAuroraGenerationId(res: unknown): string | null {
+  if (!res || typeof res !== "object") return null;
+  const r = res as Record<string, unknown>;
+  const candidates: unknown[] = [
+    (r.generate as Record<string, unknown> | undefined)?.generationId,
+    (r.generate as Record<string, unknown> | undefined)?.generation_id,
+    (r.sdGenerationJob as Record<string, unknown> | undefined)?.generationId,
+    (r.sdGenerationJob as Record<string, unknown> | undefined)?.generation_id,
+    r.generationId,
+    r.generation_id,
+    r.id,
+    (r.data as Record<string, unknown> | undefined)?.generationId,
+    (r.data as Record<string, unknown> | undefined)?.generation_id,
+    (r.data as Record<string, unknown> | undefined)?.id,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+  }
+  return null;
+}
+
+async function submitAuroraGeneration(
+  token: string,
+  request: ReturnType<typeof buildAuroraRequest>,
+): Promise<string> {
+  try {
+    const rest = await leonardoFetch<unknown>({
+      token,
+      base: "cloud",
+      path: "/api/rest/v2/generations",
+      method: "POST",
+      body: request,
+    });
+    const restGenerationId = extractAuroraGenerationId(rest);
+    if (restGenerationId) return restGenerationId;
+    const restDetail = stringifyAuroraDetail(rest);
+    throw new Error(restDetail || "response kosong");
+  } catch (restError) {
+    const restMessage = restError instanceof Error ? restError.message : String(restError);
+    const gen = await leonardoFetch<{ data?: { generate?: { generationId?: string } }; errors?: unknown }>({
+      token,
+      base: "api",
+      path: "/v1/graphql",
+      method: "POST",
+      body: {
+        operationName: "Generate",
+        variables: { request },
+        query: AURORA_GENERATE_QUERY,
+      },
+    });
+    const generationId = gen?.data?.generate?.generationId;
+    if (!generationId) {
+      const detail = stringifyAuroraDetail(gen?.errors || gen);
+      throw new Error(`Leonardo: generationId tidak ditemukan — REST v2: ${restMessage}${detail ? `; GraphQL: ${detail}` : ""}`);
+    }
+    return generationId;
+  }
+}
+
+async function fetchAuroraVariationDetail(token: string, variationId: string): Promise<AuroraVariation | null> {
+  const info = await leonardoFetch<{
+    data?: { generated_image_variation_generic?: AuroraVariation[] };
+  }>({
+    token,
+    base: "api",
+    path: "/v1/graphql",
+    method: "POST",
+    body: {
+      operationName: "GetImageVariationGeneric",
+      variables: { where: { id: { _in: [variationId] } } },
+      query: AURORA_GET_VARIATION_QUERY,
+    },
+  });
+  return info?.data?.generated_image_variation_generic?.[0] ?? null;
+}
+
+async function waitForAuroraResult(
+  token: string,
+  generationId: string,
+  onLog: (m: string) => void,
+): Promise<string> {
+  let lastStatus = "";
+  const maxAttempts = 150;
+  for (let a = 0; a < maxAttempts; a++) {
+    await new Promise((r) => setTimeout(r, a < 12 ? 4000 : 6000));
+    let variations: AuroraVariation[] = [];
+    try {
+      const pend = await leonardoFetch<{
+        data?: {
+          generations_by_pk?: {
+            generated_images?: Array<{
+              generated_image_variation_generics?: AuroraVariation[];
+            }>;
+          };
+        };
+      }>({
+        token,
+        base: "api",
+        path: "/v1/graphql",
+        method: "POST",
+        body: {
+          operationName: "GetLatestPendingUpscaleVariationForGeneration",
+          variables: { generationId },
+          query: AURORA_POLL_QUERY,
+        },
+      });
+      variations = (pend?.data?.generations_by_pk?.generated_images ?? [])
+        .flatMap((im) => im.generated_image_variation_generics ?? [])
+        .filter((v): v is AuroraVariation => !!v?.id);
+    } catch {
+      variations = [];
+    }
+    for (const variation of variations) {
+      const status = readAuroraVariationStatus(variation);
+      const url = readAuroraVariationUrl(variation);
+      if (url && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(status)) return url;
+      if (url && !["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(status)) return url;
+      if (["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(status)) {
+        const detailVariation = await fetchAuroraVariationDetail(token, variation.id).catch(() => variation);
+        const detail = stringifyAuroraDetail(firstAuroraUpscaleDetail(detailVariation ?? variation)?.optional_metadata);
+        throw new Error(`Leonardo Aurora: ${status}${detail ? ` — ${detail}` : ""}`);
+      }
+      if (status && status !== lastStatus) {
+        lastStatus = status;
+        onLog(`Poll Aurora: ${status.toLowerCase()}`);
+      }
+    }
+
+    const restGeneration = await fetchAuroraRestGeneration(token, generationId).catch(() => null);
+    const restStatus = String(restGeneration?.status || "").toUpperCase();
+    const restImages = restGeneration?.generated_images ?? [];
+    const restUrl = restImages.find((image) => typeof image?.url === "string" && image.url)?.url ?? null;
+    if (restUrl && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(restStatus)) return restUrl;
+    if (restUrl && !["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(restStatus)) return restUrl;
+    if (["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(restStatus)) {
+      const detail = stringifyAuroraDetail(restGeneration?.failureReason ?? restGeneration?.error);
+      throw new Error(`Leonardo Aurora: ${restStatus}${detail ? ` — ${detail}` : ""}`);
+    }
+    if (restStatus && restStatus !== lastStatus) {
+      lastStatus = restStatus;
+      onLog(`Poll Aurora: ${restStatus.toLowerCase()}`);
+    }
+  }
+  throw new Error("Leonardo Aurora: timeout menunggu hasil");
+}
+
+async function runLeonardoAuroraOne(
+  file: File,
+  params: LeonardoAuroraParams,
+  onLog: (m: string) => void,
+): Promise<string> {
+  const token = getFirstLeonardoKey();
+  if (!token) throw new Error("Belum ada token Leonardo di Kelola Token");
+  if (isLeonardoTokenExpired(token)) throw new Error("Token Leonardo expired — paste JWT baru");
+
+  const source = file.size > 8 * 1024 * 1024 ? await compressImage(file, 2048, 0.92) : file;
+  const { width, height } = await getImageDims(source);
+  const mime = (source.type || "").toLowerCase();
+  const ext: "png" | "jpg" | "webp" = mime.includes("webp")
+    ? "webp"
+    : mime.includes("png")
+      ? "png"
+      : "jpg";
+
+  onLog("Upload ke Leonardo...");
+  const imageId = await uploadLeonardoInitImage(token, source, ext);
+
+  const safeFactor = getSafeAuroraFactor(width, height, params.upscale_factor);
+  const primaryParams = { ...params, upscale_factor: safeFactor };
+  if (safeFactor !== params.upscale_factor) {
+    const requestedMp = outputMegapixels(width, height, params.upscale_factor).toFixed(1);
+    const safeMp = outputMegapixels(width, height, safeFactor).toFixed(1);
+    onLog(`Multiplier ${params.upscale_factor}x melebihi limit Aurora ±${AURORA_MAX_OUTPUT_MEGAPIXELS}MP (${requestedMp}MP), pakai ${safeFactor}x (${safeMp}MP)...`);
+  }
+
+  const attempts: LeonardoAuroraParams[] = [primaryParams];
+  // Fallback aman: Leonardo sering mengembalikan FAILED tanpa detail ketika
+  // kombinasi model/multiplier melewati limit internal; retry 2x agar job tetap sukses.
+  if (primaryParams.upscale_factor !== 2) {
+    attempts.push({ ...primaryParams, upscale_factor: 2 });
+  }
+
+  let lastErr: Error | null = null;
+  for (let i = 0; i < attempts.length; i++) {
+    const attempt = attempts[i];
+    const request = buildAuroraRequest(attempt, imageId, width, height);
+    const mode = attempt.fix_artifacts ? "clean" : "detailed";
+    onLog(`Generate ${request.model} (${attempt.upscale_factor}x · ${mode}${attempt.upscaler === "pro" ? ` · ${attempt.pro_type}` : ""})...`);
+    try {
+      const generationId = await submitAuroraGeneration(token, request);
+      onLog("Menunggu hasil...");
+      return await waitForAuroraResult(token, generationId, onLog);
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      const canFallback = i < attempts.length - 1 && /failed|error|invalid|upscale|resolution|size|too large|timeout/i.test(lastErr.message);
+      if (!canFallback) break;
+      onLog(`Aurora retry pakai 2x karena: ${lastErr.message}`);
+    }
+  }
+  throw lastErr ?? new Error("Leonardo Aurora: gagal");
+}
+
+
 // Public API
 // ------------------------------------------------------------------
 export type UpscaleJob = {
@@ -352,6 +795,7 @@ export type UpscaleOpts = {
   mode: UpscalerMode;
   topaz: TopazParams;
   magnific: MagnificParams;
+  leonardo?: LeonardoAuroraParams;
   concurrency?: number;
   onStatus?: (r: { index: number; status: string; url?: string; error?: string }) => void;
   onLog?: (msg: string, level?: string) => void;
@@ -373,7 +817,14 @@ export async function runUpscale(jobs: UpscaleJob[], opts: UpscaleOpts): Promise
         const url =
           opts.provider === "topaz"
             ? await runTopazOne(j.file, opts.topaz, log)
-            : await runMagnificOne(j.file, opts.mode, opts.magnific, log);
+            : opts.provider === "leonardo"
+              ? await runLeonardoAuroraOne(
+                  j.file,
+                  opts.leonardo ?? { upscaler: "pro", pro_type: "precise", upscale_factor: 2, fix_artifacts: true },
+                  log,
+                )
+              : await runMagnificOne(j.file, opts.mode, opts.magnific, log);
+
         results.push({ index: j.index, url });
         opts.onStatus?.({ index: j.index, status: "done", url });
         opts.onLog?.(`#${j.index + 1}: done`, "success");

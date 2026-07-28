@@ -240,9 +240,12 @@ export function syncTokensForUser(userId: string, options?: { force?: boolean })
           if (typeof remoteValue === "string" && remoteValue.length > 0) {
             if (remoteValue !== localValue) localStorage.setItem(key, remoteValue);
           } else if (localValue) {
-            // Remote has no value but local does → local was cleared after
-            // our push flushed; keep local removed on remote by deleting it.
-            localStorage.removeItem(key);
+            // Remote may be empty because the encrypted cloud copy could not be
+            // decrypted after an encryption-key rotation. Preserve the browser's
+            // valid local token and push it again so the cloud copy is re-written
+            // with the current encryption key instead of silently deleting it.
+            localStorage.setItem(key, localValue);
+            writes.push(pushUserToken({ data: { storageKey: key, value: localValue } }).then(() => undefined));
           }
         } else if (typeof remoteValue === "string" && remoteValue.length > 0) {
           // First pull as this user in this browser — safe to union-merge with
