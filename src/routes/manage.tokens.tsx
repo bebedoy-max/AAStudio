@@ -1696,15 +1696,11 @@ function ProviderKeyPane({
               <div className="text-emerald-400 font-semibold whitespace-nowrap">
                 {provider === "wavespeed"
                   ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
-<<<<<<< HEAD
                   : provider === "roboneo"
                     ? x.balance == null
                       ? x.status === "failed" ? "❌" : "— cr"
                       : `${x.balance.toLocaleString()} cr`
                   : provider === "framia" || provider === "leonardo"
-=======
-                  : provider === "framia" || provider === "roboneo" || provider === "leonardo"
->>>>>>> 7e917556569a3ae167b0d539e51812a08405eec5
                     ? x.balance == null
                       ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
                       : `${x.balance.toLocaleString()} cr`
