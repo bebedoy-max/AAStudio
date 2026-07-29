@@ -7,14 +7,9 @@ import { Card } from "@/components/dashboard/ui";
 import {
   Loader2, Users, ShieldCheck, Wallet, Receipt, LineChart as LineChartIcon,
   SlidersHorizontal, BookText, Video, Image as ImageIcon, Sparkles, Activity, Landmark,
-<<<<<<< HEAD
   Radio, TrendingUp, ArrowRight, KeyRound, Crown, X,
 } from "lucide-react";
 
-=======
-  Radio, TrendingUp, ArrowRight, KeyRound, Crown,
-} from "lucide-react";
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -74,14 +69,11 @@ function Gate() {
   return <Body />;
 }
 
-<<<<<<< HEAD
 type DetailKey =
   | "users" | "onlineUsers" | "paidUsers"
   | "totalVideos" | "totalImages" | "totalAssets"
   | "pendingRequests" | "activityToday";
 
-=======
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
 function Body() {
   const [loading, setLoading] = useState(true);
   const [c, setC] = useState<Counts>({
@@ -91,17 +83,13 @@ function Body() {
   const [byKind, setByKind] = useState<KindPoint[]>([]);
   const [series, setSeries] = useState<DayPoint[]>([]);
   const [tick, setTick] = useState(0);
-<<<<<<< HEAD
   const [lastUpdate, setLastUpdate] = useState<Date>(() => new Date());
   const [detail, setDetail] = useState<DetailKey | null>(null);
 
-=======
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
 
   // Fast polling + realtime subscriptions so the dashboard reflects
   // activity immediately (no 5-minute or 30-second wait).
   useEffect(() => {
-<<<<<<< HEAD
     const iv = setInterval(() => setTick((t) => t + 1), 10_000);
     let deb: ReturnType<typeof setTimeout> | null = null;
     const bump = () => {
@@ -181,42 +169,6 @@ function Body() {
       const totalVideos = assetVideos + (rVideoGen.count ?? 0);
       const totalImages = assetImages + (rImageGen.count ?? 0);
 
-=======
-    const iv = setInterval(() => setTick((t) => t + 1), 30_000);
-    return () => clearInterval(iv);
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const since30 = new Date(); since30.setDate(since30.getDate() - 29);
-      const since30Iso = since30.toISOString();
-      const onlineSince = new Date(Date.now() - 5 * 60_000).toISOString();
-      const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
-      const startTodayIso = startToday.toISOString();
-
-      const [
-        rUsers, rTags, rOnline,
-        rAssetsAll, rAssetsRecent,
-        rReqPending, rTxApproved,
-        rActToday,
-      ] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("user_tags" as never).select("user_id", { count: "exact", head: true }).in("tag", ["vip", "vvip"] as never),
-        supabase.from("user_active_sessions" as never).select("user_id", { count: "exact", head: true }).gte("last_seen_at", onlineSince),
-        supabase.from("ai_influencer_assets").select("kind"),
-        supabase.from("ai_influencer_assets").select("kind, created_at").gte("created_at", since30Iso),
-        supabase.from("purchase_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("purchase_requests").select("id", { count: "exact", head: true }).eq("status", "approved"),
-        supabase.from("user_activity_logs" as never).select("id", { count: "exact", head: true }).gte("created_at", startTodayIso),
-      ]);
-
-      const allAssets = (rAssetsAll.data ?? []) as { kind: string | null }[];
-      const totalAssets = allAssets.length;
-      const totalVideos = allAssets.filter((a) => (a.kind || "").toLowerCase().includes("video")).length;
-      const totalImages = allAssets.filter((a) => (a.kind || "").toLowerCase().includes("image") || (a.kind || "").toLowerCase().includes("photo")).length;
-
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
       const kindMap = new Map<string, number>();
       allAssets.forEach((a) => {
         const k = (a.kind || "lainnya").toString();
@@ -250,15 +202,10 @@ function Body() {
       });
       setByKind(kindList);
       setSeries(Array.from(buckets.entries()).map(([day, count]) => ({ day, count })));
-<<<<<<< HEAD
       setLastUpdate(new Date());
       setLoading(false);
     })();
     return () => { cancelled = true; };
-=======
-      setLoading(false);
-    })();
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
   }, [tick]);
 
   const top = byKind[0];
@@ -282,7 +229,6 @@ function Body() {
         <span className="inline-flex items-center gap-1.5 text-primary">
           <Radio className="h-3 w-3 animate-pulse" /> Realtime
         </span>
-<<<<<<< HEAD
         <span>· live via subscriptions</span>
         <span>· update terakhir {lastUpdate.toLocaleTimeString("id-ID")}</span>
       </div>
@@ -301,24 +247,6 @@ function Body() {
       </div>
 
 
-=======
-        <span>· auto-refresh setiap 30 detik</span>
-        <span>· update terakhir {new Date().toLocaleTimeString("id-ID")}</span>
-      </div>
-
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Kpi icon={Users} label="Total User" value={c.users} accent="Terdaftar" />
-        <Kpi icon={Radio} label="Online 5m" value={c.onlineUsers} accent="Aktif sekarang" pulse />
-        <Kpi icon={Crown} label="Paid User" value={c.paidUsers} accent="VIP + VVIP" />
-        <Kpi icon={Video} label="Video Generated" value={c.totalVideos} accent="Semua provider" />
-        <Kpi icon={ImageIcon} label="Image Generated" value={c.totalImages} accent="Semua provider" />
-        <Kpi icon={Sparkles} label="Total Aset" value={c.totalAssets} accent="Video + image + ref" />
-        <Kpi icon={Receipt} label="Request Pending" value={c.pendingRequests} accent="Perlu review" tone={c.pendingRequests > 0 ? "warn" : "ok"} />
-        <Kpi icon={Activity} label="Aktivitas Hari Ini" value={c.activityToday} accent="Semua user" />
-      </div>
-
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
       {/* Main content: chart + top kind */}
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -331,7 +259,6 @@ function Body() {
               <div className="text-xs text-muted-foreground text-center py-6">Belum ada aset di-generate 30 hari terakhir.</div>
             )}
           </Card>
-<<<<<<< HEAD
         </div>
 
         <Card title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
@@ -563,67 +490,11 @@ function KpiDetailModal({ type, onClose }: { type: DetailKey; onClose: () => voi
             </div>
           )}
         </div>
-=======
-        </div>
-
-        <Card title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
-          {byKind.length === 0 ? (
-            <div className="text-xs text-muted-foreground py-4">Belum ada data.</div>
-          ) : (
-            <>
-              {top && (
-                <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 mb-3">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Juara</div>
-                  <div className="mt-1 font-display text-xl text-foreground capitalize truncate">{top.kind}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{top.count.toLocaleString("id-ID")} kali di-generate</div>
-                </div>
-              )}
-              <ul className="space-y-2">
-                {byKind.map((k) => {
-                  const pct = top ? Math.round((k.count / top.count) * 100) : 0;
-                  return (
-                    <li key={k.kind} className="text-xs">
-                      <div className="flex justify-between text-foreground/90 capitalize">
-                        <span className="truncate">{k.kind}</span>
-                        <span className="font-mono text-muted-foreground">{k.count.toLocaleString("id-ID")}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-                        <div className="h-full bg-primary/70" style={{ width: `${pct}%` }} />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-        </Card>
-      </div>
-
-      {/* Modules */}
-      <div>
-        <div className="mb-3 flex items-end justify-between">
-          <div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Explore</div>
-            <div className="font-display text-lg text-foreground">Modul Admin</div>
-          </div>
-          <div className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> klik untuk detail</div>
-        </div>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <ModuleCard to="/admin/users" icon={Users} title="Kelola User" desc={`${c.users} user terdaftar · atur role & akses`} />
-          <ModuleCard to="/admin/requests" icon={Receipt} title="Request Pembelian" desc={`${c.pendingRequests} menunggu review`} highlight={c.pendingRequests > 0} />
-          <ModuleCard to="/admin/payments" icon={Wallet} title="Metode Pembayaran & Harga" desc="Konfigurasi gateway & tarif fitur" />
-          <ModuleCard to="/admin/transactions" icon={LineChartIcon} title="Laporan Transaksi" desc={`${c.approvedTx} transaksi disetujui`} />
-          <ModuleCard to="/admin/access" icon={SlidersHorizontal} title="Pengaturan Halaman" desc="Aktif / non-aktif halaman & feature flag" />
-          <ModuleCard to="/admin/activity-log" icon={BookText} title="Log Aktivitas" desc={`${c.activityToday} event hari ini`} />
-          <ModuleCard to="/admin/token-bank" icon={Landmark} title="Token Bank" desc="Kirim / hapus banyak key sekaligus" />
-        </div>
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
       </div>
     </div>
   );
 }
 
-<<<<<<< HEAD
 async function loadDetailRows(type: DetailKey): Promise<DetailRow[]> {
   const sb = supabase as unknown as {
     from: (t: string) => {
@@ -704,86 +575,3 @@ async function loadDetailRows(type: DetailKey): Promise<DetailRow[]> {
 }
 
 
-=======
-function Kpi({
-  icon: Icon, label, value, accent, tone = "ok", pulse,
-}: {
-  icon: any; label: string; value: number; accent?: string; tone?: "ok" | "warn"; pulse?: boolean;
-}) {
-  const bg = tone === "warn" && value > 0
-    ? "linear-gradient(135deg, oklch(0.7 0.19 30), oklch(0.65 0.2 15))"
-    : "var(--gradient-neon)";
-  return (
-    <div className="neumorph p-4 relative overflow-hidden">
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-lg grid place-items-center text-primary-foreground shrink-0" style={{ background: bg }}>
-          <Icon className={"h-4 w-4 " + (pulse ? "animate-pulse" : "")} />
-        </div>
-        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground truncate">{label}</div>
-      </div>
-      <div className="mt-2 font-display text-2xl md:text-3xl text-foreground">{value.toLocaleString("id-ID")}</div>
-      {accent && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{accent}</div>}
-    </div>
-  );
-}
-
-function ModuleCard({
-  to, icon: Icon, title, desc, highlight,
-}: { to: string; icon: any; title: string; desc: string; highlight?: boolean }) {
-  return (
-    <Link
-      to={to}
-      className={
-        "group neumorph p-4 flex items-start gap-3 transition hover:border-primary/50 hover:-translate-y-0.5 " +
-        (highlight ? "ring-1 ring-primary/50" : "")
-      }
-    >
-      <div className="h-10 w-10 rounded-xl grid place-items-center shrink-0 text-primary-foreground" style={{ background: "var(--gradient-neon)" }}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <div className="font-display text-sm text-foreground truncate">{title}</div>
-          {highlight && <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">Perlu aksi</span>}
-        </div>
-        <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
-      </div>
-      <ArrowRight className="h-4 w-4 text-muted-foreground mt-1 group-hover:text-primary group-hover:translate-x-0.5 transition" />
-    </Link>
-  );
-}
-
-function SeriesChart({ data }: { data: DayPoint[] }) {
-  const w = 640, h = 180, pad = 24;
-  const max = Math.max(1, ...data.map((d) => d.count));
-  const step = (w - pad * 2) / Math.max(1, data.length - 1);
-  const points = data.map((d, i) => ({
-    x: pad + i * step,
-    y: h - pad - (d.count / max) * (h - pad * 2),
-    ...d,
-  }));
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-  const area = `${path} L ${points[points.length - 1]?.x ?? w - pad} ${h - pad} L ${pad} ${h - pad} Z`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48">
-      <defs>
-        <linearGradient id="ad-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="var(--neon-pink)" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="var(--neon-pink)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0.25, 0.5, 0.75].map((r) => (
-        <line key={r} x1={pad} x2={w - pad} y1={pad + (h - pad * 2) * r} y2={pad + (h - pad * 2) * r}
-          stroke="oklch(0.35 0.06 275 / 0.25)" strokeDasharray="3 5" />
-      ))}
-      <path d={area} fill="url(#ad-fill)" />
-      <path d={path} fill="none" stroke="var(--neon-pink)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 4px var(--neon-pink))" }} />
-      {points.filter((_, i) => i % 5 === 0 || i === points.length - 1).map((p, i) => (
-        <text key={i} x={p.x} y={h - 6} textAnchor="middle" fontSize="9" fill="oklch(0.65 0.05 265)">
-          {p.day.slice(5)}
-        </text>
-      ))}
-    </svg>
-  );
-}
->>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
