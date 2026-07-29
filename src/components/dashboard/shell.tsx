@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import {
   Bell,
   Menu,
@@ -527,18 +528,33 @@ export function PageHero({
   desc: string;
   action?: ReactNode;
 }) {
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const showAdminBack = pathname.startsWith("/admin/") && pathname !== "/admin";
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-muted-foreground">
-          {eyebrow}
+    <div className="flex flex-col gap-3">
+      {showAdminBack && (
+        <div>
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Kembali ke Admin Dashboard
+          </Link>
         </div>
-        <h1 className="mt-1 font-display text-3xl md:text-4xl font-bold">
-          {title} {highlight && <span className="text-gradient">{highlight}</span>}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground max-w-xl">{desc}</p>
+      )}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="text-[11px] font-mono uppercase tracking-[0.25em] text-muted-foreground">
+            {eyebrow}
+          </div>
+          <h1 className="mt-1 font-display text-3xl md:text-4xl font-bold">
+            {title} {highlight && <span className="text-gradient">{highlight}</span>}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground max-w-xl">{desc}</p>
+        </div>
+        {action}
       </div>
-      {action}
     </div>
   );
 }

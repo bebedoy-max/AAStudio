@@ -191,14 +191,28 @@ function AccessBody() {
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{f.label}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground">
+                      <div className="text-[10px] font-mono text-muted-foreground break-all">
                         {f.key}
                         {price != null ? ` · ${formatRupiah(price)} / 30 hari` : " · harga belum diatur"}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="inline-flex rounded-full border border-border bg-background/60 p-0.5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                      {/* Mobile: native select — hindari overflow di layar sempit */}
+                      <select
+                        value={draft.mode}
+                        onChange={(e) => setMode(f.key, e.target.value as FeatureAccessMode)}
+                        className="sm:hidden w-full rounded-full border border-border bg-background/60 px-3 py-2 text-xs font-medium outline-none focus:border-primary/60"
+                      >
+                        {MODES.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label} — {m.hint}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Desktop / tablet: pill toggles */}
+                      <div className="hidden sm:inline-flex flex-wrap rounded-full border border-border bg-background/60 p-0.5">
                         {MODES.map((m) => {
                           const MIcon = m.icon;
                           const active = draft.mode === m.value;
@@ -227,14 +241,14 @@ function AccessBody() {
                           type="datetime-local"
                           value={toLocalInput(draft.trialUntil)}
                           onChange={(e) => setTrial(f.key, e.target.value)}
-                          className="rounded-lg border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/60"
+                          className="w-full sm:w-auto rounded-lg border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/60"
                         />
                       )}
 
                       <button
                         onClick={() => save(f.key)}
                         disabled={!dirty || saving === f.key}
-                        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+                        className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
                         style={{ background: "var(--gradient-neon)" }}
                       >
                         {saving === f.key ? (

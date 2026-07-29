@@ -203,7 +203,7 @@ function HoverFlyout({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } = useAuth();
   if (!open) return null;
   return (
     <div
@@ -220,9 +220,7 @@ function HoverFlyout({
           const CIcon = item.icon;
           const enabled = !item.permKey || isFeatureEnabled(item.permKey);
           const access = item.permKey ? featureAccess[item.permKey] : undefined;
-          // Trial badge hanya ditampilkan untuk user yang tidak punya akses
-          // eksplisit ke menu ini — jadi user yang sudah subscribe / diberi
-          // akses admin tidak melihat label "Trial" yang tidak relevan.
+          const mode = item.permKey ? getFeatureMode(item.permKey) : "open";
           const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
           const trialBadge =
             enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
@@ -230,15 +228,26 @@ function HoverFlyout({
               : null;
 
           if (!enabled) {
+            // Mode "lock" → menu dikunci, klik tidak memunculkan apa-apa.
+            // Hanya mode "premium" (dan sejenisnya) yang membuka pop up
+            // pembelian fitur.
+            const isLocked = mode === "lock";
             return (
               <button
                 key={item.url}
                 type="button"
+                disabled={isLocked}
                 onClick={() => {
+                  if (isLocked) return;
                   openUpgradePrompt(item.permKey);
                   onNavigate?.();
                 }}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 hover:text-foreground/70 hover:bg-sidebar-accent/40 transition-all text-left"
+                className={[
+                  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 transition-all text-left",
+                  isLocked
+                    ? "cursor-not-allowed"
+                    : "hover:text-foreground/70 hover:bg-sidebar-accent/40",
+                ].join(" ")}
               >
                 <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                   <CIcon className="h-3.5 w-3.5" />
@@ -248,6 +257,7 @@ function HoverFlyout({
               </button>
             );
           }
+
 
           return (
             <Link
@@ -296,7 +306,7 @@ function InlineSubmenu({
   currentPath: string;
   onNavigate?: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } = useAuth();
   return (
     <div className="mt-1 ml-9 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
       {items.map((item) => {
@@ -304,6 +314,7 @@ function InlineSubmenu({
         const CIcon = item.icon;
         const enabled = !item.permKey || isFeatureEnabled(item.permKey);
         const access = item.permKey ? featureAccess[item.permKey] : undefined;
+        const mode = item.permKey ? getFeatureMode(item.permKey) : "open";
         const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
         const trialBadge =
           enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
@@ -311,15 +322,23 @@ function InlineSubmenu({
             : null;
 
         if (!enabled) {
+          const isLocked = mode === "lock";
           return (
             <button
               key={item.url}
               type="button"
+              disabled={isLocked}
               onClick={() => {
+                if (isLocked) return;
                 openUpgradePrompt(item.permKey);
                 onNavigate?.();
               }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 hover:text-foreground/70 hover:bg-sidebar-accent/40 transition-all text-left"
+              className={[
+                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 transition-all text-left",
+                isLocked
+                  ? "cursor-not-allowed"
+                  : "hover:text-foreground/70 hover:bg-sidebar-accent/40",
+              ].join(" ")}
             >
               <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                 <CIcon className="h-3.5 w-3.5" />
@@ -329,6 +348,7 @@ function InlineSubmenu({
             </button>
           );
         }
+
 
         return (
           <Link
