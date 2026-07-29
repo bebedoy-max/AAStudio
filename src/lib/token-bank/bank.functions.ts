@@ -342,6 +342,7 @@ export const setBankPrice = createServerFn({ method: "POST" })
 async function deliverKeysToUser(params: {
   provider: BankProvider;
   qty: number;
+  ids?: string[]; // when provided, use these specific bank_key ids (must all be available)
   targetUserId: string;
   actorUserId: string;
   kind: "transfer" | "purchase";
@@ -354,18 +355,23 @@ async function deliverKeysToUser(params: {
 
   // Read stock via the caller's admin session — the admin has full RLS
   // access to token_bank_keys (policy: admin-all), so no service role needed.
-  const { data: keys, error: kErr } = await adminDb
+  let pickQ = adminDb
     .from("token_bank_keys")
     .select("id, key_value")
     .eq("provider", params.provider)
-    .eq("status", "available")
-    .order("created_at", { ascending: true })
-    .limit(params.qty);
+    .eq("status", "available");
+  if (params.ids && params.ids.length > 0) {
+    pickQ = pickQ.in("id", params.ids);
+  } else {
+    pickQ = pickQ.order("created_at", { ascending: true }).limit(params.qty);
+  }
+  const { data: keys, error: kErr } = await pickQ;
   if (kErr) throw new Error(kErr.message);
   const picked = (keys ?? []) as { id: string; key_value: string }[];
-  if (picked.length < params.qty) {
+  const need = params.ids && params.ids.length > 0 ? params.ids.length : params.qty;
+  if (picked.length < need) {
     throw new Error(
-      `Stok tidak cukup: butuh ${params.qty}, tersedia ${picked.length} untuk ${params.provider}`,
+      `Stok tidak cukup: butuh ${need}, tersedia ${picked.length} untuk ${params.provider}`,
     );
   }
 
@@ -419,7 +425,8 @@ async function deliverKeysToUser(params: {
     .in("id", ids);
   if (mkErr) throw new Error(mkErr.message);
 
-  const perKeyPrice = params.qty > 0 ? Math.round(params.priceIdr / params.qty) : 0;
+  const denom = params.ids && params.ids.length > 0 ? params.ids.length : params.qty;
+  const perKeyPrice = denom > 0 ? Math.round(params.priceIdr / denom) : 0;
   const txRows = picked.map((k) => ({
     key_id: k.id,
     provider: params.provider,
@@ -454,6 +461,54 @@ export const transferBankKeys = createServerFn({ method: "POST" })
       priceIdr: 0,
       adminDb: context.supabase as unknown as LooseClient,
     });
+  });
+
+/** Transfer specific bank_key rows (by id) to a target user. Groups by provider automatically. */
+export const transferBankKeysByIds = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { ids: string[]; targetUserId: string }) => {
+    if (!data.targetUserId) throw new Error("targetUserId required");
+    const ids = Array.from(new Set((data.ids ?? []).map((s) => String(s).trim()).filter(Boolean)));
+    if (ids.length === 0) throw new Error("ids required");
+    return { ids, targetUserId: data.targetUserId };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    const { data: rows, error } = await db
+      .from("token_bank_keys")
+      .select("id, provider, status")
+      .in("id", data.ids);
+    if (error) throw new Error(error.message);
+    const list = (rows ?? []) as { id: string; provider: BankProvider; status: string }[];
+    const notAvail = list.filter((r) => r.status !== "available");
+    if (notAvail.length > 0) {
+      throw new Error(`${notAvail.length} key sudah tidak available — refresh dulu.`);
+    }
+    if (list.length !== data.ids.length) {
+      throw new Error("Sebagian key tidak ditemukan.");
+    }
+    const byProvider = new Map<BankProvider, string[]>();
+    for (const r of list) {
+      const arr = byProvider.get(r.provider) ?? [];
+      arr.push(r.id);
+      byProvider.set(r.provider, arr);
+    }
+    let delivered = 0;
+    for (const [provider, ids] of byProvider.entries()) {
+      const r = await deliverKeysToUser({
+        provider,
+        qty: ids.length,
+        ids,
+        targetUserId: data.targetUserId,
+        actorUserId: context.userId,
+        kind: "transfer",
+        priceIdr: 0,
+        adminDb: db,
+      });
+      delivered += r.delivered;
+    }
+    return { ok: true, delivered };
   });
 
 const CART_MARKER = "[TOKEN_BANK_CART]";

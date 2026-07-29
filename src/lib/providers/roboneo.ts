@@ -876,7 +876,11 @@ export async function pollRoboneoTask(opts: {
 
 /** Detect if an error looks like an auth/credit failure worth rotating tokens for. */
 export function isRoboneoRotatableError(msg: string): boolean {
-  return /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL/i.test(msg);
+  return (
+    /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL|CHARGE_FAILED|charge.?failed|payment.?required|余额不足|余额不够|积分不足|账户余额|欠费|VIP|会员/i.test(
+      msg,
+    )
+  );
 }
 
 /**

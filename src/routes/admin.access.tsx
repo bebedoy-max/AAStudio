@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, ALL_ROUTE_KEYS, type FeatureAccessMode } from "@/lib/auth-context";
+import { useAuth, type FeatureAccessMode, normalizeFeatureAccessMode as normalizeMode } from "@/lib/auth-context";
+import { MENU_CATALOG } from "@/lib/menu-catalog";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, Globe, Lock, Clock, LifeBuoy } from "lucide-react";
+import { Loader2, ShieldCheck, Save, Globe, Lock, Clock, LifeBuoy, EyeOff, Sparkles, Ban } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/access")({
@@ -27,7 +28,7 @@ function AdminAccessPage() {
         eyebrow="Admin"
         title="Pengaturan"
         highlight="Halaman"
-        desc="Tentukan menu mana yang terbuka untuk umum, wajib berlangganan, atau trial sampai tanggal tertentu. User baru tetap melihat semua menu — hanya status enabled/disabled yang berbeda."
+        desc="Atur status tiap menu aplikasi: Open (umum), Premium (berbayar), Trial (uji coba), Lock (nonaktif), atau Hide (sembunyi). Menu baru otomatis muncul di sini dengan default Hide."
       />
       <Gate />
     </DashboardShell>
@@ -85,15 +86,15 @@ function AccessBody() {
     ]);
 
     const settings: Record<string, Draft> = {};
-    ((access ?? []) as { route_key: string; access_mode: FeatureAccessMode; trial_until: string | null }[]).forEach(
+    ((access ?? []) as { route_key: string; access_mode: string; trial_until: string | null }[]).forEach(
       (r) => {
-        settings[r.route_key] = { mode: r.access_mode, trialUntil: r.trial_until };
+        settings[r.route_key] = { mode: normalizeMode(r.access_mode), trialUntil: r.trial_until };
       },
     );
-    // default any unconfigured feature to "subscription"
+    // default menu yang belum di-set = "hide"
     const full: Record<string, Draft> = {};
-    ALL_ROUTE_KEYS.forEach((f) => {
-      full[f.key] = settings[f.key] ?? { mode: "subscription", trialUntil: null };
+    MENU_CATALOG.forEach((f) => {
+      full[f.key] = settings[f.key] ?? { mode: "hide", trialUntil: null };
     });
 
     const priceMap: Record<string, number> = {};
@@ -112,8 +113,8 @@ function AccessBody() {
   }, []);
 
   const groups = useMemo(() => {
-    const byGroup: Record<string, typeof ALL_ROUTE_KEYS> = {};
-    ALL_ROUTE_KEYS.forEach((f) => {
+    const byGroup: Record<string, typeof MENU_CATALOG> = {};
+    MENU_CATALOG.forEach((f) => {
       (byGroup[f.group] ||= []).push(f);
     });
     return byGroup;
@@ -135,7 +136,7 @@ function AccessBody() {
   }
 
   async function save(key: string) {
-    const label = ALL_ROUTE_KEYS.find((f) => f.key === key)?.label ?? key;
+    const label = MENU_CATALOG.find((f) => f.key === key)?.label ?? key;
     const draft = drafts[key];
     setSaving(key);
     const { error } = await supabase.from("feature_access" as never).upsert(
@@ -154,9 +155,11 @@ function AccessBody() {
   }
 
   const MODES: { value: FeatureAccessMode; label: string; icon: typeof Globe; hint: string }[] = [
-    { value: "public", label: "Umum", icon: Globe, hint: "Terbuka gratis untuk semua user" },
-    { value: "subscription", label: "Langganan", icon: Lock, hint: "Wajib berlangganan / beli" },
-    { value: "trial", label: "Trial", icon: Clock, hint: "Terbuka sampai tanggal tertentu" },
+    { value: "open", label: "Open", icon: Globe, hint: "Terbuka gratis untuk semua user" },
+    { value: "premium", label: "Premium", icon: Sparkles, hint: "Fitur berbayar — user harus beli/berlangganan" },
+    { value: "trial", label: "Trial", icon: Clock, hint: "Uji coba sampai tanggal tertentu" },
+    { value: "lock", label: "Lock", icon: Ban, hint: "Muncul di navigasi tapi dinonaktifkan" },
+    { value: "hide", label: "Hide", icon: EyeOff, hint: "Sembunyikan dari navigasi user" },
   ];
 
   if (loading)
