@@ -3,7 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, PrimaryButton, GhostButton, Input } from "@/components/dashboard/ui";
+<<<<<<< HEAD
 import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft, Eye, EyeOff, Plus } from "lucide-react";
+=======
+import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft, Eye, EyeOff } from "lucide-react";
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
@@ -90,7 +94,10 @@ function Body() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+<<<<<<< HEAD
   const [addOpen, setAddOpen] = useState(false);
+=======
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
   const [checkStates, setCheckStates] = useState<Record<string, CheckState>>({});
   const [checking, setChecking] = useState(false);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
@@ -240,9 +247,12 @@ function Body() {
           <GhostButton onClick={load} disabled={loading || busy}>
             <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
           </GhostButton>
+<<<<<<< HEAD
           <PrimaryButton onClick={() => setAddOpen(true)} disabled={busy}>
             <Plus className="h-3.5 w-3.5" /> Tambah Key
           </PrimaryButton>
+=======
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
         </div>
 
         {/* Provider summary chips */}
@@ -415,6 +425,7 @@ function Body() {
           onDone={async () => {
             setTransferOpen(false);
             await load();
+<<<<<<< HEAD
           }}
         />
       )}
@@ -426,6 +437,8 @@ function Body() {
           onDone={async () => {
             setAddOpen(false);
             await load();
+=======
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
           }}
         />
       )}
@@ -508,6 +521,7 @@ function TransferDialog({
       onDone();
     } catch (e) {
       toast.error("Gagal transfer: " + (e instanceof Error ? e.message : ""));
+<<<<<<< HEAD
     } finally {
       setSending(false);
     }
@@ -699,13 +713,16 @@ function AddKeysDialog({
       onDone();
     } catch (e) {
       toast.error("Gagal menambah: " + (e instanceof Error ? e.message : ""));
+=======
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
     } finally {
-      setBusy(false);
+      setSending(false);
     }
   }
 
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+<<<<<<< HEAD
       <div
         onClick={(e) => e.stopPropagation()}
         className="neumorph w-full max-w-md p-5 relative"
@@ -774,9 +791,150 @@ function AddKeysDialog({
           <PrimaryButton onClick={submit} disabled={busy || keys.length === 0}>
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
             Simpan ({keys.length})
+=======
+      <div onClick={(e) => e.stopPropagation()} className="neumorph w-full max-w-md p-5 relative" style={{ background: "var(--gradient-card, hsl(var(--card)))" }}>
+        <button onClick={onClose} className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full border border-border bg-card">
+          <X className="h-4 w-4" />
+        </button>
+        <div className="font-display text-lg mb-1">Kirim {selectedIds.length} key</div>
+        <div className="text-xs text-muted-foreground mb-4">Cari user berdasarkan email atau nama.</div>
+
+        <div className="relative">
+          <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setTarget(null); }} placeholder="email@domain.com / nama…" className="pl-8" />
+        </div>
+
+        {q.trim().length >= 2 && (
+          <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-border/60 bg-card/40 divide-y divide-border/40">
+            {searching ? (
+              <div className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" /> Mencari…</div>
+            ) : results.length === 0 ? (
+              <div className="p-3 text-xs text-muted-foreground">Tidak ada hasil.</div>
+            ) : (
+              results.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => setTarget(u)}
+                  className={
+                    "w-full text-left px-3 py-2 text-sm transition " +
+                    (target?.id === u.id ? "bg-primary/10 text-foreground" : "hover:bg-sidebar-accent/30")
+                  }
+                >
+                  <div className="font-medium">{u.display_name || "—"}</div>
+                  <div className="text-xs text-muted-foreground">{u.email}</div>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+
+        {target && (
+          <div className="mt-3 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs">
+            Target: <b>{target.display_name || target.email}</b>
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <GhostButton onClick={onClose} disabled={sending}>Batal</GhostButton>
+          <PrimaryButton onClick={send} disabled={!target || sending}>
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Kirim
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
           </PrimaryButton>
         </div>
       </div>
     </div>
   );
+<<<<<<< HEAD
+=======
+}
+
+type CheckState =
+  | { status: "pending" }
+  | { status: "checking" }
+  | { status: "ok"; detail: string }
+  | { status: "warn"; detail: string }
+  | { status: "fail"; detail: string };
+
+async function checkOne(provider: BankProvider, key: string): Promise<CheckState> {
+  try {
+    switch (provider) {
+      case "brain": {
+        const r = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+          { headers: { "x-goog-api-key": key } },
+        );
+        if (r.ok) {
+          const d = (await r.json().catch(() => ({}))) as { models?: unknown[] };
+          const n = Array.isArray(d.models) ? d.models.length : 0;
+          return { status: "ok", detail: n > 0 ? `Valid · ${n}+ model` : "Valid" };
+        }
+        if (r.status === 429) return { status: "warn", detail: "429 · rate-limit / quota" };
+        if (r.status === 401 || r.status === 403 || r.status === 400)
+          return { status: "fail", detail: `${r.status} · key ditolak` };
+        return { status: "fail", detail: `HTTP ${r.status}` };
+      }
+      case "weavy": {
+        const r = await checkWeavyToken(key);
+        if (!r.ok) return { status: "fail", detail: "Refresh gagal / expired" };
+        const cr = r.credits;
+        const email = r.email ? ` · ${r.email}` : "";
+        if (cr === null) return { status: "warn", detail: `Credits: —${email}` };
+        return {
+          status: cr > 0 ? "ok" : "warn",
+          detail: `${cr} credits${email}`,
+        };
+      }
+      case "wavespeed": {
+        const r = await checkWavespeedBalance(key);
+        if (!r.ok) return { status: "fail", detail: "Key ditolak" };
+        if (r.balance === null) return { status: "warn", detail: "Balance —" };
+        return { status: r.balance > 0 ? "ok" : "warn", detail: `$${r.balance}` };
+      }
+      case "magnific": {
+        // No safe probe — treat as unknown.
+        return { status: "warn", detail: "Tidak dapat dicek (endpoint konsumsi credit)" };
+      }
+      case "framia": {
+        const chk = await checkFramiaToken(key);
+        if (!chk.ok) return { status: "fail", detail: chk.message || "Token tidak valid" };
+        const bal = await fetchFramiaBalance(key).catch(() => null);
+        const exp = chk.expiresAt ? ` · exp ${new Date(chk.expiresAt).toLocaleDateString("id-ID")}` : "";
+        const email = chk.email ? ` · ${chk.email}` : "";
+        const b = bal && bal.ok ? ` · ${bal.balance ?? "—"} cr` : "";
+        return { status: "ok", detail: `Valid${b}${email}${exp}` };
+      }
+      case "roboneo": {
+        const r = await fetchRoboneoBalance(key);
+        if (!r.ok) return { status: "fail", detail: r.message || "Token tidak valid / expired" };
+        if (r.balance === null) return { status: "warn", detail: "Credit tidak terbaca" };
+        return {
+          status: r.balance > 0 ? "ok" : "warn",
+          detail: `${r.balance.toLocaleString("id-ID")} credit`,
+        };
+      }
+      case "eleven": {
+        const r = await checkElevenKey(key);
+        if (!r.ok) return { status: "fail", detail: "Key ditolak / gagal" };
+        const rem = r.remaining ?? Math.max(0, r.characterLimit - r.characterCount);
+        return {
+          status: rem > 0 ? "ok" : "warn",
+          detail: `${rem.toLocaleString("id-ID")} char sisa${r.tier ? ` · ${r.tier}` : ""}`,
+        };
+      }
+      case "shotstack":
+      case "creatomate":
+        return { status: "warn", detail: "Cek otomatis belum didukung untuk provider ini" };
+    }
+  } catch (e) {
+    return { status: "fail", detail: (e as Error).message || "error" };
+  }
+}
+
+function StatusIcon({ state }: { state: CheckState["status"] }) {
+  if (state === "ok") return <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />;
+  if (state === "warn") return <AlertTriangle className="h-4 w-4 text-amber-300 shrink-0" />;
+  if (state === "fail") return <XCircle className="h-4 w-4 text-rose-400 shrink-0" />;
+  if (state === "checking") return <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />;
+  return <div className="h-4 w-4 rounded-full border border-border shrink-0" />;
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
 }

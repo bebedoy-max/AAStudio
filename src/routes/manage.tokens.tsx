@@ -1646,6 +1646,7 @@ function ProviderKeyPane({
 
   return (
     <>
+<<<<<<< HEAD
       <Textarea
         rows={5}
         value={bulk}
@@ -1653,6 +1654,19 @@ function ProviderKeyPane({
         placeholder={bulkPlaceholder}
         className="font-mono text-xs"
       />
+=======
+      <div className="flex flex-wrap items-center gap-2 justify-end">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span>Active: <b className="text-emerald-400">{activeCount}</b>/{list.length}</span>
+          {provider === "wavespeed" && (
+            <span>Total: <b className="text-emerald-400">${total.toFixed(2)}</b></span>
+          )}
+          {provider === "roboneo" && (
+            <span>Total credit: <b className="text-emerald-400">{total.toLocaleString()} cr</b></span>
+          )}
+        </div>
+      </div>
+>>>>>>> 3ab5c35d47275214524a853a1d7cbd0e487c1fcd
 
 
       <div className="flex gap-2 flex-wrap">
