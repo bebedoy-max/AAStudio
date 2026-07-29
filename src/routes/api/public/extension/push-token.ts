@@ -9,6 +9,7 @@ import { createFileRoute } from "@tanstack/react-router";
 const PROVIDER_KEYS: Record<string, string> = {
   framia: "aatools.framia.keys",
   leonardo: "aatools.leonardo.keys",
+  firefly: "aatools.firefly.keys",
 };
 
 function cors(res: Response) {

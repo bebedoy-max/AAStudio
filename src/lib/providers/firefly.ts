@@ -15,7 +15,9 @@ import { pushTokenAsync } from "@/lib/tokens/sync";
 export const LS_FIREFLY_KEYS = "aatools.firefly.keys";
 export const FIREFLY_API = "https://firefly.adobe.io";
 export const FIREFLY_3P_API = "https://firefly-3p.ff.adobe.io";
+export const FIREFLY_STORAGE_API = "https://firefly.adobe.io";
 export const FIREFLY_DEFAULT_API_KEY = "SunbreakWebUI1";
+export const FIREFLY_PLAYGROUND_API_KEY = "clio-playground-web";
 
 export type FireflyKey = {
   id: string;
@@ -51,7 +53,26 @@ export function getFirstFireflyKey(): string | null {
 }
 
 export function getFireflyAccountId(token: string): string | undefined {
-  return readList().find((x) => x.key === token)?.accountId;
+  return readList().find((x) => x.key === token)?.accountId || deriveFireflyAccountId(token);
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const raw = token.replace(/^Bearer\s+/i, "");
+  const part = raw.split(".")[1];
+  if (!part || typeof window === "undefined") return null;
+  try {
+    const normalized = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    return JSON.parse(atob(padded)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function deriveFireflyAccountId(token: string): string | undefined {
+  const payload = decodeJwtPayload(token);
+  const candidate = payload?.aa_id || payload?.user_id;
+  return typeof candidate === "string" && candidate.includes("@AdobeID") ? candidate : undefined;
 }
 
 export function markFireflyKeyFailed(token: string, reason: string) {
@@ -80,6 +101,8 @@ export async function fireflyFetch<T = unknown>(opts: {
   url: string;
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
+  bodyBase64?: string;
+  contentType?: string;
   accountId?: string;
   apiKey?: string;
   headers?: Record<string, string>;
@@ -88,6 +111,7 @@ export async function fireflyFetch<T = unknown>(opts: {
     "Content-Type": "application/json",
     "X-Firefly-Token": opts.token,
     "X-Firefly-Api-Key": opts.apiKey || FIREFLY_DEFAULT_API_KEY,
+    "X-Firefly-Nonce": crypto.randomUUID().replace(/-/g, ""),
   };
   const acc = opts.accountId ?? getFireflyAccountId(opts.token);
   if (acc) headers["X-Firefly-Account"] = acc;
@@ -99,10 +123,83 @@ export async function fireflyFetch<T = unknown>(opts: {
       url: opts.url,
       method: opts.method,
       body: opts.body,
+      bodyBase64: opts.bodyBase64,
+      contentType: opts.contentType,
       headers: opts.headers,
     }),
   });
   return (await r.json()) as ProxyResult<T>;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      resolve(result.includes(",") ? result.split(",")[1] || "" : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("Firefly upload: gagal membaca file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function fireflyVideoSize(ratio: string): { width: number; height: number } {
+  if (ratio === "9:16") return { width: 720, height: 1280 };
+  if (ratio === "1:1") return { width: 1024, height: 1024 };
+  if (ratio === "4:5") return { width: 864, height: 1080 };
+  if (ratio === "3:4") return { width: 960, height: 1280 };
+  return { width: 1280, height: 720 };
+}
+
+function randomHex(bytes = 32): string {
+  const values = new Uint8Array(bytes);
+  crypto.getRandomValues(values);
+  return Array.from(values, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function randomSeed(): number {
+  const values = new Uint32Array(1);
+  crypto.getRandomValues(values);
+  return (values[0] || Date.now()) % 1_000_000;
+}
+
+function makeFireflySessionHeader(): string {
+  return btoa(
+    JSON.stringify({
+      sid: crypto.randomUUID(),
+      bfp: crypto.randomUUID(),
+      ftr: `${randomHex(16)}_${Date.now()}__UDF43-m4_31ck_FOG8LhAY6h8=-339-v2_tt`,
+    }),
+  );
+}
+
+type FireflyUploadResponse = { images?: Array<{ id?: string }>; id?: string };
+
+async function uploadFireflyImage(opts: {
+  token: string;
+  file: File;
+  accountId?: string;
+  sessionId: string;
+}): Promise<string> {
+  const bodyBase64 = await fileToBase64(opts.file);
+  const res = await fireflyFetch<FireflyUploadResponse>({
+    token: opts.token,
+    url: `${FIREFLY_STORAGE_API}/v2/storage/image`,
+    method: "POST",
+    bodyBase64,
+    contentType: opts.file.type || "image/jpeg",
+    accountId: opts.accountId,
+    apiKey: FIREFLY_PLAYGROUND_API_KEY,
+    headers: {
+      Accept: "application/json, text/plain, */*",
+      "x-arp-session-id": opts.sessionId,
+    },
+  });
+  const id = res.data?.images?.[0]?.id || res.data?.id;
+  if (!res.ok || !id) {
+    throw new Error(`Firefly upload gagal (${res.status}): ${res.raw || JSON.stringify(res.data)?.slice(0, 200) || res.error || ""}`);
+  }
+  return id;
 }
 
 /* --------------------------------- balance --------------------------------- */
@@ -313,6 +410,7 @@ async function pollFirefly(opts: {
   token: string;
   statusUrl: string;
   accountId?: string;
+  sessionId?: string;
   timeoutMs?: number;
   onProgress?: (msg: string, pct?: number) => void;
 }): Promise<string> {
@@ -326,6 +424,8 @@ async function pollFirefly(opts: {
       url: opts.statusUrl,
       method: "GET",
       accountId: opts.accountId,
+      apiKey: opts.sessionId ? FIREFLY_PLAYGROUND_API_KEY : undefined,
+      headers: opts.sessionId ? { "x-arp-session-id": opts.sessionId } : undefined,
     });
     const st = res.data || {};
     const state = (st.status || "").toLowerCase();
@@ -356,7 +456,9 @@ export type FireflyVideoOpts = {
   prompt: string;
   ratio: string;
   duration: number;
+  imageFile?: File;
   imageUrl?: string;
+  negativePrompt?: string;
   accountId?: string;
   onProgress?: (msg: string, pct?: number) => void;
 };
@@ -364,16 +466,32 @@ export type FireflyVideoOpts = {
 export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<string> {
   const model =
     FIREFLY_VIDEO_MODELS.find((m) => m.key === opts.modelKey) || FIREFLY_VIDEO_MODELS[0]!;
-  opts.onProgress?.("Firefly: submit job…", 10);
+  const sessionId = makeFireflySessionHeader();
+  const accountId = opts.accountId ?? getFireflyAccountId(opts.token);
+  opts.onProgress?.(opts.imageFile ? "Firefly: upload reference…" : "Firefly: submit job…", 10);
+
+  const referenceId = opts.imageFile
+    ? await uploadFireflyImage({ token: opts.token, file: opts.imageFile, accountId, sessionId })
+    : null;
+
+  opts.onProgress?.("Firefly: submit job…", 18);
 
   const payload: Record<string, unknown> = {
     modelId: model.modelId,
     modelVersion: model.modelVersion,
+    size: fireflyVideoSize(opts.ratio || "16:9"),
+    seeds: [randomSeed()],
+    ...(referenceId ? { referenceBlobs: [{ id: referenceId, usage: "frame", order: 1 }] } : {}),
     prompt: opts.prompt,
-    aspectRatio: opts.ratio || "16:9",
-    durationSeconds: opts.duration || 8,
-    numVariations: 1,
-    ...(opts.imageUrl ? { image: { source: { url: opts.imageUrl } } } : {}),
+    negativePrompt: opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic",
+    duration: opts.duration || 8,
+    generateAudio: false,
+    generationMetadata: {
+      module: "text2video",
+      submodule: "ff-video-generate",
+    },
+    output: { storeInputs: true },
+    ...(!referenceId && opts.imageUrl ? { image: { source: { url: opts.imageUrl } } } : {}),
   };
 
   const res = await fireflyFetch<AsyncSubmit>({
@@ -381,7 +499,13 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
     url: `${FIREFLY_3P_API}/v2/3p-videos/generate-async`,
     method: "POST",
     body: payload,
-    accountId: opts.accountId,
+    accountId,
+    apiKey: FIREFLY_PLAYGROUND_API_KEY,
+    headers: {
+      Accept: "*/*",
+      "x-arp-session-id": sessionId,
+      "x-nonce": randomHex(32),
+    },
   });
   if (!res.ok) {
     throw new Error(
@@ -397,7 +521,8 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
   return pollFirefly({
     token: opts.token,
     statusUrl,
-    accountId: opts.accountId,
+    accountId,
+    sessionId,
     onProgress: opts.onProgress,
   });
 }

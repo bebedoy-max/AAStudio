@@ -5,7 +5,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const ALLOWED_HOSTS = ["firefly.adobe.io", "firefly-3p.ff.adobe.io", "firefly-api.adobe.io"];
 const FIREFLY_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0";
 
 function cors(extra: Record<string, string> = {}): Record<string, string> {
   return {
@@ -23,6 +23,8 @@ type Body = {
   url: string; // absolute Firefly URL
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
+  bodyBase64?: string;
+  contentType?: string;
   headers?: Record<string, string>;
 };
 
@@ -36,7 +38,7 @@ export const Route = createFileRoute("/api/public/firefly")({
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers":
-              "Content-Type, X-Firefly-Token, X-Firefly-Api-Key, X-Firefly-Account, X-Firefly-Session",
+              "Content-Type, X-Firefly-Token, X-Firefly-Api-Key, X-Firefly-Account, X-Firefly-Session, X-Firefly-Nonce",
           },
         }),
       POST: async ({ request }) => {
@@ -46,6 +48,7 @@ export const Route = createFileRoute("/api/public/firefly")({
         const apiKey = request.headers.get("x-firefly-api-key") || "SunbreakWebUI1";
         const accountId = request.headers.get("x-firefly-account") || "";
         const sessionId = request.headers.get("x-firefly-session") || crypto.randomUUID();
+        const nonce = request.headers.get("x-firefly-nonce") || "";
 
         const body = (await request.json().catch(() => null)) as Body | null;
         if (!body?.url) return json({ ok: false, error: "url required" }, 400);
@@ -65,21 +68,31 @@ export const Route = createFileRoute("/api/public/firefly")({
           Authorization: token.startsWith("Bearer ") ? token : `Bearer ${token}`,
           "x-api-key": apiKey,
           "x-arp-session-id": sessionId,
+          ...(nonce ? { "x-nonce": nonce } : {}),
           Origin: "https://firefly.adobe.com",
           Referer: "https://firefly.adobe.com/",
           "User-Agent": FIREFLY_UA,
           ...(accountId ? { "x-account-id": accountId } : {}),
           ...(body.headers || {}),
         };
-        const method = body.method || (body.body ? "POST" : "GET");
-        if (body.body !== undefined) headers["Content-Type"] = "application/json";
+        const method = body.method || (body.body !== undefined || body.bodyBase64 !== undefined ? "POST" : "GET");
+        if (body.bodyBase64 !== undefined) headers["Content-Type"] = body.contentType || "application/octet-stream";
+        else if (body.body !== undefined) headers["Content-Type"] = body.contentType || "application/json";
+
+        let requestBody: BodyInit | undefined;
+        if (body.bodyBase64 !== undefined) {
+          const binary = atob(body.bodyBase64);
+          requestBody = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+        } else if (body.body !== undefined) {
+          requestBody = JSON.stringify(body.body);
+        }
 
         let upstream: Response;
         try {
           upstream = await fetch(target.toString(), {
             method,
             headers,
-            body: body.body !== undefined ? JSON.stringify(body.body) : undefined,
+            body: requestBody,
           });
         } catch (e) {
           return json({ ok: false, status: 0, error: (e as Error).message }, 200);

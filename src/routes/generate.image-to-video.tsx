@@ -360,14 +360,24 @@ function ImageToVideo() {
 
 
   const [imgFile, setImgFile] = useSticky<File | null>("i2v.imgFile", null);
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
   const [results, setResults] = useSticky<string[]>("i2v.results", []);
 
 
   const onFile = (files: FileList | null) => {
     const f = files?.[0];
     if (f) {
-      setImg(URL.createObjectURL(f));
+      const url = URL.createObjectURL(f);
+      setImg(url);
       setImgFile(f);
+      setImgAspect(null);
+      const probe = new Image();
+      probe.onload = () => {
+        if (probe.naturalWidth && probe.naturalHeight) {
+          setImgAspect(probe.naturalWidth / probe.naturalHeight);
+        }
+      };
+      probe.src = url;
     }
   };
 
@@ -467,8 +477,21 @@ function ImageToVideo() {
               </div>
             </button>
           ) : (
-            <div className="relative aspect-[9/16] rounded-2xl overflow-hidden border border-border">
-              <img src={img} alt="" className="w-full h-full object-cover" />
+            <div
+              className="relative rounded-2xl overflow-hidden border border-border bg-black/30 mx-auto max-w-full"
+              style={{ aspectRatio: imgAspect ?? 9 / 16 }}
+            >
+              <img
+                src={img}
+                alt=""
+                className="w-full h-full object-contain"
+                onLoad={(e) => {
+                  const t = e.currentTarget;
+                  if (t.naturalWidth && t.naturalHeight) {
+                    setImgAspect(t.naturalWidth / t.naturalHeight);
+                  }
+                }}
+              />
               <button onClick={() => imgInput.current?.click()} className="absolute top-2 right-2 rounded-full px-2 md:px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
                 <RefreshCw className="h-3 w-3" /> <span className="hidden md:inline">Ganti</span>
               </button>
@@ -479,9 +502,13 @@ function ImageToVideo() {
         <div className="lg:col-span-2">
           <Card title="⚙️ Pengaturan">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Field label="Model AI" right={<ProviderActivePill cap="video" />}>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 flex-wrap min-h-[20px]">
+                  <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Model AI</label>
+                  <ProviderActivePill cap="video" />
+                </div>
                 <Select value={model} onChange={(e) => setModel(e.target.value)} options={models.map((m) => ({ value: m.value, label: `${m.label} — ${m.cr} cr` }))} />
-              </Field>
+              </div>
               <Field label="Aspek Rasio">
                 <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
               </Field>

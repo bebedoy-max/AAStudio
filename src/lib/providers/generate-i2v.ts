@@ -58,6 +58,7 @@ export type I2VOpts = {
   ratio: string;
   duration: number; // seconds, 5 / 10 / 12
   prompt: string;
+  negativePrompt?: string;
   resolution?: string;   // roboneo seedance-pro: "480p" | "720p" | "1080p"
   sizeTier?: string;     // leonardo: "standard" | "quality" | "hd" | "highQuality" | "fullHd" | "4k"
   sound?: "on" | "off";  // roboneo kling-v26: sound track on/off
@@ -83,6 +84,7 @@ async function runWavespeedI2V(opts: I2VOpts): Promise<string> {
   const data = await wsPost(modelId, {
     image: imageUrl,
     prompt: opts.prompt,
+        negativePrompt: opts.negativePrompt,
     duration: opts.duration,
     aspect_ratio: opts.ratio,
   }, key);
@@ -230,17 +232,16 @@ async function runFireflyI2V(opts: I2VOpts): Promise<string> {
   const { generateFireflyVideo, runFireflyWithRotation } = await import("./firefly");
   opts.onProgress?.("Normalisasi image…", 5);
   const normalized = await normalizeImage(opts.imageFile);
-  opts.onProgress?.("Upload image ke public host…", 10);
-  const imageUrl = await uploadPublicWithRetry(normalized, `ff_i2v_${Date.now()}.jpg`);
   return runFireflyWithRotation(
     (token) =>
       generateFireflyVideo({
         token,
         modelKey: opts.modelKey,
         prompt: opts.prompt,
+        negativePrompt: opts.negativePrompt,
         ratio: opts.ratio,
         duration: opts.duration,
-        imageUrl,
+        imageFile: normalized,
         onProgress: opts.onProgress,
       }),
     (i, total, reason) =>
