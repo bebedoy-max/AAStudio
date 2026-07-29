@@ -38,7 +38,7 @@ export const Route = createFileRoute("/api/public/firefly")({
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers":
-              "Content-Type, X-Firefly-Token, X-Firefly-Api-Key, X-Firefly-Account, X-Firefly-Session, X-Firefly-Nonce",
+              "Content-Type, X-Firefly-Token, X-Firefly-Api-Key, X-Firefly-Account, X-Firefly-Session, X-Firefly-Nonce, X-Firefly-Url, X-Firefly-Content-Type",
           },
         }),
       POST: async ({ request }) => {
@@ -50,7 +50,23 @@ export const Route = createFileRoute("/api/public/firefly")({
         const sessionId = request.headers.get("x-firefly-session") || crypto.randomUUID();
         const nonce = request.headers.get("x-firefly-nonce") || "";
 
-        const body = (await request.json().catch(() => null)) as Body | null;
+        // Two transport modes:
+        //  1. JSON envelope  { url, method, body|bodyBase64, ... }
+        //  2. Raw binary body + X-Firefly-Url header (used for image uploads so
+        //     we avoid the +33% base64 blow-up that trips gateway body limits).
+        const rawUrl = request.headers.get("x-firefly-url") || "";
+        let body: Body | null;
+        let rawBinary: ArrayBuffer | null = null;
+        if (rawUrl) {
+          rawBinary = await request.arrayBuffer();
+          body = {
+            url: rawUrl,
+            method: "POST",
+            contentType: request.headers.get("x-firefly-content-type") || "application/octet-stream",
+          };
+        } else {
+          body = (await request.json().catch(() => null)) as Body | null;
+        }
         if (!body?.url) return json({ ok: false, error: "url required" }, 400);
 
         let target: URL;
@@ -75,12 +91,16 @@ export const Route = createFileRoute("/api/public/firefly")({
           ...(accountId ? { "x-account-id": accountId } : {}),
           ...(body.headers || {}),
         };
-        const method = body.method || (body.body !== undefined || body.bodyBase64 !== undefined ? "POST" : "GET");
-        if (body.bodyBase64 !== undefined) headers["Content-Type"] = body.contentType || "application/octet-stream";
+        const method =
+          body.method || (body.body !== undefined || body.bodyBase64 !== undefined || rawBinary ? "POST" : "GET");
+        if (rawBinary) headers["Content-Type"] = body.contentType || "application/octet-stream";
+        else if (body.bodyBase64 !== undefined) headers["Content-Type"] = body.contentType || "application/octet-stream";
         else if (body.body !== undefined) headers["Content-Type"] = body.contentType || "application/json";
 
         let requestBody: BodyInit | undefined;
-        if (body.bodyBase64 !== undefined) {
+        if (rawBinary) {
+          requestBody = rawBinary;
+        } else if (body.bodyBase64 !== undefined) {
           const binary = atob(body.bodyBase64);
           requestBody = Uint8Array.from(binary, (char) => char.charCodeAt(0));
         } else if (body.body !== undefined) {

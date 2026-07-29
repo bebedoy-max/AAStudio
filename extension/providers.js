@@ -35,6 +35,7 @@ self.AA_PROVIDERS = [
     openUrl: "https://app.leonardo.ai/",
     hint: "Login ke app.leonardo.ai lalu klik Ambil Token.",
     scoreKeys: /firebase|leonardo|cognito|access.?token|idToken|stsTokenManager/i,
+  },
   {
     id: "firefly",
     label: "Adobe Firefly",

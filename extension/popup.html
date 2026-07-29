@@ -45,13 +45,18 @@
 </div>
 
 <main id="tab-grab">
-  <label>Provider</label>
-  <select id="provider"></select>
-  <div class="status muted" id="provider-hint"></div>
+  <label>Provider terdeteksi (otomatis)</label>
+  <div class="toggle">
+    <div style="min-width:0;">
+      <div style="font-size:12px; font-weight:600;" id="detected">Mendeteksi tab aktif...</div>
+      <div style="font-size:10.5px; color:#8a8aa0;" id="provider-hint">—</div>
+    </div>
+    <span class="pill" id="detect-pill">—</span>
+  </div>
 
   <div class="row">
     <button id="open" title="Buka halaman login provider">Buka Situs</button>
-    <button id="grab" class="primary">Ambil Token</button>
+    <button id="grab" class="primary">Ambil Token Sekarang</button>
   </div>
 
   <label>JWT Token</label>

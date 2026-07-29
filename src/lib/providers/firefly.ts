@@ -15,7 +15,10 @@ import { pushTokenAsync } from "@/lib/tokens/sync";
 export const LS_FIREFLY_KEYS = "aatools.firefly.keys";
 export const FIREFLY_API = "https://firefly.adobe.io";
 export const FIREFLY_3P_API = "https://firefly-3p.ff.adobe.io";
-export const FIREFLY_STORAGE_API = "https://firefly.adobe.io";
+// The Firefly web client uploads reference images to the 3p host (verified in a
+// real capture); firefly.adobe.io also works but 3p keeps blob ids in the same
+// service that consumes them.
+export const FIREFLY_STORAGE_API = "https://firefly-3p.ff.adobe.io";
 export const FIREFLY_DEFAULT_API_KEY = "SunbreakWebUI1";
 export const FIREFLY_PLAYGROUND_API_KEY = "clio-playground-web";
 
@@ -89,6 +92,8 @@ export function markFireflyKeyFailed(token: string, reason: string) {
 }
 
 export function isFireflyRotatableError(msg: string): boolean {
+  // Capacity errors are not token problems — never rotate/mark the token failed.
+  if (/system under load|sedang penuh|408/i.test(msg)) return false;
   return /401|403|429|expired|unauthorized|insufficient|quota|credit/i.test(msg);
 }
 
@@ -128,19 +133,79 @@ export async function fireflyFetch<T = unknown>(opts: {
       headers: opts.headers,
     }),
   });
-  return (await r.json()) as ProxyResult<T>;
+  return parseProxyResponse<T>(r);
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      resolve(result.includes(",") ? result.split(",")[1] || "" : result);
+/** Proxy response may be non-JSON (gateway 413 / 502 HTML). Never let JSON.parse throw. */
+async function parseProxyResponse<T>(r: Response): Promise<ProxyResult<T>> {
+  const text = await r.text();
+  try {
+    return JSON.parse(text) as ProxyResult<T>;
+  } catch {
+    const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+    const tooLarge = r.status === 413 || /request entity too large|payload too large/i.test(snippet);
+    return {
+      ok: false,
+      status: r.status,
+      data: null,
+      error: tooLarge
+        ? "Gambar referensi terlalu besar untuk dikirim (413). Coba gambar lebih kecil."
+        : `Proxy Firefly balas non-JSON (HTTP ${r.status}): ${snippet || "kosong"}`,
     };
-    reader.onerror = () => reject(reader.error || new Error("Firefly upload: gagal membaca file"));
-    reader.readAsDataURL(file);
-  });
+  }
+}
+
+/** Upload binary straight to the proxy (no base64) to stay under gateway body limits. */
+async function fireflyUploadBinary<T = unknown>(opts: {
+  token: string;
+  url: string;
+  bytes: ArrayBuffer;
+  contentType: string;
+  accountId?: string;
+  apiKey?: string;
+  sessionId?: string;
+}): Promise<ProxyResult<T>> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/octet-stream",
+    "X-Firefly-Url": opts.url,
+    "X-Firefly-Content-Type": opts.contentType,
+    "X-Firefly-Token": opts.token,
+    "X-Firefly-Api-Key": opts.apiKey || FIREFLY_DEFAULT_API_KEY,
+    "X-Firefly-Nonce": crypto.randomUUID().replace(/-/g, ""),
+  };
+  if (opts.sessionId) headers["X-Firefly-Session"] = opts.sessionId;
+  const acc = opts.accountId ?? getFireflyAccountId(opts.token);
+  if (acc) headers["X-Firefly-Account"] = acc;
+
+  const r = await fetch("/api/public/firefly", { method: "POST", headers, body: opts.bytes });
+  return parseProxyResponse<T>(r);
+}
+
+/** Re-encode reference image to JPEG ≤1280px and ≤600 KB so the upload never
+ *  hits the gateway body limit (which returns plain-text "Request Entity Too Large"). */
+async function shrinkForFirefly(file: File): Promise<File> {
+  if (typeof document === "undefined") return file;
+  const { compressImage } = await import("./weavy");
+  let out = file;
+  const budget = 600 * 1024;
+  if (out.size <= budget && /jpe?g|png|webp/i.test(out.type)) {
+    if (out.size <= budget) return out;
+  }
+  const steps: Array<[number, number]> = [
+    [1280, 0.85],
+    [1152, 0.75],
+    [1024, 0.7],
+    [896, 0.6],
+  ];
+  for (const [w, q] of steps) {
+    try {
+      out = await compressImage(file, w, q);
+    } catch {
+      return out;
+    }
+    if (out.size <= budget) return out;
+  }
+  return out;
 }
 
 function fireflyVideoSize(ratio: string): { width: number; height: number } {
@@ -181,19 +246,16 @@ async function uploadFireflyImage(opts: {
   accountId?: string;
   sessionId: string;
 }): Promise<string> {
-  const bodyBase64 = await fileToBase64(opts.file);
-  const res = await fireflyFetch<FireflyUploadResponse>({
+  const small = await shrinkForFirefly(opts.file);
+  const bytes = await small.arrayBuffer();
+  const res = await fireflyUploadBinary<FireflyUploadResponse>({
     token: opts.token,
     url: `${FIREFLY_STORAGE_API}/v2/storage/image`,
-    method: "POST",
-    bodyBase64,
-    contentType: opts.file.type || "image/jpeg",
+    bytes,
+    contentType: small.type || "image/jpeg",
     accountId: opts.accountId,
     apiKey: FIREFLY_PLAYGROUND_API_KEY,
-    headers: {
-      Accept: "application/json, text/plain, */*",
-      "x-arp-session-id": opts.sessionId,
-    },
+    sessionId: opts.sessionId,
   });
   const id = res.data?.images?.[0]?.id || res.data?.id;
   if (!res.ok || !id) {
@@ -321,6 +383,14 @@ export type FireflyVideoModel = {
 };
 
 export const FIREFLY_VIDEO_MODELS: FireflyVideoModel[] = [
+  {
+    key: "ff:seedance:seedance_2.0",
+    label: "Seedance 2.0 (Firefly)",
+    modelId: "seedance",
+    modelVersion: "seedance_2.0",
+    cost: "~var / 15s",
+    durations: [5, 10, 15],
+  },
   {
     key: "ff:veo:3.1-fast-generate",
     label: "Veo 3.1 Fast (Firefly)",
@@ -476,40 +546,66 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
 
   opts.onProgress?.("Firefly: submit job…", 18);
 
+  // Model only accepts specific durations (Veo: 4/6/8s). Snap the UI value
+  // to the nearest supported one instead of sending e.g. 10s and failing.
+  const allowed = model.durations && model.durations.length ? model.durations : [8];
+  const wanted = opts.duration || 8;
+  const duration = allowed.reduce((a, b) => (Math.abs(b - wanted) < Math.abs(a - wanted) ? b : a), allowed[0]!);
+
   const payload: Record<string, unknown> = {
     modelId: model.modelId,
     modelVersion: model.modelVersion,
     size: fireflyVideoSize(opts.ratio || "16:9"),
     seeds: [randomSeed()],
-    ...(referenceId ? { referenceBlobs: [{ id: referenceId, usage: "frame", order: 1 }] } : {}),
+    // Firefly web client sends usage:"style" for the reference blob (verified
+    // against a real successful Seedance 2.0 capture).
+    ...(referenceId ? { referenceBlobs: [{ id: referenceId, usage: "style" }] } : {}),
     prompt: opts.prompt,
     negativePrompt: opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic",
-    duration: opts.duration || 8,
+    duration,
     generateAudio: false,
     generationMetadata: {
       module: "text2video",
       submodule: "ff-video-generate",
     },
+    generationSettings: { aspectRatio: opts.ratio || "16:9" },
     output: { storeInputs: true },
     ...(!referenceId && opts.imageUrl ? { image: { source: { url: opts.imageUrl } } } : {}),
   };
 
-  const res = await fireflyFetch<AsyncSubmit>({
+  // Firefly frequently answers 408 "system under load" / 429 on the first hits.
+  // Retry with backoff before surfacing an error to the user.
+  let res = await fireflyFetch<AsyncSubmit>({
     token: opts.token,
     url: `${FIREFLY_3P_API}/v2/3p-videos/generate-async`,
     method: "POST",
     body: payload,
     accountId,
     apiKey: FIREFLY_PLAYGROUND_API_KEY,
-    headers: {
-      Accept: "*/*",
-      "x-arp-session-id": sessionId,
-      "x-nonce": randomHex(32),
-    },
+    headers: { Accept: "*/*", "x-arp-session-id": sessionId, "x-nonce": randomHex(32) },
   });
+  const backoff = [6000, 12000, 20000, 30000, 45000];
+  for (let i = 0; i < backoff.length && !res.ok && [0, 408, 429, 500, 502, 503, 504].includes(res.status); i++) {
+    opts.onProgress?.(`Firefly sibuk (${res.status}), coba lagi ${i + 1}/${backoff.length}…`, 18);
+    await new Promise((r) => setTimeout(r, backoff[i]!));
+    res = await fireflyFetch<AsyncSubmit>({
+      token: opts.token,
+      url: `${FIREFLY_3P_API}/v2/3p-videos/generate-async`,
+      method: "POST",
+      body: { ...payload, seeds: [randomSeed()] },
+      accountId,
+      apiKey: FIREFLY_PLAYGROUND_API_KEY,
+      headers: { Accept: "*/*", "x-arp-session-id": sessionId, "x-nonce": randomHex(32) },
+    });
+  }
   if (!res.ok) {
+    if (res.status === 408 || res.status === 429) {
+      throw new Error(
+        `Firefly sedang penuh/limit (${res.status}: ${(res.data as { message?: string } | null)?.message || "system under load"}). Coba lagi beberapa menit.`,
+      );
+    }
     throw new Error(
-      `Firefly submit gagal (${res.status}): ${res.raw || JSON.stringify(res.data)?.slice(0, 200) || ""}`,
+      `Firefly submit gagal (${res.status}): ${res.error || res.raw || JSON.stringify(res.data)?.slice(0, 200) || ""}`,
     );
   }
   const statusUrl =
