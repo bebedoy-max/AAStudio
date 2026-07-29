@@ -49,7 +49,7 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
   throw new Error(`Upload gagal: ${lastErr}`);
 }
 
-export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
+export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly";
 
 export type I2VOpts = {
   provider: I2VProvider;
@@ -226,6 +226,28 @@ async function runLeonardoI2V(opts: I2VOpts): Promise<string> {
   });
 }
 
+async function runFireflyI2V(opts: I2VOpts): Promise<string> {
+  const { generateFireflyVideo, runFireflyWithRotation } = await import("./firefly");
+  opts.onProgress?.("Normalisasi image…", 5);
+  const normalized = await normalizeImage(opts.imageFile);
+  opts.onProgress?.("Upload image ke public host…", 10);
+  const imageUrl = await uploadPublicWithRetry(normalized, `ff_i2v_${Date.now()}.jpg`);
+  return runFireflyWithRotation(
+    (token) =>
+      generateFireflyVideo({
+        token,
+        modelKey: opts.modelKey,
+        prompt: opts.prompt,
+        ratio: opts.ratio,
+        duration: opts.duration,
+        imageUrl,
+        onProgress: opts.onProgress,
+      }),
+    (i, total, reason) =>
+      opts.onProgress?.(`Firefly token ${i}/${total} gagal (${reason.slice(0, 60)}), rotate…`, 15),
+  );
+}
+
 export async function generateI2V(opts: I2VOpts): Promise<string> {
   try {
     if (opts.provider === "wavespeed") return await runWavespeedI2V(opts);
@@ -233,6 +255,7 @@ export async function generateI2V(opts: I2VOpts): Promise<string> {
     if (opts.provider === "roboneo") return await runRoboneoI2V(opts);
     if (opts.provider === "framia") return await runFramiaI2V(opts);
     if (opts.provider === "leonardo") return await runLeonardoI2V(opts);
+    if (opts.provider === "firefly") return await runFireflyI2V(opts);
     return await runMagnificI2V(opts);
   } finally {
     notifyGenerationDone(opts.provider);

@@ -8,9 +8,10 @@ import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { fetchFramiaBalance } from "@/lib/providers/framia";
+import { fetchFireflyBalance } from "@/lib/providers/firefly";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "eleven" | "brain";
+export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "eleven" | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,
@@ -18,6 +19,7 @@ export const MIN_CREDITS = {
   eleven: 50,
   roboneo: 1,
   framia: 1,
+  firefly: 1,
 } as const;
 
 
@@ -30,6 +32,7 @@ const LS_KEYS = {
   magnific: "aatools.magnific.keys",
   roboneo: "aatools.roboneo.keys",
   framia: "aatools.framia.keys",
+  firefly: "aatools.firefly.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
 } as const;
@@ -205,6 +208,29 @@ async function refreshFramia(): Promise<void> {
 }
 
 
+async function refreshFirefly(): Promise<void> {
+  // Firefly token = IMS session Bearer; jangan auto-drop, cukup refresh saldo.
+  const list = readJSON<SimpleKey[]>(LS_KEYS.firefly, []);
+  if (list.length === 0) return;
+  const updated: SimpleKey[] = [];
+  for (const x of list) {
+    const r = await fetchFireflyBalance(x.key);
+    if (!r.ok) {
+      updated.push(x);
+      continue;
+    }
+    const bal = r.balance;
+    updated.push({
+      ...x,
+      balance: bal,
+      status: bal === null ? "active" : bal <= 0 ? "empty" : "active",
+    });
+  }
+  if (updated.some((k, i) => k.balance !== list[i]?.balance || k.status !== list[i]?.status)) {
+    writeJSON(LS_KEYS.firefly, updated);
+  }
+}
+
 async function refreshEleven(): Promise<void> {
   const cfg = readJSON<ElevenCfg>(LS_KEYS.eleven, { keys: [], voice: "", customVoice: "" });
   if (!cfg.keys || cfg.keys.length === 0) return;
@@ -244,6 +270,7 @@ export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<
       else if (provider === "wavespeed") await refreshWavespeed();
       else if (provider === "roboneo") await refreshRoboneo();
       else if (provider === "framia") await refreshFramia();
+      else if (provider === "firefly") await refreshFirefly();
       else if (provider === "eleven") await refreshEleven();
       else if (provider === "brain") await refreshBrain();
 

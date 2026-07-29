@@ -837,7 +837,7 @@ function StoryboardPage() {
 
         {/* Right: settings (before gallery on mobile, spans 2 rows on desktop) */}
         <div className="flex flex-col gap-5 order-2 lg:order-none lg:row-span-2">
-          <Card title="Pengaturan" right={<ProviderActivePill cap="image" />}>
+          <Card title="Pengaturan">
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Jumlah Panel">
@@ -850,7 +850,7 @@ function StoryboardPage() {
                     })}
                   />
                 </Field>
-                <Field label="Model AI">
+                <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
                   {models.length ? (
                     <Select
                       value={modelKey}

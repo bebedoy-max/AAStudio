@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Rocket, Trash2, Plus, RefreshCw, X } from "lucide-react";
 import { logGenerate } from "@/lib/activity/log";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -8,6 +8,8 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { useProviderCredit } from "@/lib/providers/credit-summary";
+
 
 
 
@@ -58,6 +60,11 @@ const I2V_CATALOG: Record<string, ModelOpt[]> = {
     { value: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", cr: 80 },
     // legacy alias tetap ada supaya preferensi lama tidak putus
     { value: "rn:seedance-pro", label: "Seedance Pro — legacy alias", cr: 100 },
+  ],
+  firefly: [
+    { value: "ff:veo:3.1-fast-generate", label: "Veo 3.1 Fast (Firefly)", cr: 20 },
+    { value: "ff:veo:3.1-generate", label: "Veo 3.1 (Firefly)", cr: 40 },
+    { value: "ff:firefly:video-1", label: "Firefly Video Model 1", cr: 10 },
   ],
   framia: [
     // Model list from Framia video node (share recipe 8b83c48b70).
@@ -284,9 +291,10 @@ function ImageToVideo() {
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
   const imgInput = useRef<HTMLInputElement>(null);
 
-  // provider info counters
-  const [tokens, setTokens] = useState(0);
-  const [credits, setCredits] = useState(0);
+  // Real token/credit dari Token / API Manager (live)
+  const { tokens, credits } = useProviderCredit(provider);
+  // Status generate nyata: idle → processing → sukses / gagal
+  const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">("i2v.runState", "idle");
 
   const i2vBootstrapped = useRef(false);
   useEffect(() => {
@@ -300,17 +308,7 @@ function ImageToVideo() {
       const tpl = localStorage.getItem("aatools.i2v.templates");
       if (tpl) try { setTemplates(JSON.parse(tpl)); } catch {}
     }
-    try {
-      if (p === "weavy") {
-        const arr = JSON.parse(localStorage.getItem("aatools.weavy.tokens") || "[]");
-        setTokens(arr.length);
-        setCredits(arr.reduce((a: number, t: { credits?: number }) => a + (t.credits || 0), 0));
-      } else {
-        const arr = JSON.parse(localStorage.getItem(`aatools.${p}.keys`) || "[]");
-        setTokens(arr.length);
-        setCredits(0);
-      }
-    } catch {}
+
     // Consume handoff dari Creative Dashboard → prefill prompt + image
     const h = consumeHandoff();
     if (h && h.workflow === "image-to-video") {
@@ -381,6 +379,7 @@ function ImageToVideo() {
       trackGeneration({ kind: "image-to-video", title: prompt.slice(0, 60) || "Image → Video", counts: { videos: 1 } });
     } catch { /* ignore */ }
     const start = Date.now();
+    setRunState("processing");
     setStatus({ show: true, text: "Memulai...", pct: 5, time: "0:00" });
     pushLog(`🚀 Mulai generate video · ${provider} · ${model} · ${ratio} · ${activeQuality?.duration ?? 5}s`);
     const tick = setInterval(() => {
@@ -390,7 +389,7 @@ function ImageToVideo() {
     try {
       const { generateI2V } = await import("@/lib/providers/generate-i2v");
       const url = await generateI2V({
-        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo",
+        provider: provider as "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly",
         modelKey: model,
         imageFile: imgFile,
         ratio,
@@ -406,11 +405,13 @@ function ImageToVideo() {
       });
 
       setResults((r) => [url, ...r]);
+      setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
       pushLog(`✅ Video selesai · ${url.slice(0, 60)}${url.length > 60 ? "…" : ""}`);
       logGenerate("image_to_video", { provider, modelKey: model, status: "success" });
     } catch (e) {
       const msg = (e as Error).message || String(e);
+      setRunState("gagal");
       setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
       pushLog(`❌ ${msg}`);
       logGenerate("image_to_video", { provider, modelKey: model, status: "error", error: msg });
@@ -438,20 +439,20 @@ function ImageToVideo() {
     localStorage.setItem("aatools.i2v.templates", JSON.stringify(next));
   };
 
-  const infoStatus = useMemo(() => (status.show ? "processing" : "idle"), [status.show]);
+  const statusTone =
+    runState === "sukses"
+      ? "text-emerald-400"
+      : runState === "gagal"
+        ? "text-destructive"
+        : runState === "processing"
+          ? "text-amber-300"
+          : "text-muted-foreground";
 
   return (
     <DashboardShell>
       <PageHero eyebrow="Generate" title="Image To" highlight="Video" desc="1 gambar → pilih model, aspek rasio, kualitas, prompt → generate video." />
 
-      <Card title="📡 Info Provider" right={<ProviderActivePill cap="video" />}>
-        <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
-          <div>Provider aktif: <b className="text-primary">{provider}</b></div>
-          <div>API Key/Token: <b className="text-fuchsia-300">{tokens}</b> tersedia</div>
-          <div>Sisa credit: <b className="text-emerald-400">{credits}</b></div>
-          <div>Status: <b className={infoStatus === "idle" ? "text-muted-foreground" : "text-amber-300"}>{infoStatus}</b></div>
-        </div>
-      </Card>
+
 
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -478,7 +479,7 @@ function ImageToVideo() {
         <div className="lg:col-span-2">
           <Card title="⚙️ Pengaturan">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Field label="Model AI">
+              <Field label="Model AI" right={<ProviderActivePill cap="video" />}>
                 <Select value={model} onChange={(e) => setModel(e.target.value)} options={models.map((m) => ({ value: m.value, label: `${m.label} — ${m.cr} cr` }))} />
               </Field>
               <Field label="Aspek Rasio">
@@ -505,6 +506,12 @@ function ImageToVideo() {
                 <Rocket className="h-4 w-4" /> Generate Video
               </PrimaryButton>
               <div className="text-xs text-muted-foreground">Cost: <b className="text-foreground font-mono">{totalCost}</b> credits</div>
+              <div className="text-xs text-muted-foreground">
+                Token: <b className="text-fuchsia-300">{tokens}</b>
+                {" · "}Sisa credit: <b className="text-emerald-400">{credits == null ? "—" : credits.toLocaleString()}</b>
+                {" · "}Status: <b className={statusTone}>{runState}</b>
+              </div>
+
             </div>
             {status.show && (
               <div className="mt-4 rounded-xl border border-border/70 bg-card/40 p-3">

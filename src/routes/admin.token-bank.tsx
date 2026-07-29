@@ -21,6 +21,7 @@ import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { fetchFireflyBalance } from "@/lib/providers/firefly";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { CheckCircle2, XCircle, AlertTriangle, Activity } from "lucide-react";
 
@@ -626,6 +627,15 @@ async function checkOne(provider: BankProvider, key: string): Promise<CheckState
       case "roboneo": {
         const r = await fetchRoboneoBalance(key);
         if (!r.ok) return { status: "fail", detail: r.message || "Token tidak valid / expired" };
+        if (r.balance === null) return { status: "warn", detail: "Credit tidak terbaca" };
+        return {
+          status: r.balance > 0 ? "ok" : "warn",
+          detail: `${r.balance.toLocaleString("id-ID")} credit`,
+        };
+      }
+      case "firefly": {
+        const r = await fetchFireflyBalance(key);
+        if (!r.ok) return { status: "fail", detail: r.message || "Token Firefly tidak valid / expired" };
         if (r.balance === null) return { status: "warn", detail: "Credit tidak terbaca" };
         return {
           status: r.balance > 0 ? "ok" : "warn",

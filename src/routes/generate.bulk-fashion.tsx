@@ -453,7 +453,7 @@ function BulkFashion() {
         </div>
       </div>
 
-      <Card title="⚙️ Pengaturan" right={<ProviderActivePill cap="image" />}>
+      <Card title="⚙️ Pengaturan">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Field label="Jenis Produk">
             <Select value={productType} onChange={(e) => setProductType(e.target.value)} options={PRODUCT_TYPES.map((p) => ({ value: p, label: p }))} />
@@ -461,7 +461,7 @@ function BulkFashion() {
           <Field label="Aspek Rasio">
             <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
           </Field>
-          <Field label="Model AI">
+          <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
 
             <Select
               value={model}

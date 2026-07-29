@@ -66,6 +66,11 @@ export const CAPS: Cap[] = [
         { name: "Seedream 4.0", cost: "~6 cr (Framia)" },
         { name: "Ideogram v3", cost: "~5 cr (Framia)" },
       ] },
+      { id: "firefly", name: "Adobe Firefly", desc: "Adobe Firefly web session token (Bearer IMS) di Token Manager → Firefly.", models: [
+        { name: "Firefly Image 4 Standard", cost: "~1 cr / image" },
+        { name: "Firefly Image 4 Ultra", cost: "~4 cr / image" },
+        { name: "Firefly Image 3", cost: "~1 cr / image" },
+      ] },
       { id: "leonardo", name: "Leonardo.ai", desc: "Langsung ke app.leonardo.ai pakai Bearer JWT (Cognito) di Token Manager → Leonardo.", models: [
         { name: "GPT Image 2", cost: "~6–24 cr (Leonardo)" },
         { name: "Nano Banana 2", cost: "~8 cr" },
@@ -101,6 +106,11 @@ export const CAPS: Cap[] = [
         { name: "Sora 2 (t2v/i2v)", cost: "~50 cr / 5s" },
         { name: "Seedance 1.0 Pro", cost: "~30 cr / 5s" },
         { name: "Hailuo 02 Pro", cost: "~28 cr / 5s" },
+      ] },
+      { id: "firefly", name: "Adobe Firefly", desc: "Firefly video (Veo via Adobe) — pakai Bearer token Firefly di Token Manager.", models: [
+        { name: "Veo 3.1 Fast (Firefly)", cost: "~20 cr / 8s" },
+        { name: "Veo 3.1 (Firefly)", cost: "~40 cr / 8s" },
+        { name: "Firefly Video Model 1", cost: "~10 cr / 5s" },
       ] },
       { id: "leonardo", name: "Leonardo.ai", desc: "GraphQL /v1/graphql. Support I2V (image_reference) & T2V.", models: [
         { name: "Veo 3.1 Fast · up to 4K", cost: "~150 cr/s" },

@@ -82,13 +82,8 @@ const MOTION_MODELS: Record<Provider, ModelOpt[]> = {
   ],
 };
 
-const PROVIDER_LABEL: Record<Provider, string> = {
-  weavy: "Weavy",
-  wavespeed: "Wavespeed",
-  magnific: "Magnific",
-  roboneo: "Roboneo",
-  framia: "Framia",
-};
+
+
 
 const MAX_REFS = 12;
 
@@ -570,19 +565,11 @@ function MotionControl() {
 
         {/* Right: settings (before gallery on mobile) */}
         <div className="flex flex-col gap-5" style={{ gridArea: "settings" }}>
-          <Card title="Pengaturan" right={<ProviderActivePill cap="motion" />}>
+          <Card title="Pengaturan">
             <div className="flex flex-col gap-4">
 
 
-              <Field
-                label="Model"
-                hint={
-                  <>
-                    Mengikuti provider aktif:{" "}
-                    <span className="text-primary">{PROVIDER_LABEL[provider]}</span>
-                  </>
-                }
-              >
+              <Field label="Model" right={<ProviderActivePill cap="motion" />}>
                 <Select
                   value={modelKey}
                   onChange={(e) => setModelKey(e.target.value)}
