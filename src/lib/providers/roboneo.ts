@@ -256,7 +256,6 @@ export async function checkRoboneoToken(
     if (parts.length < 6 || !/^\d+$/.test(parts[2] ?? "")) {
       return { ok: false, message: "Payload token tidak valid" };
     }
-    const hasZeroUidField = parts[2] === "0";
     const ts = Number(parts[1]);
     if (Number.isFinite(ts) && ts > 0) {
       // Meitu timestamps observed as seconds; treat >180 days as likely expired.
@@ -265,12 +264,7 @@ export async function checkRoboneoToken(
         return { ok: true, message: `Umur token ~${Math.round(ageDays)} hari — kemungkinan expired` };
       }
     }
-    return {
-      ok: true,
-      message: hasZeroUidField
-        ? "Struktur token valid; payload berisi uid=0 (format resmi Roboneo terbaru). Jika generate gagal 'Please log in first', ambil token dari request Network setelah benar-benar login."
-        : undefined,
-    };
+    return { ok: true };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }

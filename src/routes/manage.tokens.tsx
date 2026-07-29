@@ -1335,11 +1335,21 @@ function ProviderKeyPane({
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
-    const initial = readJSON<SimpleKey[]>(lsKey, []);
+    const rawInitial = readJSON<SimpleKey[]>(lsKey, []);
+    const initial = provider === "roboneo"
+      ? rawInitial.map((x) =>
+          x.note && /struktur|payload berisi uid|format resmi/i.test(x.note)
+            ? { ...x, note: undefined }
+            : x,
+        )
+      : rawInitial;
     setList(initial);
+    if (provider === "roboneo" && JSON.stringify(initial) !== JSON.stringify(rawInitial)) {
+      writeJSON(lsKey, initial);
+    }
     // Auto-probe key yang balance null / status pending (mis. baru saja
     // ditransfer oleh admin dari Token Bank) supaya sisa saldo langsung tampil.
-    const pending = initial.filter((x) => x.balance == null || x.status === "pending");
+    const pending = initial.filter((x) => provider === "roboneo" || x.balance == null || x.status === "pending");
     if (pending.length === 0) return;
     let cancelled = false;
     (async () => {
@@ -1361,7 +1371,7 @@ function ProviderKeyPane({
               ...x,
               balance: bal.balance,
               status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
-              note: bal.message,
+              note: bal.ok ? undefined : bal.message,
             };
           } else if (provider === "framia") {
             const chk = await checkFramiaToken(x.key);
@@ -1443,7 +1453,7 @@ function ProviderKeyPane({
         key,
         balance: bal.balance,
         status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
-        note: bal.message,
+        note: bal.ok ? undefined : bal.message,
       };
     }
     if (provider === "framia") {
@@ -1558,7 +1568,7 @@ function ProviderKeyPane({
           ...x,
           balance: bal.balance,
           status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
-          note: bal.message,
+          note: bal.ok ? undefined : bal.message,
         };
       } else if (provider === "framia") {
         const chk = await checkFramiaToken(x.key);
@@ -1594,7 +1604,16 @@ function ProviderKeyPane({
       }
       working = working.map((y) => (y.id === x.id ? updated : y));
       persist(working);
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / working.length) * 100),
+          text:
+            provider === "roboneo" && updated.balance !== null
+              ? `Cek ${i + 1}/${working.length} — ${updated.balance.toLocaleString()} cr`
+              : `Checking ${i + 1}/${working.length}`,
+        }),
+      );
       await new Promise((r) => setTimeout(r, 120));
     }
     setBusy(false);
@@ -1683,7 +1702,7 @@ function ProviderKeyPane({
 
       <div className="flex flex-col gap-2">
         {list.map((x) => (
-          <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
+            <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
             <div className="flex items-center gap-2">
               <span
                 className={[
@@ -1710,7 +1729,7 @@ function ProviderKeyPane({
                 <Trash2 className="h-3.5 w-3.5" /> Hapus
               </button>
             </div>
-            {x.note && (
+            {x.note && (provider !== "roboneo" || x.status === "failed") && (
               <div className="pl-4 text-[10px] text-muted-foreground/80 truncate" title={x.note}>
                 {x.note}
               </div>

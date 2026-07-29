@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, PrimaryButton, GhostButton, Input } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft } from "lucide-react";
+import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
@@ -15,6 +15,13 @@ import {
   transferBankKeysByIds,
   searchUsersForTransfer,
 } from "@/lib/token-bank/bank.functions";
+import { checkWeavyToken } from "@/lib/providers/weavy";
+import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
+import { checkMagnificKey } from "@/lib/providers/magnific";
+import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
+import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { checkElevenKey } from "@/lib/providers/eleven";
+import { CheckCircle2, XCircle, AlertTriangle, Activity } from "lucide-react";
 
 export const Route = createFileRoute("/admin/token-bank")({
   head: () => ({
@@ -82,6 +89,16 @@ function Body() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [checkStates, setCheckStates] = useState<Record<string, CheckState>>({});
+  const [checking, setChecking] = useState(false);
+  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  function toggleReveal(id: string) {
+    setRevealed((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
 
   async function load() {
     setLoading(true);
@@ -139,6 +156,23 @@ function Body() {
     });
   }
   function clearSelection() { setSelected(new Set()); }
+
+  async function bulkCheck() {
+    if (selectedRows.length === 0) return;
+    setChecking(true);
+    // Mark all as pending/checking immediately for real-time feedback.
+    setCheckStates((s) => {
+      const n = { ...s };
+      for (const r of selectedRows) n[r.id] = { status: "checking" };
+      return n;
+    });
+    // Sequential to avoid provider rate-limits/bans.
+    for (const r of selectedRows) {
+      const res = await checkOne(r.provider, r.key_value);
+      setCheckStates((s) => ({ ...s, [r.id]: res }));
+    }
+    setChecking(false);
+  }
 
   async function bulkDelete() {
     if (selected.size === 0) return;
@@ -234,35 +268,46 @@ function Body() {
 
       {/* Bulk action bar (sticky when selection active) */}
       {someSelected && (
-        <div className="sticky top-2 z-20 neumorph p-3 flex flex-wrap items-center gap-2 border border-primary/40 bg-card/90 backdrop-blur">
-          <div className="flex items-center gap-2 text-sm">
-            <KeyRound className="h-4 w-4 text-primary" />
-            <span className="font-display">{selected.size} key terpilih</span>
+        <div className="sticky top-2 z-20 neumorph p-2 sm:p-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-primary/40 bg-card/90 backdrop-blur">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <KeyRound className="h-4 w-4 text-primary shrink-0" />
+            <span className="font-display truncate">{selected.size} key terpilih</span>
             {!canTransfer && (
-              <span className="text-[11px] text-amber-300">
+              <span className="hidden sm:inline text-[11px] text-amber-300 truncate">
                 (transfer hanya untuk key status <b>available</b>)
               </span>
             )}
           </div>
-          <div className="flex-1" />
-          <GhostButton onClick={clearSelection} disabled={busy}>
-            <X className="h-3.5 w-3.5" /> Batal
-          </GhostButton>
-          <button
-            disabled={!canTransfer || busy}
-            onClick={() => setTransferOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 h-9 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-            style={{ background: "var(--gradient-neon)" }}
-          >
-            <Send className="h-3.5 w-3.5" /> Kirim ke user
-          </button>
-          <button
-            disabled={busy}
-            onClick={bulkDelete}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/40 text-rose-300 px-3 h-9 text-xs hover:bg-rose-500/10 disabled:opacity-50"
-          >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Hapus
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <GhostButton onClick={clearSelection} disabled={busy} aria-label="Batal" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-2.5 inline-flex items-center justify-center">
+              <X className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Batal</span>
+            </GhostButton>
+            <button
+              disabled={!canTransfer || busy}
+              onClick={() => setTransferOpen(true)}
+              aria-label="Kirim ke user"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+              style={{ background: "var(--gradient-neon)" }}
+            >
+              <Send className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Kirim ke user</span>
+            </button>
+            <button
+              disabled={busy || checking || selectedRows.length === 0}
+              onClick={bulkCheck}
+              aria-label="Cek"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/40 text-primary h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs hover:bg-primary/10 disabled:opacity-50"
+            >
+              {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />} <span className="hidden sm:inline">Cek</span>
+            </button>
+            <button
+              disabled={busy}
+              onClick={bulkDelete}
+              aria-label="Hapus"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-400/40 text-rose-300 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs hover:bg-rose-500/10 disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} <span className="hidden sm:inline">Hapus</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -288,10 +333,10 @@ function Body() {
                   </th>
                   <th className="px-3 py-3">Provider</th>
                   <th className="px-3 py-3">Key</th>
-                  <th className="px-3 py-3">Label</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Assigned</th>
-                  <th className="px-3 py-3">Waktu</th>
+                  <th className="px-3 py-3">Credits</th>
+                  <th className="px-3 py-3 hidden md:table-cell">Status</th>
+                  <th className="px-3 py-3 hidden md:table-cell">Assigned</th>
+                  <th className="px-3 py-3 hidden md:table-cell">Waktu</th>
                 </tr>
               </thead>
               <tbody>
@@ -315,12 +360,28 @@ function Body() {
                         />
                       </td>
                       <td className="px-3 py-2 text-xs">{PROVIDER_LABELS[r.provider]}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{mask(r.key_value)}</td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">{r.label ?? "—"}</td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 font-mono text-xs" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex items-center gap-1.5 max-w-[52vw] md:max-w-none">
+                          <span className={revealed.has(r.id) ? "break-all" : ""}>
+                            {revealed.has(r.id) ? r.key_value : mask(r.key_value)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleReveal(r.id)}
+                            aria-label={revealed.has(r.id) ? "Sembunyikan token" : "Tampilkan token"}
+                            className="shrink-0 h-6 w-6 grid place-items-center rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30"
+                          >
+                            {revealed.has(r.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                        <CreditCell state={checkStates[r.id]} />
+                      </td>
+                      <td className="px-3 py-2 hidden md:table-cell">
                         <StatusPill status={r.status} />
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-3 py-2 text-xs hidden md:table-cell">
                         {r.assigned_to ? (
                           <>
                             <div className="text-foreground">{r.assigned_display_name || "—"}</div>
@@ -330,7 +391,7 @@ function Body() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-[11px] text-muted-foreground">
+                      <td className="px-3 py-2 text-[11px] text-muted-foreground hidden md:table-cell">
                         {new Date(r.created_at).toLocaleString("id-ID")}
                       </td>
                     </tr>
@@ -353,6 +414,27 @@ function Body() {
         />
       )}
     </div>
+  );
+}
+
+function CreditCell({ state }: { state: CheckState | undefined }) {
+  if (!state) return <span className="text-muted-foreground">—</span>;
+  if (state.status === "checking")
+    return (
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" /> Cek…
+      </span>
+    );
+  if (state.status === "pending") return <span className="text-muted-foreground">—</span>;
+  const color =
+    state.status === "ok" ? "text-emerald-300"
+    : state.status === "warn" ? "text-amber-300"
+    : "text-rose-300";
+  return (
+    <span className={`inline-flex items-center gap-1.5 ${color}`} title={state.detail}>
+      <StatusIcon state={state.status} />
+      <span className="truncate max-w-[220px]">{state.detail}</span>
+    </span>
   );
 }
 
@@ -468,4 +550,94 @@ function TransferDialog({
       </div>
     </div>
   );
+}
+
+type CheckState =
+  | { status: "pending" }
+  | { status: "checking" }
+  | { status: "ok"; detail: string }
+  | { status: "warn"; detail: string }
+  | { status: "fail"; detail: string };
+
+async function checkOne(provider: BankProvider, key: string): Promise<CheckState> {
+  try {
+    switch (provider) {
+      case "brain": {
+        const r = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
+          { headers: { "x-goog-api-key": key } },
+        );
+        if (r.ok) {
+          const d = (await r.json().catch(() => ({}))) as { models?: unknown[] };
+          const n = Array.isArray(d.models) ? d.models.length : 0;
+          return { status: "ok", detail: n > 0 ? `Valid · ${n}+ model` : "Valid" };
+        }
+        if (r.status === 429) return { status: "warn", detail: "429 · rate-limit / quota" };
+        if (r.status === 401 || r.status === 403 || r.status === 400)
+          return { status: "fail", detail: `${r.status} · key ditolak` };
+        return { status: "fail", detail: `HTTP ${r.status}` };
+      }
+      case "weavy": {
+        const r = await checkWeavyToken(key);
+        if (!r.ok) return { status: "fail", detail: "Refresh gagal / expired" };
+        const cr = r.credits;
+        const email = r.email ? ` · ${r.email}` : "";
+        if (cr === null) return { status: "warn", detail: `Credits: —${email}` };
+        return {
+          status: cr > 0 ? "ok" : "warn",
+          detail: `${cr} credits${email}`,
+        };
+      }
+      case "wavespeed": {
+        const r = await checkWavespeedBalance(key);
+        if (!r.ok) return { status: "fail", detail: "Key ditolak" };
+        if (r.balance === null) return { status: "warn", detail: "Balance —" };
+        return { status: r.balance > 0 ? "ok" : "warn", detail: `$${r.balance}` };
+      }
+      case "magnific": {
+        // No safe probe — treat as unknown.
+        return { status: "warn", detail: "Tidak dapat dicek (endpoint konsumsi credit)" };
+      }
+      case "framia": {
+        const chk = await checkFramiaToken(key);
+        if (!chk.ok) return { status: "fail", detail: chk.message || "Token tidak valid" };
+        const bal = await fetchFramiaBalance(key).catch(() => null);
+        const exp = chk.expiresAt ? ` · exp ${new Date(chk.expiresAt).toLocaleDateString("id-ID")}` : "";
+        const email = chk.email ? ` · ${chk.email}` : "";
+        const b = bal && bal.ok ? ` · ${bal.balance ?? "—"} cr` : "";
+        return { status: "ok", detail: `Valid${b}${email}${exp}` };
+      }
+      case "roboneo": {
+        const r = await fetchRoboneoBalance(key);
+        if (!r.ok) return { status: "fail", detail: r.message || "Token tidak valid / expired" };
+        if (r.balance === null) return { status: "warn", detail: "Credit tidak terbaca" };
+        return {
+          status: r.balance > 0 ? "ok" : "warn",
+          detail: `${r.balance.toLocaleString("id-ID")} credit`,
+        };
+      }
+      case "eleven": {
+        const r = await checkElevenKey(key);
+        if (!r.ok) return { status: "fail", detail: "Key ditolak / gagal" };
+        const rem = r.remaining ?? Math.max(0, r.characterLimit - r.characterCount);
+        return {
+          status: rem > 0 ? "ok" : "warn",
+          detail: `${rem.toLocaleString("id-ID")} char sisa${r.tier ? ` · ${r.tier}` : ""}`,
+        };
+      }
+      case "shotstack":
+      case "creatomate":
+        return { status: "warn", detail: "Cek otomatis belum didukung untuk provider ini" };
+    }
+  } catch (e) {
+    return { status: "fail", detail: (e as Error).message || "error" };
+  }
+}
+
+function StatusIcon({ state }: { state: CheckState["status"] }) {
+  if (state === "ok") return <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />;
+  if (state === "warn") return <AlertTriangle className="h-4 w-4 text-amber-300 shrink-0" />;
+  if (state === "fail") return <XCircle className="h-4 w-4 text-rose-400 shrink-0" />;
+  if (state === "checking") return <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />;
+  return <div className="h-4 w-4 rounded-full border border-border shrink-0" />;
 }
