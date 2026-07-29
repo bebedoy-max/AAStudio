@@ -26,6 +26,8 @@ import { generateMotionAll, type MotionProvider } from "@/lib/providers/generate
 import { logGenerate } from "@/lib/activity/log";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 import { useAuth } from "@/lib/auth-context";
 import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
@@ -492,22 +494,7 @@ function MotionControl() {
       >
         {/* References */}
         <div style={{ gridArea: "refs" }}>
-          {compressing ? (
-            <div className="mb-3 flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground shadow-sm">
-              <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate">{compressing.msg}</div>
-                {typeof compressing.pct === "number" ? (
-                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${Math.max(0, Math.min(100, compressing.pct))}%` }}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+          <div className="relative">
           <Card
             title={`Referensi (${slots.length}/${MAX_REFS})`}
             sub="Setiap pasang gambar + video menghasilkan 1 video"
@@ -543,13 +530,47 @@ function MotionControl() {
               ))}
             </div>
           </Card>
+          {compressing ? (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-live="polite"
+              className="absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-background/70 backdrop-blur-sm"
+            >
+              <div className="w-[min(360px,90%)] rounded-2xl border border-primary/40 bg-card/95 p-5 shadow-2xl shadow-primary/20">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+                  <div className="font-display text-sm text-foreground">Mengompres file…</div>
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground break-words">{compressing.msg}</div>
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className={
+                      "h-full bg-primary transition-all " +
+                      (typeof compressing.pct === "number" ? "" : "animate-pulse")
+                    }
+                    style={{
+                      width:
+                        typeof compressing.pct === "number"
+                          ? `${Math.max(0, Math.min(100, compressing.pct))}%`
+                          : "100%",
+                    }}
+                  />
+                </div>
+                <div className="mt-3 text-[10px] uppercase tracking-widest text-muted-foreground text-center">
+                  Mohon tunggu sampai proses selesai
+                </div>
+              </div>
+            </div>
+          ) : null}
+          </div>
         </div>
 
 
 
         {/* Right: settings (before gallery on mobile) */}
         <div className="flex flex-col gap-5" style={{ gridArea: "settings" }}>
-          <Card title="Pengaturan" sub={`Provider aktif: ${PROVIDER_LABEL[provider]}`}>
+          <Card title="Pengaturan" right={<ProviderActivePill cap="motion" />}>
             <div className="flex flex-col gap-4">
 
 

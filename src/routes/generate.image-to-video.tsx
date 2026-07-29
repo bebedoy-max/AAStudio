@@ -7,6 +7,8 @@ import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, Galle
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 
 
@@ -442,7 +444,7 @@ function ImageToVideo() {
     <DashboardShell>
       <PageHero eyebrow="Generate" title="Image To" highlight="Video" desc="1 gambar → pilih model, aspek rasio, kualitas, prompt → generate video." />
 
-      <Card title="📡 Info Provider">
+      <Card title="📡 Info Provider" right={<ProviderActivePill cap="video" />}>
         <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
           <div>Provider aktif: <b className="text-primary">{provider}</b></div>
           <div>API Key/Token: <b className="text-fuchsia-300">{tokens}</b> tersedia</div>
@@ -450,6 +452,7 @@ function ImageToVideo() {
           <div>Status: <b className={infoStatus === "idle" ? "text-muted-foreground" : "text-amber-300"}>{infoStatus}</b></div>
         </div>
       </Card>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card title="🖼️ Gambar Input" sub="1 file (JPG / PNG / WEBP)">

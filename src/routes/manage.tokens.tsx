@@ -7,7 +7,7 @@ import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from
 import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
-import { checkRoboneoToken, fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
@@ -889,18 +889,14 @@ function BrainPane() {
 
   return (
     <>
-      <div className="text-xs text-muted-foreground leading-relaxed">
-        Brain (Gemini) dipakai <b className="text-foreground/90">Produk Storyboard</b> & <b className="text-foreground/90">Naratif Video Maker</b> untuk menghasilkan naskah / prompt. Tambahkan beberapa key sekaligus — sistem <b>auto-rotate</b> jika salah satu kena limit.
-      </div>
-      <Field label="Gemini API Keys (AIza... / AQ... — satu per baris atau pisah koma)">
-        <Textarea
-          rows={6}
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          placeholder={"AIzaXXXX...\nAQ.XXXX...\nAIzaYYYY..."}
-          className="font-mono text-xs"
-        />
-      </Field>
+      <Textarea
+        rows={6}
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={"AIzaXXXX...\nAQ.XXXX...\nAIzaYYYY..."}
+        className="font-mono text-xs"
+      />
+
       <div className="flex flex-wrap gap-2">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
           <Plus className="h-3.5 w-3.5" /> Tambah
@@ -1227,15 +1223,14 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 
   return (
     <>
-      <Field label="Refresh Tokens (satu per baris atau pisah koma)">
-        <Textarea
-          rows={7}
-          value={bulkTokenText}
-          onChange={(e) => setBulkTokenText(e.target.value)}
-          placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
-          className="font-mono text-xs"
-        />
-      </Field>
+      <Textarea
+        rows={7}
+        value={bulkTokenText}
+        onChange={(e) => setBulkTokenText(e.target.value)}
+        placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
+        className="font-mono text-xs"
+      />
+
 
       <div className="flex gap-2 flex-wrap">
         <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
@@ -1335,11 +1330,21 @@ function ProviderKeyPane({
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
-    const initial = readJSON<SimpleKey[]>(lsKey, []);
+    const rawInitial = readJSON<SimpleKey[]>(lsKey, []);
+    const initial = provider === "roboneo"
+      ? rawInitial.map((x) =>
+          x.note && /struktur|payload berisi uid|format resmi/i.test(x.note)
+            ? { ...x, note: undefined }
+            : x,
+        )
+      : rawInitial;
     setList(initial);
+    if (provider === "roboneo" && JSON.stringify(initial) !== JSON.stringify(rawInitial)) {
+      writeJSON(lsKey, initial);
+    }
     // Auto-probe key yang balance null / status pending (mis. baru saja
     // ditransfer oleh admin dari Token Bank) supaya sisa saldo langsung tampil.
-    const pending = initial.filter((x) => x.balance === null || x.status === "pending");
+    const pending = initial.filter((x) => provider === "roboneo" || x.balance == null || x.status === "pending");
     if (pending.length === 0) return;
     let cancelled = false;
     (async () => {
@@ -1356,18 +1361,13 @@ function ProviderKeyPane({
               status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
             };
           } else if (provider === "roboneo") {
-            const chk = await checkRoboneoToken(x.key);
-            if (!chk.ok) {
-              updated = { ...x, balance: null, status: "failed", note: chk.message };
-            } else {
-              const bal = await fetchRoboneoBalance(x.key);
-              updated = {
-                ...x,
-                balance: bal.balance,
-                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-                note: bal.ok ? undefined : bal.message,
-              };
-            }
+            const bal = await fetchRoboneoBalance(x.key);
+            updated = {
+              ...x,
+              balance: bal.balance,
+              status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+              note: bal.ok ? undefined : bal.message,
+            };
           } else if (provider === "framia") {
             const chk = await checkFramiaToken(x.key);
             if (!chk.ok) {
@@ -1442,14 +1442,12 @@ function ProviderKeyPane({
       };
     }
     if (provider === "roboneo") {
-      const chk = await checkRoboneoToken(key);
-      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
       const bal = await fetchRoboneoBalance(key);
       return {
         id: uid(),
         key,
         balance: bal.balance,
-        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
         note: bal.ok ? undefined : bal.message,
       };
     }
@@ -1517,6 +1515,8 @@ function ProviderKeyPane({
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
     const summary = provider === "wavespeed"
       ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
+      : provider === "roboneo" || provider === "framia" || provider === "leonardo"
+        ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
       : `${merged.length} key tersimpan`;
     setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
     setBusy(false);
@@ -1533,7 +1533,11 @@ function ProviderKeyPane({
         { label: "Saldo kosong (tetap disimpan)", value: empty, tone: empty ? "warn" : "muted" },
         { label: "Ditolak (invalid / gagal)", value: failed, tone: failed ? "bad" : "muted" },
       ],
-      footer: `Total key tersimpan sekarang: ${merged.length}`,
+      footer:
+        `Total key tersimpan sekarang: ${merged.length}` +
+        (provider === "roboneo" || provider === "framia" || provider === "leonardo"
+          ? ` · Total credit: ${total.toLocaleString()} cr`
+          : ""),
     });
   };
 
@@ -1554,18 +1558,13 @@ function ProviderKeyPane({
         const res = await checkWavespeedBalance(x.key);
         updated = { ...x, balance: res.balance, status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed" };
       } else if (provider === "roboneo") {
-        const chk = await checkRoboneoToken(x.key);
-        if (!chk.ok) {
-          updated = { ...x, balance: null, status: "failed", note: chk.message };
-        } else {
-          const bal = await fetchRoboneoBalance(x.key);
-          updated = {
-            ...x,
-            balance: bal.balance,
-            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
-            note: bal.ok ? undefined : bal.message,
-          };
-        }
+        const bal = await fetchRoboneoBalance(x.key);
+        updated = {
+          ...x,
+          balance: bal.balance,
+          status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+          note: bal.ok ? undefined : bal.message,
+        };
       } else if (provider === "framia") {
         const chk = await checkFramiaToken(x.key);
         if (!chk.ok) {
@@ -1600,7 +1599,16 @@ function ProviderKeyPane({
       }
       working = working.map((y) => (y.id === x.id ? updated : y));
       persist(working);
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / working.length) * 100), text: `Checking ${i + 1}/${working.length}` }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / working.length) * 100),
+          text:
+            provider === "roboneo" && updated.balance !== null
+              ? `Cek ${i + 1}/${working.length} — ${updated.balance.toLocaleString()} cr`
+              : `Checking ${i + 1}/${working.length}`,
+        }),
+      );
       await new Promise((r) => setTimeout(r, 120));
     }
     setBusy(false);
@@ -1638,24 +1646,14 @@ function ProviderKeyPane({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 justify-end">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>Active: <b className="text-emerald-400">{activeCount}</b>/{list.length}</span>
-          {provider === "wavespeed" && (
-            <span>Total: <b className="text-emerald-400">${total.toFixed(2)}</b></span>
-          )}
-        </div>
-      </div>
+      <Textarea
+        rows={5}
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={bulkPlaceholder}
+        className="font-mono text-xs"
+      />
 
-      <Field label="API Keys (satu per baris atau pisah koma)">
-        <Textarea
-          rows={5}
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          placeholder={bulkPlaceholder}
-          className="font-mono text-xs"
-        />
-      </Field>
 
       <div className="flex gap-2 flex-wrap">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
@@ -1663,14 +1661,20 @@ function ProviderKeyPane({
         </PrimaryButton>
 
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
         </GhostButton>
         <GhostButton onClick={clearAll} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
 
+      {list.length > 0 && (
+        <div className="text-[11px] text-muted-foreground">
+          {`Total tersimpan: ${list.length} · ✅ ${list.filter((x) => x.status === "active").length} aktif · ⏳ ${list.filter((x) => x.status === "empty").length} limit · ❌ ${list.filter((x) => x.status === "failed").length} ditolak`}
+        </div>
+      )}
       {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
+
 
       {progress.show && (
         <div className="rounded-lg border border-border bg-card/40 p-2 text-[11px]">
@@ -1686,7 +1690,7 @@ function ProviderKeyPane({
 
       <div className="flex flex-col gap-2">
         {list.map((x) => (
-          <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
+            <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
             <div className="flex items-center gap-2">
               <span
                 className={[
@@ -1699,7 +1703,11 @@ function ProviderKeyPane({
               <div className="text-emerald-400 font-semibold whitespace-nowrap">
                 {provider === "wavespeed"
                   ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
-                  : provider === "framia" || provider === "roboneo" || provider === "leonardo"
+                  : provider === "roboneo"
+                    ? x.balance == null
+                      ? x.status === "failed" ? "❌" : "— cr"
+                      : `${x.balance.toLocaleString()} cr`
+                  : provider === "framia" || provider === "leonardo"
                     ? x.balance == null
                       ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
                       : `${x.balance.toLocaleString()} cr`
@@ -1709,7 +1717,7 @@ function ProviderKeyPane({
                 <Trash2 className="h-3.5 w-3.5" /> Hapus
               </button>
             </div>
-            {x.note && (
+            {x.note && (provider !== "roboneo" || x.status === "failed") && (
               <div className="pl-4 text-[10px] text-muted-foreground/80 truncate" title={x.note}>
                 {x.note}
               </div>
@@ -1969,26 +1977,30 @@ function ElevenPane() {
 
   return (
     <>
-      <Field label="ElevenLabs API Keys (sk_... — satu per baris atau pisah koma. Multi-key auto-rotate saat limit)">
-        <Textarea
-          rows={5}
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          placeholder={"sk_XXXXXXXX...\nsk_YYYYYYYY..."}
-          className="font-mono text-xs"
-        />
-      </Field>
+      <Textarea
+        rows={5}
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={"sk_XXXXXXXX...\nsk_YYYYYYYY..."}
+        className="font-mono text-xs"
+      />
       <div className="flex flex-wrap gap-2">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
           <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
         <GhostButton onClick={checkAllKeys} disabled={!hasStored || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
         </GhostButton>
         <GhostButton onClick={clear} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
+      {cfg.keys.length > 0 && (
+        <div className="text-[11px] text-muted-foreground">
+          {`Total tersimpan: ${cfg.keys.length} · ✅ ${keyStatuses.filter((s) => s.ok).length} aktif · ❌ ${keyStatuses.filter((s) => !s.ok).length} ditolak`}
+        </div>
+      )}
+
 
       {cfg.keys.length > 0 && (
         <div className="flex flex-col gap-1">

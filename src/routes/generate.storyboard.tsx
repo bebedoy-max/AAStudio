@@ -31,6 +31,8 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
 
 import { confirmDialog } from "@/components/ui-confirm";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 
 export const Route = createFileRoute("/generate/storyboard")({
@@ -835,7 +837,7 @@ function StoryboardPage() {
 
         {/* Right: settings (before gallery on mobile, spans 2 rows on desktop) */}
         <div className="flex flex-col gap-5 order-2 lg:order-none lg:row-span-2">
-          <Card title="Pengaturan" sub={`Provider aktif: ${PROVIDER_LABEL[provider]}`}>
+          <Card title="Pengaturan" right={<ProviderActivePill cap="image" />}>
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Jumlah Panel">

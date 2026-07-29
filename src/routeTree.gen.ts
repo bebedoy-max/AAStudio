@@ -47,7 +47,9 @@ import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.
 import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
+import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
@@ -66,6 +68,7 @@ import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/u
 import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
 import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
 import { Route as ApiPublicScrapeArticleRouteImport } from './routes/api/public/scrape-article'
+import { Route as ApiPublicRoboneoMembershipRouteImport } from './routes/api/public/roboneo-membership'
 import { Route as ApiPublicRoboneoRouteImport } from './routes/api/public/roboneo'
 import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/proxy-image'
 import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
@@ -279,9 +282,19 @@ const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
+  id: '/token-bank',
+  path: '/token-bank',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminRequestsRoute = AdminRequestsRouteImport.update({
@@ -375,6 +388,12 @@ const ApiPublicScrapeArticleRoute = ApiPublicScrapeArticleRouteImport.update({
   path: '/api/public/scrape-article',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRoboneoMembershipRoute =
+  ApiPublicRoboneoMembershipRouteImport.update({
+    id: '/api/public/roboneo-membership',
+    path: '/api/public/roboneo-membership',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicRoboneoRoute = ApiPublicRoboneoRouteImport.update({
   id: '/api/public/roboneo',
   path: '/api/public/roboneo',
@@ -504,7 +523,9 @@ export interface FileRoutesByFullPath {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
+  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -553,6 +574,7 @@ export interface FileRoutesByFullPath {
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
   '/api/public/roboneo': typeof ApiPublicRoboneoRoute
+  '/api/public/roboneo-membership': typeof ApiPublicRoboneoMembershipRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -583,7 +605,9 @@ export interface FileRoutesByTo {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
+  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -632,6 +656,7 @@ export interface FileRoutesByTo {
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
   '/api/public/roboneo': typeof ApiPublicRoboneoRoute
+  '/api/public/roboneo-membership': typeof ApiPublicRoboneoMembershipRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -665,7 +690,9 @@ export interface FileRoutesById {
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/requests': typeof AdminRequestsRoute
+  '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
@@ -714,6 +741,7 @@ export interface FileRoutesById {
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
   '/api/public/proxy-image': typeof ApiPublicProxyImageRoute
   '/api/public/roboneo': typeof ApiPublicRoboneoRoute
+  '/api/public/roboneo-membership': typeof ApiPublicRoboneoMembershipRoute
   '/api/public/scrape-article': typeof ApiPublicScrapeArticleRoute
   '/api/public/scrape-product': typeof ApiPublicScrapeProductRoute
   '/api/public/storyboard-brain': typeof ApiPublicStoryboardBrainRoute
@@ -748,7 +776,9 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
+    | '/admin/token-bank'
     | '/admin/transactions'
+    | '/admin/users'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -797,6 +827,7 @@ export interface FileRouteTypes {
     | '/api/public/news-feed'
     | '/api/public/proxy-image'
     | '/api/public/roboneo'
+    | '/api/public/roboneo-membership'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -827,7 +858,9 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
+    | '/admin/token-bank'
     | '/admin/transactions'
+    | '/admin/users'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -876,6 +909,7 @@ export interface FileRouteTypes {
     | '/api/public/news-feed'
     | '/api/public/proxy-image'
     | '/api/public/roboneo'
+    | '/api/public/roboneo-membership'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -908,7 +942,9 @@ export interface FileRouteTypes {
     | '/admin/activity-log'
     | '/admin/payments'
     | '/admin/requests'
+    | '/admin/token-bank'
     | '/admin/transactions'
+    | '/admin/users'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
@@ -957,6 +993,7 @@ export interface FileRouteTypes {
     | '/api/public/news-feed'
     | '/api/public/proxy-image'
     | '/api/public/roboneo'
+    | '/api/public/roboneo-membership'
     | '/api/public/scrape-article'
     | '/api/public/scrape-product'
     | '/api/public/storyboard-brain'
@@ -1020,6 +1057,7 @@ export interface RootRouteChildren {
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
   ApiPublicProxyImageRoute: typeof ApiPublicProxyImageRoute
   ApiPublicRoboneoRoute: typeof ApiPublicRoboneoRoute
+  ApiPublicRoboneoMembershipRoute: typeof ApiPublicRoboneoMembershipRoute
   ApiPublicScrapeArticleRoute: typeof ApiPublicScrapeArticleRoute
   ApiPublicScrapeProductRoute: typeof ApiPublicScrapeProductRoute
   ApiPublicStoryboardBrainRoute: typeof ApiPublicStoryboardBrainRoute
@@ -1310,11 +1348,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/transactions': {
       id: '/admin/transactions'
       path: '/transactions'
       fullPath: '/admin/transactions'
       preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/token-bank': {
+      id: '/admin/token-bank'
+      path: '/token-bank'
+      fullPath: '/admin/token-bank'
+      preLoaderRoute: typeof AdminTokenBankRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/requests': {
@@ -1441,6 +1493,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/scrape-article'
       fullPath: '/api/public/scrape-article'
       preLoaderRoute: typeof ApiPublicScrapeArticleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/roboneo-membership': {
+      id: '/api/public/roboneo-membership'
+      path: '/api/public/roboneo-membership'
+      fullPath: '/api/public/roboneo-membership'
+      preLoaderRoute: typeof ApiPublicRoboneoMembershipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/roboneo': {
@@ -1605,7 +1664,9 @@ interface AdminRouteChildren {
   AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
+  AdminTokenBankRoute: typeof AdminTokenBankRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -1614,7 +1675,9 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminRequestsRoute: AdminRequestsRoute,
+  AdminTokenBankRoute: AdminTokenBankRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -1716,6 +1779,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
   ApiPublicProxyImageRoute: ApiPublicProxyImageRoute,
   ApiPublicRoboneoRoute: ApiPublicRoboneoRoute,
+  ApiPublicRoboneoMembershipRoute: ApiPublicRoboneoMembershipRoute,
   ApiPublicScrapeArticleRoute: ApiPublicScrapeArticleRoute,
   ApiPublicScrapeProductRoute: ApiPublicScrapeProductRoute,
   ApiPublicStoryboardBrainRoute: ApiPublicStoryboardBrainRoute,

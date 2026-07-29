@@ -136,9 +136,9 @@ const DEFAULT_NAV: NavEntry[] = [
     label: "Manage",
     icon: Layers,
     items: [
-      { title: "Token / API Manager", url: "/manage/tokens", icon: KeyRound },
-      { title: "Routing Provider", url: "/manage/routing", icon: RouteIcon },
-      { title: "Account", url: "/manage/accounts", icon: UserCircle2 },
+      { title: "Token / API Manager", url: "/manage/tokens", icon: KeyRound, permKey: "manage.tokens" },
+      { title: "Routing Provider", url: "/manage/routing", icon: RouteIcon, permKey: "manage.routing" },
+      { title: "Account", url: "/manage/accounts", icon: UserCircle2, permKey: "manage.accounts" },
     ],
   },
   {
@@ -147,28 +147,20 @@ const DEFAULT_NAV: NavEntry[] = [
     label: "System",
     icon: Cog,
     items: [
-      { title: "Analytic", url: "/system/analytic", icon: BarChart3 },
-      { title: "Pengaturan", url: "/system/settings", icon: Settings },
-      { title: "Help", url: "/system/help", icon: HelpCircle },
+      { title: "Analytic", url: "/system/analytic", icon: BarChart3, permKey: "system.analytic" },
+      { title: "Pengaturan", url: "/system/settings", icon: Settings, permKey: "system.settings" },
+      { title: "Help", url: "/system/help", icon: HelpCircle, permKey: "system.help" },
     ],
   },
 ];
 
 const ADMIN_GROUP: NavEntry = {
-  kind: "group",
+  kind: "link",
   key: "admin",
-  label: "Admin",
+  label: "Admin Dashboard",
+  url: "/admin",
   icon: ShieldCheck,
   requireAdmin: true,
-  items: [
-    { title: "Kelola User", url: "/admin", icon: ShieldCheck },
-    { title: "Request Pembelian", url: "/admin/requests", icon: Receipt },
-    { title: "Metode Pembayaran & Harga", url: "/admin/payments", icon: Wallet },
-    { title: "Token Bank", url: "/admin/token-bank", icon: KeyRound },
-    { title: "Laporan Transaksi", url: "/admin/transactions", icon: LineChart },
-    { title: "Pengaturan Halaman", url: "/admin/access", icon: SlidersHorizontal },
-    { title: "Log Aktivitas", url: "/admin/activity-log", icon: BookText },
-  ],
 };
 
 const NAV_ORDER_KEY = "aatools.sidebar.order.v3";
@@ -211,7 +203,7 @@ function HoverFlyout({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } = useAuth();
   if (!open) return null;
   return (
     <div
@@ -228,9 +220,7 @@ function HoverFlyout({
           const CIcon = item.icon;
           const enabled = !item.permKey || isFeatureEnabled(item.permKey);
           const access = item.permKey ? featureAccess[item.permKey] : undefined;
-          // Trial badge hanya ditampilkan untuk user yang tidak punya akses
-          // eksplisit ke menu ini — jadi user yang sudah subscribe / diberi
-          // akses admin tidak melihat label "Trial" yang tidak relevan.
+          const mode = item.permKey ? getFeatureMode(item.permKey) : "open";
           const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
           const trialBadge =
             enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
@@ -238,15 +228,26 @@ function HoverFlyout({
               : null;
 
           if (!enabled) {
+            // Mode "lock" → menu dikunci, klik tidak memunculkan apa-apa.
+            // Hanya mode "premium" (dan sejenisnya) yang membuka pop up
+            // pembelian fitur.
+            const isLocked = mode === "lock";
             return (
               <button
                 key={item.url}
                 type="button"
+                disabled={isLocked}
                 onClick={() => {
+                  if (isLocked) return;
                   openUpgradePrompt(item.permKey);
                   onNavigate?.();
                 }}
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 hover:text-foreground/70 hover:bg-sidebar-accent/40 transition-all text-left"
+                className={[
+                  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 transition-all text-left",
+                  isLocked
+                    ? "cursor-not-allowed"
+                    : "hover:text-foreground/70 hover:bg-sidebar-accent/40",
+                ].join(" ")}
               >
                 <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                   <CIcon className="h-3.5 w-3.5" />
@@ -256,6 +257,7 @@ function HoverFlyout({
               </button>
             );
           }
+
 
           return (
             <Link
@@ -304,7 +306,7 @@ function InlineSubmenu({
   currentPath: string;
   onNavigate?: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } = useAuth();
   return (
     <div className="mt-1 ml-9 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
       {items.map((item) => {
@@ -312,6 +314,7 @@ function InlineSubmenu({
         const CIcon = item.icon;
         const enabled = !item.permKey || isFeatureEnabled(item.permKey);
         const access = item.permKey ? featureAccess[item.permKey] : undefined;
+        const mode = item.permKey ? getFeatureMode(item.permKey) : "open";
         const ownsAccess = !item.permKey || isAdmin || hasRoutePermission(item.permKey);
         const trialBadge =
           enabled && !ownsAccess && access?.mode === "trial" && access.trialUntil
@@ -319,15 +322,23 @@ function InlineSubmenu({
             : null;
 
         if (!enabled) {
+          const isLocked = mode === "lock";
           return (
             <button
               key={item.url}
               type="button"
+              disabled={isLocked}
               onClick={() => {
+                if (isLocked) return;
                 openUpgradePrompt(item.permKey);
                 onNavigate?.();
               }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 hover:text-foreground/70 hover:bg-sidebar-accent/40 transition-all text-left"
+              className={[
+                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-foreground/40 transition-all text-left",
+                isLocked
+                  ? "cursor-not-allowed"
+                  : "hover:text-foreground/70 hover:bg-sidebar-accent/40",
+              ].join(" ")}
             >
               <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                 <CIcon className="h-3.5 w-3.5" />
@@ -337,6 +348,7 @@ function InlineSubmenu({
             </button>
           );
         }
+
 
         return (
           <Link
@@ -552,12 +564,14 @@ export function AppSidebar({
   onNavigate,
 }: { inline?: boolean; onNavigate?: () => void } = {}) {
   const currentPath = useRouterState({ select: (r) => r.location.pathname });
-  const { isAdmin, hasRoutePermission, routePermissions } = useAuth();
+  const { isAdmin, hasRoutePermission, routePermissions, isFeatureVisible } = useAuth();
   const hasAnyPremium = isAdmin || routePermissions.length > 0;
 
-  // Show every feature item (locked ones render disabled in the flyout), so new
-  // users still see all menus — only enabled/disabled differs by access settings.
-  const filterItems = (its: Item[]) => its;
+  // Sembunyikan item yang mode-nya "hide" atau belum di-set (default hide).
+  // Item dengan mode lock/premium tetap tampil (di-render sebagai locked oleh
+  // isFeatureEnabled).
+  const filterItems = (its: Item[]) =>
+    its.filter((i) => !i.permKey || isFeatureVisible(i.permKey));
   const allEntries: NavEntry[] = [...DEFAULT_NAV];
   if (isAdmin) allEntries.push(ADMIN_GROUP);
 
@@ -569,7 +583,8 @@ export function AppSidebar({
     .filter((e) => {
       if (e.kind === "link") {
         if (e.alwaysVisible) return true;
-        if (e.permKey && !hasRoutePermission(e.permKey) && !isAdmin) return false;
+        if (e.requireAdmin && !isAdmin) return false;
+        if (e.permKey && !isFeatureVisible(e.permKey)) return false;
         return true;
       }
       if (e.requireAdmin && !isAdmin) return false;

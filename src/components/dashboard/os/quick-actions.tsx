@@ -98,7 +98,7 @@ const ACTIONS: Action[] = [
 export function QuickActions() {
   const providers = useProviders();
   const { items } = useNotifications();
-  const { isAdmin, hasRoutePermission, isFeatureEnabled, featureAccess } = useAuth();
+  const { isAdmin, hasRoutePermission, isFeatureEnabled, featureAccess, getFeatureMode } = useAuth();
   const runningTotal = items.filter((n) => n.status === "running").length;
 
   function statusFor(actionId: string): { text: string; tone: "success" | "warn" | "default" | "primary"; queue: number } {
@@ -130,6 +130,8 @@ export function QuickActions() {
         const access = a.permKey ? featureAccess[a.permKey] : undefined;
         const showTrial = enabled && !ownsAccess && access?.mode === "trial";
         const locked = !enabled;
+        const mode = a.permKey ? getFeatureMode(a.permKey) : "open";
+        const isHardLocked = locked && mode === "lock";
 
         const cardInner = (
           <>
@@ -177,9 +179,17 @@ export function QuickActions() {
             <button
               key={a.id}
               type="button"
-              onClick={() => openUpgradePrompt(a.permKey ?? a.id)}
-              className={`${baseClass} opacity-70 hover:opacity-100 hover:border-primary/40`}
-              title="Fitur ini terkunci untuk akun Anda. Klik untuk minta akses."
+              disabled={isHardLocked}
+              onClick={() => {
+                if (isHardLocked) return;
+                openUpgradePrompt(a.permKey ?? a.id);
+              }}
+              className={`${baseClass} opacity-70 ${isHardLocked ? "cursor-not-allowed" : "hover:opacity-100 hover:border-primary/40"}`}
+              title={
+                isHardLocked
+                  ? "Fitur ini dinonaktifkan oleh admin."
+                  : "Fitur ini terkunci untuk akun Anda. Klik untuk berlangganan."
+              }
             >
               {cardInner}
             </button>

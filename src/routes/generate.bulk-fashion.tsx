@@ -7,6 +7,8 @@ import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, Galle
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 
 
@@ -451,7 +453,7 @@ function BulkFashion() {
         </div>
       </div>
 
-      <Card title="⚙️ Pengaturan">
+      <Card title="⚙️ Pengaturan" right={<ProviderActivePill cap="image" />}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Field label="Jenis Produk">
             <Select value={productType} onChange={(e) => setProductType(e.target.value)} options={PRODUCT_TYPES.map((p) => ({ value: p, label: p }))} />
@@ -459,7 +461,8 @@ function BulkFashion() {
           <Field label="Aspek Rasio">
             <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
           </Field>
-          <Field label={`Model AI (provider: ${provider})`}>
+          <Field label="Model AI">
+
             <Select
               value={model}
               onChange={(e) => {

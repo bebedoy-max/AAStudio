@@ -256,7 +256,6 @@ export async function checkRoboneoToken(
     if (parts.length < 6 || !/^\d+$/.test(parts[2] ?? "")) {
       return { ok: false, message: "Payload token tidak valid" };
     }
-    const hasZeroUidField = parts[2] === "0";
     const ts = Number(parts[1]);
     if (Number.isFinite(ts) && ts > 0) {
       // Meitu timestamps observed as seconds; treat >180 days as likely expired.
@@ -265,12 +264,7 @@ export async function checkRoboneoToken(
         return { ok: true, message: `Umur token ~${Math.round(ageDays)} hari — kemungkinan expired` };
       }
     }
-    return {
-      ok: true,
-      message: hasZeroUidField
-        ? "Struktur token valid; payload berisi uid=0 (format resmi Roboneo terbaru). Jika generate gagal 'Please log in first', ambil token dari request Network setelah benar-benar login."
-        : undefined,
-    };
+    return { ok: true };
   } catch (e) {
     return { ok: false, message: (e as Error).message };
   }
@@ -876,46 +870,125 @@ export async function pollRoboneoTask(opts: {
 
 /** Detect if an error looks like an auth/credit failure worth rotating tokens for. */
 export function isRoboneoRotatableError(msg: string): boolean {
-  return /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL/i.test(msg);
+  return (
+    /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL|CHARGE_FAILED|charge.?failed|payment.?required|余额不足|余额不够|积分不足|账户余额|欠费|VIP|会员/i.test(
+      msg,
+    )
+  );
 }
 
 /**
- * Fetch VIP / credit info via `/roboneo/sync/request/vipshow`.
- * Response shape isn't fully documented — we recursively scan for a numeric
- * field whose key hints at "credit / balance / remain / quota / point".
+ * Fetch Roboneo credit/membership info via `/api/commerce/membership_info`.
+ * Endpoint: https://agent-api-roboneo.meitu.com/api/commerce/membership_info
+ * Response shape typically:
+ *   { error_code, error_msg, data: { credit, free_credit, vip_credit, ...vip_info } }
+ * We scan recursively for numeric fields hinting at credit/balance/point.
  */
 export async function fetchRoboneoBalance(
   accessToken: string,
-): Promise<{ ok: boolean; balance: number | null; message?: string }> {
+): Promise<{
+  ok: boolean;
+  balance: number | null;
+  free?: number | null;
+  vip?: number | null;
+  message?: string;
+}> {
   try {
-    const res = await rnCall<Record<string, unknown>>("vipshow", accessToken, {
-      features: "",
-      later_face: 0,
+    const r = await fetch("/api/public/roboneo-membership", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Roboneo-Token": accessToken,
+      },
     });
-    const findNum = (obj: unknown, hints: string[]): number | null => {
-      if (!obj || typeof obj !== "object") return null;
-      for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    const wrap = (await r.json().catch(() => null)) as {
+      ok?: boolean;
+      status?: number;
+      data?: { error_code?: number; error_msg?: string; data?: unknown } | null;
+      raw?: string;
+    } | null;
+    if (!wrap?.ok) {
+      return {
+        ok: false,
+        balance: null,
+        message: `HTTP ${wrap?.status ?? r.status}${wrap?.raw ? ` — ${wrap.raw.slice(0, 200)}` : ""}`,
+      };
+    }
+    const obj = wrap.data ?? {};
+    const errorCode = obj.error_code ?? (obj as { code?: number }).code;
+    if (errorCode && errorCode !== 0) {
+      return {
+        ok: false,
+        balance: null,
+        message: obj.error_msg || (obj as { message?: string }).message || `error_code=${errorCode}`,
+      };
+    }
+    const payload = (obj.data ?? (obj as { result?: unknown }).result ?? obj) as unknown;
+
+    const pickNum = (o: unknown, keys: string[]): number | null => {
+      if (!o || typeof o !== "object") return null;
+      for (const [k, v] of Object.entries(o as Record<string, unknown>)) {
         const lk = k.toLowerCase();
-        if (typeof v === "number" && hints.some((h) => lk.includes(h))) return v;
-        if (typeof v === "string" && /^\d+(\.\d+)?$/.test(v) && hints.some((h) => lk.includes(h)))
-          return Number(v);
+        if (keys.some((h) => lk === h || lk.includes(h))) {
+          if (typeof v === "number") return v;
+          if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+        }
+      }
+      for (const v of Object.values(o as Record<string, unknown>)) {
         if (v && typeof v === "object") {
-          const r = findNum(v, hints);
+          const r = pickNum(v, keys);
           if (r !== null) return r;
         }
       }
       return null;
     };
-    const bal = findNum(res, [
-      "credit",
-      "balance",
-      "remain",
-      "quota",
-      "point",
-      "coin",
-      "energy",
-    ]);
-    return { ok: true, balance: bal };
+
+    const pickDetailBalance = (o: unknown, titleHint: RegExp): number | null => {
+      if (!o || typeof o !== "object") return null;
+      const detailList = (o as { detail_list?: unknown }).detail_list;
+      if (Array.isArray(detailList)) {
+        for (const item of detailList) {
+          if (!item || typeof item !== "object") continue;
+          const title = String((item as { title?: unknown }).title ?? "");
+          if (!titleHint.test(title)) continue;
+          const balances = (item as { meiye_balance_list?: unknown }).meiye_balance_list;
+          if (!Array.isArray(balances)) continue;
+          for (const balanceItem of balances) {
+            if (!balanceItem || typeof balanceItem !== "object") continue;
+            const raw = (balanceItem as { left_info?: unknown }).left_info;
+            if (typeof raw === "number") return raw;
+            if (typeof raw === "string") {
+              const normalized = raw.replace(/,/g, "").trim();
+              if (/^-?\d+(\.\d+)?$/.test(normalized)) return Number(normalized);
+            }
+          }
+        }
+      }
+      for (const v of Object.values(o as Record<string, unknown>)) {
+        if (v && typeof v === "object") {
+          const found = pickDetailBalance(v, titleHint);
+          if (found !== null) return found;
+        }
+      }
+      return null;
+    };
+
+    const cyberCarrots = pickDetailBalance(payload, /cyber|carrot/i);
+    const dailyFree = pickDetailBalance(payload, /daily|free/i);
+    const free = pickNum(payload, ["free_credit", "free_amount", "daily_free", "free"]) ?? dailyFree;
+    const vip = pickNum(payload, ["vip_credit", "vip_amount", "vip"]);
+    const total =
+      pickNum(payload, ["total_amount", "total_credit", "credit_balance", "balance", "credit", "remain", "point", "coin", "energy", "quota"]) ??
+      cyberCarrots ??
+      ((free ?? 0) + (vip ?? 0) || null);
+
+    return {
+      ok: true,
+      balance: total,
+      free,
+      vip,
+      message: total !== null ? `Cyber Carrots ${total}${free !== null ? ` · Daily free ${free}` : ""}` : undefined,
+    };
   } catch (e) {
     return { ok: false, balance: null, message: (e as Error).message };
   }

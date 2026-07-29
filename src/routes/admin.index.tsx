@@ -1,108 +1,59 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
+import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { listAdminUserStats, setUserTags } from "@/lib/admin/users.functions";
 import {
-  Loader2,
-  Plus,
-  Trash2,
-  ShieldCheck,
-  KeyRound,
-  UserCog,
-  Save,
-  X,
-  Search,
-  Crown,
-  Clock,
+  Loader2, Users, ShieldCheck, Wallet, Receipt, LineChart as LineChartIcon,
+  SlidersHorizontal, BookText, Video, Image as ImageIcon, Sparkles, Activity, Landmark,
+  Radio, TrendingUp, ArrowRight, KeyRound, Crown, X,
 } from "lucide-react";
-import { confirmDialog } from "@/components/ui-confirm";
+
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
     meta: [
-      { title: "Admin Panel — AA Creative Studio" },
-      { name: "description", content: "Kelola user, role, dan akses fitur." },
+      { title: "Admin Dashboard — AA Creative Studio" },
+      { name: "description", content: "Overview realtime aktivitas platform, statistik konten, dan akses cepat ke seluruh modul admin." },
     ],
   }),
-  component: AdminPage,
+  component: AdminDashboardPage,
 });
 
-type Role = "admin" | "editor" | "user";
-type UserTag = "vip" | "vvip";
-
-type ManagedUser = {
-  id: string;
-  email: string | null;
-  display_name: string | null;
-  avatar_url: string | null;
-  created_at: string;
-  roles: Role[];
-  route_keys: string[];
-  tokens_count: number;
-  bank_keys_count: number;
-  total_active_keys: number;
-  last_sign_in_at: string | null;
-  tags: UserTag[];
-  is_paid: boolean;
+type Counts = {
+  users: number;
+  paidUsers: number;
+  onlineUsers: number;
+  totalAssets: number;
+  totalVideos: number;
+  totalImages: number;
+  pendingRequests: number;
+  approvedTx: number;
+  activityToday: number;
 };
 
-function accountAge(createdAt: string): string {
-  const diff = Date.now() - new Date(createdAt).getTime();
-  const days = Math.max(0, Math.floor(diff / 86_400_000));
-  if (days < 1) return "hari ini";
-  if (days < 30) return `${days} hari`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} bulan`;
-  const years = Math.floor(days / 365);
-  const remMonths = Math.floor((days - years * 365) / 30);
-  return remMonths > 0 ? `${years} thn ${remMonths} bln` : `${years} tahun`;
-}
+type KindPoint = { kind: string; count: number };
+type DayPoint = { day: string; count: number };
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return "belum pernah";
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 0) return "baru saja";
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "baru saja";
-  if (mins < 60) return `${mins} menit lalu`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs} jam lalu`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days} hari lalu`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} bln lalu`;
-  return `${Math.floor(days / 365)} thn lalu`;
-}
-
-function AdminPage() {
+function AdminDashboardPage() {
   return (
     <DashboardShell>
       <PageHero
         eyebrow="Admin"
-        title="Manajemen"
-        highlight="User"
-        desc="Tambah, hapus, ubah role dan akses per-fitur untuk semua user."
+        title="Command"
+        highlight="Dashboard"
+        desc="Ringkasan realtime platform — klik salah satu kartu untuk masuk ke modul detail."
       />
-      <AdminGate />
+      <Gate />
     </DashboardShell>
   );
 }
 
-function AdminGate() {
+function Gate() {
   const { loading, isAdmin } = useAuth();
   if (loading) {
-    return (
-      <Card>
-        <div className="p-8 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
-      </Card>
-    );
+    return <Card><div className="p-8 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div></Card>;
   }
   if (!isAdmin) {
     return (
@@ -115,908 +66,512 @@ function AdminGate() {
       </Card>
     );
   }
-  return <AdminBody />;
+  return <Body />;
 }
 
-function AdminBody() {
-  const [users, setUsers] = useState<ManagedUser[]>([]);
+type DetailKey =
+  | "users" | "onlineUsers" | "paidUsers"
+  | "totalVideos" | "totalImages" | "totalAssets"
+  | "pendingRequests" | "activityToday";
+
+function Body() {
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [filterRole, setFilterRole] = useState<"all" | Role>("all");
-  const [filterFeatureMin, setFilterFeatureMin] = useState<string>("");
-  const [filterKeyMin, setFilterKeyMin] = useState<string>("");
-  const [filterLoginFrom, setFilterLoginFrom] = useState<string>("");
-  const [filterLoginTo, setFilterLoginTo] = useState<string>("");
-  const [filterAgeMin, setFilterAgeMin] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "free" | "paid">("all");
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState<ManagedUser | null>(null);
-  const [mobileDetail, setMobileDetail] = useState<ManagedUser | null>(null);
-  const fetchStats = useServerFn(listAdminUserStats);
+  const [c, setC] = useState<Counts>({
+    users: 0, paidUsers: 0, onlineUsers: 0, totalAssets: 0, totalVideos: 0,
+    totalImages: 0, pendingRequests: 0, approvedTx: 0, activityToday: 0,
+  });
+  const [byKind, setByKind] = useState<KindPoint[]>([]);
+  const [series, setSeries] = useState<DayPoint[]>([]);
+  const [tick, setTick] = useState(0);
+  const [lastUpdate, setLastUpdate] = useState<Date>(() => new Date());
+  const [detail, setDetail] = useState<DetailKey | null>(null);
 
-  async function load() {
-    setLoading(true);
-    const [{ data: profiles }, { data: roles }, { data: perms }, statsRes] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("route_permissions").select("user_id, route_key"),
-      fetchStats().catch((e) => {
-        console.warn("[admin] listAdminUserStats failed", e);
-        return [] as Awaited<ReturnType<typeof listAdminUserStats>>;
-      }),
-    ]);
-    const rolesByUser: Record<string, Role[]> = {};
-    (roles ?? []).forEach((r: any) => {
-      (rolesByUser[r.user_id] ||= []).push(r.role);
-    });
-    const permsByUser: Record<string, string[]> = {};
-    (perms ?? []).forEach((p: any) => {
-      (permsByUser[p.user_id] ||= []).push(p.route_key);
-    });
-    const statsByUser: Record<
-      string,
-      { t: number; b: number; total: number; last: string | null; tags: UserTag[]; is_paid: boolean }
-    > = {};
-    ((statsRes ?? []) as any[]).forEach((r) => {
-      statsByUser[r.id] = {
-        t: r.tokens_count ?? 0,
-        b: r.bank_keys_count ?? 0,
-        total: r.total_active_keys ?? 0,
-        last: r.last_sign_in_at ?? null,
-        tags: (r.tags ?? []) as UserTag[],
-        is_paid: Boolean(r.is_paid),
-      };
-    });
-    setUsers(
-      ((profiles ?? []) as any[]).map((p) => ({
-        ...p,
-        roles: rolesByUser[p.id] ?? [],
-        route_keys: permsByUser[p.id] ?? [],
-        tokens_count: statsByUser[p.id]?.t ?? 0,
-        bank_keys_count: statsByUser[p.id]?.b ?? 0,
-        total_active_keys:
-          statsByUser[p.id]?.total ??
-          (statsByUser[p.id]?.t ?? 0) + (statsByUser[p.id]?.b ?? 0),
-        last_sign_in_at: statsByUser[p.id]?.last ?? null,
-        tags: statsByUser[p.id]?.tags ?? [],
-        is_paid: statsByUser[p.id]?.is_paid ?? false,
-      })),
-    );
-    setLoading(false);
-  }
 
+  // Fast polling + realtime subscriptions so the dashboard reflects
+  // activity immediately (no 5-minute or 30-second wait).
   useEffect(() => {
-    load();
+    const iv = setInterval(() => setTick((t) => t + 1), 10_000);
+    let deb: ReturnType<typeof setTimeout> | null = null;
+    const bump = () => {
+      if (deb) clearTimeout(deb);
+      deb = setTimeout(() => setTick((t) => t + 1), 400);
+    };
+    const ch = supabase
+      .channel("admin-dashboard-live")
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "user_active_sessions" } as never, bump)
+      .on("postgres_changes" as never, { event: "INSERT", schema: "public", table: "user_activity_logs" } as never, bump)
+      .on("postgres_changes" as never, { event: "INSERT", schema: "public", table: "ai_influencer_assets" } as never, bump)
+      .on("postgres_changes" as never, { event: "*", schema: "public", table: "purchase_requests" } as never, bump)
+      .subscribe();
+    return () => {
+      clearInterval(iv);
+      if (deb) clearTimeout(deb);
+      supabase.removeChannel(ch);
+    };
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const featMin = Number(filterFeatureMin) || 0;
-    const keyMin = Number(filterKeyMin) || 0;
-    const ageMinDays = Number(filterAgeMin) || 0;
-    const loginFromMs = filterLoginFrom ? new Date(filterLoginFrom).getTime() : null;
-    const loginToMs = filterLoginTo ? new Date(filterLoginTo).getTime() + 86_400_000 : null;
-    return users.filter((u) => {
-      if (q && !(u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q))) return false;
-      if (filterRole !== "all") {
-        if (filterRole === "user" ? u.roles.length > 0 && !u.roles.includes("user") : !u.roles.includes(filterRole))
-          return false;
-      }
-      const featCount = u.roles.includes("admin") ? ALL_ROUTE_KEYS.length : u.route_keys.length;
-      if (featCount < featMin) return false;
-      if (u.total_active_keys < keyMin) return false;
-      if (loginFromMs !== null) {
-        if (!u.last_sign_in_at || new Date(u.last_sign_in_at).getTime() < loginFromMs) return false;
-      }
-      if (loginToMs !== null) {
-        if (!u.last_sign_in_at || new Date(u.last_sign_in_at).getTime() > loginToMs) return false;
-      }
-      if (ageMinDays > 0) {
-        const days = Math.floor((Date.now() - new Date(u.created_at).getTime()) / 86_400_000);
-        if (days < ageMinDays) return false;
-      }
-      if (filterStatus === "paid" && !u.is_paid) return false;
-      if (filterStatus === "free" && u.is_paid) return false;
-      return true;
-    });
-  }, [users, query, filterRole, filterFeatureMin, filterKeyMin, filterLoginFrom, filterLoginTo, filterAgeMin, filterStatus]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const since30 = new Date(); since30.setDate(since30.getDate() - 29);
+      const since30Iso = since30.toISOString();
+      // "Online" = heartbeat updated in the last 2 minutes. Heartbeat
+      // runs every 15–60s from src/lib/auth-context.tsx.
+      const onlineSince = new Date(Date.now() - 2 * 60_000).toISOString();
+      const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+      const startTodayIso = startToday.toISOString();
 
-  const resetFilters = () => {
-    setQuery("");
-    setFilterRole("all");
-    setFilterFeatureMin("");
-    setFilterKeyMin("");
-    setFilterLoginFrom("");
-    setFilterLoginTo("");
-    setFilterAgeMin("");
-    setFilterStatus("all");
-  };
+      // Match logGenerate() actions: "generate_<kind>" or "generate_<kind>/<provider>".
+      const VIDEO_KINDS = ["motion", "image_to_video", "naratif", "storyboard"];
+      const IMAGE_KINDS = ["bulk_fashion", "upscaler", "framia", "leonardo", "weavy", "magnific"];
+      const videoOr = VIDEO_KINDS.map((k) => `action.like.generate_${k}%`).join(",");
+      const imageOr = IMAGE_KINDS.map((k) => `action.like.generate_${k}%`).join(",");
 
-  async function callAdmin(body: Record<string, unknown>) {
-    const { data: sess } = await supabase.auth.getSession();
-    const token = sess.session?.access_token;
-    const res = await supabase.functions.invoke("admin-users", {
-      body,
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-    if (res.error) throw new Error(res.error.message);
-    if ((res.data as any)?.error) throw new Error((res.data as any).error);
-    return res.data;
-  }
+      const [
+        rUsers, rTags, rOnline,
+        rAssetsAll, rAssetsRecent,
+        rReqPending, rTxApproved,
+        rActToday,
+        rVideoGen, rImageGen,
+      ] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("user_tags" as never).select("user_id", { count: "exact", head: true }).in("tag", ["vip", "vvip"] as never),
+        // Table column is `updated_at` (see create-user-active-sessions.sql).
+        // Previous code queried `last_seen_at` → always 0.
+        supabase.from("user_active_sessions" as never).select("user_id", { count: "exact", head: true }).gte("updated_at", onlineSince),
+        supabase.from("ai_influencer_assets").select("kind"),
+        supabase.from("ai_influencer_assets").select("kind, created_at").gte("created_at", since30Iso),
+        supabase.from("purchase_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("purchase_requests").select("id", { count: "exact", head: true }).eq("status", "approved"),
+        supabase.from("user_activity_logs" as never).select("id", { count: "exact", head: true }).gte("created_at", startTodayIso),
+        supabase
+          .from("user_activity_logs" as never)
+          .select("id", { count: "exact", head: true })
+          .eq("category", "generate" as never)
+          .contains("details", { status: "success" } as never)
+          .or(videoOr),
+        supabase
+          .from("user_activity_logs" as never)
+          .select("id", { count: "exact", head: true })
+          .eq("category", "generate" as never)
+          .contains("details", { status: "success" } as never)
+          .or(imageOr),
+      ]);
 
-  async function removeUser(u: ManagedUser) {
-    const ok = await confirmDialog({
-      title: `Hapus user ${u.email}?`,
-      description: "User dan seluruh data terkait akan dihapus permanen.",
-      confirmLabel: "Ya, hapus user",
-      tone: "danger",
-    });
-    if (!ok) return;
-    try {
-      await callAdmin({ action: "delete", user_id: u.id });
-      toast.success("User dihapus");
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal hapus");
-    }
+      if (cancelled) return;
+
+      const allAssets = (rAssetsAll.data ?? []) as { kind: string | null }[];
+      const totalAssets = allAssets.length;
+      // Combine module-tracked assets + logged successful generations so
+      // AI Influencer studio AND other generate flows both count.
+      const assetVideos = allAssets.filter((a) => (a.kind || "").toLowerCase().includes("video")).length;
+      const assetImages = allAssets.filter((a) => (a.kind || "").toLowerCase().includes("image") || (a.kind || "").toLowerCase().includes("photo")).length;
+      const totalVideos = assetVideos + (rVideoGen.count ?? 0);
+      const totalImages = assetImages + (rImageGen.count ?? 0);
+
+      const kindMap = new Map<string, number>();
+      allAssets.forEach((a) => {
+        const k = (a.kind || "lainnya").toString();
+        kindMap.set(k, (kindMap.get(k) ?? 0) + 1);
+      });
+      const kindList: KindPoint[] = Array.from(kindMap.entries())
+        .map(([kind, count]) => ({ kind, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      const buckets = new Map<string, number>();
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(); d.setDate(d.getDate() - (29 - i));
+        buckets.set(d.toISOString().slice(0, 10), 0);
+      }
+      ((rAssetsRecent.data ?? []) as { created_at: string }[]).forEach((r) => {
+        const k = String(r.created_at ?? "").slice(0, 10);
+        if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + 1);
+      });
+
+      setC({
+        users: rUsers.count ?? 0,
+        paidUsers: rTags.count ?? 0,
+        onlineUsers: rOnline.count ?? 0,
+        totalAssets,
+        totalVideos,
+        totalImages,
+        pendingRequests: rReqPending.count ?? 0,
+        approvedTx: rTxApproved.count ?? 0,
+        activityToday: rActToday.count ?? 0,
+      });
+      setByKind(kindList);
+      setSeries(Array.from(buckets.entries()).map(([day, count]) => ({ day, count })));
+      setLastUpdate(new Date());
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [tick]);
+
+  const top = byKind[0];
+  const total30 = useMemo(() => series.reduce((s, p) => s + p.count, 0), [series]);
+  const growth = useMemo(() => {
+    if (series.length < 30) return 0;
+    const a = series.slice(0, 15).reduce((s, p) => s + p.count, 0);
+    const b = series.slice(15).reduce((s, p) => s + p.count, 0);
+    if (a === 0) return b > 0 ? 100 : 0;
+    return Math.round(((b - a) / a) * 100);
+  }, [series]);
+
+  if (loading) {
+    return <Card><div className="p-8 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div></Card>;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <div className="p-4 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-border bg-card/50 px-3 py-2 flex-1 min-w-64">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                placeholder="Cari email / nama…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <button
-              onClick={resetFilters}
-              className="rounded-full border border-border bg-card/50 px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Reset filter
-            </button>
-            <button
-              onClick={() => setCreating(true)}
-              className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
-              style={{ background: "var(--gradient-neon)" }}
-            >
-              <Plus className="h-4 w-4" /> Tambah user
-            </button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Role</span>
-              <select
-                value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value as "all" | Role)}
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              >
-                <option value="all">Semua</option>
-                <option value="admin">Admin</option>
-                <option value="editor">Editor</option>
-                <option value="user">User</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Fitur min.</span>
-              <input
-                type="number"
-                min={0}
-                value={filterFeatureMin}
-                onChange={(e) => setFilterFeatureMin(e.target.value)}
-                placeholder="0"
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Total key min.</span>
-              <input
-                type="number"
-                min={0}
-                value={filterKeyMin}
-                onChange={(e) => setFilterKeyMin(e.target.value)}
-                placeholder="0"
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login dari</span>
-              <input
-                type="date"
-                value={filterLoginFrom}
-                onChange={(e) => setFilterLoginFrom(e.target.value)}
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login s/d</span>
-              <input
-                type="date"
-                value={filterLoginTo}
-                onChange={(e) => setFilterLoginTo(e.target.value)}
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Usia (hari) min.</span>
-              <input
-                type="number"
-                min={0}
-                value={filterAgeMin}
-                onChange={(e) => setFilterAgeMin(e.target.value)}
-                placeholder="0"
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              />
-            </label>
-            <label className="flex flex-col gap-1 col-span-2 md:col-span-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status</span>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as "all" | "free" | "paid")}
-                className="rounded-lg border border-border bg-card/50 px-2 py-1.5 outline-none"
-              >
-                <option value="all">Semua</option>
-                <option value="free">Free User</option>
-                <option value="paid">Paid User</option>
-              </select>
-            </label>
-          </div>
-        </div>
-      </Card>
-
-      <div className="hidden lg:block">
-      <Card>
-        {loading ? (
-          <div className="p-8 flex items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                <tr className="border-b border-border/60">
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Akses fitur</th>
-                  <th className="px-4 py-3">Total Token/API Key</th>
-                  <th className="px-4 py-3">Login terakhir</th>
-                  <th className="px-4 py-3">Usia Akun</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-border/40 hover:bg-sidebar-accent/20">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover" />
-                        ) : (
-                          <span
-                            className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm"
-                            style={{ background: "var(--gradient-neon)" }}
-                          >
-                            {(u.display_name || u.email || "U")[0]?.toUpperCase()}
-                          </span>
-                        )}
-                        <div className="min-w-0">
-                          <div className="font-medium truncate flex items-center gap-1.5">
-                            <span className="truncate">{u.display_name || "—"}</span>
-                            {u.tags.map((t) => (
-                              <TagBadge key={t} tag={t} />
-                            ))}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">{u.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {u.roles.length === 0 && (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                        {u.roles.map((r) => (
-                          <span
-                            key={r}
-                            className={[
-                              "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                              r === "admin"
-                                ? "border-primary/50 text-primary bg-primary/10"
-                                : r === "editor"
-                                  ? "border-accent/50 text-accent bg-accent/10"
-                                  : "border-border text-muted-foreground",
-                            ].join(" ")}
-                          >
-                            {r}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {u.roles.includes("admin") ? (
-                        <span className="text-primary">Semua fitur</span>
-                      ) : (
-                        `${u.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      <div className="flex flex-col leading-tight">
-                        <span className="font-mono text-sm">
-                          <span className="text-primary text-base font-semibold">
-                            {u.total_active_keys}
-                          </span>{" "}
-                          <span className="text-muted-foreground">Token/API Key</span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {relativeTime(u.last_sign_in_at)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                      {accountAge(u.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={[
-                          "inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border w-fit",
-                          u.is_paid
-                            ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
-                            : "border-border text-muted-foreground bg-card/40",
-                        ].join(" ")}
-                        title={u.is_paid ? "User pernah membayar & masa aktif fitur premium masih tersedia" : "Belum ada pembayaran aktif"}
-                      >
-                        <span
-                          className={[
-                            "h-2.5 w-2.5 rounded-full border",
-                            u.is_paid
-                              ? "bg-amber-300 border-amber-200 shadow-[0_0_8px_rgba(252,211,77,0.7)]"
-                              : "bg-white border-white/70",
-                          ].join(" ")}
-                        />
-                        {u.is_paid ? "Paid User" : "Free User"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button
-                          onClick={() => setEditing(u)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-card"
-                        >
-                          <UserCog className="h-3.5 w-3.5" /> Kelola
-                        </button>
-                        <button
-                          onClick={() => removeUser(u)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/40 text-rose-300 px-3 py-1.5 text-xs hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                      Tidak ada user.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+    <div className="flex flex-col gap-5">
+      {/* Live pulse */}
+      <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 text-primary">
+          <Radio className="h-3 w-3 animate-pulse" /> Realtime
+        </span>
+        <span>· live via subscriptions</span>
+        <span>· update terakhir {lastUpdate.toLocaleTimeString("id-ID")}</span>
       </div>
 
-      {/* Mobile & tablet compact user list. Detail info is dibuka via modal saat nama diklik. */}
-      <Card>
-        <div className="lg:hidden">
-          {loading ? (
-            <div className="p-8 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Tidak ada user.</div>
-          ) : (
-            <ul className="divide-y divide-border/50">
-              {filtered.map((u) => (
-                <li key={u.id} className="flex items-center gap-2 px-3 py-3">
-                  <button
-                    onClick={() => setMobileDetail(u)}
-                    className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
-                    title="Lihat detail user"
-                  >
-                    {u.avatar_url ? (
-                      <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <span
-                        className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm shrink-0"
-                        style={{ background: "var(--gradient-neon)" }}
-                      >
-                        {(u.display_name || u.email || "U")[0]?.toUpperCase()}
-                      </span>
-                    )}
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                        <span className="truncate">{u.display_name || u.email || "—"}</span>
-                        {u.tags.map((t) => (
-                          <TagBadge key={t} tag={t} />
-                        ))}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground truncate">{u.email}</div>
-                    </div>
-                  </button>
-                  {/* Tablet-only extra columns */}
-                  <div className="hidden md:flex items-center gap-4 shrink-0 pr-2">
-                    <div className="text-right leading-tight">
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Token/Key</div>
-                      <div className="text-sm font-semibold text-primary">{u.total_active_keys}</div>
-                    </div>
-                    <div className="text-right leading-tight min-w-[7rem]">
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login terakhir</div>
-                      <div className="text-xs font-mono text-muted-foreground inline-flex items-center gap-1 justify-end">
-                        <Clock className="h-3 w-3" />
-                        {relativeTime(u.last_sign_in_at)}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setEditing(u)}
-                    className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border bg-card/50 px-2.5 py-1.5 text-[11px] font-medium"
-                    title="Kelola user"
-                  >
-                    <UserCog className="h-3.5 w-3.5" />
-                    Kelola
-                  </button>
-                  <button
-                    onClick={() => removeUser(u)}
-                    className="shrink-0 inline-flex items-center rounded-full border border-rose-400/40 text-rose-300 px-2 py-1.5"
-                    title="Hapus user"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </Card>
+
+      {/* KPI Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Kpi icon={Users} label="Total User" value={c.users} accent="Terdaftar" onClick={() => setDetail("users")} />
+        <Kpi icon={Radio} label="Online Sekarang" value={c.onlineUsers} accent="Live · heartbeat 2m" pulse onClick={() => setDetail("onlineUsers")} />
+        <Kpi icon={Crown} label="Paid User" value={c.paidUsers} accent="VIP + VVIP" onClick={() => setDetail("paidUsers")} />
+        <Kpi icon={Video} label="Video Generated" value={c.totalVideos} accent="Semua provider" onClick={() => setDetail("totalVideos")} />
+        <Kpi icon={ImageIcon} label="Image Generated" value={c.totalImages} accent="Semua provider" onClick={() => setDetail("totalImages")} />
+        <Kpi icon={Sparkles} label="Total Aset" value={c.totalAssets} accent="Video + image + ref" onClick={() => setDetail("totalAssets")} />
+        <Kpi icon={Receipt} label="Request Pending" value={c.pendingRequests} accent="Perlu review" tone={c.pendingRequests > 0 ? "warn" : "ok"} onClick={() => setDetail("pendingRequests")} />
+        <Kpi icon={Activity} label="Aktivitas Hari Ini" value={c.activityToday} accent="Semua user" onClick={() => setDetail("activityToday")} />
+      </div>
 
 
-      {mobileDetail && (
-        <Modal title={mobileDetail.email || mobileDetail.display_name || "Detail user"} onClose={() => setMobileDetail(null)}>
-          <div className="p-5 space-y-3 text-sm">
-            <DetailRow label="Nama" value={mobileDetail.display_name || "—"} />
-            <DetailRow label="Email" value={mobileDetail.email || "—"} />
-            <DetailRow label="Role" value={mobileDetail.roles.join(", ") || "—"} />
-            <DetailRow
-              label="Akses fitur"
-              value={
-                mobileDetail.roles.includes("admin")
-                  ? "Semua fitur"
-                  : `${mobileDetail.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
-              }
-            />
-            <DetailRow label="Total Token/API Key" value={String(mobileDetail.total_active_keys)} />
-            <DetailRow label="Login terakhir" value={relativeTime(mobileDetail.last_sign_in_at)} />
-            <DetailRow label="Usia akun" value={accountAge(mobileDetail.created_at)} />
-            <DetailRow label="Status" value={mobileDetail.is_paid ? "Paid User" : "Free User"} />
-            {mobileDetail.tags.length > 0 && (
-              <DetailRow label="Tag" value={mobileDetail.tags.join(", ")} />
+      {/* Main content: chart + top kind */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card
+            title="Generate 30 Hari Terakhir"
+            sub={`Total ${total30} aset · Pertumbuhan 15 hari terakhir vs 15 hari sebelumnya: ${growth > 0 ? "+" : ""}${growth}%`}
+          >
+            <SeriesChart data={series} />
+            {total30 === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-6">Belum ada aset di-generate 30 hari terakhir.</div>
             )}
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setMobileDetail(null)}
-                className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground"
-                style={{ background: "var(--gradient-neon)" }}
-              >
-                OK
-              </button>
-            </div>
+          </Card>
+        </div>
+
+        <Card title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
+          {byKind.length === 0 ? (
+            <div className="text-xs text-muted-foreground py-4">Belum ada data.</div>
+          ) : (
+            <>
+              {top && (
+                <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 mb-3">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Juara</div>
+                  <div className="mt-1 font-display text-xl text-foreground capitalize truncate">{top.kind}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{top.count.toLocaleString("id-ID")} kali di-generate</div>
+                </div>
+              )}
+              <ul className="space-y-2">
+                {byKind.map((k) => {
+                  const pct = top ? Math.round((k.count / top.count) * 100) : 0;
+                  return (
+                    <li key={k.kind} className="text-xs">
+                      <div className="flex justify-between text-foreground/90 capitalize">
+                        <span className="truncate">{k.kind}</span>
+                        <span className="font-mono text-muted-foreground">{k.count.toLocaleString("id-ID")}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                        <div className="h-full bg-primary/70" style={{ width: `${pct}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </Card>
+      </div>
+
+      {/* Modules */}
+      <div>
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Explore</div>
+            <div className="font-display text-lg text-foreground">Modul Admin</div>
           </div>
-        </Modal>
-      )}
-
-      {creating && (
-        <CreateUserModal
-          onClose={() => setCreating(false)}
-          onDone={() => {
-            setCreating(false);
-            load();
-          }}
-          callAdmin={callAdmin}
-        />
-      )}
-      {editing && (
-        <EditUserModal
-          user={editing}
-          onClose={() => setEditing(null)}
-          onDone={() => {
-            setEditing(null);
-            load();
-          }}
-          callAdmin={callAdmin}
-        />
-      )}
+          <div className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> klik untuk detail</div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <ModuleCard to="/admin/users" icon={Users} title="Kelola User" desc={`${c.users} user terdaftar · atur role & akses`} />
+          <ModuleCard to="/admin/requests" icon={Receipt} title="Request Pembelian" desc={`${c.pendingRequests} menunggu review`} highlight={c.pendingRequests > 0} />
+          <ModuleCard to="/admin/payments" icon={Wallet} title="Metode Pembayaran & Harga" desc="Konfigurasi gateway & tarif fitur" />
+          <ModuleCard to="/admin/transactions" icon={LineChartIcon} title="Laporan Transaksi" desc={`${c.approvedTx} transaksi disetujui`} />
+          <ModuleCard to="/admin/access" icon={SlidersHorizontal} title="Pengaturan Halaman" desc="Aktif / non-aktif halaman & feature flag" />
+          <ModuleCard to="/admin/activity-log" icon={BookText} title="Log Aktivitas" desc={`${c.activityToday} event hari ini`} />
+          <ModuleCard to="/admin/token-bank" icon={Landmark} title="Token Bank" desc="Kirim / hapus banyak key sekaligus" />
+        </div>
+      </div>
+      {detail && <KpiDetailModal type={detail} onClose={() => setDetail(null)} />}
     </div>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+
+function Kpi({
+  icon: Icon, label, value, accent, tone = "ok", pulse, onClick,
+}: {
+  icon: any; label: string; value: number; accent?: string; tone?: "ok" | "warn"; pulse?: boolean; onClick?: () => void;
+}) {
+  const bg = tone === "warn" && value > 0
+    ? "linear-gradient(135deg, oklch(0.7 0.19 30), oklch(0.65 0.2 15))"
+    : "var(--gradient-neon)";
+  const clickable = typeof onClick === "function";
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-border/40 pb-1.5">
-      <span className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</span>
-      <span className="text-sm text-foreground/95 text-right break-words">{value}</span>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!clickable}
+      className={
+        "neumorph p-4 relative overflow-hidden text-left w-full " +
+        (clickable ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/50 transition" : "cursor-default")
+      }
+      title={clickable ? "Lihat detail" : undefined}
+    >
+      <div className="flex items-center gap-2">
+        <div className="h-8 w-8 rounded-lg grid place-items-center text-primary-foreground shrink-0" style={{ background: bg }}>
+          <Icon className={"h-4 w-4 " + (pulse ? "animate-pulse" : "")} />
+        </div>
+        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground truncate">{label}</div>
+      </div>
+      <div className="mt-2 font-display text-2xl md:text-3xl text-foreground">{value.toLocaleString("id-ID")}</div>
+      {accent && <div className="text-[10px] text-muted-foreground mt-0.5 truncate">{accent}</div>}
+    </button>
   );
 }
 
-function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+
+function ModuleCard({
+  to, icon: Icon, title, desc, highlight,
+}: { to: string; icon: any; title: string; desc: string; highlight?: boolean }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4">
-      <div className="neumorph w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
-          <div className="font-display text-lg">{title}</div>
-          <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full border border-border">
+    <Link
+      to={to}
+      className={
+        "group neumorph p-4 flex items-start gap-3 transition hover:border-primary/50 hover:-translate-y-0.5 " +
+        (highlight ? "ring-1 ring-primary/50" : "")
+      }
+    >
+      <div className="h-10 w-10 rounded-xl grid place-items-center shrink-0 text-primary-foreground" style={{ background: "var(--gradient-neon)" }}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <div className="font-display text-sm text-foreground truncate">{title}</div>
+          {highlight && <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">Perlu aksi</span>}
+        </div>
+        <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+      </div>
+      <ArrowRight className="h-4 w-4 text-muted-foreground mt-1 group-hover:text-primary group-hover:translate-x-0.5 transition" />
+    </Link>
+  );
+}
+
+function SeriesChart({ data }: { data: DayPoint[] }) {
+  const w = 640, h = 180, pad = 24;
+  const max = Math.max(1, ...data.map((d) => d.count));
+  const step = (w - pad * 2) / Math.max(1, data.length - 1);
+  const points = data.map((d, i) => ({
+    x: pad + i * step,
+    y: h - pad - (d.count / max) * (h - pad * 2),
+    ...d,
+  }));
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const area = `${path} L ${points[points.length - 1]?.x ?? w - pad} ${h - pad} L ${pad} ${h - pad} Z`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48">
+      <defs>
+        <linearGradient id="ad-fill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="var(--neon-pink)" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="var(--neon-pink)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {[0.25, 0.5, 0.75].map((r) => (
+        <line key={r} x1={pad} x2={w - pad} y1={pad + (h - pad * 2) * r} y2={pad + (h - pad * 2) * r}
+          stroke="oklch(0.35 0.06 275 / 0.25)" strokeDasharray="3 5" />
+      ))}
+      <path d={area} fill="url(#ad-fill)" />
+      <path d={path} fill="none" stroke="var(--neon-pink)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 4px var(--neon-pink))" }} />
+      {points.filter((_, i) => i % 5 === 0 || i === points.length - 1).map((p, i) => (
+        <text key={i} x={p.x} y={h - 6} textAnchor="middle" fontSize="9" fill="oklch(0.65 0.05 265)">
+          {p.day.slice(5)}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+type DetailRow = {
+  id: string;
+  primary: string;
+  secondary?: string;
+  meta?: string;
+  badge?: string;
+};
+
+const DETAIL_TITLES: Record<DetailKey, { title: string; subtitle: string }> = {
+  users: { title: "Total User", subtitle: "30 user terbaru terdaftar" },
+  onlineUsers: { title: "User Online Sekarang", subtitle: "Heartbeat < 2 menit terakhir" },
+  paidUsers: { title: "Paid User", subtitle: "User dengan tag VIP / VVIP aktif" },
+  totalVideos: { title: "Video Generated", subtitle: "30 event generate video terbaru" },
+  totalImages: { title: "Image Generated", subtitle: "30 event generate image terbaru" },
+  totalAssets: { title: "Total Aset", subtitle: "30 aset terbaru (video + image + ref)" },
+  pendingRequests: { title: "Request Pending", subtitle: "Menunggu review admin" },
+  activityToday: { title: "Aktivitas Hari Ini", subtitle: "Event 24 jam terakhir" },
+};
+
+function KpiDetailModal({ type, onClose }: { type: DetailKey; onClose: () => void }) {
+  const [rows, setRows] = useState<DetailRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const info = DETAIL_TITLES[type];
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      const data = await loadDetailRows(type);
+      if (alive) {
+        setRows(data);
+        setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, [type]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-background/80 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-border/60 bg-card/95 backdrop-blur p-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Detail</div>
+            <div className="font-display text-lg text-foreground">{info.title}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{info.subtitle}</div>
+          </div>
+          <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full border border-border hover:bg-sidebar-accent/30" aria-label="Tutup">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function CreateUserModal({
-  onClose,
-  onDone,
-  callAdmin,
-}: {
-  onClose: () => void;
-  onDone: () => void;
-  callAdmin: (b: Record<string, unknown>) => Promise<any>;
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<Role>("user");
-  const [routeKeys, setRouteKeys] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await callAdmin({
-        action: "create",
-        email,
-        password,
-        display_name: displayName,
-        role,
-        route_keys: role === "admin" ? [] : routeKeys,
-      });
-      toast.success("User dibuat");
-      onDone();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal membuat user");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal title="Tambah user baru" onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <Field label="Email">
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Nama tampilan">
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Password sementara">
-          <input type="text" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Role">
-          <RoleSelect value={role} onChange={setRole} />
-        </Field>
-        {role !== "admin" && (
-          <Field label="Akses fitur">
-            <RoutePermissionsPicker value={routeKeys} onChange={setRouteKeys} />
-          </Field>
-        )}
-        <button
-          type="submit"
-          disabled={saving}
-          className="mt-2 inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-          style={{ background: "var(--gradient-neon)" }}
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          <Plus className="h-4 w-4" /> Buat user
-        </button>
-      </form>
-    </Modal>
-  );
-}
-
-function EditUserModal({
-  user,
-  onClose,
-  onDone,
-  callAdmin,
-}: {
-  user: ManagedUser;
-  onClose: () => void;
-  onDone: () => void;
-  callAdmin: (b: Record<string, unknown>) => Promise<any>;
-}) {
-  const [displayName, setDisplayName] = useState(user.display_name ?? "");
-  const [role, setRole] = useState<Role>(user.roles[0] ?? "user");
-  const [routeKeys, setRouteKeys] = useState<string[]>(user.route_keys);
-  const [newPassword, setNewPassword] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [tags, setTags] = useState<UserTag[]>(user.tags ?? []);
-  const saveTagsFn = useServerFn(setUserTags);
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      // Update profile
-      const { error: pErr } = await supabase
-        .from("profiles")
-        .update({ display_name: displayName })
-        .eq("id", user.id);
-      if (pErr) throw pErr;
-
-      // Update role: delete existing, insert new
-      const { error: dRoleErr } = await supabase.from("user_roles").delete().eq("user_id", user.id);
-      if (dRoleErr) throw dRoleErr;
-      const { error: iRoleErr } = await supabase.from("user_roles").insert({ user_id: user.id, role });
-      if (iRoleErr) throw iRoleErr;
-
-      // Update route permissions
-      const { error: dPermErr } = await supabase
-        .from("route_permissions")
-        .delete()
-        .eq("user_id", user.id);
-      if (dPermErr) throw dPermErr;
-      if (role !== "admin" && routeKeys.length > 0) {
-        const { error: iPermErr } = await supabase
-          .from("route_permissions")
-          .insert(routeKeys.map((k) => ({ user_id: user.id, route_key: k })));
-        if (iPermErr) throw iPermErr;
-      }
-
-      // Reset password if provided
-      if (newPassword) {
-        await callAdmin({ action: "reset_password", user_id: user.id, password: newPassword });
-      }
-
-      // Update label VIP/VVIP
-      const before = [...(user.tags ?? [])].sort().join(",");
-      const after = [...tags].sort().join(",");
-      if (before !== after) {
-        await saveTagsFn({ data: { userId: user.id, tags } });
-      }
-
-      toast.success("Perubahan tersimpan");
-      onDone();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal title={`Kelola ${user.email}`} onClose={onClose}>
-      <form onSubmit={submit} className="flex flex-col gap-3">
-        <Field label="Nama tampilan">
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Role">
-          <RoleSelect value={role} onChange={setRole} />
-        </Field>
-        <Field label="Label khusus">
-          <TagPicker value={tags} onChange={setTags} />
-        </Field>
-        {role !== "admin" && (
-          <Field label="Akses fitur (per halaman)">
-            <RoutePermissionsPicker value={routeKeys} onChange={setRouteKeys} />
-          </Field>
-        )}
-        <Field label="Reset password (opsional)">
-          <div className="flex items-center gap-2 rounded-2xl border border-border bg-card/50 px-3 py-2.5">
-            <KeyRound className="h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Kosongkan jika tidak diubah"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
-          </div>
-        </Field>
-        <button
-          type="submit"
-          disabled={saving}
-          className="mt-2 inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-          style={{ background: "var(--gradient-neon)" }}
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          <Save className="h-4 w-4" /> Simpan
-        </button>
-      </form>
-    </Modal>
-  );
-}
-
-const inputCls =
-  "w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/60";
-
-export function TagBadge({ tag }: { tag: UserTag }) {
-  const isVvip = tag === "vvip";
-  return (
-    <span
-      className={[
-        "inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
-        isVvip
-          ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
-          : "border-fuchsia-400/50 text-fuchsia-200 bg-fuchsia-500/10",
-      ].join(" ")}
-    >
-      <Crown className="h-2.5 w-2.5" />
-      {tag}
-    </span>
-  );
-}
-
-function TagPicker({ value, onChange }: { value: UserTag[]; onChange: (v: UserTag[]) => void }) {
-  function toggle(t: UserTag) {
-    onChange(value.includes(t) ? value.filter((x) => x !== t) : [...value, t]);
-  }
-  const opts: { v: UserTag; label: string; desc: string }[] = [
-    { v: "vip", label: "VIP", desc: "User prioritas" },
-    { v: "vvip", label: "VVIP", desc: "Top tier / partner" },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {opts.map((o) => {
-        const on = value.includes(o.v);
-        return (
-          <button
-            key={o.v}
-            type="button"
-            onClick={() => toggle(o.v)}
-            className={[
-              "text-left rounded-2xl border px-3 py-2.5 transition flex items-center gap-2",
-              on
-                ? "border-primary/60 bg-primary/10"
-                : "border-border bg-card/40 hover:bg-card/70",
-            ].join(" ")}
-          >
-            <Crown className={on ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
-            <div>
-              <div className="text-sm font-medium">{o.label}</div>
-              <div className="text-[10px] text-muted-foreground leading-tight">{o.desc}</div>
+        <div className="p-4">
+          {loading ? (
+            <div className="p-8 grid place-items-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          ) : rows.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Tidak ada data.</div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {rows.map((r) => (
+                <div key={r.id} className="rounded-xl border border-border/60 bg-card/40 p-3 flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm text-foreground truncate">{r.primary}</div>
+                    {r.secondary && <div className="text-xs text-muted-foreground truncate">{r.secondary}</div>}
+                  </div>
+                  {r.badge && (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/40 bg-primary/10 text-primary">{r.badge}</span>
+                  )}
+                  {r.meta && <div className="text-[11px] text-muted-foreground whitespace-nowrap">{r.meta}</div>}
+                </div>
+              ))}
             </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function RoleSelect({ value, onChange }: { value: Role; onChange: (r: Role) => void }) {
-  const options: { v: Role; label: string; desc: string }[] = [
-    { v: "admin", label: "Admin", desc: "Akses penuh & kelola user" },
-    { v: "editor", label: "Editor", desc: "Akses ke fitur yang dipilih" },
-    { v: "user", label: "User", desc: "Akses ke fitur yang dipilih" },
-  ];
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {options.map((o) => (
-        <button
-          key={o.v}
-          type="button"
-          onClick={() => onChange(o.v)}
-          className={[
-            "text-left rounded-2xl border px-3 py-2.5 transition",
-            value === o.v
-              ? "border-primary/60 bg-primary/10"
-              : "border-border bg-card/40 hover:bg-card/70",
-          ].join(" ")}
-        >
-          <div className="text-sm font-medium">{o.label}</div>
-          <div className="text-[10px] text-muted-foreground leading-tight">{o.desc}</div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function RoutePermissionsPicker({
-  value,
-  onChange,
-}: {
-  value: string[];
-  onChange: (v: string[]) => void;
-}) {
-  const groups: Record<string, typeof ALL_ROUTE_KEYS> = {};
-  ALL_ROUTE_KEYS.forEach((r) => {
-    (groups[r.group] ||= []).push(r);
-  });
-  function toggle(k: string) {
-    onChange(value.includes(k) ? value.filter((x) => x !== k) : [...value, k]);
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => onChange(ALL_ROUTE_KEYS.map((r) => r.key))}
-          className="text-[10px] font-mono uppercase tracking-widest rounded-full border border-border px-2.5 py-1 hover:bg-card"
-        >
-          Pilih semua
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange([])}
-          className="text-[10px] font-mono uppercase tracking-widest rounded-full border border-border px-2.5 py-1 hover:bg-card"
-        >
-          Kosongkan
-        </button>
-      </div>
-      {Object.entries(groups).map(([g, items]) => (
-        <div key={g} className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{g}</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {items.map((it) => {
-              const on = value.includes(it.key);
-              return (
-                <button
-                  key={it.key}
-                  type="button"
-                  onClick={() => toggle(it.key)}
-                  className={[
-                    "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm text-left transition",
-                    on ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:bg-card/70",
-                  ].join(" ")}
-                >
-                  <span
-                    className={[
-                      "h-4 w-4 rounded border grid place-items-center",
-                      on ? "bg-primary border-primary" : "border-border",
-                    ].join(" ")}
-                  >
-                    {on && <span className="text-[10px] text-primary-foreground">✓</span>}
-                  </span>
-                  <span className="flex-1 truncate">{it.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          )}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
+
+async function loadDetailRows(type: DetailKey): Promise<DetailRow[]> {
+  const sb = supabase as unknown as {
+    from: (t: string) => {
+      select: (s: string) => Record<string, unknown>;
+    };
+  };
+  const fmt = (t: string | null) => (t ? new Date(t).toLocaleString("id-ID") : "");
+  const profileMap = async (ids: string[]): Promise<Record<string, { email: string | null; display_name: string | null }>> => {
+    if (ids.length === 0) return {};
+    const { data } = await supabase.from("profiles").select("id, email, display_name").in("id", ids);
+    const map: Record<string, { email: string | null; display_name: string | null }> = {};
+    (data ?? []).forEach((p) => { map[p.id] = { email: p.email, display_name: p.display_name }; });
+    return map;
+  };
+  if (type === "users") {
+    const { data } = await supabase.from("profiles").select("id, email, display_name, created_at").order("created_at", { ascending: false }).limit(30);
+    return (data ?? []).map((p) => ({ id: p.id, primary: p.display_name || p.email || p.id, secondary: p.email ?? "", meta: fmt(p.created_at) }));
+  }
+  if (type === "onlineUsers") {
+    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (sb.from("user_active_sessions").select("user_id, updated_at") as any).gte("updated_at", cutoff).order("updated_at", { ascending: false }).limit(50);
+    const rows = (data ?? []) as { user_id: string; updated_at: string }[];
+    const ids = Array.from(new Set(rows.map((s) => s.user_id).filter(Boolean)));
+    const map = await profileMap(ids);
+    return ids.map((uid) => {
+      const s = rows.find((x) => x.user_id === uid);
+      const p = map[uid];
+      return { id: uid, primary: p?.display_name || p?.email || uid, secondary: p?.email ?? "", meta: s ? fmt(s.updated_at) : "", badge: "online" };
+    });
+  }
+  if (type === "paidUsers") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (sb.from("user_tags").select("user_id, tag, updated_at") as any).in("tag", ["vip", "vvip"]).order("updated_at", { ascending: false }).limit(50);
+    const rows = (data ?? []) as { user_id: string; tag: string; updated_at: string }[];
+    const ids = Array.from(new Set(rows.map((s) => s.user_id).filter(Boolean)));
+    const map = await profileMap(ids);
+    return rows.map((s) => {
+      const p = map[s.user_id];
+      return { id: `${s.user_id}-${s.tag}`, primary: p?.display_name || p?.email || s.user_id, secondary: p?.email ?? "", meta: fmt(s.updated_at), badge: s.tag };
+    });
+  }
+  if (type === "totalAssets") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (sb.from("ai_influencer_assets").select("id, kind, created_at, user_id") as any).order("created_at", { ascending: false }).limit(30);
+    const rows = (data ?? []) as { id: string; kind: string; created_at: string }[];
+    return rows.map((a) => ({ id: a.id, primary: `${a.kind}`, secondary: a.kind, meta: fmt(a.created_at), badge: a.kind }));
+  }
+  if (type === "pendingRequests") {
+    const { data } = await supabase.from("purchase_requests").select("id, user_id, route_key, price_idr, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(30);
+    const rows = (data ?? []) as { id: string; user_id: string; route_key: string; price_idr: number; created_at: string }[];
+    const ids = Array.from(new Set(rows.map((s) => s.user_id).filter(Boolean)));
+    const map = await profileMap(ids);
+    return rows.map((r) => {
+      const p = map[r.user_id];
+      return { id: r.id, primary: r.route_key, secondary: p?.display_name || p?.email || r.user_id, meta: fmt(r.created_at), badge: "Rp " + (r.price_idr ?? 0).toLocaleString("id-ID") };
+    });
+  }
+  // activity-derived
+  const videoActions = ["generate_motion", "generate_i2v", "generate_naratif_video", "generate_leonardo_video"];
+  const imageActions = ["generate_leonardo", "generate_storyboard", "generate_bulk_fashion", "generate_upscaler", "generate_ai_influencer"];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = (sb.from("user_activity_logs").select("id, user_id, category, action, created_at") as any).order("created_at", { ascending: false }).limit(30);
+  if (type === "totalVideos") query = query.in("action", videoActions);
+  else if (type === "totalImages") query = query.in("action", imageActions);
+  else if (type === "activityToday") {
+    const since = new Date(); since.setHours(0, 0, 0, 0);
+    query = query.gte("created_at", since.toISOString());
+  }
+  const { data } = await query;
+  const rows = (data ?? []) as { id: string; user_id: string | null; category: string; action: string; created_at: string }[];
+  const ids = Array.from(new Set(rows.map((s) => s.user_id).filter(Boolean))) as string[];
+  const map = await profileMap(ids);
+  return rows.map((r) => {
+    const p = r.user_id ? map[r.user_id] : null;
+    return { id: r.id, primary: r.action, secondary: p?.display_name || p?.email || r.user_id || "system", meta: fmt(r.created_at), badge: r.category };
+  });
+}
+
+

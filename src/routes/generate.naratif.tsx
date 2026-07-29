@@ -9,6 +9,8 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 function ratioClass(r: string): string {
   if (r.startsWith("9:16")) return "aspect-[9/16]";
@@ -1372,7 +1374,7 @@ function NaratifPage() {
       )}
 
       {material && (
-        <Card title="🧠 Brain — Naskah & Model">
+        <Card title="🧠 Brain — Naskah & Model" right={<div className="flex flex-wrap gap-1.5"><ProviderActivePill cap="image" label="Image:" /><ProviderActivePill cap="video" label="Video:" /><ProviderActivePill cap="voice" label="Voice:" /></div>}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Field label="Aspek Rasio">
               <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={[

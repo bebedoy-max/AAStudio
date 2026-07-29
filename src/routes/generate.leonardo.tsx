@@ -28,6 +28,8 @@ import {
   IMAGE_PROVIDER_LABEL,
   type ImageProviderId,
 } from "@/lib/providers/image-catalog";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 export const Route = createFileRoute("/generate/leonardo")({
   head: () => ({
@@ -436,8 +438,10 @@ function LeonardoPage() {
         eyebrow="Generate"
         title="Text to"
         highlight="Image"
-        desc={`Provider aktif: ${IMAGE_PROVIDER_LABEL[imgProvider]} — model & parameter mengikuti routing di Manage → Routing.`}
+        desc="Generate gambar — model & parameter mengikuti routing provider aktif."
       />
+      <div className="mt-2"><ProviderActivePill cap="image" /></div>
+
 
       {imgProvider === "leonardo" && (
         <div className="mt-4 inline-flex rounded-full border border-border bg-card/40 p-1 text-xs">

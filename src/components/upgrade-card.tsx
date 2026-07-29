@@ -142,8 +142,8 @@ export function UpgradeDialog({
   //   - have an active, non-zero price
   const availableFeatures = ALL_ROUTE_KEYS.filter((f) => {
     if (routePermissions.includes(f.key)) return false;
-    const mode = featureAccess[f.key]?.mode ?? "subscription";
-    if (mode !== "subscription") return false;
+    const mode = featureAccess[f.key]?.mode ?? "premium";
+    if (mode !== "premium") return false;
     const price = prices[f.key]?.price_idr;
     if (!price || price <= 0) return false;
     return true;
@@ -162,8 +162,8 @@ export function UpgradeDialog({
   const fullFeaturesTotal = useMemo(
     () =>
       ALL_ROUTE_KEYS.reduce((s, f) => {
-        const mode = featureAccess[f.key]?.mode ?? "subscription";
-        if (mode !== "subscription") return s;
+        const mode = featureAccess[f.key]?.mode ?? "premium";
+        if (mode !== "premium") return s;
         return s + (prices[f.key]?.price_idr ?? 0);
       }, 0),
     [prices, featureAccess],

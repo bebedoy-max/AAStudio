@@ -17,8 +17,35 @@ import { logActivity } from "@/lib/activity/log";
 
 type Role = "admin" | "editor" | "user";
 
-export type FeatureAccessMode = "public" | "subscription" | "trial";
+// 5 modes yang bisa di-set admin per menu:
+//   open    → terbuka untuk semua user
+//   premium → wajib berlangganan / dibeli (dulu: "subscription")
+//   trial   → terbuka sampai tanggal tertentu
+//   lock    → dinonaktifkan (muncul tapi disabled)
+//   hide    → tidak muncul di navigasi user
+export type FeatureAccessMode = "open" | "premium" | "trial" | "lock" | "hide";
 export type FeatureAccessEntry = { mode: FeatureAccessMode; trialUntil: string | null };
+
+// Normalisasi mode lama (public / subscription) supaya UI seragam pakai
+// 5 mode baru walaupun row lama di DB belum di-migrate.
+export function normalizeFeatureAccessMode(raw: string | null | undefined): FeatureAccessMode {
+  switch (raw) {
+    case "public":
+    case "open":
+      return "open";
+    case "subscription":
+    case "premium":
+      return "premium";
+    case "trial":
+      return "trial";
+    case "lock":
+      return "lock";
+    case "hide":
+      return "hide";
+    default:
+      return "hide";
+  }
+}
 
 type Profile = {
   id: string;
@@ -39,6 +66,8 @@ type AuthContextValue = {
   isAdmin: boolean;
   hasRoutePermission: (key: string) => boolean;
   isFeatureEnabled: (key: string) => boolean;
+  isFeatureVisible: (key: string) => boolean;
+  getFeatureMode: (key: string) => FeatureAccessMode;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -72,9 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select("route_key, access_mode, trial_until");
       if (!active || error || !data) return;
       const map: Record<string, FeatureAccessEntry> = {};
-      (data as { route_key: string; access_mode: FeatureAccessMode; trial_until: string | null }[]).forEach(
+      (data as { route_key: string; access_mode: string; trial_until: string | null }[]).forEach(
         (r) => {
-          map[r.route_key] = { mode: r.access_mode, trialUntil: r.trial_until };
+          map[r.route_key] = { mode: normalizeFeatureAccessMode(r.access_mode), trialUntil: r.trial_until };
         },
       );
       setFeatureAccess(map);
@@ -411,15 +440,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isFeatureEnabled: (key) => {
       if (roles.includes("admin")) return true;
       const entry = featureAccess[key];
-      if (entry) {
-        if (entry.mode === "public") return true;
-        if (entry.mode === "trial") {
-          if (!entry.trialUntil) return true;
-          if (new Date(entry.trialUntil).getTime() > Date.now()) return true;
-        }
+      // default (belum di-set) = hide → butuh permission eksplisit
+      if (!entry) return routePermissions.includes(key);
+      if (entry.mode === "open") return true;
+      if (entry.mode === "trial") {
+        if (!entry.trialUntil) return true;
+        if (new Date(entry.trialUntil).getTime() > Date.now()) return true;
+        return routePermissions.includes(key);
       }
+      if (entry.mode === "lock") return false; // dinonaktifkan untuk semua non-admin
+      // premium / hide → butuh permission eksplisit
       return routePermissions.includes(key);
     },
+    isFeatureVisible: (key) => {
+      if (roles.includes("admin")) return true;
+      const entry = featureAccess[key];
+      if (!entry) return routePermissions.includes(key);
+      if (entry.mode === "hide") return routePermissions.includes(key);
+      return true;
+    },
+    getFeatureMode: (key) => normalizeFeatureAccessMode(featureAccess[key]?.mode),
     refresh: async () => {
       if (session?.user) await loadUserData(session.user.id);
     },
