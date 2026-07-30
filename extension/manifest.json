@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AA Creative Token Grabber",
+<<<<<<< HEAD
   "version": "2.2.0",
   "description": "Ambil JWT dari Framia / Leonardo / Adobe Firefly dan sinkronkan langsung ke Token Manager akun AA Creative Studio kamu. Auto-update saat token di-refresh.",
   "permissions": [
@@ -13,6 +14,11 @@
     "alarms",
     "notifications"
   ],
+=======
+  "version": "2.1.0",
+  "description": "Ambil JWT dari Framia / Leonardo / Adobe Firefly dan sinkronkan langsung ke Token Manager akun AA Creative Studio kamu. Auto-update saat token di-refresh.",
+  "permissions": ["activeTab", "scripting", "storage", "cookies", "webRequest", "tabs", "alarms", "notifications"],
+>>>>>>> ef9350020d02fad57e6331a633cc3b105c736445
   "host_permissions": [
     "https://app.leonardo.ai/*",
     "https://*.leonardo.ai/*",
