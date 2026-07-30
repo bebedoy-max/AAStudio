@@ -459,7 +459,16 @@ async function refreshRelayStatus() {
     const log = res.relayLog || [];
     if (!log.length) {
       box.innerHTML = '<div style="font-size:11px;color:#8a8aa0;">Belum ada request relay.</div>';
+      $("relay-status").textContent = "Saat dipakai, log akan menampilkan via firefly-tab / background dan status HTTP.";
       return;
+    }
+    const latest = log[0];
+    if (latest?.via === "firefly-tab" && latest?.status === 408) {
+      $("relay-status").textContent = "Relay aktif: request sudah lewat tab Firefly. HTTP 408 berarti Adobe/model sedang menolak sementara.";
+    } else if (latest?.via === "firefly-tab") {
+      $("relay-status").textContent = "Relay aktif: request terakhir dikirim dari tab Firefly.";
+    } else {
+      $("relay-status").textContent = "Relay belum memakai tab Firefly. Pastikan firefly.adobe.com terbuka dan login.";
     }
     for (const e of log) {
       const row = document.createElement("div");
@@ -467,7 +476,7 @@ async function refreshRelayStatus() {
         "display:flex;justify-content:space-between;gap:8px;font-size:10.5px;background:#141420;border:1px solid #2a2a38;border-radius:6px;padding:5px 7px;";
       row.innerHTML =
         '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' +
-        (e.path || "") +
+        ((e.path || "") + (e.error ? " — " + e.error : "")) +
         '">' +
         (e.path || "-") +
         '</span><span class="' +

@@ -244,6 +244,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       noteRelay({
         ok: !!res?.ok,
         status: res?.status ?? 0,
+        error: relayErrorMessage(res),
         path: (() => {
           try {
             return new URL(req.url).pathname;
@@ -257,11 +258,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse(res);
     })
     .catch((e) => {
-      noteRelay({ ok: false, status: 0, path: String(req.url || ""), via: "error" });
+      noteRelay({ ok: false, status: 0, path: String(req.url || ""), via: "error", error: String(e?.message || e) });
       sendResponse({ ok: false, status: 0, data: null, error: String(e?.message || e) });
     });
   return true; // async
 });
+
+function relayErrorMessage(res) {
+  if (!res || res.ok) return "";
+  const data = res.data;
+  if (typeof res.error === "string") return res.error.slice(0, 160);
+  if (data?.message) return String(data.message).slice(0, 160);
+  if (data?.error?.message) return String(data.error.message).slice(0, 160);
+  if (res.raw) return String(res.raw).slice(0, 160);
+  return "";
+}
 
 
 async function findFireflyTab() {
