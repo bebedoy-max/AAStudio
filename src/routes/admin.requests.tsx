@@ -4,10 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX } from "lucide-react";
+import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { fulfillTokenPurchase } from "@/lib/token-bank/bank.functions";
 import { promptDialog } from "@/components/ui-prompt";
+import { confirmDialog } from "@/components/ui-confirm";
+
 
 export const Route = createFileRoute("/admin/requests")({
   head: () => ({
@@ -91,6 +93,9 @@ function Body() {
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   const [busy, setBusy] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
 
   async function load() {
     setLoading(true);
@@ -122,6 +127,98 @@ function Body() {
     () => (filter === "all" ? rows : rows.filter((r) => r.status === filter)),
     [rows, filter],
   );
+
+  // Clear selection when filter changes (avoid dangling ids not on screen)
+  useEffect(() => { setSelected(new Set()); }, [filter]);
+
+  const allChecked = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const someChecked = filtered.some((r) => selected.has(r.id));
+  function toggleAll() {
+    if (allChecked) setSelected(new Set());
+    else setSelected(new Set(filtered.map((r) => r.id)));
+  }
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkDecide(status: "approved" | "rejected") {
+    const ids = filtered.filter((r) => selected.has(r.id) && r.status === "pending").map((r) => r.id);
+    if (ids.length === 0) return toast.error("Pilih minimal 1 request pending");
+    let admin_note: string | null = null;
+    if (status === "rejected") {
+      const reason = await promptDialog({
+        title: `Tolak ${ids.length} permintaan?`,
+        description: "Alasan penolakan (opsional) akan muncul di notifikasi user.",
+        placeholder: "Alasan penolakan…",
+        confirmLabel: "Tolak semua",
+        cancelLabel: "Batal",
+        multiline: true,
+        allowEmpty: true,
+      });
+      if (reason === null) return;
+      admin_note = reason;
+    } else {
+      const ok = await confirmDialog({
+        title: `Approve ${ids.length} permintaan?`,
+        description: "Fitur akan diaktifkan untuk semua user terpilih (30 hari).",
+        confirmLabel: "Approve semua",
+      });
+      if (!ok) return;
+    }
+    setBulkBusy(true);
+    const targetRows = rows.filter((r) => ids.includes(r.id));
+    let ok = 0, fail = 0;
+    for (const row of targetRows) {
+      const { error } = await supabase
+        .from("purchase_requests")
+        .update({ status, admin_note, reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
+        .eq("id", row.id);
+      if (error) { fail += 1; continue; }
+      if (status === "approved") {
+        if ((row as unknown as { request_kind?: string }).request_kind === "token_bank") {
+          try { await fulfillTokenPurchase({ data: { purchaseRequestId: row.id } }); } catch { fail += 1; continue; }
+        } else {
+          const extras = parseFeaturesFromNote(row.note ?? null).filter((rk) => rk && rk !== row.route_key);
+          if (extras.length > 0) {
+            const until = new Date(); until.setDate(until.getDate() + 30);
+            await supabase.from("route_permissions").upsert(
+              extras.map((rk) => ({ user_id: row.user_id, route_key: rk, expires_at: until.toISOString() })),
+              { onConflict: "user_id,route_key" },
+            );
+          }
+        }
+      }
+      ok += 1;
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    toast.success(`${status === "approved" ? "Disetujui" : "Ditolak"}: ${ok}${fail ? ` · gagal ${fail}` : ""}`);
+    load();
+  }
+
+  async function bulkDelete() {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return toast.error("Pilih minimal 1 request");
+    const ok = await confirmDialog({
+      title: `Hapus ${ids.length} request?`,
+      description: "Data request akan dihapus permanen dari database. Tidak bisa dibatalkan.",
+      confirmLabel: "Hapus permanen",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBulkBusy(true);
+    const { error } = await supabase.from("purchase_requests").delete().in("id", ids);
+    setBulkBusy(false);
+    if (error) return toast.error(error.message);
+    setSelected(new Set());
+    toast.success(`${ids.length} request dihapus`);
+    load();
+  }
+
 
   async function openProof(path: string | null) {
     if (!path) return;
@@ -222,8 +319,45 @@ function Body() {
               )}
             </button>
           ))}
+          {selected.size > 0 && (
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                <b className="text-foreground">{selected.size}</b> dipilih
+              </span>
+              <button
+                disabled={bulkBusy}
+                onClick={() => bulkDecide("approved")}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                style={{ background: "var(--gradient-neon)" }}
+              >
+                {bulkBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                Approve
+              </button>
+              <button
+                disabled={bulkBusy}
+                onClick={() => bulkDecide("rejected")}
+                className="inline-flex items-center gap-1 rounded-full border border-rose-400/40 text-rose-300 px-3 py-1.5 text-xs hover:bg-rose-500/10 disabled:opacity-60"
+              >
+                <X className="h-3 w-3" /> Reject
+              </button>
+              <button
+                disabled={bulkBusy}
+                onClick={bulkDelete}
+                className="inline-flex items-center gap-1 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-rose-400/40 px-3 py-1.5 text-xs disabled:opacity-60"
+              >
+                <Trash2 className="h-3 w-3" /> Hapus
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+              >
+                Batal pilih
+              </button>
+            </div>
+          )}
         </div>
       </Card>
+
 
       <Card>
         {loading ? (
@@ -237,6 +371,16 @@ function Body() {
             <table className="w-full text-sm">
               <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 <tr className="border-b border-border/60">
+                  <th className="px-3 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      ref={(el) => { if (el) el.indeterminate = !allChecked && someChecked; }}
+                      onChange={toggleAll}
+                      className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                      aria-label="Pilih semua"
+                    />
+                  </th>
                   <th className="px-4 py-3">User</th>
                   <th className="px-4 py-3">Fitur</th>
                   <th className="px-4 py-3">Harga</th>
@@ -246,10 +390,21 @@ function Body() {
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
+
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className="border-b border-border/40 hover:bg-sidebar-accent/20 align-top">
+                  <tr key={r.id} className={"border-b border-border/40 hover:bg-sidebar-accent/20 align-top " + (selected.has(r.id) ? "bg-primary/5" : "")}>
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(r.id)}
+                        onChange={() => toggleOne(r.id)}
+                        className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                        aria-label={`Pilih request ${r.id}`}
+                      />
+                    </td>
+
                     <td className="px-4 py-3">
                       <div className="font-medium">{r.user_display_name || "—"}</div>
                       <div className="text-xs text-muted-foreground">{r.user_email}</div>

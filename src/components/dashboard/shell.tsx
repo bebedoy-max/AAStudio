@@ -436,7 +436,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-20 bg-transparent">
+        <header className="fixed top-0 left-0 right-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl lg:static lg:z-20 lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
           <div className="flex items-center gap-2 px-3 sm:px-6 py-3">
             {/* Mobile hamburger — top-left */}
             <button
@@ -502,6 +502,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
           </div>
         </header>
+        {/* Spacer for the fixed mobile header */}
+        <div className="h-16 shrink-0 lg:hidden" aria-hidden="true" />
         <div className="p-4 sm:p-6 flex flex-col gap-6">{children}</div>
       </main>
       {pickedPurchase && (

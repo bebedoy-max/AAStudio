@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, PrimaryButton, GhostButton, Input } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft, Eye, EyeOff, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
@@ -14,12 +14,14 @@ import {
   deleteBankKeys,
   transferBankKeysByIds,
   searchUsersForTransfer,
+  addBankKeys,
 } from "@/lib/token-bank/bank.functions";
 import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { fetchFireflyBalance } from "@/lib/providers/firefly";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { CheckCircle2, XCircle, AlertTriangle, Activity } from "lucide-react";
 
@@ -89,6 +91,7 @@ function Body() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [checkStates, setCheckStates] = useState<Record<string, CheckState>>({});
   const [checking, setChecking] = useState(false);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
@@ -238,6 +241,9 @@ function Body() {
           <GhostButton onClick={load} disabled={loading || busy}>
             <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
           </GhostButton>
+          <PrimaryButton onClick={() => setAddOpen(true)} disabled={busy}>
+            <Plus className="h-3.5 w-3.5" /> Tambah Key
+          </PrimaryButton>
         </div>
 
         {/* Provider summary chips */}
@@ -409,6 +415,17 @@ function Body() {
           onClose={() => setTransferOpen(false)}
           onDone={async () => {
             setTransferOpen(false);
+            await load();
+          }}
+        />
+      )}
+
+      {addOpen && (
+        <AddKeysDialog
+          defaultProvider={provider || "brain"}
+          onClose={() => setAddOpen(false)}
+          onDone={async () => {
+            setAddOpen(false);
             await load();
           }}
         />
@@ -616,6 +633,15 @@ async function checkOne(provider: BankProvider, key: string): Promise<CheckState
           detail: `${r.balance.toLocaleString("id-ID")} credit`,
         };
       }
+      case "firefly": {
+        const r = await fetchFireflyBalance(key);
+        if (!r.ok) return { status: "fail", detail: r.message || "Token Firefly tidak valid / expired" };
+        if (r.balance === null) return { status: "warn", detail: "Credit tidak terbaca" };
+        return {
+          status: r.balance > 0 ? "ok" : "warn",
+          detail: `${r.balance.toLocaleString("id-ID")} credit`,
+        };
+      }
       case "eleven": {
         const r = await checkElevenKey(key);
         if (!r.ok) return { status: "fail", detail: "Key ditolak / gagal" };
@@ -640,4 +666,127 @@ function StatusIcon({ state }: { state: CheckState["status"] }) {
   if (state === "fail") return <XCircle className="h-4 w-4 text-rose-400 shrink-0" />;
   if (state === "checking") return <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />;
   return <div className="h-4 w-4 rounded-full border border-border shrink-0" />;
+}
+
+function AddKeysDialog({
+  defaultProvider,
+  onClose,
+  onDone,
+}: {
+  defaultProvider: BankProvider;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [provider, setProvider] = useState<BankProvider>(defaultProvider);
+  const [label, setLabel] = useState("");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const keys = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          text
+            .split(/[\r\n,]+/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        ),
+      ),
+    [text],
+  );
+
+  async function submit() {
+    if (keys.length === 0) {
+      toast.error("Masukkan minimal 1 key");
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = (await addBankKeys({
+        data: { provider, keys, label: label.trim() || undefined },
+      })) as unknown as { added: number };
+      toast.success(`${r.added} key ditambahkan ke ${PROVIDER_LABELS[provider]}`);
+      onDone();
+    } catch (e) {
+      toast.error("Gagal menambah: " + (e instanceof Error ? e.message : ""));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="neumorph w-full max-w-md p-5 relative"
+        style={{ background: "var(--gradient-card, hsl(var(--card)))" }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full border border-border bg-card"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <div className="font-display text-lg mb-1">Tambah Key ke Token Bank</div>
+        <div className="text-xs text-muted-foreground mb-4">
+          Pilih provider, lalu tempel satu atau beberapa key (satu per baris atau dipisah koma).
+          Duplikat otomatis dilewati.
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Provider
+            </label>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as BankProvider)}
+              className="mt-1 w-full h-9 rounded-lg border border-border bg-card/50 px-3 text-sm"
+            >
+              {BANK_PROVIDERS.map((p) => (
+                <option key={p} value={p}>
+                  {PROVIDER_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Label (opsional)
+            </label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="mis. batch-oktober / donatur X"
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Key ({keys.length})
+            </label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={7}
+              placeholder="Tempel key di sini. Satu key per baris."
+              className="mt-1 w-full rounded-lg border border-border bg-card/50 px-3 py-2 text-sm font-mono resize-y"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <GhostButton onClick={onClose} disabled={busy}>
+            Batal
+          </GhostButton>
+          <PrimaryButton onClick={submit} disabled={busy || keys.length === 0}>
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            Simpan ({keys.length})
+          </PrimaryButton>
+        </div>
+      </div>
+    </div>
+  );
 }

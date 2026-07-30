@@ -13,7 +13,8 @@ export type BankProvider =
   | "shotstack"
   | "creatomate"
   | "roboneo"
-  | "framia";
+  | "framia"
+  | "firefly";
 
 const PROVIDERS: readonly BankProvider[] = [
   "brain",
@@ -22,6 +23,7 @@ const PROVIDERS: readonly BankProvider[] = [
   "magnific",
   "roboneo",
   "framia",
+  "firefly",
   "eleven",
   "shotstack",
   "creatomate",
@@ -39,6 +41,7 @@ export const BANK_STORAGE_KEY: Record<BankProvider, string> = {
   magnific: "aatools.magnific.keys",
   roboneo: "aatools.roboneo.keys",
   framia: "aatools.framia.keys",
+  firefly: "aatools.firefly.keys",
   eleven: "aatools.eleven",
   shotstack: "aatools.shotstack.keys",
   creatomate: "aatools.creatomate.keys",
@@ -67,7 +70,8 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
     case "shotstack":
     case "creatomate":
     case "roboneo":
-    case "framia": {
+    case "framia":
+    case "firefly": {
       type T = { id: string; key: string; balance: number | null; status: string };
       const arr: T[] = currentJson ? (JSON.parse(currentJson) as T[]) : [];
       if (!arr.some((k) => k.key === keyValue))
@@ -705,6 +709,7 @@ export const PROVIDER_LABELS: Record<BankProvider, string> = {
   magnific: "Magnific",
   roboneo: "Roboneo",
   framia: "Framia",
+  firefly: "Adobe Firefly",
   eleven: "ElevenLabs",
   shotstack: "Shotstack",
   creatomate: "Creatomate",

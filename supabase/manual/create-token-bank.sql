@@ -120,3 +120,15 @@ $$;
 
 REVOKE ALL ON FUNCTION public.token_bank_available_counts() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.token_bank_available_counts() TO authenticated;
+
+-- Add 'firefly' provider to the bank enum (idempotent).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'bank_provider' AND e.enumlabel = 'firefly'
+  ) THEN
+    ALTER TYPE public.bank_provider ADD VALUE 'firefly';
+  END IF;
+END$$;

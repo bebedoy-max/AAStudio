@@ -28,6 +28,7 @@ export const MENU_CATALOG: MenuCatalogEntry[] = [
   { key: "generate.image-to-video", label: "Image To Video", group: "Generate", url: "/generate/image-to-video" },
   { key: "generate.upscaler", label: "Upscaler / Enhance", group: "Generate", url: "/generate/upscaler" },
   { key: "generate.leonardo", label: "Text to Image", group: "Generate", url: "/generate/leonardo" },
+  { key: "generate.text-to-video", label: "Text to Video", group: "Generate", url: "/generate/text-to-video" },
 
   // Storyboard
   { key: "generate.storyboard", label: "Produk Storyboard", group: "Storyboard", url: "/generate/storyboard" },

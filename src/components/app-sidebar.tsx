@@ -105,6 +105,7 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
       { title: "Upscaler / Enhance", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
       { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
+      { title: "Text to Video", url: "/generate/text-to-video", icon: ImagePlay, permKey: "generate.text-to-video" },
     ],
   },
   {

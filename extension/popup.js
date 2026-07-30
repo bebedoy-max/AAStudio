@@ -13,16 +13,28 @@ document.querySelectorAll(".tabs button").forEach((b) => {
 });
 
 /* ------------------------------- provider UI ------------------------------ */
-const providerSel = $("provider");
-for (const p of PROVIDERS) {
-  const o = document.createElement("option");
-  o.value = p.id;
-  o.textContent = p.label;
-  providerSel.appendChild(o);
+// Auto-detect the provider from whatever tab the user currently has open.
+// The user never picks a provider manually anymore.
+let detectedProvider = null;
+
+async function detectProviderFromActiveTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url) {
+      const match = PROVIDERS.find((p) => p.hostMatch.test(tab.url));
+      if (match) return match;
+    }
+  } catch {}
+  // Fallback: last captured token across any provider.
+  const { lastCapture } = await chrome.storage.local.get("lastCapture");
+  if (lastCapture?.providerId) {
+    return PROVIDERS.find((p) => p.id === lastCapture.providerId) ?? null;
+  }
+  return null;
 }
 
 function currentProvider() {
-  return PROVIDERS.find((p) => p.id === providerSel.value) ?? PROVIDERS[0];
+  return detectedProvider;
 }
 
 function setStatus(msg, cls = "muted", el = "status") {
@@ -32,8 +44,28 @@ function setStatus(msg, cls = "muted", el = "status") {
 }
 
 async function refreshProviderUI() {
-  const p = currentProvider();
+  detectedProvider = await detectProviderFromActiveTab();
+  const p = detectedProvider;
+  const pill = $("detect-pill");
+  if (!p) {
+    $("detected").textContent = "Belum ada provider terdeteksi";
+    $("provider-hint").textContent = "Buka tab Framia / Leonardo / Adobe Firefly.";
+    pill.textContent = "—";
+    pill.className = "pill";
+    $("token").value = "";
+    $("copy").disabled = true;
+    $("push").disabled = true;
+    $("grab").disabled = true;
+    $("open").disabled = true;
+    setStatus("Buka salah satu situs provider di tab aktif.", "muted");
+    return;
+  }
+  $("grab").disabled = false;
+  $("open").disabled = false;
+  $("detected").textContent = p.label;
   $("provider-hint").textContent = p.hint;
+  pill.textContent = "aktif";
+  pill.className = "pill on";
   const cap = (await chrome.storage.local.get(`captured::${p.id}`))[`captured::${p.id}`];
   if (cap?.token) {
     $("token").value = cap.token;
@@ -47,17 +79,16 @@ async function refreshProviderUI() {
     setStatus("Belum ada token. Login di situs provider lalu klik Ambil.", "muted");
   }
 }
-providerSel.addEventListener("change", () => {
-  chrome.storage.local.set({ lastProvider: providerSel.value });
-  refreshProviderUI();
-});
 
-chrome.storage.local.get(["lastProvider", "autoSync"]).then((r) => {
-  if (r.lastProvider) providerSel.value = r.lastProvider;
+chrome.storage.local.get(["autoSync"]).then((r) => {
   $("auto").checked = r.autoSync !== false;
   refreshProviderUI();
-  renderAccount(); // sync header pill on popup open
+  renderAccount();
 });
+
+// Re-detect when the user switches tabs while the popup is open.
+chrome.tabs?.onActivated?.addListener?.(() => refreshProviderUI());
+chrome.tabs?.onUpdated?.addListener?.((_id, info) => { if (info.url) refreshProviderUI(); });
 
 $("auto").addEventListener("change", () => {
   chrome.storage.local.set({ autoSync: $("auto").checked });
@@ -65,7 +96,8 @@ $("auto").addEventListener("change", () => {
 
 /* --------------------------- open provider site --------------------------- */
 $("open").addEventListener("click", () => {
-  chrome.tabs.create({ url: currentProvider().openUrl });
+  const p = currentProvider();
+  if (p) chrome.tabs.create({ url: p.openUrl });
 });
 
 /* ------------------------------ grab token -------------------------------- */
@@ -164,6 +196,7 @@ function extractToken(scoreKeysStr) {
 
 $("grab").addEventListener("click", async () => {
   const p = currentProvider();
+  if (!p) { setStatus("Provider tidak terdeteksi dari tab aktif.", "err"); return; }
   setStatus("Membaca token...");
   const cap = (await chrome.storage.local.get(`captured::${p.id}`))[`captured::${p.id}`];
   if (cap?.token && Date.now() - cap.at < 30 * 60 * 1000) {
@@ -208,7 +241,8 @@ $("copy").addEventListener("click", async () => {
 });
 
 $("push").addEventListener("click", () => {
-  pushToApp(currentProvider().id, $("token").value);
+  const p = currentProvider();
+  if (p) pushToApp(p.id, $("token").value);
 });
 
 async function pushToApp(providerId, token, silent = false) {

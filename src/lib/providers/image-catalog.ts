@@ -1,7 +1,7 @@
 // Shared text-to-image catalog + dispatcher untuk halaman /generate/leonardo
 // ("Text to Image"). Provider aktif diambil dari Routing Provider (cap "image").
 
-export type ImageProviderId = "weavy" | "gemini" | "openai" | "framia" | "leonardo";
+export type ImageProviderId = "weavy" | "gemini" | "openai" | "framia" | "leonardo" | "firefly";
 
 export type ImgQuality = { v: string; label: string };
 export type ImgModelDef = {
@@ -19,9 +19,15 @@ export const IMAGE_PROVIDER_LABEL: Record<ImageProviderId, string> = {
   openai: "OpenAI Direct",
   framia: "Framia (Converge AI)",
   leonardo: "Leonardo.ai",
+  firefly: "Adobe Firefly",
 };
 
 export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">, ImgModelDef[]> = {
+  firefly: [
+    { key: "ff:image4-standard", label: "Firefly Image 4 Standard", qualities: [{ v: "standard", label: "Standard (~1 cr)" }], ratios: RATIOS_STD },
+    { key: "ff:image4-ultra", label: "Firefly Image 4 Ultra", qualities: [{ v: "ultra", label: "Ultra (~4 cr)" }], ratios: RATIOS_STD },
+    { key: "ff:image3", label: "Firefly Image 3", qualities: [{ v: "standard", label: "Standard (~1 cr)" }], ratios: RATIOS_STD },
+  ],
   weavy: [
     {
       key: "nanobanana2",
@@ -119,7 +125,7 @@ export function readRoutedImageProvider(): ImageProviderId {
     if (!raw) return "weavy";
     const obj = JSON.parse(raw) as { image?: string };
     const p = obj?.image as ImageProviderId | undefined;
-    const valid: ImageProviderId[] = ["weavy", "gemini", "openai", "framia", "leonardo"];
+    const valid: ImageProviderId[] = ["weavy", "gemini", "openai", "framia", "leonardo", "firefly"];
     return p && valid.includes(p) ? p : "weavy";
   } catch {
     return "weavy";
@@ -148,6 +154,20 @@ export async function generateImageWithProvider(opts: GenerateImageOpts): Promis
       ratio: opts.ratio,
       onProgress: (m, p) => opts.onProgress?.(m, p),
     });
+  }
+  if (opts.provider === "firefly") {
+    const { generateFireflyImage, runFireflyWithRotation } = await import("./firefly");
+    return runFireflyWithRotation(
+      (token) =>
+        generateFireflyImage({
+          token,
+          modelKey: opts.modelKey,
+          prompt: opts.prompt,
+          ratio: opts.ratio,
+          onProgress: (m, p) => opts.onProgress?.(m, p),
+        }),
+      opts.onRotate,
+    );
   }
   if (opts.provider === "framia") {
     const { generateFramiaImage } = await import("./framia-image");

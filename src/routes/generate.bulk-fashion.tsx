@@ -7,6 +7,8 @@ import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, Galle
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 
 
@@ -459,7 +461,8 @@ function BulkFashion() {
           <Field label="Aspek Rasio">
             <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
           </Field>
-          <Field label={`Model AI (provider: ${provider})`}>
+          <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+
             <Select
               value={model}
               onChange={(e) => {

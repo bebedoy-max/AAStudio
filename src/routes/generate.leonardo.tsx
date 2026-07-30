@@ -12,13 +12,6 @@ import {
   fetchLeonardoPlatformModels,
   type LeonardoPlatformModel,
 } from "@/lib/providers/leonardo";
-import {
-  LEONARDO_VIDEO_MODELS,
-  runLeonardoVideo,
-  estimateLeonardoVideoCost,
-  type LeonardoVideoAspect,
-  type LeonardoVideoSizeTier,
-} from "@/lib/providers/leonardo-video";
 
 import {
   readRoutedImageProvider,
@@ -28,6 +21,8 @@ import {
   IMAGE_PROVIDER_LABEL,
   type ImageProviderId,
 } from "@/lib/providers/image-catalog";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+
 
 export const Route = createFileRoute("/generate/leonardo")({
   head: () => ({
@@ -164,7 +159,6 @@ function computeDims(
 
 
 function LeonardoPage() {
-  const [mode, setMode] = useSticky<"image" | "video">("t2i.mode", "image");
   const [prompt, setPrompt] = useSticky("t2i.prompt", "");
   const [neg, setNeg] = useSticky("t2i.neg", "");
   const [modelId, setModelId] = useSticky<string>("t2i.modelId", LEONARDO_MODELS[0].id);
@@ -184,36 +178,6 @@ function LeonardoPage() {
   const [remoteModels, setRemoteModels] = useState<LeonardoPlatformModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
 
-  // Video state
-  const [vidModelId, setVidModelId] = useState<string>(LEONARDO_VIDEO_MODELS[0].id);
-  const [vidAspect, setVidAspect] = useState<LeonardoVideoAspect>("9:16");
-  const [vidDuration, setVidDuration] = useState<number>(5);
-  const [vidTierId, setVidTierId] = useState<LeonardoVideoSizeTier["id"]>("hd");
-  const [vidImageFile, setVidImageFile] = useState<File | null>(null);
-  const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
-  const [videos, setVideos] = useSticky<string[]>("t2i.videos", []);
-  const vidInput = useRef<HTMLInputElement>(null);
-  const activeVidModel =
-    LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
-
-  // Sync video duration/tier/aspect saat ganti model
-  useEffect(() => {
-    if (activeVidModel.durationMode === "buttons") {
-      if (!activeVidModel.durations.includes(vidDuration)) setVidDuration(activeVidModel.durations[0]);
-    } else {
-      const [mn, mx] = [activeVidModel.durations[0], activeVidModel.durations[activeVidModel.durations.length - 1]];
-      if (vidDuration < mn || vidDuration > mx) setVidDuration(mx);
-    }
-    if (!activeVidModel.sizeTiers.some((t) => t.id === vidTierId)) {
-      setVidTierId(activeVidModel.sizeTiers[0].id);
-    }
-    if (!activeVidModel.aspectRatios.includes(vidAspect)) {
-      setVidAspect(activeVidModel.aspectRatios[0]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vidModelId]);
-
-  const vidCostEstimate = estimateLeonardoVideoCost(activeVidModel, vidTierId, vidDuration);
 
 
   useEffect(() => {
@@ -391,70 +355,16 @@ function LeonardoPage() {
     }
   };
 
-  const generateVideo = async () => {
-    if (!prompt.trim()) return;
-    setBusy(true);
-    setError(null);
-    const stopTick = startStatus("Leonardo Video: submit…");
-    try {
-      const tierLabel = activeVidModel.sizeTiers.find((t) => t.id === vidTierId)?.label ?? vidTierId;
-      log(`Submit ${activeVidModel.label} (${tierLabel} · ${vidDuration}s · ${vidAspect})`);
-      const url = await runLeonardoVideo({
-        modelKey: activeVidModel.id,
-        prompt,
-        aspectRatio: vidAspect,
-        sizeTier: vidTierId,
-        duration: vidDuration,
-        imageFile: vidImageFile ?? undefined,
-        onProgress: (m) => log(m),
-        onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
-      });
-      setVideos((v) => [url, ...v]);
-      log(`✅ Video siap`, 100);
-      setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
-    } catch (e) {
-      const msg = (e as Error).message;
-      setError(msg);
-      log(`❌ ${msg}`, 100);
-      setStatus((s) => ({ ...s, pct: 100, text: "❌ " + msg }));
-    } finally {
-      stopTick();
-      setBusy(false);
-    }
-  };
-
-  const onPickVidImage = (files: FileList | null) => {
-    const f = files?.[0];
-    if (!f) return;
-    setVidImageFile(f);
-    setVidImagePreview(URL.createObjectURL(f));
-  };
-
   return (
     <DashboardShell>
       <PageHero
         eyebrow="Generate"
         title="Text to"
         highlight="Image"
-        desc={`Provider aktif: ${IMAGE_PROVIDER_LABEL[imgProvider]} — model & parameter mengikuti routing di Manage → Routing.`}
+        desc="Generate gambar — model & parameter mengikuti routing provider aktif."
       />
 
-      {imgProvider === "leonardo" && (
-        <div className="mt-4 inline-flex rounded-full border border-border bg-card/40 p-1 text-xs">
-          <button
-            onClick={() => setMode("image")}
-            className={`px-4 py-1.5 rounded-full transition ${mode === "image" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            🖼️ Image
-          </button>
-          <button
-            onClick={() => setMode("video")}
-            className={`px-4 py-1.5 rounded-full transition ${mode === "video" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            🎬 Video
-          </button>
-        </div>
-      )}
+
 
       {imgProvider === "leonardo" && keyCount === 0 && (
         <div className="neumorph rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm mt-4">
@@ -467,176 +377,7 @@ function LeonardoPage() {
       )}
 
 
-      {mode === "video" ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
-          <div className="neumorph rounded-xl p-4 space-y-4">
-            <Field label="Prompt (deskripsi motion / kamera / suasana)">
-              <Textarea
-                rows={4}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Cinematic slow pan, subject centered, natural lighting…"
-              />
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Model">
-                <Select
-                  value={vidModelId}
-                  onChange={(e) => setVidModelId(e.target.value)}
-                  options={LEONARDO_VIDEO_MODELS.map((m) => ({
-                    value: m.id,
-                    label: `${m.label} — ${m.group}`,
-                  }))}
-                />
-              </Field>
-              <Field label="Aspect Ratio">
-                <Select
-                  value={vidAspect}
-                  onChange={(e) => setVidAspect(e.target.value as LeonardoVideoAspect)}
-                  options={activeVidModel.aspectRatios.map((a) => ({ value: a, label: a }))}
-                />
-              </Field>
-              <Field
-                label={
-                  activeVidModel.durationMode === "slider"
-                    ? `Durasi (${vidDuration}s · slider ${activeVidModel.durations[0]}–${activeVidModel.durations[activeVidModel.durations.length - 1]}s)`
-                    : "Durasi"
-                }
-              >
-                {activeVidModel.durationMode === "slider" ? (
-                  <input
-                    type="range"
-                    min={activeVidModel.durations[0]}
-                    max={activeVidModel.durations[activeVidModel.durations.length - 1]}
-                    step={1}
-                    value={vidDuration}
-                    onChange={(e) => setVidDuration(Number(e.target.value))}
-                    className="w-full accent-primary"
-                  />
-                ) : (
-                  <Select
-                    value={String(vidDuration)}
-                    onChange={(e) => setVidDuration(Number(e.target.value))}
-                    options={activeVidModel.durations.map((d) => ({ value: String(d), label: `${d}s` }))}
-                  />
-                )}
-              </Field>
-              <Field label="Ukuran (tier)">
-                <Select
-                  value={vidTierId}
-                  onChange={(e) => setVidTierId(e.target.value as LeonardoVideoSizeTier["id"])}
-                  options={activeVidModel.sizeTiers.map((t) => ({ value: t.id, label: t.label }))}
-                />
-              </Field>
-              <Field label="Estimasi biaya">
-                <div className="rounded-lg border border-border bg-card/40 px-3 py-2 text-sm">
-                  <span className="font-mono text-emerald-300">{vidCostEstimate}</span>{" "}
-                  <span className="text-muted-foreground text-xs">Leonardo credits (≈ {activeVidModel.crPerSecond}/s)</span>
-                  {activeVidModel.audio && (
-                    <span className="ml-2 text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded border border-primary/40 text-primary">
-                      audio
-                    </span>
-                  )}
-                </div>
-              </Field>
-              {activeVidModel.supportsI2V && (
-                <Field label="Image reference (opsional — untuk I2V)">
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={vidInput}
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) => onPickVidImage(e.target.files)}
-                    />
-                    <GhostButton onClick={() => vidInput.current?.click()} disabled={busy}>
-                      {vidImagePreview ? "Ganti" : "Upload"}
-                    </GhostButton>
-                    {vidImagePreview && (
-                      <>
-                        <img
-                          src={vidImagePreview}
-                          alt=""
-                          className="h-10 w-10 rounded object-cover border border-border"
-                        />
-                        <button
-                          onClick={() => {
-                            setVidImageFile(null);
-                            setVidImagePreview(null);
-                          }}
-                          className="text-[11px] text-destructive hover:underline"
-                        >
-                          hapus
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </Field>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <PrimaryButton
-                onClick={generateVideo}
-                disabled={busy || !prompt.trim() || keyCount === 0}
-              >
-                {busy ? "Generating…" : vidImageFile ? "Generate (I2V)" : "Generate (T2V)"}
-              </PrimaryButton>
-              <GhostButton
-                onClick={() => {
-                  setPrompt("");
-                  setVideos([]);
-                  setLogs([]);
-                  setError(null);
-                  setVidImageFile(null);
-                  setVidImagePreview(null);
-                }}
-                disabled={busy}
-              >
-                Reset
-              </GhostButton>
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-          </div>
-
-          <div className="neumorph rounded-xl p-4 space-y-3">
-            {status.show && (
-              <div className="rounded-lg border border-border/70 bg-card/40 p-2">
-                <div className="flex justify-between items-center text-[11px] mb-1">
-                  <span className="text-foreground">{status.text}</span>
-                  <span className="font-mono text-muted-foreground">{status.time}</span>
-                </div>
-                <div className="h-1 rounded-full bg-border overflow-hidden">
-                  <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }} />
-                </div>
-              </div>
-            )}
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-              Log Proses
-            </div>
-            <div className="rounded-lg border border-border bg-black/40 p-2 h-56 overflow-auto font-mono text-[11px] leading-relaxed">
-              {logs.length === 0 ? (
-                <div className="text-muted-foreground italic">Belum ada aktivitas.</div>
-              ) : (
-                logs.map((l, i) => (
-                  <div key={i} className="text-muted-foreground">
-                    {l}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              Token tersimpan: <b className="text-emerald-400">{keyCount}</b>
-            </div>
-          </div>
-        </div>
-      ) : imgProvider !== "leonardo" ? (
+      {imgProvider !== "leonardo" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
           <div className="neumorph rounded-xl p-4 space-y-4">
             <Field label="Prompt">
@@ -649,7 +390,7 @@ function LeonardoPage() {
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label={`Model (${IMAGE_PROVIDER_LABEL[imgProvider]})`}>
+              <Field label={`Model (${IMAGE_PROVIDER_LABEL[imgProvider]})`} right={<ProviderActivePill cap="image" />}>
                 <Select
                   value={activeGenModel?.key ?? ""}
                   onChange={(e) => setGenModelKey(e.target.value)}
@@ -763,7 +504,7 @@ function LeonardoPage() {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label={`Model${remoteModels.length > 0 ? ` (${remoteModels.length})` : ""}`}>
+            <Field label={`Model${remoteModels.length > 0 ? ` (${remoteModels.length})` : ""}`} right={<ProviderActivePill cap="image" />}>
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Select
@@ -895,49 +636,7 @@ function LeonardoPage() {
       </div>
       )}
 
-      {mode === "video" ? (
-        <div className="neumorph rounded-xl p-4 mt-4">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
-            Hasil Video ({videos.length})
-          </div>
-          {videos.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">Belum ada video.</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {videos.map((url, i) => (
-                <div
-                  key={url + i}
-                  className="rounded-lg overflow-hidden border border-border bg-black/40"
-                >
-                  <video
-                    src={url}
-                    controls
-                    preload="metadata"
-                    playsInline
-                    crossOrigin="anonymous"
-                    className="w-full aspect-video object-contain bg-black"
-                  />
-                  <div className="p-2 flex justify-between text-[11px]">
-                    <a href={url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> Buka
-                    </a>
-                    <a href={url} download className="text-primary hover:underline inline-flex items-center gap-1">
-                      <Download className="h-3 w-3" /> Unduh
-                    </a>
-                    <button
-                      onClick={() => setVideos((v) => v.filter((_, idx) => idx !== i))}
-                      className="text-destructive hover:underline"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="neumorph rounded-xl p-4 mt-4">
+              <div className="neumorph rounded-xl p-4 mt-4">
           <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
             Hasil Generate
           </div>
@@ -973,7 +672,6 @@ function LeonardoPage() {
             </div>
           )}
         </div>
-      )}
     </DashboardShell>
   );
 }

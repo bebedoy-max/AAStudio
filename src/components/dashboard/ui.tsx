@@ -1,16 +1,20 @@
 import { type ReactNode } from "react";
 
-export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+export function Field({ label, hint, right, children }: { label: string; hint?: ReactNode; right?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-        {label}
-      </label>
+      <div className="flex items-center justify-between gap-2 min-h-[20px]">
+        <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+          {label}
+        </label>
+        {right}
+      </div>
       {children}
       {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }
+
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (

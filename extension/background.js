@@ -132,3 +132,138 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (!cfg.appUrl || !cfg.session?.refresh_token) return;
   await refreshSession(cfg.appUrl, cfg.session.refresh_token);
 });
+
+/* ------------------------------------------------------------------ *
+ * Firefly relay: the app asks the extension to perform Adobe requests
+ * from the user's own browser (Adobe blocks datacenter IPs with a 408
+ * "system under load"). Requests come from the relay.js content script.
+ * ------------------------------------------------------------------ */
+
+const RELAY_ALLOWED_HOSTS = [
+  "firefly.adobe.io",
+  "firefly-3p.ff.adobe.io",
+  "firefly-api.adobe.io",
+];
+
+function b64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function relayFirefly(req) {
+  let target;
+  try {
+    target = new URL(req.url);
+  } catch {
+    return { ok: false, status: 0, data: null, error: "invalid url" };
+  }
+  if (!RELAY_ALLOWED_HOSTS.includes(target.hostname)) {
+    return { ok: false, status: 0, data: null, error: `host not allowed: ${target.hostname}` };
+  }
+
+  const headers = {
+    Accept: "application/json, text/plain, */*",
+    Authorization: req.token.startsWith("Bearer ") ? req.token : "Bearer " + req.token,
+    "x-api-key": req.apiKey || "SunbreakWebUI1",
+    "x-arp-session-id": req.sessionId || crypto.randomUUID(),
+    ...(req.nonce ? { "x-nonce": req.nonce } : {}),
+    ...(req.accountId ? { "x-account-id": req.accountId } : {}),
+    ...(req.headers || {}),
+  };
+
+  let body;
+  if (req.bodyBase64 !== undefined) {
+    headers["Content-Type"] = req.contentType || "application/octet-stream";
+    body = b64ToBytes(req.bodyBase64);
+  } else if (req.body !== undefined) {
+    headers["Content-Type"] = req.contentType || "application/json";
+    body = JSON.stringify(req.body);
+  }
+
+  const method = req.method || (body ? "POST" : "GET");
+
+  // Preferred path: run the fetch inside a real firefly.adobe.com tab so the
+  // Origin/Referer headers are genuine (Adobe's 3P gate rejects other origins).
+  const viaTab = await relayViaFireflyTab({
+    url: target.toString(),
+    method,
+    headers,
+    bodyText: req.bodyBase64 === undefined && req.body !== undefined ? JSON.stringify(req.body) : null,
+    bodyBase64: req.bodyBase64 ?? null,
+  });
+  if (viaTab) return viaTab;
+
+  let res;
+  try {
+    res = await fetch(target.toString(), { method, headers, body, credentials: "omit" });
+  } catch (e) {
+    return { ok: false, status: 0, data: null, error: String(e?.message || e) };
+  }
+  const text = await res.text();
+  let parsed = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {}
+  return {
+    ok: res.ok,
+    status: res.status,
+    data: parsed,
+    raw: parsed ? undefined : text.slice(0, 800),
+  };
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.kind !== "AA_FF_RELAY") return;
+  relayFirefly(msg.req || {})
+    .then(sendResponse)
+    .catch((e) => sendResponse({ ok: false, status: 0, data: null, error: String(e?.message || e) }));
+  return true; // async
+});
+
+
+async function findFireflyTab() {
+  const tabs = await chrome.tabs.query({ url: ["https://firefly.adobe.com/*"] });
+  return tabs?.[0] || null;
+}
+
+/** Execute the request inside a firefly.adobe.com tab. Returns null when no
+ *  such tab is open or injection is not possible (caller falls back). */
+async function relayViaFireflyTab({ url, method, headers, bodyText, bodyBase64 }) {
+  try {
+    const tab = await findFireflyTab();
+    if (!tab?.id) return null;
+    const [out] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      world: "MAIN",
+      func: async (u, m, h, bText, bB64) => {
+        try {
+          let body;
+          if (bB64) {
+            const bin = atob(bB64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            body = bytes;
+          } else if (bText) {
+            body = bText;
+          }
+          const r = await fetch(u, { method: m, headers: h, body, credentials: "include" });
+          const t = await r.text();
+          let d = null;
+          try { d = JSON.parse(t); } catch {}
+          return { ok: r.ok, status: r.status, data: d, raw: d ? undefined : t.slice(0, 800) };
+        } catch (e) {
+          return { ok: false, status: 0, data: null, error: String(e && e.message ? e.message : e) };
+        }
+      },
+      args: [url, method, headers, bodyText, bodyBase64],
+    });
+    const r = out?.result;
+    if (!r) return null;
+    if (r.status === 0 && r.error) return null; // tab fetch failed -> fallback
+    return r;
+  } catch {
+    return null;
+  }
+}

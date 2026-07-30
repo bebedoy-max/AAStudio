@@ -696,7 +696,6 @@ async function waitForAuroraResult(
       const status = readAuroraVariationStatus(variation);
       const url = readAuroraVariationUrl(variation);
       if (url && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(status)) return url;
-      if (url && !["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(status)) return url;
       if (["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(status)) {
         const detailVariation = await fetchAuroraVariationDetail(token, variation.id).catch(() => variation);
         const detail = stringifyAuroraDetail(firstAuroraUpscaleDetail(detailVariation ?? variation)?.optional_metadata);
@@ -711,9 +710,9 @@ async function waitForAuroraResult(
     const restGeneration = await fetchAuroraRestGeneration(token, generationId).catch(() => null);
     const restStatus = String(restGeneration?.status || "").toUpperCase();
     const restImages = restGeneration?.generated_images ?? [];
-    const restUrl = restImages.find((image) => typeof image?.url === "string" && image.url)?.url ?? null;
+    const restVariations = restImages.flatMap((image) => image.generated_image_variation_generics ?? []);
+    const restUrl = restVariations.map(readAuroraVariationUrl).find((url): url is string => !!url) ?? null;
     if (restUrl && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(restStatus)) return restUrl;
-    if (restUrl && !["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(restStatus)) return restUrl;
     if (["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(restStatus)) {
       const detail = stringifyAuroraDetail(restGeneration?.failureReason ?? restGeneration?.error);
       throw new Error(`Leonardo Aurora: ${restStatus}${detail ? ` — ${detail}` : ""}`);

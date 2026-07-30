@@ -30,6 +30,7 @@ import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
 import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
 import { Route as ManageAccountsRouteImport } from './routes/manage.accounts'
 import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
+import { Route as GenerateTextToVideoRouteImport } from './routes/generate.text-to-video'
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
@@ -78,6 +79,7 @@ import { Route as ApiPublicLeonardoUploadRouteImport } from './routes/api/public
 import { Route as ApiPublicLeonardoCognitoRouteImport } from './routes/api/public/leonardo-cognito'
 import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
 import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
+import { Route as ApiPublicFireflyRouteImport } from './routes/api/public/firefly'
 import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
 import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
 import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
@@ -195,6 +197,11 @@ const ManageAccountsRoute = ManageAccountsRouteImport.update({
 const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
   id: '/generate/upscaler',
   path: '/generate/upscaler',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GenerateTextToVideoRoute = GenerateTextToVideoRouteImport.update({
+  id: '/generate/text-to-video',
+  path: '/generate/text-to-video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateStoryboardRoute = GenerateStoryboardRouteImport.update({
@@ -440,6 +447,11 @@ const ApiPublicFramiaRoute = ApiPublicFramiaRouteImport.update({
   path: '/api/public/framia',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFireflyRoute = ApiPublicFireflyRouteImport.update({
+  id: '/api/public/firefly',
+  path: '/api/public/firefly',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicFfmpegCdnRoute = ApiPublicFfmpegCdnRouteImport.update({
   id: '/api/public/ffmpeg-cdn',
   path: '/api/public/ffmpeg-cdn',
@@ -543,6 +555,7 @@ export interface FileRoutesByFullPath {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/text-to-video': typeof GenerateTextToVideoRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
@@ -565,6 +578,7 @@ export interface FileRoutesByFullPath {
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/firefly': typeof ApiPublicFireflyRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
@@ -625,6 +639,7 @@ export interface FileRoutesByTo {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/text-to-video': typeof GenerateTextToVideoRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
@@ -647,6 +662,7 @@ export interface FileRoutesByTo {
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/firefly': typeof ApiPublicFireflyRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
@@ -710,6 +726,7 @@ export interface FileRoutesById {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
+  '/generate/text-to-video': typeof GenerateTextToVideoRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
@@ -732,6 +749,7 @@ export interface FileRoutesById {
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
   '/api/public/ffmpeg-cdn': typeof ApiPublicFfmpegCdnRoute
+  '/api/public/firefly': typeof ApiPublicFireflyRoute
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
@@ -796,6 +814,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/text-to-video'
     | '/generate/upscaler'
     | '/manage/accounts'
     | '/manage/routing'
@@ -818,6 +837,7 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/firefly'
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
@@ -878,6 +898,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/text-to-video'
     | '/generate/upscaler'
     | '/manage/accounts'
     | '/manage/routing'
@@ -900,6 +921,7 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/firefly'
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
@@ -962,6 +984,7 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
+    | '/generate/text-to-video'
     | '/generate/upscaler'
     | '/manage/accounts'
     | '/manage/routing'
@@ -984,6 +1007,7 @@ export interface FileRouteTypes {
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
     | '/api/public/ffmpeg-cdn'
+    | '/api/public/firefly'
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
@@ -1034,6 +1058,7 @@ export interface RootRouteChildren {
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
+  GenerateTextToVideoRoute: typeof GenerateTextToVideoRoute
   GenerateUpscalerRoute: typeof GenerateUpscalerRoute
   ManageAccountsRoute: typeof ManageAccountsRoute
   ManageRoutingRoute: typeof ManageRoutingRoute
@@ -1048,6 +1073,7 @@ export interface RootRouteChildren {
   ApiPublicElevenlabsTtsRoute: typeof ApiPublicElevenlabsTtsRoute
   ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
   ApiPublicFfmpegCdnRoute: typeof ApiPublicFfmpegCdnRoute
+  ApiPublicFireflyRoute: typeof ApiPublicFireflyRoute
   ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
   ApiPublicLeonardoRoute: typeof ApiPublicLeonardoRoute
   ApiPublicLeonardoCognitoRoute: typeof ApiPublicLeonardoCognitoRoute
@@ -1227,6 +1253,13 @@ declare module '@tanstack/react-router' {
       path: '/generate/upscaler'
       fullPath: '/generate/upscaler'
       preLoaderRoute: typeof GenerateUpscalerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/generate/text-to-video': {
+      id: '/generate/text-to-video'
+      path: '/generate/text-to-video'
+      fullPath: '/generate/text-to-video'
+      preLoaderRoute: typeof GenerateTextToVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/storyboard': {
@@ -1565,6 +1598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFramiaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/firefly': {
+      id: '/api/public/firefly'
+      path: '/api/public/firefly'
+      fullPath: '/api/public/firefly'
+      preLoaderRoute: typeof ApiPublicFireflyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ffmpeg-cdn': {
       id: '/api/public/ffmpeg-cdn'
       path: '/api/public/ffmpeg-cdn'
@@ -1756,6 +1796,7 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
+  GenerateTextToVideoRoute: GenerateTextToVideoRoute,
   GenerateUpscalerRoute: GenerateUpscalerRoute,
   ManageAccountsRoute: ManageAccountsRoute,
   ManageRoutingRoute: ManageRoutingRoute,
@@ -1770,6 +1811,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicElevenlabsTtsRoute: ApiPublicElevenlabsTtsRoute,
   ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,
   ApiPublicFfmpegCdnRoute: ApiPublicFfmpegCdnRoute,
+  ApiPublicFireflyRoute: ApiPublicFireflyRoute,
   ApiPublicFramiaRoute: ApiPublicFramiaRoute,
   ApiPublicLeonardoRoute: ApiPublicLeonardoRoute,
   ApiPublicLeonardoCognitoRoute: ApiPublicLeonardoCognitoRoute,

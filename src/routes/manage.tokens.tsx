@@ -8,6 +8,7 @@ import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
+import { fetchFireflyBalance, checkFireflyToken } from "@/lib/providers/firefly";
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
@@ -88,7 +89,20 @@ export const Route = createFileRoute("/manage/tokens")({
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "eleven" | "render";
+type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "eleven" | "render";
+
+const PROVIDER_GLOW: Record<ProviderKey, string> = {
+  brain: "#f472b6",
+  weavy: "#22d3ee",
+  wavespeed: "#38bdf8",
+  magnific: "#a78bfa",
+  roboneo: "#34d399",
+  framia: "#fb923c",
+  leonardo: "#facc15",
+  firefly: "#f87171",
+  eleven: "#818cf8",
+  render: "#94a3b8",
+};
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "brain", label: "Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
@@ -98,6 +112,7 @@ const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
   { key: "framia", label: "Framia", desc: "Canvas workflow (Converge AI) — semua node & recipe: image, video, avatar, garment, storyboard." },
   { key: "leonardo", label: "Leonardo.ai", desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision)." },
+  { key: "firefly", label: "Adobe Firefly", desc: "Firefly image (Image 3/4) & video (Veo) via session token firefly.adobe.com." },
   { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
   { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
@@ -118,6 +133,7 @@ const LS = {
   roboneo: "aatools.roboneo.keys",
   framia: "aatools.framia.keys",
   leonardo: "aatools.leonardo.keys",
+  firefly: "aatools.firefly.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
@@ -193,6 +209,8 @@ function TokensPage() {
                     ? LS.framia
                     : tab === "leonardo"
                       ? LS.leonardo
+                      : tab === "firefly"
+                      ? LS.firefly
                       : tab === "eleven"
                         ? LS.eleven
                         : LS.shotstack;
@@ -241,32 +259,47 @@ function TokensPage() {
 
         <Card>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            {/* Mobile: custom dropdown provider picker — bigger & more prominent than Beli Token */}
-            <div className="w-full md:hidden relative">
+            {/* Single big provider selector with rotating light border */}
+            <div className="w-full lg:w-[calc(66.666%-0.5rem)] relative">
               <button
                 type="button"
                 onClick={() => setTabOpen((v) => !v)}
-                className="w-full flex items-center justify-between gap-3 rounded-2xl border border-primary/50 bg-card/60 px-4 py-4 text-base font-extrabold shadow-[0_0_22px_rgba(236,72,153,0.28)] hover:shadow-[0_0_28px_rgba(236,72,153,0.45)] transition"
+                className="group relative w-full overflow-hidden rounded-xl p-[2px] text-left"
                 aria-haspopup="listbox"
                 aria-expanded={tabOpen}
               >
                 <span
-                  className="bg-clip-text text-transparent tracking-wide"
-                  style={{ backgroundImage: "linear-gradient(90deg,#f8fafc 0%,#cbd5e1 45%,#94a3b8 100%)" }}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-1/2 top-1/2 h-[260%] w-[160%] -translate-x-1/2 -translate-y-1/2 animate-[spin_5s_linear_infinite] opacity-90"
+                  style={{
+                    background: `conic-gradient(from 0deg, transparent 0deg, transparent 200deg, ${PROVIDER_GLOW[tab]} 280deg, #ffffff 315deg, ${PROVIDER_GLOW[tab]} 340deg, transparent 360deg)`,
+                  }}
+                />
+                <span
+                  className="relative flex min-h-[84px] items-center justify-between gap-3 rounded-[10px] bg-[oklch(0.19_0.055_275)] px-5 py-4"
+                  style={{ boxShadow: `inset 0 0 40px ${PROVIDER_GLOW[tab]}22` }}
                 >
-                  {providers.find((p) => p.key === tab)?.label ?? "Pilih provider"}
+                  <span className="min-w-0">
+                    <span className="block truncate font-display text-2xl md:text-3xl font-black tracking-wide" style={{ color: PROVIDER_GLOW[tab], textShadow: `0 0 18px ${PROVIDER_GLOW[tab]}88` }}>
+                      {active.label}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={["h-5 w-5 shrink-0 text-muted-foreground transition-transform", tabOpen ? "rotate-180" : ""].join(" ")}
+                  />
                 </span>
-                <ChevronDown className={["h-5 w-5 text-muted-foreground transition-transform", tabOpen ? "rotate-180" : ""].join(" ")} />
               </button>
+
               {tabOpen && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setTabOpen(false)} aria-hidden="true" />
                   <ul
                     role="listbox"
-                    className="absolute left-0 right-0 top-full mt-2 z-40 rounded-2xl border border-border bg-[oklch(0.19_0.055_275)] shadow-2xl overflow-hidden max-h-[60vh] overflow-y-auto divide-y divide-border/40"
+                    className="absolute left-0 right-0 top-full mt-2 z-40 grid grid-cols-1 md:grid-cols-2 gap-2 rounded-2xl border border-border bg-[oklch(0.19_0.055_275)] p-2 shadow-2xl max-h-[60vh] overflow-y-auto"
                   >
                     {providers.map((p) => {
-                      const active = p.key === tab;
+                      const isActive = p.key === tab;
+                      const glow = PROVIDER_GLOW[p.key];
                       return (
                         <li key={p.key}>
                           <button
@@ -275,22 +308,19 @@ function TokensPage() {
                               setTab(p.key);
                               setTabOpen(false);
                             }}
-                            className={[
-                              "w-full text-left px-4 py-3 text-sm font-semibold transition",
-                              active ? "text-primary-foreground" : "text-foreground/85 hover:bg-sidebar-accent/40",
-                            ].join(" ")}
-                            style={active ? { background: "var(--gradient-neon)" } : undefined}
+                            className="w-full text-left rounded-xl border px-4 py-3 transition hover:bg-sidebar-accent/30"
+                            style={{
+                              borderColor: isActive ? glow : "transparent",
+                              boxShadow: isActive ? `0 0 18px ${glow}55` : `inset 0 0 0 1px ${glow}22`,
+                            }}
                           >
-                            {active ? (
+                            <span className="flex items-center gap-2">
                               <span
-                                className="bg-clip-text text-transparent"
-                                style={{ backgroundImage: "linear-gradient(90deg,#f8fafc 0%,#cbd5e1 45%,#94a3b8 100%)" }}
-                              >
-                                {p.label}
-                              </span>
-                            ) : (
-                              p.label
-                            )}
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ background: glow, boxShadow: `0 0 10px ${glow}` }}
+                              />
+                              <span className="text-sm font-semibold">{p.label}</span>
+                            </span>
                           </button>
                         </li>
                       );
@@ -300,25 +330,6 @@ function TokensPage() {
               )}
             </div>
 
-
-            {/* Desktop: pill tabs */}
-            <div className="hidden md:flex flex-wrap items-center gap-2">
-              {providers.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setTab(p.key)}
-                  className={[
-                    "px-4 py-2 rounded-full text-sm font-medium transition",
-                    tab === p.key
-                      ? "text-primary-foreground glow-pink"
-                      : "border border-border bg-card/50 text-foreground/85 hover:text-foreground",
-                  ].join(" ")}
-                  style={tab === p.key ? { background: "var(--gradient-neon)" } : undefined}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
 
             <div className="ml-auto flex items-center gap-2 w-full md:w-auto justify-end">
               <button
@@ -378,6 +389,16 @@ function TokensPage() {
                       singlePlaceholder="_v2NGMz... (Roboneo access-token)"
                       bulkPlaceholder={"_v2NGMzMThk...\n_v2ABCDEF..."}
                       helper="Roboneo access-token = login-session token (per docs roboneo.com/cli). Token tersimpan di akun kamu (localStorage + user_tokens server, sinkron antar device). Saat generate mendeteksi credit/quota habis atau token invalid, token itu otomatis dihapus dan flow lanjut rotate ke token berikutnya."
+                    />
+                  )}
+                  {tab === "firefly" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="firefly"
+                      lsKey={LS.firefly}
+                      singlePlaceholder="eyJhbGciOiJSUzI1NiIsIng1dSI6... (Adobe Firefly Bearer token)"
+                      bulkPlaceholder={"eyJhbGciOiJS...\neyJhbGciOiJS..."}
+                      helper="Firefly Bearer = IMS access token dari firefly.adobe.com (~24 jam). Token tersimpan di akunmu (localStorage + user_tokens server) dan TIDAK auto-terhapus — hanya ditandai saat gagal. Multi-token auto-rotate saat 401/credit habis."
                     />
                   )}
                   {tab === "framia" && (
@@ -456,6 +477,8 @@ function CompactSummary({
                     ? LS.framia
                     : provider === "leonardo"
                       ? LS.leonardo
+                      : provider === "firefly"
+                      ? LS.firefly
                       : provider === "eleven"
                         ? LS.eleven
                         : LS.shotstack,
@@ -571,6 +594,19 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Alternatif (session token, cepat expired): DevTools → Application → Local Storage → https://www.roboneo.com → copy value `access-token`." },
     ],
     tip: "Model yang didukung: Kling 2.6 Std (motion control + i2v), Seedance Pro, Google Omni. Panduan resmi: roboneo.com/cli/en.",
+  },
+  firefly: {
+    url: "https://firefly.adobe.com/",
+    urlLabel: "firefly.adobe.com",
+    prefix: "eyJhbGci... (Adobe IMS Bearer token)",
+    steps: [
+      { text: "Login di firefly.adobe.com dengan Adobe ID." },
+      { text: "Buka DevTools (F12) → tab Network → filter 'firefly.adobe.io'." },
+      { text: "Klik salah satu request (mis. credits/balance) → Headers → copy value header `authorization` TANPA kata 'Bearer '." },
+      { text: "Paste ke input di sebelah lalu simpan — sisa credit langsung dicek via /v1/credits/balance." },
+      { text: "Simpan beberapa token (multi-akun) → auto-rotate saat 401 / credit habis." },
+    ],
+    tip: "Firefly dipakai untuk Image (Firefly Image 3/4) dan Video (Veo 3.1 via Firefly). Token IMS berumur ±24 jam; kalau expired ulangi langkah copy token.",
   },
   framia: {
     url: "https://framia.converge.ai/",
@@ -889,18 +925,14 @@ function BrainPane() {
 
   return (
     <>
-      <div className="text-xs text-muted-foreground leading-relaxed">
-        Brain (Gemini) dipakai <b className="text-foreground/90">Produk Storyboard</b> & <b className="text-foreground/90">Naratif Video Maker</b> untuk menghasilkan naskah / prompt. Tambahkan beberapa key sekaligus — sistem <b>auto-rotate</b> jika salah satu kena limit.
-      </div>
-      <Field label="Gemini API Keys (AIza... / AQ... — satu per baris atau pisah koma)">
-        <Textarea
-          rows={6}
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          placeholder={"AIzaXXXX...\nAQ.XXXX...\nAIzaYYYY..."}
-          className="font-mono text-xs"
-        />
-      </Field>
+      <Textarea
+        rows={6}
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={"AIzaXXXX...\nAQ.XXXX...\nAIzaYYYY..."}
+        className="font-mono text-xs"
+      />
+
       <div className="flex flex-wrap gap-2">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
           <Plus className="h-3.5 w-3.5" /> Tambah
@@ -1227,15 +1259,14 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 
   return (
     <>
-      <Field label="Refresh Tokens (satu per baris atau pisah koma)">
-        <Textarea
-          rows={7}
-          value={bulkTokenText}
-          onChange={(e) => setBulkTokenText(e.target.value)}
-          placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
-          className="font-mono text-xs"
-        />
-      </Field>
+      <Textarea
+        rows={7}
+        value={bulkTokenText}
+        onChange={(e) => setBulkTokenText(e.target.value)}
+        placeholder={"eyJhbGci...(token 1)\neyJhbGci...(token 2)\neyJhbGci...(token 3)"}
+        className="font-mono text-xs"
+      />
+
 
       <div className="flex gap-2 flex-wrap">
         <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
@@ -1325,7 +1356,7 @@ function ProviderKeyPane({
   singlePlaceholder?: string;
   bulkPlaceholder: string;
   helper: string;
-  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo";
+  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly";
 }) {
   const [bulk, setBulk] = useState("");
   const [list, setList] = useState<SimpleKey[]>([]);
@@ -1386,6 +1417,14 @@ function ProviderKeyPane({
                 note: bal.ok ? chk.email || chk.plan : bal.message,
               };
             }
+          } else if (provider === "firefly") {
+            const bal = await fetchFireflyBalance(x.key);
+            updated = {
+              ...x,
+              balance: bal.balance,
+              status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+              note: bal.ok ? bal.plan : bal.message,
+            };
           } else if (provider === "leonardo") {
             const chk = await checkLeonardoToken(x.key);
             if (!chk.ok) {
@@ -1432,7 +1471,7 @@ function ProviderKeyPane({
       ? /^wsk_[A-Za-z0-9_-]{8,}$/i.test(key) || /^ws_[A-Za-z0-9_-]{8,}$/i.test(key)
       : provider === "roboneo"
         ? /^_v2[A-Za-z0-9+/=_-]{20,}$/i.test(key)
-        : provider === "framia" || provider === "leonardo"
+        : provider === "framia" || provider === "leonardo" || provider === "firefly"
           ? /^eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)
           : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
@@ -1466,6 +1505,18 @@ function ProviderKeyPane({
         balance: bal.balance,
         status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
         note: chk.email || chk.plan || bal.message,
+      };
+    }
+    if (provider === "firefly") {
+      const chk = await checkFireflyToken(key);
+      if (!chk.ok) return { id: uid(), key, balance: null, status: "failed", note: chk.message };
+      const bal = await fetchFireflyBalance(key);
+      return {
+        id: uid(),
+        key,
+        balance: bal.balance,
+        status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+        note: bal.plan || bal.message,
       };
     }
     if (provider === "leonardo") {
@@ -1520,13 +1571,13 @@ function ProviderKeyPane({
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
     const summary = provider === "wavespeed"
       ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
-      : provider === "roboneo" || provider === "framia" || provider === "leonardo"
+      : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
         ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
       : `${merged.length} key tersimpan`;
-    setStatus(`✅ ${added.length} ditambahkan · ❌ ${badFormat.length + failed} ditolak · ${summary}`);
+    void summary;
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
@@ -1540,7 +1591,7 @@ function ProviderKeyPane({
       ],
       footer:
         `Total key tersimpan sekarang: ${merged.length}` +
-        (provider === "roboneo" || provider === "framia" || provider === "leonardo"
+        (provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
           ? ` · Total credit: ${total.toLocaleString()} cr`
           : ""),
     });
@@ -1583,6 +1634,14 @@ function ProviderKeyPane({
             note: chk.email || chk.plan || bal.message,
           };
         }
+      } else if (provider === "firefly") {
+        const bal = await fetchFireflyBalance(x.key);
+        updated = {
+          ...x,
+          balance: bal.balance,
+          status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+          note: bal.ok ? bal.plan : bal.message,
+        };
       } else if (provider === "leonardo") {
         const chk = await checkLeonardoToken(x.key);
         if (!chk.ok) {
@@ -1622,7 +1681,7 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
@@ -1632,7 +1691,7 @@ function ProviderKeyPane({
           value:
             provider === "wavespeed"
               ? `${active}  ($${totBal.toFixed(2)})`
-              : provider === "roboneo" || provider === "framia" || provider === "leonardo"
+              : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
                 ? `${active}  (${totBal} credit)`
                 : active,
           tone: "ok",
@@ -1651,27 +1710,14 @@ function ProviderKeyPane({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 justify-end">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>Active: <b className="text-emerald-400">{activeCount}</b>/{list.length}</span>
-          {provider === "wavespeed" && (
-            <span>Total: <b className="text-emerald-400">${total.toFixed(2)}</b></span>
-          )}
-          {provider === "roboneo" && (
-            <span>Total credit: <b className="text-emerald-400">{total.toLocaleString()} cr</b></span>
-          )}
-        </div>
-      </div>
+      <Textarea
+        rows={5}
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={bulkPlaceholder}
+        className="font-mono text-xs"
+      />
 
-      <Field label="API Keys (satu per baris atau pisah koma)">
-        <Textarea
-          rows={5}
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          placeholder={bulkPlaceholder}
-          className="font-mono text-xs"
-        />
-      </Field>
 
       <div className="flex gap-2 flex-wrap">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
@@ -1679,14 +1725,20 @@ function ProviderKeyPane({
         </PrimaryButton>
 
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
         </GhostButton>
         <GhostButton onClick={clearAll} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
 
+      {list.length > 0 && (
+        <div className="text-[11px] text-muted-foreground">
+          {`Total tersimpan: ${list.length} · ✅ ${list.filter((x) => x.status === "active").length} aktif · ⏳ ${list.filter((x) => x.status === "empty").length} limit · ❌ ${list.filter((x) => x.status === "failed").length} ditolak`}
+        </div>
+      )}
       {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
+
 
       {progress.show && (
         <div className="rounded-lg border border-border bg-card/40 p-2 text-[11px]">
@@ -1712,14 +1764,14 @@ function ProviderKeyPane({
                 title={x.status}
               />
               <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 12)}…{x.key.slice(-4)}</div>
-              <div className="text-emerald-400 font-semibold whitespace-nowrap">
+              <div className="text-emerald-400 font-semibold whitespace-nowrap tabular-nums">
                 {provider === "wavespeed"
                   ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
                   : provider === "roboneo"
                     ? x.balance == null
                       ? x.status === "failed" ? "❌" : "— cr"
                       : `${x.balance.toLocaleString()} cr`
-                  : provider === "framia" || provider === "leonardo"
+                  : provider === "framia" || provider === "leonardo" || provider === "firefly"
                     ? x.balance == null
                       ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
                       : `${x.balance.toLocaleString()} cr`
@@ -1989,26 +2041,30 @@ function ElevenPane() {
 
   return (
     <>
-      <Field label="ElevenLabs API Keys (sk_... — satu per baris atau pisah koma. Multi-key auto-rotate saat limit)">
-        <Textarea
-          rows={5}
-          value={bulk}
-          onChange={(e) => setBulk(e.target.value)}
-          placeholder={"sk_XXXXXXXX...\nsk_YYYYYYYY..."}
-          className="font-mono text-xs"
-        />
-      </Field>
+      <Textarea
+        rows={5}
+        value={bulk}
+        onChange={(e) => setBulk(e.target.value)}
+        placeholder={"sk_XXXXXXXX...\nsk_YYYYYYYY..."}
+        className="font-mono text-xs"
+      />
       <div className="flex flex-wrap gap-2">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
           <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
         <GhostButton onClick={checkAllKeys} disabled={!hasStored || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Saldo
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
         </GhostButton>
         <GhostButton onClick={clear} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
+      {cfg.keys.length > 0 && (
+        <div className="text-[11px] text-muted-foreground">
+          {`Total tersimpan: ${cfg.keys.length} · ✅ ${keyStatuses.filter((s) => s.ok).length} aktif · ❌ ${keyStatuses.filter((s) => !s.ok).length} ditolak`}
+        </div>
+      )}
+
 
       {cfg.keys.length > 0 && (
         <div className="flex flex-col gap-1">

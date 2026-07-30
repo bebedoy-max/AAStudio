@@ -126,6 +126,7 @@ function mergeStoredTokenValue(storageKey: string, remoteValue: string, localVal
     storageKey === "aatools.magnific.keys" ||
     storageKey === "aatools.roboneo.keys" ||
     storageKey === "aatools.framia.keys" ||
+    storageKey === "aatools.firefly.keys" ||
     storageKey === "aatools.shotstack.keys" ||
     storageKey === "aatools.creatomate.keys"
   ) {
