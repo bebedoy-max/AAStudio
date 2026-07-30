@@ -455,6 +455,7 @@ function BulkFashion() {
 
       <Card title="⚙️ Pengaturan">
         <div className="mb-4">
+<<<<<<< HEAD
           <div className="flex flex-wrap items-center gap-2 min-h-[20px] mb-1.5">
             <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
               Model AI
@@ -462,6 +463,9 @@ function BulkFashion() {
             <ProviderActivePill cap="image" />
           </div>
           <div>
+=======
+          <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+>>>>>>> 99c245e4c7b9b523e9afcfe27868494835570e1d
             <Select
               value={model}
               onChange={(e) => {
@@ -474,6 +478,14 @@ function BulkFashion() {
               options={models.map((m) => ({ value: m.key, label: m.label }))}
             />
           </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Field label="Jenis Produk">
+            <Select value={productType} onChange={(e) => setProductType(e.target.value)} options={PRODUCT_TYPES.map((p) => ({ value: p, label: p }))} />
+          </Field>
+          <Field label="Aspek Rasio">
+            <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
+          </Field>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Field label="Jenis Produk">

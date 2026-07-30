@@ -389,6 +389,7 @@ function LeonardoPage() {
               />
             </Field>
 
+<<<<<<< HEAD
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
                 <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
@@ -396,12 +397,19 @@ function LeonardoPage() {
                 </label>
                 <ProviderActivePill cap="image" />
               </div>
+=======
+            <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+>>>>>>> 99c245e4c7b9b523e9afcfe27868494835570e1d
               <Select
                 value={activeGenModel?.key ?? ""}
                 onChange={(e) => setGenModelKey(e.target.value)}
                 options={genModels.map((m) => ({ value: m.key, label: m.label }))}
               />
+<<<<<<< HEAD
             </div>
+=======
+            </Field>
+>>>>>>> 99c245e4c7b9b523e9afcfe27868494835570e1d
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Kualitas / Resolusi">
@@ -510,6 +518,7 @@ function LeonardoPage() {
             />
           </Field>
 
+<<<<<<< HEAD
           <div className="flex flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
               <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
@@ -517,6 +526,9 @@ function LeonardoPage() {
               </label>
               <ProviderActivePill cap="image" />
             </div>
+=======
+          <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+>>>>>>> 99c245e4c7b9b523e9afcfe27868494835570e1d
             <div className="flex gap-2">
               <div className="flex-1">
                 <Select
@@ -536,7 +548,11 @@ function LeonardoPage() {
                 {loadingModels ? "…" : "Refresh"}
               </button>
             </div>
+<<<<<<< HEAD
           </div>
+=======
+          </Field>
+>>>>>>> 99c245e4c7b9b523e9afcfe27868494835570e1d
 
           <div className="grid grid-cols-2 gap-3">
 

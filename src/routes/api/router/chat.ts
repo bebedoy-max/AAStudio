@@ -142,7 +142,11 @@ async function callGemini(
   return last || { ok: false, status: 502, body: "gemini: no models" };
 }
 
+<<<<<<< HEAD
 export async function loadGlobalBrainKeys(): Promise<{ gemini: string[]; openai: string[] }> {
+=======
+async function loadGlobalBrainKeys(): Promise<{ gemini: string[]; openai: string[] }> {
+>>>>>>> 99c245e4c7b9b523e9afcfe27868494835570e1d
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
