@@ -109,9 +109,46 @@ export async function userFolderLabel(userId: string): Promise<string> {
   }
 }
 
-/** Folder tujuan: "AA Creative Studio" (personal) atau "AA Creative Studio/@user" (global). */
-export async function ensureFolder(ctx: DriveCtx, userId: string): Promise<string> {
-  const cacheKey = `${ctx.mode}:${ctx.mode === "personal" ? userId : `g:${userId}`}`;
+/** Nama folder menu di Drive, dipetakan dari `source` yang dikirim halaman generate. */
+const MENU_FOLDERS: Record<string, string> = {
+  motion: "Motion Control",
+  "motion-control": "Motion Control",
+  "image-to-video": "Image to Video",
+  "text-to-video": "Text to Video",
+  leonardo: "Leonardo",
+  storyboard: "Storyboard",
+  "bulk-fashion": "Bulk Fashion",
+  upscaler: "Upscaler",
+  "magnific-motion": "Motion Control",
+  naratif: "Naratif",
+  framia: "Framia",
+  clipper: "Clipper",
+  dubbing: "Dubbing",
+  "reff-edit": "Reff Edit",
+  "ai-influencer": "AI Influencer",
+};
+
+export function menuFolderName(source?: string | null): string {
+  const key = (source ?? "").trim().toLowerCase();
+  if (!key) return "Lainnya";
+  const mapped = MENU_FOLDERS[key];
+  if (mapped) return mapped;
+  return key
+    .replace(/[\\/:*?"<>|]/g, "")
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ") || "Lainnya";
+}
+
+/**
+ * Folder tujuan:
+ *  - personal : "AA Creative Studio/<Menu>"
+ *  - global   : "AA Creative Studio/@user/<Menu>"
+ */
+export async function ensureFolder(ctx: DriveCtx, userId: string, source?: string | null): Promise<string> {
+  const menu = menuFolderName(source);
+  const cacheKey = `${ctx.mode}:${ctx.mode === "personal" ? userId : `g:${userId}`}:${menu}`;
   const cached = folderCache.get(cacheKey);
   if (cached) return cached;
 
@@ -124,6 +161,7 @@ export async function ensureFolder(ctx: DriveCtx, userId: string): Promise<strin
       (await findFolder(ctx, userId, rootId)) ??
       (await createFolder(ctx, label, rootId));
   }
+  rootId = (await findFolder(ctx, menu, rootId)) ?? (await createFolder(ctx, menu, rootId));
   folderCache.set(cacheKey, rootId);
   return rootId;
 }
@@ -135,8 +173,10 @@ export async function uploadToDrive(
   ctx: DriveCtx,
   userId: string,
   file: { name: string; type: string; bytes: ArrayBuffer },
+  source?: string | null,
 ): Promise<UploadedDriveFile> {
-  const parent = await ensureFolder(ctx, userId);
+  const parent = await ensureFolder(ctx, userId, source);
+
   const boundary = `aacs${Math.random().toString(36).slice(2)}${Date.now()}`;
   const meta = JSON.stringify({ name: file.name, parents: [parent] });
   const mime = file.type || "application/octet-stream";

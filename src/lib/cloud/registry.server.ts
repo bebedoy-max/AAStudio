@@ -52,7 +52,7 @@ export async function storeMediaForUser(params: {
     name: params.name,
     type: params.mimeType,
     bytes: params.bytes,
-  });
+  }, params.source ?? null);
 
   const db = await admin();
   const { data, error } = await db
