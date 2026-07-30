@@ -278,7 +278,7 @@ function makeFireflySessionHeader(): string {
   );
 }
 
-type FireflyBlobRef = Record<string, unknown>;
+type FireflyBlobRef = { id?: string; presignedUrl?: string; creativeCloudFileId?: string };
 type FireflyUploadImage = FireflyBlobRef & {
   id?: string;
   blobRef?: unknown;
@@ -286,18 +286,38 @@ type FireflyUploadImage = FireflyBlobRef & {
 };
 type FireflyUploadResponse = { images?: FireflyUploadImage[]; image?: FireflyUploadImage; id?: string };
 
-function asFireflyBlobRef(value: unknown): FireflyBlobRef | null {
+function asFireflyBlobRef(value: unknown, depth = 0): FireflyBlobRef | null {
+  if (depth > 5) return null;
   if (typeof value === "string" && value.trim()) return { id: value.trim() };
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = asFireflyBlobRef(item, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
+  }
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>;
     // Adobe's validator only accepts id | presignedUrl | creativeCloudFileId.
     for (const k of ["id", "presignedUrl", "creativeCloudFileId"]) {
       const v = obj[k];
       if (typeof v === "string" && v.trim()) return { [k]: v.trim() };
+      const nested = asFireflyBlobRef(v, depth + 1);
+      if (nested) return nested;
     }
-    for (const k of ["localBlobRef", "remoteBlobRef", "blobRef", "uploadId", "assetId"]) {
+    for (const k of ["localBlobRef", "remoteBlobRef", "uploadId", "assetId", "blobId"]) {
       const v = obj[k];
       if (typeof v === "string" && v.trim()) return { id: v.trim() };
+      const nested = asFireflyBlobRef(v, depth + 1);
+      if (nested) return nested;
+    }
+    for (const k of ["blobRef", "reference", "ref", "source", "image", "asset"]) {
+      const nested = asFireflyBlobRef(obj[k], depth + 1);
+      if (nested) return nested;
+    }
+    for (const v of Object.values(obj)) {
+      const nested = asFireflyBlobRef(v, depth + 1);
+      if (nested) return nested;
     }
     return null;
   }
@@ -311,7 +331,8 @@ function pickUploadedImageRef(res: FireflyUploadResponse | null): FireflyBlobRef
     asFireflyBlobRef(nested) ||
     asFireflyBlobRef(image?.id) ||
     asFireflyBlobRef(res?.id) ||
-    asFireflyBlobRef(image)
+    asFireflyBlobRef(image) ||
+    asFireflyBlobRef(res)
   );
 }
 
@@ -358,43 +379,15 @@ function buildFireflyVideoPayload(opts: {
   const seed = opts.seed ?? randomSeed();
   const size = fireflyVideoSize(opts.ratio || "16:9");
   const negativePrompt = opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic";
-  const referenceBlobs = opts.referenceRef
-    ? [
-        {
-          blobRef: opts.referenceRef,
-          usage: "frame",
-          order: 1,
-          promptReference: 1,
-        },
-      ]
-    : undefined;
 
+  // Send the final Firefly web payload shape. `referenceBlobs` / `image.conditions`
+  // are editor-side inputs that the web client transforms before submit; leaving
+  // them in the network body can make Adobe validate an old `{ localBlobRef }`
+  // shape and return 422 “Either id, presignedUrl, or creativeCloudFileId…”.
   return {
-    modelId: opts.model.modelId,
-    modelVersion: opts.model.modelVersion,
     model: fireflyVideoModelKey(opts.model),
     size,
-    sizes: [size],
-    locale: "en-US",
-    seeds: [seed],
-    prompt: opts.prompt,
-    negativePrompt,
-    duration: opts.duration,
-    generateAudio: false,
-    generationType: "generate",
-    ...(referenceBlobs ? { referenceBlobs } : {}),
-    ...(opts.referenceRef
-      ? {
-          image: {
-            conditions: [
-              {
-                placement: { start: 0 },
-                source: { blobRef: opts.referenceRef },
-              },
-            ],
-          },
-        }
-      : {}),
+    referenceFrames: opts.referenceRef ? [{ referenceFrame: opts.referenceRef }, null] : [null, null],
     shots: [
       {
         prompt: opts.prompt,
@@ -402,18 +395,30 @@ function buildFireflyVideoPayload(opts: {
         duration: opts.duration,
       },
     ],
-    referenceFrames: opts.referenceRef ? [{ referenceFrame: opts.referenceRef }, null] : [null, null],
     seed: String(seed),
+    generateAudio: false,
+    generateLoop: false,
+    transparentBackground: false,
     fps: 24,
     camera: { motion: null, angle: "none", shotSize: "none", promptStyle: null },
+    locale: "en-US",
     jobMode: "standard",
     multiShotMode: "off",
-    generationMetadata: {
-      module: opts.referenceRef ? "image2video" : "text2video",
-      submodule: "ff-video-generate",
+    debugGenerationEndpoint: "",
+    characterReference: null,
+    referenceVideo: null,
+    cameraMotionReferenceVideo: null,
+    editReferenceVideo: null,
+    editAction: "modify",
+    referenceImages: [],
+    referenceVideos: [],
+    referenceAudios: [],
+    upscale: {
+      enhancement: "precise",
+      optimization: "speed",
+      details: "subtle",
+      outputResolution: { width: 1920, height: 1080 },
     },
-    generationSettings: { aspectRatio: opts.ratio || "16:9" },
-    output: { storeInputs: true },
   };
 }
 
@@ -695,7 +700,9 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
 
   const referenceRef = opts.imageFile
     ? await uploadFireflyImage({ token: opts.token, file: opts.imageFile, accountId, sessionId })
-    : null;
+    : opts.imageUrl
+      ? asFireflyBlobRef({ presignedUrl: opts.imageUrl })
+      : null;
 
   opts.onProgress?.("Firefly: submit job…", 18);
 
@@ -713,10 +720,6 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
     duration,
     referenceRef,
   });
-  if (!referenceRef && opts.imageUrl) {
-    payload.image = { source: { url: opts.imageUrl } };
-  }
-
   const relayOn = await isRelayAvailable(true);
   opts.onProgress?.(
     relayOn ? "Submit via extension relay (browser kamu)…" : "Submit Firefly…",
