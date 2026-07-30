@@ -287,8 +287,20 @@ type FireflyUploadImage = FireflyBlobRef & {
 type FireflyUploadResponse = { images?: FireflyUploadImage[]; image?: FireflyUploadImage; id?: string };
 
 function asFireflyBlobRef(value: unknown): FireflyBlobRef | null {
-  if (value && typeof value === "object") return value as FireflyBlobRef;
-  if (typeof value === "string" && value.trim()) return { localBlobRef: value.trim() };
+  if (typeof value === "string" && value.trim()) return { id: value.trim() };
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    // Adobe's validator only accepts id | presignedUrl | creativeCloudFileId.
+    for (const k of ["id", "presignedUrl", "creativeCloudFileId"]) {
+      const v = obj[k];
+      if (typeof v === "string" && v.trim()) return { [k]: v.trim() };
+    }
+    for (const k of ["localBlobRef", "remoteBlobRef", "blobRef", "uploadId", "assetId"]) {
+      const v = obj[k];
+      if (typeof v === "string" && v.trim()) return { id: v.trim() };
+    }
+    return null;
+  }
   return null;
 }
 
