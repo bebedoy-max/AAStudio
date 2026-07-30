@@ -32,6 +32,7 @@ import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
 
 import { confirmDialog } from "@/components/ui-confirm";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 
 
@@ -540,8 +541,10 @@ function StoryboardPage() {
   const setBusy = (b: boolean) => sbRunStore.set((s) => ({ ...s, busy: b }));
   const pushLog = (s: string) =>
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
-  const patchResult = (resultId: string, patch: Partial<GenResult>) =>
+  const patchResult = (resultId: string, patch: Partial<GenResult>) => {
+    if (patch.imgUrl) archiveUrlInBackground(patch.imgUrl, { source: "storyboard" });
     setResults((prev) => prev.map((r) => (r.resultId === resultId ? { ...r, ...patch } : r)));
+  };
 
   const canGenerate = okCount > 0 && !!modelKey && !busy;
 

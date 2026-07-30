@@ -8,6 +8,7 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 
 
@@ -346,6 +347,7 @@ function BulkFashion() {
           if (msg === "done" && url) {
             doneCount.n += 1;
             setResults((r) => [...r, { url, status: "done" }]);
+            archiveUrlInBackground(url, { source: "bulk-fashion" });
           } else if (msg === "error") {
             setResults((r) => [...r, { url: "", status: "error", error: err }]);
           }

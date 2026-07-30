@@ -34,6 +34,7 @@ import { startNotification, finishNotification, failNotification } from "@/lib/s
 import { confirmDialog } from "@/components/ui-confirm";
 import { toast } from "sonner";
 import { compressMediaFile, fmtMB, ROBONEO_MAX_BYTES } from "@/lib/media/compress";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -263,6 +264,7 @@ function MotionControl() {
   const persistResults = (updater: ResultItem[] | ((prev: ResultItem[]) => ResultItem[])) => {
     setResults((prev) => {
       const next = typeof updater === "function" ? (updater as (p: ResultItem[]) => ResultItem[])(prev) : updater;
+      next.forEach((r) => r.url && archiveUrlInBackground(r.url, { source: "motion" }));
       try {
         localStorage.setItem(lsResultsKey(uid), JSON.stringify(next));
       } catch {}

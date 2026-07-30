@@ -89,7 +89,27 @@ async function createFolder(ctx: DriveCtx, name: string, parentId?: string): Pro
 
 const folderCache = new Map<string, string>();
 
-/** Folder tujuan: "AA Creative Studio" (personal) atau "AA Creative Studio/<userId>" (global). */
+/** Label folder user di Global Cloud: "@displayname" (fallback ke email/user id). */
+export async function userFolderLabel(userId: string): Promise<string> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("profiles")
+      .select("display_name,email")
+      .eq("id", userId)
+      .maybeSingle();
+    const raw: string =
+      (data?.display_name as string | null)?.trim() ||
+      ((data?.email as string | null) ?? "").split("@")[0] ||
+      userId;
+    const clean = raw.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim();
+    return `@${clean || userId}`;
+  } catch {
+    return `@${userId}`;
+  }
+}
+
+/** Folder tujuan: "AA Creative Studio" (personal) atau "AA Creative Studio/@user" (global). */
 export async function ensureFolder(ctx: DriveCtx, userId: string): Promise<string> {
   const cacheKey = `${ctx.mode}:${ctx.mode === "personal" ? userId : `g:${userId}`}`;
   const cached = folderCache.get(cacheKey);
@@ -97,11 +117,17 @@ export async function ensureFolder(ctx: DriveCtx, userId: string): Promise<strin
 
   let rootId = (await findFolder(ctx, APP_FOLDER_NAME)) ?? (await createFolder(ctx, APP_FOLDER_NAME));
   if (ctx.mode === "global") {
-    rootId = (await findFolder(ctx, userId, rootId)) ?? (await createFolder(ctx, userId, rootId));
+    const label = await userFolderLabel(userId);
+    // Migrasi: folder lama bernama userId dipakai ulang bila ada.
+    rootId =
+      (await findFolder(ctx, label, rootId)) ??
+      (await findFolder(ctx, userId, rootId)) ??
+      (await createFolder(ctx, label, rootId));
   }
   folderCache.set(cacheKey, rootId);
   return rootId;
 }
+
 
 export type UploadedDriveFile = { id: string; name: string; size: number; mimeType: string };
 

@@ -22,6 +22,7 @@ import {
   type ImageProviderId,
 } from "@/lib/providers/image-catalog";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 
 export const Route = createFileRoute("/generate/leonardo")({
@@ -262,6 +263,7 @@ function LeonardoPage() {
         });
         out.push(url);
         setImages((prev) => [url, ...prev]);
+        archiveUrlInBackground(url, { source: "leonardo" });
       }
       log(`✅ Selesai — ${out.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -342,6 +344,7 @@ function LeonardoPage() {
         },
       );
       setImages((prev) => [...images, ...prev]);
+      images.forEach((u) => archiveUrlInBackground(u, { source: "leonardo" }));
       log(`✅ Selesai — ${images.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {

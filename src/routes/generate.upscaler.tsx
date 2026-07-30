@@ -17,6 +17,7 @@ import {
 import { logGenerate } from "@/lib/activity/log";
 import { useAuth } from "@/lib/auth-context";
 import { confirmDialog } from "@/components/ui-confirm";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 export const Route = createFileRoute("/generate/upscaler")({
   head: () => ({
@@ -110,6 +111,7 @@ function UpscalerPage() {
   const persistResults = (next: ResultItem[] | ((prev: ResultItem[]) => ResultItem[])) => {
     setResults((prev) => {
       const v = typeof next === "function" ? (next as (p: ResultItem[]) => ResultItem[])(prev) : next;
+      v.forEach((r) => r.url && archiveUrlInBackground(r.url, { source: "upscaler" }));
       try { localStorage.setItem(lsKey(uid), JSON.stringify(v)); } catch {}
       return v;
     });

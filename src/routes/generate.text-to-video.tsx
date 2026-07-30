@@ -19,6 +19,7 @@ import {
   runFireflyWithRotation,
   getAllFireflyKeys,
 } from "@/lib/providers/firefly";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 const T2V_PROVIDERS = [
   { value: "leonardo", label: "Leonardo.ai" },
@@ -163,6 +164,7 @@ function TextToVideoPage() {
           (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         );
         setVideos((v) => [url, ...v]);
+        archiveUrlInBackground(url, { source: "text-to-video" });
         log("✅ Video siap", 100);
         setRunState("sukses");
         setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -183,6 +185,7 @@ function TextToVideoPage() {
         onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
       });
       setVideos((v) => [url, ...v]);
+        archiveUrlInBackground(url, { source: "text-to-video" });
       log(`✅ Video siap`, 100);
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));

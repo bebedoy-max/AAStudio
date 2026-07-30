@@ -9,6 +9,7 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 import { leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { useProviderCredit } from "@/lib/providers/credit-summary";
+import { archiveUrlInBackground } from "@/lib/cloud/client";
 
 
 
@@ -415,6 +416,7 @@ function ImageToVideo() {
       });
 
       setResults((r) => [url, ...r]);
+      archiveUrlInBackground(url, { source: "image-to-video" });
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
       pushLog(`✅ Video selesai · ${url.slice(0, 60)}${url.length > 60 ? "…" : ""}`);
