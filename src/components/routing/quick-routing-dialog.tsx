@@ -3,14 +3,16 @@
 // leonardo, dsb — user bisa mengubah routing provider tanpa pindah menu.
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Check, Zap, ExternalLink } from "lucide-react";
+import { X, Check, Zap, ExternalLink, Repeat } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   type CapKey,
+  enabledProviders,
   getCap,
   readRouting,
   writeRoutingCap,
 } from "@/lib/routing/catalog";
+import { useProviderFlags } from "@/lib/platform/provider-flags";
 
 
 export function useActiveProvider(cap: CapKey): string {
@@ -58,6 +60,8 @@ export function ProviderActivePill({
         <b className="text-primary normal-case tracking-normal">
           {active?.name ?? activeId}
         </b>
+        <Repeat className="h-3 w-3 text-primary animate-switch-hint" aria-hidden />
+
       </button>
       {open && <RoutingDialog cap={cap} onClose={() => setOpen(false)} />}
     </>
@@ -72,6 +76,7 @@ export function RoutingDialog({
   onClose: () => void;
 }) {
   const capDef = getCap(cap);
+  const { flags } = useProviderFlags();
   const [activeId, setActiveId] = useState<string>(() => readRouting()[cap]);
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -129,7 +134,7 @@ export function RoutingDialog({
         </div>
 
         <div className="p-4 flex flex-col gap-2.5">
-          {capDef.providers.map((p) => {
+          {enabledProviders(capDef, flags).map((p) => {
             const selected = p.id === activeId;
             const disabled = p.note === "coming-soon";
             return (

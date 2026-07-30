@@ -227,6 +227,34 @@ function TextToVideoPage() {
             />
           </Field>
 
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+              <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                Model AI
+              </label>
+              <ProviderActivePill cap="video" />
+            </div>
+            {isFirefly ? (
+              <Select
+                value={ffModelKey}
+                onChange={(e) => setFfModelKey(e.target.value)}
+                options={FIREFLY_VIDEO_MODELS.map((m) => ({
+                  value: m.key,
+                  label: `${m.label} — ${m.cost}`,
+                }))}
+              />
+            ) : (
+              <Select
+                value={vidModelId}
+                onChange={(e) => setVidModelId(e.target.value)}
+                options={LEONARDO_VIDEO_MODELS.map((m) => ({
+                  value: m.id,
+                  label: `${m.label} — ${m.group}`,
+                }))}
+              />
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Provider">
               <Select
@@ -234,27 +262,6 @@ function TextToVideoPage() {
                 onChange={(e) => setVidProvider(e.target.value as T2VProvider)}
                 options={T2V_PROVIDERS.map((p) => ({ value: p.value, label: p.label }))}
               />
-            </Field>
-            <Field label="Model AI" right={<ProviderActivePill cap="video" />}>
-              {isFirefly ? (
-                <Select
-                  value={ffModelKey}
-                  onChange={(e) => setFfModelKey(e.target.value)}
-                  options={FIREFLY_VIDEO_MODELS.map((m) => ({
-                    value: m.key,
-                    label: `${m.label} — ${m.cost}`,
-                  }))}
-                />
-              ) : (
-                <Select
-                  value={vidModelId}
-                  onChange={(e) => setVidModelId(e.target.value)}
-                  options={LEONARDO_VIDEO_MODELS.map((m) => ({
-                    value: m.id,
-                    label: `${m.label} — ${m.group}`,
-                  }))}
-                />
-              )}
             </Field>
             <Field label="Aspect Ratio">
               {isFirefly ? (

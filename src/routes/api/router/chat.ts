@@ -142,6 +142,25 @@ async function callGemini(
   return last || { ok: false, status: 502, body: "gemini: no models" };
 }
 
+export async function loadGlobalBrainKeys(): Promise<{ gemini: string[]; openai: string[] }> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("global_brain" as never)
+      .select("enabled, gemini_keys, openai_keys")
+      .eq("id", 1)
+      .maybeSingle();
+    const row = data as unknown as
+      | { enabled?: boolean; gemini_keys?: string[]; openai_keys?: string[] }
+      | null;
+    if (!row?.enabled) return { gemini: [], openai: [] };
+    const clean = (arr?: string[]) => (arr ?? []).map((s) => (s || "").trim()).filter(Boolean);
+    return { gemini: clean(row.gemini_keys), openai: clean(row.openai_keys) };
+  } catch {
+    return { gemini: [], openai: [] };
+  }
+}
+
 export async function routeChat(opts: {
   openaiKeys: string[];
   geminiKeys: string[];
@@ -149,6 +168,8 @@ export async function routeChat(opts: {
   user: string;
   json?: boolean;
   temperature?: number;
+  /** Set false untuk mematikan fallback Global Brain (default: aktif). */
+  allowGlobalBrain?: boolean;
 }): Promise<
   | { ok: true; provider: "openai" | "gemini"; text: string }
   | { ok: false; status: number; error: string }
@@ -185,6 +206,30 @@ export async function routeChat(opts: {
     if (r.ok) return { ok: true, provider: "gemini", text: r.text };
     bump("gemini", r.status, r.body);
     if (!isRotatable(r.status)) break;
+  }
+
+  // Priority 3: Global Brain (key platform milik admin). Dipakai hanya kalau
+  // user tidak punya key sendiri, atau semua key user gagal/limit.
+  if (opts.allowGlobalBrain !== false) {
+    const global = await loadGlobalBrainKeys();
+    const globalOpenai = global.openai.filter((k) => !openaiKeys.includes(k));
+    const globalGemini = global.gemini.filter((k) => !geminiKeys.includes(k));
+    for (const k of globalOpenai) {
+      const r = await callOpenAI(k, system, user, wantJson, temperature);
+      if (r.ok) return { ok: true, provider: "openai", text: r.text };
+      bump("global-openai", r.status, r.body);
+      if (!isRotatable(r.status)) break;
+    }
+    for (const k of globalGemini) {
+      const r = await callGemini(k, system, user, wantJson, temperature);
+      if (r.ok) return { ok: true, provider: "gemini", text: r.text };
+      bump("global-gemini", r.status, r.body);
+      if (!isRotatable(r.status)) break;
+    }
+    if (openaiKeys.length === 0 && geminiKeys.length === 0 && globalOpenai.length + globalGemini.length > 0) {
+      const summary = Array.from(statusCount.entries()).map(([k, n]) => `${k}×${n}`).join(", ");
+      return { ok: false, status: lastStatus, error: `Global Brain gagal. Status: ${summary}. Last: ${lastSample}` };
+    }
   }
 
   if (openaiKeys.length === 0 && geminiKeys.length === 0) {
@@ -224,12 +269,8 @@ export const Route = createFileRoute("/api/router/chat")({
           const openaiKeys = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
           const geminiKeys = parseKeys(request.headers.get("x-user-gemini-keys")).filter((k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k));
 
-          if (openaiKeys.length === 0 && geminiKeys.length === 0) {
-            return json({
-              error: "No valid AI keys. Gemini credentials must start with 'AIza' or 'AQ.', OpenAI with 'sk-'.",
-            }, 400);
-          }
-
+          // Tanpa key user pun tetap lanjut: routeChat akan mencoba Global Brain
+          // (kalau admin mengaktifkannya) sebelum menyerah.
           const r = await routeChat({
             openaiKeys,
             geminiKeys,

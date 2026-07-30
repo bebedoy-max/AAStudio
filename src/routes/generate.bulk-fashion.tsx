@@ -454,15 +454,14 @@ function BulkFashion() {
       </div>
 
       <Card title="⚙️ Pengaturan">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Field label="Jenis Produk">
-            <Select value={productType} onChange={(e) => setProductType(e.target.value)} options={PRODUCT_TYPES.map((p) => ({ value: p, label: p }))} />
-          </Field>
-          <Field label="Aspek Rasio">
-            <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
-          </Field>
-          <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
-
+        <div className="mb-4">
+          <div className="flex flex-wrap items-center gap-2 min-h-[20px] mb-1.5">
+            <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+              Model AI
+            </label>
+            <ProviderActivePill cap="image" />
+          </div>
+          <div>
             <Select
               value={model}
               onChange={(e) => {
@@ -474,6 +473,14 @@ function BulkFashion() {
               }}
               options={models.map((m) => ({ value: m.key, label: m.label }))}
             />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Field label="Jenis Produk">
+            <Select value={productType} onChange={(e) => setProductType(e.target.value)} options={PRODUCT_TYPES.map((p) => ({ value: p, label: p }))} />
+          </Field>
+          <Field label="Aspek Rasio">
+            <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={RATIOS.map((r) => ({ value: r, label: r }))} />
           </Field>
           <Field label="Kualitas">
             <Select value={quality} onChange={(e) => setQuality(e.target.value)} options={qualities.map((q) => ({ value: q.v, label: q.label }))} />

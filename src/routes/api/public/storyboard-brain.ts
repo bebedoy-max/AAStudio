@@ -79,11 +79,15 @@ export const Route = createFileRoute("/api/public/storyboard-brain")({
       POST: async ({ request }) => {
         const bulk = (request.headers.get("x-user-gemini-keys") || "").trim();
         const single = (request.headers.get("x-user-gemini-key") || "").trim();
-        const geminiKeys = Array.from(new Set(
+        const userKeys = Array.from(new Set(
           (bulk ? bulk.split(/[\s,;]+/) : [single])
             .map((s) => s.trim())
             .filter((s) => s.length >= 10)
         ));
+        // Fallback Global Brain (key platform) saat user belum punya key sendiri.
+        const { loadGlobalBrainKeys } = await import("../router/chat");
+        const globalKeys = (await loadGlobalBrainKeys()).gemini.filter((k) => !userKeys.includes(k));
+        const geminiKeys = [...userKeys, ...globalKeys];
 
         let body: Body = {};
         try {

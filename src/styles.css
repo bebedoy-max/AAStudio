@@ -221,3 +221,14 @@
 /* Cegah horizontal scroll di viewport mobile — konten wide (dashboard, kartu) */
 /* tidak boleh mendorong body sehingga overlay/modal ikut geser ke luar layar. */
 html, body { overflow-x: hidden; }
+
+/* Hint animasi: ikon switch pada pill "Provider aktif" sesekali berputar
+   supaya user sadar label itu bisa diklik untuk ganti routing provider. */
+@keyframes switch-hint-spin {
+  0%, 72% { transform: rotate(0deg); }
+  88% { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+@utility animate-switch-hint {
+  animation: switch-hint-spin 3.6s ease-in-out infinite;
+}

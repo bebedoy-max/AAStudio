@@ -1,9 +1,18 @@
 {
   "manifest_version": 3,
   "name": "AA Creative Token Grabber",
-  "version": "2.1.0",
+  "version": "2.3.1",
   "description": "Ambil JWT dari Framia / Leonardo / Adobe Firefly dan sinkronkan langsung ke Token Manager akun AA Creative Studio kamu. Auto-update saat token di-refresh.",
-  "permissions": ["activeTab", "scripting", "storage", "cookies", "webRequest", "tabs", "alarms", "notifications"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "cookies",
+    "webRequest",
+    "tabs",
+    "alarms",
+    "notifications"
+  ],
   "host_permissions": [
     "https://app.leonardo.ai/*",
     "https://*.leonardo.ai/*",
@@ -18,13 +27,35 @@
     "https://firefly-api.adobe.io/*",
     "http://localhost:*/*",
     "https://*.lovable.app/*",
-    "https://*.lovable.dev/*"
+    "https://*.lovable.dev/*",
+    "https://*.vercel.app/*",
+    "https://aacreative.vercel.app/*"
   ],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png",
     "default_title": "AA Creative Token Grabber"
   },
-  "icons": { "48": "icon.png", "128": "icon.png" }
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:*/*",
+        "https://*.lovable.app/*",
+        "https://*.lovable.dev/*",
+        "https://*.vercel.app/*"
+      ],
+      "js": [
+        "relay.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ]
 }

@@ -11,6 +11,7 @@
 // (format sama seperti provider simple lain: { id, key, balance, status, note }).
 
 import { pushTokenAsync } from "@/lib/tokens/sync";
+import { isRelayAvailable, relayFireflyRequest, bytesToBase64 } from "./firefly-relay";
 
 export const LS_FIREFLY_KEYS = "aatools.firefly.keys";
 export const FIREFLY_API = "https://firefly.adobe.io";
@@ -121,6 +122,27 @@ export async function fireflyFetch<T = unknown>(opts: {
   const acc = opts.accountId ?? getFireflyAccountId(opts.token);
   if (acc) headers["X-Firefly-Account"] = acc;
 
+  // Prefer the extension relay: Adobe's 3P gate rejects datacenter IPs, so the
+  // server proxy can only be a fallback (it still works for CORS-only calls).
+  if (await isRelayAvailable()) {
+    try {
+      return await relayFireflyRequest<T>({
+        url: opts.url,
+        method: opts.method,
+        body: opts.body,
+        bodyBase64: opts.bodyBase64,
+        contentType: opts.contentType,
+        token: opts.token,
+        apiKey: opts.apiKey || FIREFLY_DEFAULT_API_KEY,
+        accountId: acc,
+        nonce: headers["X-Firefly-Nonce"],
+        headers: opts.headers,
+      });
+    } catch {
+      /* relay unavailable/timeout → fall back to the server proxy */
+    }
+  }
+
   const r = await fetch("/api/public/firefly", {
     method: "POST",
     headers,
@@ -176,6 +198,24 @@ async function fireflyUploadBinary<T = unknown>(opts: {
   if (opts.sessionId) headers["X-Firefly-Session"] = opts.sessionId;
   const acc = opts.accountId ?? getFireflyAccountId(opts.token);
   if (acc) headers["X-Firefly-Account"] = acc;
+
+  if (await isRelayAvailable()) {
+    try {
+      return await relayFireflyRequest<T>({
+        url: opts.url,
+        method: "POST",
+        bodyBase64: bytesToBase64(opts.bytes),
+        contentType: opts.contentType,
+        token: opts.token,
+        apiKey: opts.apiKey || FIREFLY_DEFAULT_API_KEY,
+        accountId: acc,
+        sessionId: opts.sessionId,
+        nonce: headers["X-Firefly-Nonce"],
+      });
+    } catch {
+      /* fall back to the server proxy */
+    }
+  }
 
   const r = await fetch("/api/public/firefly", { method: "POST", headers, body: opts.bytes });
   return parseProxyResponse<T>(r);
@@ -238,14 +278,70 @@ function makeFireflySessionHeader(): string {
   );
 }
 
-type FireflyUploadResponse = { images?: Array<{ id?: string }>; id?: string };
+type FireflyBlobRef = { id?: string; presignedUrl?: string; creativeCloudFileId?: string };
+type FireflyUploadImage = FireflyBlobRef & {
+  id?: string;
+  blobRef?: unknown;
+  reference?: unknown;
+};
+type FireflyUploadResponse = { images?: FireflyUploadImage[]; image?: FireflyUploadImage; id?: string };
+
+function asFireflyBlobRef(value: unknown, depth = 0): FireflyBlobRef | null {
+  if (depth > 5) return null;
+  if (typeof value === "string" && value.trim()) return { id: value.trim() };
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = asFireflyBlobRef(item, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    // Adobe's validator only accepts id | presignedUrl | creativeCloudFileId.
+    for (const k of ["id", "presignedUrl", "creativeCloudFileId"]) {
+      const v = obj[k];
+      if (typeof v === "string" && v.trim()) return { [k]: v.trim() };
+      const nested = asFireflyBlobRef(v, depth + 1);
+      if (nested) return nested;
+    }
+    for (const k of ["localBlobRef", "remoteBlobRef", "uploadId", "assetId", "blobId"]) {
+      const v = obj[k];
+      if (typeof v === "string" && v.trim()) return { id: v.trim() };
+      const nested = asFireflyBlobRef(v, depth + 1);
+      if (nested) return nested;
+    }
+    for (const k of ["blobRef", "reference", "ref", "source", "image", "asset"]) {
+      const nested = asFireflyBlobRef(obj[k], depth + 1);
+      if (nested) return nested;
+    }
+    for (const v of Object.values(obj)) {
+      const nested = asFireflyBlobRef(v, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  return null;
+}
+
+function pickUploadedImageRef(res: FireflyUploadResponse | null): FireflyBlobRef | null {
+  const image = res?.images?.[0] || res?.image || null;
+  const nested = image?.blobRef || image?.reference;
+  return (
+    asFireflyBlobRef(nested) ||
+    asFireflyBlobRef(image?.id) ||
+    asFireflyBlobRef(res?.id) ||
+    asFireflyBlobRef(image) ||
+    asFireflyBlobRef(res)
+  );
+}
 
 async function uploadFireflyImage(opts: {
   token: string;
   file: File;
   accountId?: string;
   sessionId: string;
-}): Promise<string> {
+}): Promise<FireflyBlobRef> {
   const small = await shrinkForFirefly(opts.file);
   const bytes = await small.arrayBuffer();
   const res = await fireflyUploadBinary<FireflyUploadResponse>({
@@ -257,11 +353,73 @@ async function uploadFireflyImage(opts: {
     apiKey: FIREFLY_PLAYGROUND_API_KEY,
     sessionId: opts.sessionId,
   });
-  const id = res.data?.images?.[0]?.id || res.data?.id;
-  if (!res.ok || !id) {
+  const ref = pickUploadedImageRef(res.data);
+  if (!res.ok || !ref) {
     throw new Error(`Firefly upload gagal (${res.status}): ${res.raw || JSON.stringify(res.data)?.slice(0, 200) || res.error || ""}`);
   }
-  return id;
+  return ref;
+}
+
+function fireflyVideoModelKey(model: FireflyVideoModel): string {
+  if (model.modelVersion === "3.1-fast-generate") return "google:firefly:colligo:veo31-fast";
+  if (model.modelVersion === "3.1-generate") return "google:firefly:colligo:veo31";
+  if (model.modelVersion === "3.0-generate-002") return "adobe:firefly:colligo:video1";
+  return `ugs:video:${model.modelId}@${model.modelVersion}`;
+}
+
+function buildFireflyVideoPayload(opts: {
+  model: FireflyVideoModel;
+  prompt: string;
+  negativePrompt?: string;
+  ratio: string;
+  duration: number;
+  referenceRef: FireflyBlobRef | null;
+  seed?: number;
+}): Record<string, unknown> {
+  const seed = opts.seed ?? randomSeed();
+  const size = fireflyVideoSize(opts.ratio || "16:9");
+  const negativePrompt = opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic";
+
+  // Send the final Firefly web payload shape. `referenceBlobs` / `image.conditions`
+  // are editor-side inputs that the web client transforms before submit; leaving
+  // them in the network body can make Adobe validate an old `{ localBlobRef }`
+  // shape and return 422 “Either id, presignedUrl, or creativeCloudFileId…”.
+  return {
+    model: fireflyVideoModelKey(opts.model),
+    size,
+    referenceFrames: opts.referenceRef ? [{ referenceFrame: opts.referenceRef }, null] : [null, null],
+    shots: [
+      {
+        prompt: opts.prompt,
+        negativePrompt,
+        duration: opts.duration,
+      },
+    ],
+    seed: String(seed),
+    generateAudio: false,
+    generateLoop: false,
+    transparentBackground: false,
+    fps: 24,
+    camera: { motion: null, angle: "none", shotSize: "none", promptStyle: null },
+    locale: "en-US",
+    jobMode: "standard",
+    multiShotMode: "off",
+    debugGenerationEndpoint: "",
+    characterReference: null,
+    referenceVideo: null,
+    cameraMotionReferenceVideo: null,
+    editReferenceVideo: null,
+    editAction: "modify",
+    referenceImages: [],
+    referenceVideos: [],
+    referenceAudios: [],
+    upscale: {
+      enhancement: "precise",
+      optimization: "speed",
+      details: "subtle",
+      outputResolution: { width: 1920, height: 1080 },
+    },
+  };
 }
 
 /* --------------------------------- balance --------------------------------- */
@@ -411,7 +569,7 @@ export const FIREFLY_VIDEO_MODELS: FireflyVideoModel[] = [
     key: "ff:firefly:video-1",
     label: "Firefly Video Model 1",
     modelId: "firefly",
-    modelVersion: "video-1",
+    modelVersion: "3.0-generate-002",
     cost: "~10 cr / 5s",
     durations: [5],
   },
@@ -540,9 +698,11 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
   const accountId = opts.accountId ?? getFireflyAccountId(opts.token);
   opts.onProgress?.(opts.imageFile ? "Firefly: upload reference…" : "Firefly: submit job…", 10);
 
-  const referenceId = opts.imageFile
+  const referenceRef = opts.imageFile
     ? await uploadFireflyImage({ token: opts.token, file: opts.imageFile, accountId, sessionId })
-    : null;
+    : opts.imageUrl
+      ? asFireflyBlobRef({ presignedUrl: opts.imageUrl })
+      : null;
 
   opts.onProgress?.("Firefly: submit job…", 18);
 
@@ -552,26 +712,19 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
   const wanted = opts.duration || 8;
   const duration = allowed.reduce((a, b) => (Math.abs(b - wanted) < Math.abs(a - wanted) ? b : a), allowed[0]!);
 
-  const payload: Record<string, unknown> = {
-    modelId: model.modelId,
-    modelVersion: model.modelVersion,
-    size: fireflyVideoSize(opts.ratio || "16:9"),
-    seeds: [randomSeed()],
-    // Firefly web client sends usage:"style" for the reference blob (verified
-    // against a real successful Seedance 2.0 capture).
-    ...(referenceId ? { referenceBlobs: [{ id: referenceId, usage: "style" }] } : {}),
+  const payload = buildFireflyVideoPayload({
+    model,
     prompt: opts.prompt,
-    negativePrompt: opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic",
+    negativePrompt: opts.negativePrompt,
+    ratio: opts.ratio,
     duration,
-    generateAudio: false,
-    generationMetadata: {
-      module: "text2video",
-      submodule: "ff-video-generate",
-    },
-    generationSettings: { aspectRatio: opts.ratio || "16:9" },
-    output: { storeInputs: true },
-    ...(!referenceId && opts.imageUrl ? { image: { source: { url: opts.imageUrl } } } : {}),
-  };
+    referenceRef,
+  });
+  const relayOn = await isRelayAvailable(true);
+  opts.onProgress?.(
+    relayOn ? "Submit via extension relay (browser kamu)…" : "Submit Firefly…",
+    15,
+  );
 
   // Firefly frequently answers 408 "system under load" / 429 on the first hits.
   // Retry with backoff before surfacing an error to the user.
@@ -592,7 +745,14 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
       token: opts.token,
       url: `${FIREFLY_3P_API}/v2/3p-videos/generate-async`,
       method: "POST",
-      body: { ...payload, seeds: [randomSeed()] },
+      body: buildFireflyVideoPayload({
+        model,
+        prompt: opts.prompt,
+        negativePrompt: opts.negativePrompt,
+        ratio: opts.ratio,
+        duration,
+        referenceRef,
+      }),
       accountId,
       apiKey: FIREFLY_PLAYGROUND_API_KEY,
       headers: { Accept: "*/*", "x-arp-session-id": sessionId, "x-nonce": randomHex(32) },
@@ -601,7 +761,10 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
   if (!res.ok) {
     if (res.status === 408 || res.status === 429) {
       throw new Error(
-        `Firefly sedang penuh/limit (${res.status}: ${(res.data as { message?: string } | null)?.message || "system under load"}). Coba lagi beberapa menit.`,
+        `Firefly sedang penuh/limit (${res.status}: ${(res.data as { message?: string } | null)?.message || "system under load"}).` +
+          (relayOn
+            ? " Relay extension SUDAH aktif (request lewat firefly-tab), jadi ini Adobe/model yang menolak sementara. Coba ulang beberapa menit atau pilih model Firefly lain."
+            : ` Relay extension TIDAK aktif di domain ini (${typeof window !== "undefined" ? window.location.host : "-"}). Update extension AA Creative ke v2.3.1+ (chrome://extensions → Reload), refresh halaman ini, lalu buka tab firefly.adobe.com dan cek tab "Relay" di extension harus berstatus Siap.`),
       );
     }
     throw new Error(

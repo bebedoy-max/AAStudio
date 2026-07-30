@@ -16,6 +16,7 @@ import {
   KEY_DESCRIPTIONS,
   type KeyRequirement,
 } from "@/lib/brain/availability";
+import { PLATFORM_FLAGS_EVENT, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 
 function computeMissing(reqs: KeyRequirement[]): KeyRequirement[] {
   return reqs.filter((r) => !checkKey(r));
@@ -43,10 +44,15 @@ export function KeyGuard({
       setOpen(m.length > 0);
     };
     refresh();
+    // Global Brain bisa saja baru diaktifkan admin — ambil flag terbaru lalu
+    // hitung ulang setelah cache-nya masuk.
+    void refreshPlatformFlags();
     window.addEventListener("aatools:keys-changed", refresh);
+    window.addEventListener(PLATFORM_FLAGS_EVENT, refresh as EventListener);
     window.addEventListener("storage", refresh);
     return () => {
       window.removeEventListener("aatools:keys-changed", refresh);
+      window.removeEventListener(PLATFORM_FLAGS_EVENT, refresh as EventListener);
       window.removeEventListener("storage", refresh);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
