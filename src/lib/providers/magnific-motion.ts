@@ -1,3 +1,4 @@
+import { archiveUploadInBackground } from "@/lib/cloud/client";
 // Magnific motion-control orchestrator — uses server proxy /api/public/magnific
 // and public catbox uploader for image/video URLs.
 
@@ -17,6 +18,7 @@ async function uploadViaServer(file: File): Promise<string> {
   const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j?.url) throw new Error(j?.error || `Server upload ${r.status}`);
+  archiveUploadInBackground(file, { source: "magnific-motion" });
   return j.url as string;
 }
 

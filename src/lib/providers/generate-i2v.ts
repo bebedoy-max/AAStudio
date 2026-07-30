@@ -1,3 +1,4 @@
+import { archiveUploadInBackground } from "@/lib/cloud/client";
 // Image-to-Video orchestrator. Uses Wavespeed for wavespeed provider,
 // Weavy asset upload + kling recipe for weavy provider (best-effort),
 // Magnific proxy for magnific provider, and Roboneo (Meitu gateway) for roboneo.
@@ -39,7 +40,10 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
     try {
       const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
       const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
-      if (r.ok && j.url) return j.url;
+      if (r.ok && j.url) {
+        archiveUploadInBackground(file, { source: "image-to-video" });
+        return j.url;
+      }
       lastErr = j.error || `HTTP ${r.status}`;
     } catch (e) {
       lastErr = (e as Error).message || "network error";

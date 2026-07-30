@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
 import { Brain, Flame, Lightbulb, Newspaper, Target, RefreshCw, Loader2, ExternalLink, X, Loader } from "lucide-react";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
+import { ensureBrainAccess } from "@/lib/brain/availability";
 import { setHandoff } from "@/lib/creative/handoff";
 import { Chip, Skeleton } from "./section";
 import { ensureArticle, getArticle, prefetchArticle } from "@/lib/dashboard/news-prefetch";
@@ -77,7 +78,8 @@ export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void })
   async function fetchInsight(opts?: { fresh?: boolean }) {
     const fresh = !!opts?.fresh;
     const keys = getCreativeKeys();
-    if (!keys.openai && !keys.gemini) return;
+    // Kalau user tak punya key sendiri, Global Brain (server-side) yang dipakai.
+    if (!keys.openai && !keys.gemini && !(await ensureBrainAccess())) return;
     setLoading(true);
     try {
       // 1) News = real Google News RSS (has real URLs, real content to scrape)

@@ -16,6 +16,7 @@ import { openConfirm } from "@/components/ai-influencer/dialogs";
 import { loadBrain, saveBrain } from "@/lib/ai-influencer/studio.functions";
 import { listReferences, listCharacters, type Character } from "@/lib/ai-influencer/service";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
+import { ensureBrainAccess } from "@/lib/brain/availability";
 
 export const Route = createFileRoute("/ai-influencer/brain")({
   component: withKeyGuard(BrainPage, ["brain"]),
@@ -97,7 +98,7 @@ function BrainPage() {
 
     try {
       const keys = getCreativeKeys();
-      if (!keys.gemini && !keys.openai) {
+      if (!keys.gemini && !keys.openai && !(await ensureBrainAccess())) {
         toast.error("Brain API key kosong — tambahkan Gemini/OpenAI key di Manage → Tokens dulu.");
         setBusy(false);
         return;

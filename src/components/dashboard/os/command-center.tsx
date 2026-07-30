@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles, Send, Loader2, ArrowUpRight } from "lucide-react";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
+import { ensureBrainAccess } from "@/lib/brain/availability";
 import { setHandoff, WORKFLOW_ROUTES, type CreativeHandoff } from "@/lib/creative/handoff";
 import { openUpgradePrompt } from "@/lib/stores/upgrade-prompt";
 import { toast } from "sonner";
@@ -40,7 +41,7 @@ export function CommandCenter({ onResearch }: { onResearch: (keyword: string) =>
     const prompt = text.trim();
     if (!prompt) return;
     const keys = getCreativeKeys();
-    if (!keys.gemini && !keys.openai) {
+    if (!keys.gemini && !keys.openai && !(await ensureBrainAccess())) {
       openUpgradePrompt("ai-command-center");
       toast.error("Tambahkan Gemini/OpenAI key di Token Manager.");
       return;
