@@ -1,10 +1,16 @@
 // Server-only AES-GCM crypto for per-user connector connection keys.
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
 
 function key(): Buffer {
   const raw = process.env.APP_USER_CONNECTION_KEY_SECRET;
-  if (!raw) throw new Error("APP_USER_CONNECTION_KEY_SECRET is not set");
-  return Buffer.from(raw, "base64");
+  if (raw) {
+    const buf = Buffer.from(raw, "base64");
+    return buf.length === 32 ? buf : createHash("sha256").update(raw).digest();
+  }
+  // Self-hosting fallback: derive a stable key from the server-only service role key.
+  const fallback = process.env.SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (fallback) return createHash("sha256").update(fallback).digest();
+  throw new Error("APP_USER_CONNECTION_KEY_SECRET / SERVICE_ROLE_KEY belum diset di server.");
 }
 
 export function encryptConnectionKey(plaintext: string): string {

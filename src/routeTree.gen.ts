@@ -91,6 +91,7 @@ import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/c
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
+import { Route as ApiPublicGoogleDriveCallbackRouteImport } from './routes/api/public/google-drive/callback'
 import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
 import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
 import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
@@ -514,6 +515,12 @@ const ApiPublicMidtransNotificationRoute =
     path: '/api/public/midtrans/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicGoogleDriveCallbackRoute =
+  ApiPublicGoogleDriveCallbackRouteImport.update({
+    id: '/api/public/google-drive/callback',
+    path: '/api/public/google-drive/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicExtensionRefreshRoute =
   ApiPublicExtensionRefreshRouteImport.update({
     id: '/api/public/extension/refresh',
@@ -634,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
+  '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
@@ -722,6 +730,7 @@ export interface FileRoutesByTo {
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
+  '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
@@ -813,6 +822,7 @@ export interface FileRoutesById {
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
+  '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
@@ -905,6 +915,7 @@ export interface FileRouteTypes {
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
+    | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
@@ -993,6 +1004,7 @@ export interface FileRouteTypes {
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
+    | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
@@ -1083,6 +1095,7 @@ export interface FileRouteTypes {
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
+    | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
@@ -1153,6 +1166,7 @@ export interface RootRouteChildren {
   ApiPublicExtensionLoginRoute: typeof ApiPublicExtensionLoginRoute
   ApiPublicExtensionPushTokenRoute: typeof ApiPublicExtensionPushTokenRoute
   ApiPublicExtensionRefreshRoute: typeof ApiPublicExtensionRefreshRoute
+  ApiPublicGoogleDriveCallbackRoute: typeof ApiPublicGoogleDriveCallbackRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicCloudFileIdRoute: typeof ApiPublicCloudFileIdRoute
@@ -1734,6 +1748,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/google-drive/callback': {
+      id: '/api/public/google-drive/callback'
+      path: '/api/public/google-drive/callback'
+      fullPath: '/api/public/google-drive/callback'
+      preLoaderRoute: typeof ApiPublicGoogleDriveCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/extension/refresh': {
       id: '/api/public/extension/refresh'
       path: '/api/public/extension/refresh'
@@ -1923,6 +1944,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicExtensionLoginRoute: ApiPublicExtensionLoginRoute,
   ApiPublicExtensionPushTokenRoute: ApiPublicExtensionPushTokenRoute,
   ApiPublicExtensionRefreshRoute: ApiPublicExtensionRefreshRoute,
+  ApiPublicGoogleDriveCallbackRoute: ApiPublicGoogleDriveCallbackRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicCloudFileIdRoute: ApiPublicCloudFileIdRoute,

@@ -8,16 +8,21 @@ export const getCloudStatus = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { getStorageMode, getConnectionKeyForUser, getConnectionInfoForUser, DRIVE_CONNECTOR_ID } =
       await import("./connections.server");
-    const [mode, key, info] = await Promise.all([
+    const { getGlobalCloudRow } = await import("./global-cloud.server");
+    const [mode, key, info, global] = await Promise.all([
       getStorageMode(context.userId),
       getConnectionKeyForUser(context.userId, DRIVE_CONNECTOR_ID),
       getConnectionInfoForUser(context.userId, DRIVE_CONNECTOR_ID),
+      getGlobalCloudRow(),
     ]);
     return {
       storageMode: mode,
       personalConnected: Boolean(key),
       accountEmail: info?.account_email ?? null,
-      globalAvailable: Boolean(process.env.GOOGLE_DRIVE_API_KEY && process.env.LOVABLE_API_KEY),
+      globalAvailable: Boolean(
+        global?.enabled &&
+          (global.refresh_token_cipher || (process.env.GOOGLE_DRIVE_API_KEY && process.env.LOVABLE_API_KEY)),
+      ),
     };
   });
 
@@ -90,10 +95,29 @@ export const archiveGeneratedUrl = createServerFn({ method: "POST" })
 export const startDriveConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const clientKey = process.env.GOOGLE_DRIVE_APP_USER_CONNECTOR_CLIENT_API_KEY;
-    if (!clientKey) throw new Error("GOOGLE_DRIVE_APP_USER_CONNECTOR_CLIENT_API_KEY belum diset.");
     const request = getRequest();
     if (!request) throw new Error("OAuth harus dimulai dari request aplikasi.");
+
+    // Jalur utama: OAuth Google milik aplikasi sendiri (client dikonfigurasi admin).
+    const { getOAuthClient, buildAuthUrl, signState, callbackUrl } = await import("./google-oauth.server");
+    const ownClient = await getOAuthClient();
+    if (ownClient) {
+      return {
+        authorizationUrl: buildAuthUrl({
+          client: ownClient,
+          redirectUri: callbackUrl(request.url),
+          state: signState({ userId: context.userId, target: "personal", ts: Date.now() }),
+        }),
+      };
+    }
+
+    // Fallback: Lovable App User Connector (kalau tersedia di environment ini).
+    const clientKey = process.env.GOOGLE_DRIVE_APP_USER_CONNECTOR_CLIENT_API_KEY;
+    if (!clientKey) {
+      throw new Error(
+        "Google Drive belum bisa dihubungkan: admin belum mengisi Client ID & Secret Google di Admin → Pengaturan Halaman → Cloud.",
+      );
+    }
 
     const { authorizeAppUserOAuth } = await import("@/integrations/lovable/appUserConnector");
     const { getConnectionKeyForUser, DRIVE_CONNECTOR_ID } = await import("./connections.server");

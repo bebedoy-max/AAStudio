@@ -9,21 +9,42 @@ export const APP_FOLDER_NAME = "AA Creative Studio";
 
 export type DriveCtx = { mode: StorageMode; connectionKey?: string | null };
 
+/** Panggil Google Drive API langsung memakai OAuth refresh token (self-hosted friendly). */
+async function directDriveFetch(refreshToken: string, path: string, init?: RequestInit): Promise<Response> {
+  const { accessTokenFromRefresh } = await import("./google-oauth.server");
+  const accessToken = await accessTokenFromRefresh(refreshToken);
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  const base = path.startsWith("/upload/") ? "https://www.googleapis.com" : "https://www.googleapis.com";
+  return fetch(`${base}${path}`, { ...init, headers });
+}
+
 async function driveFetch(ctx: DriveCtx, path: string, init?: RequestInit): Promise<Response> {
   if (ctx.mode === "personal") {
     if (!ctx.connectionKey) throw new Error("Google Drive pribadi belum terhubung.");
-    return callAsAppUser({
-      gatewayBaseUrl: GATEWAY_BASE_URL,
-      connectionAPIKey: ctx.connectionKey,
-      connectorId: DRIVE_CONNECTOR_ID,
-      path,
-      init,
-    });
+    // Koneksi lama lewat Lovable connector gateway masih didukung.
+    if (ctx.connectionKey.startsWith("lovack_")) {
+      return callAsAppUser({
+        gatewayBaseUrl: GATEWAY_BASE_URL,
+        connectionAPIKey: ctx.connectionKey,
+        connectorId: DRIVE_CONNECTOR_ID,
+        path,
+        init,
+      });
+    }
+    return directDriveFetch(ctx.connectionKey, path, init);
   }
+
+  const { getGlobalCloudRow, getGlobalRefreshToken } = await import("./global-cloud.server");
+  const row = await getGlobalCloudRow();
+  if (!row?.enabled) throw new Error("Global Cloud belum diaktifkan admin.");
+  const refresh = await getGlobalRefreshToken();
+  if (refresh) return directDriveFetch(refresh, path, init);
+
   const lovableKey = process.env.LOVABLE_API_KEY;
   const driveKey = process.env.GOOGLE_DRIVE_API_KEY;
   if (!lovableKey || !driveKey) {
-    throw new Error("Global cloud belum dikonfigurasi (LOVABLE_API_KEY / GOOGLE_DRIVE_API_KEY).");
+    throw new Error("Global Cloud belum terhubung ke Google Drive admin.");
   }
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${lovableKey}`);
@@ -125,12 +146,10 @@ export async function deleteFromDrive(ctx: DriveCtx, driveFileId: string): Promi
 
 export async function fetchDriveAccountEmail(connectionKey: string): Promise<string | null> {
   try {
-    const res = await callAsAppUser({
-      gatewayBaseUrl: GATEWAY_BASE_URL,
-      connectionAPIKey: connectionKey,
-      connectorId: DRIVE_CONNECTOR_ID,
-      path: "/drive/v3/about?fields=user(emailAddress)",
-    });
+    const res = await driveFetch(
+      { mode: "personal", connectionKey },
+      "/drive/v3/about?fields=user(emailAddress)",
+    );
     if (!res.ok) return null;
     const data = (await res.json()) as { user?: { emailAddress?: string } };
     return data.user?.emailAddress ?? null;

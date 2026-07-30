@@ -2,6 +2,7 @@
 // Both "Berita Penting" (brain-insight) and "News" tab (playbook-news) share
 // this cache so clicking a news item can render final content instantly.
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
+import { ensureBrainAccess } from "@/lib/brain/availability";
 
 export type PrefetchedArticle = {
   title: string;
@@ -44,7 +45,8 @@ async function run(url: string, fallbackTitle: string): Promise<PrefetchedArticl
     let refined: string | undefined;
     const keys = getCreativeKeys();
     const rawBody = String(body).slice(0, 8000);
-    if ((keys.openai || keys.gemini) && rawBody.length >= 200) {
+    const canBrain = await ensureBrainAccess();
+    if (canBrain && rawBody.length >= 200) {
       try {
         const rr = await fetch("/api/router/chat", {
           method: "POST",
