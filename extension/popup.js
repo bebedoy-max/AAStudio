@@ -8,6 +8,8 @@ document.querySelectorAll(".tabs button").forEach((b) => {
     b.classList.add("active");
     $("tab-grab").style.display = b.dataset.tab === "grab" ? "flex" : "none";
     $("tab-account").style.display = b.dataset.tab === "account" ? "flex" : "none";
+    $("tab-relay").style.display = b.dataset.tab === "relay" ? "flex" : "none";
+    if (b.dataset.tab === "relay") refreshRelayStatus();
     if (b.dataset.tab === "account") renderAccount();
   });
 });
@@ -401,4 +403,90 @@ $("login").addEventListener("click", async () => {
 $("logout").addEventListener("click", async () => {
   await chrome.storage.local.remove("session");
   renderAccount();
+});
+
+/* ---------------- Relay status panel ---------------- */
+
+const RELAY_MATCHES = [
+  "http://localhost/*",
+  "http://localhost:*/*",
+  "https://*.lovable.app/*",
+  "https://*.lovable.dev/*",
+  "https://*.vercel.app/*",
+];
+
+function timeAgo(ts) {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return s + " dtk lalu";
+  if (s < 3600) return Math.round(s / 60) + " mnt lalu";
+  return Math.round(s / 3600) + " jam lalu";
+}
+
+async function refreshRelayStatus() {
+  const appPill = $("relay-app-pill");
+  const ffPill = $("relay-ff-pill");
+  const hostEl = $("relay-app-host");
+
+  let appTab = null;
+  try {
+    const tabs = await chrome.tabs.query({ url: RELAY_MATCHES });
+    appTab = tabs?.[0] || null;
+  } catch {}
+
+  let injected = false;
+  if (appTab?.id) {
+    try {
+      const [out] = await chrome.scripting.executeScript({
+        target: { tabId: appTab.id },
+        func: () => document.documentElement.getAttribute("data-aa-relay") === "1",
+      });
+      injected = out?.result === true;
+    } catch {}
+  }
+
+  hostEl.textContent = appTab
+    ? (injected ? "Aktif di " : "Belum ter-inject di ") + new URL(appTab.url).host
+    : "Buka tab aplikasi AA Creative Studio dulu.";
+  appPill.textContent = injected ? "Siap" : appTab ? "Reload tab" : "Tidak ada";
+  appPill.className = "pill" + (injected ? " on" : "");
+
+  chrome.runtime.sendMessage({ kind: "AA_FF_RELAY_STATUS" }, (res) => {
+    if (chrome.runtime.lastError || !res) return;
+    ffPill.textContent = res.fireflyTab ? "Terbuka" : "Tertutup";
+    ffPill.className = "pill" + (res.fireflyTab ? " on" : "");
+    const box = $("relay-log");
+    box.innerHTML = "";
+    const log = res.relayLog || [];
+    if (!log.length) {
+      box.innerHTML = '<div style="font-size:11px;color:#8a8aa0;">Belum ada request relay.</div>';
+      return;
+    }
+    for (const e of log) {
+      const row = document.createElement("div");
+      row.style.cssText =
+        "display:flex;justify-content:space-between;gap:8px;font-size:10.5px;background:#141420;border:1px solid #2a2a38;border-radius:6px;padding:5px 7px;";
+      row.innerHTML =
+        '<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' +
+        (e.path || "") +
+        '">' +
+        (e.path || "-") +
+        '</span><span class="' +
+        (e.ok ? "ok" : "err") +
+        '">' +
+        (e.status || 0) +
+        " · " +
+        (e.via || "-") +
+        " · " +
+        timeAgo(e.at) +
+        "</span>";
+      box.appendChild(row);
+    }
+  });
+}
+
+document.getElementById("relay-refresh")?.addEventListener("click", refreshRelayStatus);
+document.getElementById("relay-open-ff")?.addEventListener("click", async () => {
+  const tabs = await chrome.tabs.query({ url: ["https://firefly.adobe.com/*"] });
+  if (tabs?.[0]?.id) chrome.tabs.update(tabs[0].id, { active: true });
+  else chrome.tabs.create({ url: "https://firefly.adobe.com/" });
 });

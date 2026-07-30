@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AA Creative Token Grabber",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Ambil JWT dari Framia / Leonardo / Adobe Firefly dan sinkronkan langsung ke Token Manager akun AA Creative Studio kamu. Auto-update saat token di-refresh.",
   "permissions": [
     "activeTab",
@@ -27,7 +27,9 @@
     "https://firefly-api.adobe.io/*",
     "http://localhost:*/*",
     "https://*.lovable.app/*",
-    "https://*.lovable.dev/*"
+    "https://*.lovable.dev/*",
+    "https://*.vercel.app/*",
+    "https://aacreative.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -46,7 +48,8 @@
       "matches": [
         "http://localhost:*/*",
         "https://*.lovable.app/*",
-        "https://*.lovable.dev/*"
+        "https://*.lovable.dev/*",
+        "https://*.vercel.app/*"
       ],
       "js": [
         "relay.js"

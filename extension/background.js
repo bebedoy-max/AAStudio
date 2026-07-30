@@ -193,7 +193,7 @@ async function relayFirefly(req) {
     bodyText: req.bodyBase64 === undefined && req.body !== undefined ? JSON.stringify(req.body) : null,
     bodyBase64: req.bodyBase64 ?? null,
   });
-  if (viaTab) return viaTab;
+  if (viaTab) return { ...viaTab, via: "firefly-tab" };
 
   let res;
   try {
@@ -211,14 +211,55 @@ async function relayFirefly(req) {
     status: res.status,
     data: parsed,
     raw: parsed ? undefined : text.slice(0, 800),
+    via: "background",
   };
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+/** Persist a short relay activity log so the popup can show live proof. */
+async function noteRelay(entry) {
+  try {
+    const cur = await chrome.storage.local.get("relayLog");
+    const log = Array.isArray(cur.relayLog) ? cur.relayLog : [];
+    log.unshift({ at: Date.now(), ...entry });
+    await chrome.storage.local.set({ relayLog: log.slice(0, 20) });
+    chrome.action.setBadgeBackgroundColor({ color: entry.ok ? "#16a34a" : "#dc2626" });
+    chrome.action.setBadgeText({ text: entry.ok ? "OK" : "ERR" });
+    setTimeout(() => chrome.action.setBadgeText({ text: "" }), 6000);
+  } catch {}
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.kind === "AA_FF_RELAY_STATUS") {
+    (async () => {
+      const tabs = await chrome.tabs.query({ url: ["https://firefly.adobe.com/*"] });
+      const cur = await chrome.storage.local.get("relayLog");
+      sendResponse({ fireflyTab: tabs.length > 0, relayLog: cur.relayLog || [] });
+    })();
+    return true;
+  }
   if (msg?.kind !== "AA_FF_RELAY") return;
-  relayFirefly(msg.req || {})
-    .then(sendResponse)
-    .catch((e) => sendResponse({ ok: false, status: 0, data: null, error: String(e?.message || e) }));
+  const req = msg.req || {};
+  relayFirefly(req)
+    .then((res) => {
+      noteRelay({
+        ok: !!res?.ok,
+        status: res?.status ?? 0,
+        path: (() => {
+          try {
+            return new URL(req.url).pathname;
+          } catch {
+            return String(req.url || "");
+          }
+        })(),
+        via: res?.via || "extension",
+        from: sender?.tab?.url ? new URL(sender.tab.url).host : "",
+      });
+      sendResponse(res);
+    })
+    .catch((e) => {
+      noteRelay({ ok: false, status: 0, path: String(req.url || ""), via: "error" });
+      sendResponse({ ok: false, status: 0, data: null, error: String(e?.message || e) });
+    });
   return true; // async
 });
 

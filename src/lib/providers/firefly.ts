@@ -650,7 +650,7 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
         `Firefly sedang penuh/limit (${res.status}: ${(res.data as { message?: string } | null)?.message || "system under load"}).` +
           (relayOn
             ? " Coba lagi beberapa menit."
-            : " Adobe menolak request dari IP server — pasang/aktifkan extension AA Creative dan buka tab firefly.adobe.com agar request dikirim dari browser kamu."),
+            : ` Relay extension TIDAK aktif di domain ini (${typeof window !== "undefined" ? window.location.host : "-"}). Update extension AA Creative ke v2.3.0+ (chrome://extensions → Reload), refresh halaman ini, lalu buka tab firefly.adobe.com dan cek tab "Relay" di extension harus berstatus Siap.`),
       );
     }
     throw new Error(

@@ -41,6 +41,7 @@
 
 <div class="tabs">
   <button data-tab="grab" class="active">Grab</button>
+  <button data-tab="relay">Relay</button>
   <button data-tab="account">Akun</button>
 </div>
 
@@ -76,6 +77,31 @@
     <input id="auto" type="checkbox" style="width:auto;" checked />
   </div>
   <div class="status muted" id="status">Siap.</div>
+</main>
+
+<main id="tab-relay" style="display:none;">
+  <div class="toggle">
+    <div style="min-width:0;">
+      <div style="font-size:12px; font-weight:600;">Tab aplikasi (relay siap)</div>
+      <div style="font-size:10.5px; color:#8a8aa0;" id="relay-app-host">—</div>
+    </div>
+    <span class="pill" id="relay-app-pill">—</span>
+  </div>
+  <div class="toggle">
+    <div style="min-width:0;">
+      <div style="font-size:12px; font-weight:600;">Tab firefly.adobe.com</div>
+      <div style="font-size:10.5px; color:#8a8aa0;">Wajib terbuka &amp; login agar lolos gate Adobe.</div>
+    </div>
+    <span class="pill" id="relay-ff-pill">—</span>
+  </div>
+  <div class="row">
+    <button id="relay-open-ff">Buka Firefly</button>
+    <button id="relay-refresh" class="primary">Cek Ulang</button>
+  </div>
+  <div class="divider"></div>
+  <div style="font-size:11px; color:#a0a0b8;">Aktivitas relay terakhir</div>
+  <div id="relay-log" style="display:flex; flex-direction:column; gap:5px; max-height:150px; overflow:auto;"></div>
+  <div class="status muted" id="relay-status">Badge ikon menampilkan OK/ERR tiap relay dipakai.</div>
 </main>
 
 <main id="tab-account" style="display:none;">
