@@ -1,6 +1,6 @@
 // Server-only registry for cloud media (upload + hasil generate).
 import { resolveStorageMode, type StorageMode } from "./connections.server";
-import { uploadToDrive, deleteFromDrive, downloadFromDrive } from "./drive.server";
+import { uploadToDrive, downloadFromDrive } from "./drive.server";
 
 export type CloudFileRow = {
   id: string;
@@ -48,11 +48,12 @@ export async function storeMediaForUser(params: {
   }
   const { mode, key } = await resolveStorageMode(params.userId);
   const ctx = { mode, connectionKey: key };
+  const origin = params.origin ?? "upload";
   const uploaded = await uploadToDrive(ctx, params.userId, {
     name: params.name,
     type: params.mimeType,
     bytes: params.bytes,
-  }, params.source ?? null);
+  }, params.source ?? null, origin);
 
   const db = await admin();
   const { data, error } = await db
@@ -66,7 +67,8 @@ export async function storeMediaForUser(params: {
         mime_type: uploaded.mimeType,
         size_bytes: uploaded.size,
         kind: guessKind(uploaded.mimeType, uploaded.name),
-        origin: params.origin ?? "upload",
+        origin,
+
         source: params.source ?? null,
         source_url: params.sourceUrl ?? null,
       },
@@ -104,15 +106,13 @@ export async function listCloudFilesForUser(userId: string, kind?: string | null
   return (data as CloudFileRow[]) ?? [];
 }
 
+/**
+ * Hapus entri galeri saja. File di Google Drive sengaja TIDAK dihapus —
+ * Drive tetap menjadi arsip permanen milik user/admin.
+ */
 export async function deleteCloudFileForUser(userId: string, id: string): Promise<void> {
   const row = await getCloudFile(id);
   if (!row || row.user_id !== userId) throw new Error("File tidak ditemukan.");
-  const ctx = await ctxForRow(row);
-  try {
-    await deleteFromDrive(ctx, row.drive_file_id);
-  } catch (e) {
-    console.warn("[cloud] drive delete failed", e);
-  }
   const db = await admin();
   const { error } = await db.from("cloud_files").delete().eq("id", id).eq("user_id", userId);
   if (error) throw new Error(error.message);

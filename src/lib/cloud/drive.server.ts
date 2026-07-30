@@ -66,7 +66,10 @@ async function findFolder(ctx: DriveCtx, name: string, parentId?: string): Promi
   ]
     .filter(Boolean)
     .join(" and ");
-  const res = await driveFetch(ctx, `/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1`);
+  const res = await driveFetch(
+    ctx,
+    `/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,createdTime)&orderBy=createdTime&pageSize=10`,
+  );
   if (!res.ok) return null;
   const data = (await res.json().catch(() => null)) as { files?: { id: string }[] } | null;
   return data?.files?.[0]?.id ?? null;
@@ -87,7 +90,28 @@ async function createFolder(ctx: DriveCtx, name: string, parentId?: string): Pro
   return data.id;
 }
 
-const folderCache = new Map<string, string>();
+/**
+ * Ambil folder yang sudah ada, atau buat sekali saja.
+ * Setelah membuat, cek ulang: kalau ada duplikat (race), pakai yang paling lama
+ * dan buang folder duplikat yang baru dibuat supaya 1 menu = 1 folder.
+ */
+async function getOrCreateFolder(ctx: DriveCtx, name: string, parentId?: string): Promise<string> {
+  const existing = await findFolder(ctx, name, parentId);
+  if (existing) return existing;
+  const created = await createFolder(ctx, name, parentId);
+  const winner = (await findFolder(ctx, name, parentId)) ?? created;
+  if (winner !== created) {
+    try {
+      await driveFetch(ctx, `/drive/v3/files/${created}`, { method: "DELETE" });
+    } catch {
+      /* abaikan */
+    }
+  }
+  return winner;
+}
+
+
+const folderCache = new Map<string, Promise<string>>();
 
 /** Label folder user di Global Cloud: "@displayname" (fallback ke email/user id). */
 export async function userFolderLabel(userId: string): Promise<string> {
@@ -113,19 +137,22 @@ export async function userFolderLabel(userId: string): Promise<string> {
 const MENU_FOLDERS: Record<string, string> = {
   motion: "Motion Control",
   "motion-control": "Motion Control",
-  "image-to-video": "Image to Video",
-  "text-to-video": "Text to Video",
-  leonardo: "Leonardo",
-  storyboard: "Storyboard",
-  "bulk-fashion": "Bulk Fashion",
-  upscaler: "Upscaler",
   "magnific-motion": "Motion Control",
-  naratif: "Naratif",
+  "image-to-video": "Image To Video",
+  "text-to-video": "Text to Video",
+  leonardo: "Text to Image",
+  "text-to-image": "Text to Image",
+  storyboard: "Produk Storyboard",
+  naratif: "Naratif Video Maker",
+  "bulk-fashion": "Bulk Fashion Generator",
+  upscaler: "Upscaler",
   framia: "Framia",
-  clipper: "Clipper",
-  dubbing: "Dubbing",
+  clipper: "AI Clipper",
+  dubbing: "AI Dubber",
   "reff-edit": "Reff Edit",
-  "ai-influencer": "AI Influencer",
+  "reff-edit-image": "Image Reference Edit",
+  "reff-edit-video": "Video Reference Edit",
+  "ai-influencer": "AI Influencer Studio",
 };
 
 export function menuFolderName(source?: string | null): string {
@@ -141,29 +168,69 @@ export function menuFolderName(source?: string | null): string {
     .join(" ") || "Lainnya";
 }
 
+/** Folder kategori berdasarkan asal file. */
+export function originFolderName(origin?: string | null): string {
+  return (origin ?? "").trim().toLowerCase() === "upload" ? "Upload File" : "Generate";
+}
+
 /**
  * Folder tujuan:
- *  - personal : "AA Creative Studio/<Menu>"
- *  - global   : "AA Creative Studio/@user/<Menu>"
+ *  - personal : "AA Creative Studio/<Upload File|Generate>/<Menu>"
+ *  - global   : "AA Creative Studio/@user/<Upload File|Generate>/<Menu>"
+ * Resolusi di-cache per-promise supaya generate paralel tidak membuat folder ganda.
  */
-export async function ensureFolder(ctx: DriveCtx, userId: string, source?: string | null): Promise<string> {
+export async function ensureFolder(
+  ctx: DriveCtx,
+  userId: string,
+  source?: string | null,
+  origin?: string | null,
+): Promise<string> {
   const menu = menuFolderName(source);
-  const cacheKey = `${ctx.mode}:${ctx.mode === "personal" ? userId : `g:${userId}`}:${menu}`;
+  const bucket = originFolderName(origin);
+  const cacheKey = `${ctx.mode}:${ctx.mode === "personal" ? userId : `g:${userId}`}:${bucket}:${menu}`;
   const cached = folderCache.get(cacheKey);
   if (cached) return cached;
 
-  let rootId = (await findFolder(ctx, APP_FOLDER_NAME)) ?? (await createFolder(ctx, APP_FOLDER_NAME));
-  if (ctx.mode === "global") {
-    const label = await userFolderLabel(userId);
-    // Migrasi: folder lama bernama userId dipakai ulang bila ada.
-    rootId =
-      (await findFolder(ctx, label, rootId)) ??
-      (await findFolder(ctx, userId, rootId)) ??
-      (await createFolder(ctx, label, rootId));
+  const task = (async () => {
+    let rootId = await getOrCreateFolder(ctx, APP_FOLDER_NAME);
+    if (ctx.mode === "global") {
+      const label = await userFolderLabel(userId);
+      // Migrasi: folder lama bernama userId dipakai ulang bila ada.
+      rootId = (await findFolder(ctx, userId, rootId)) ?? (await getOrCreateFolder(ctx, label, rootId));
+    }
+    const bucketId = await getOrCreateFolder(ctx, bucket, rootId);
+    return getOrCreateFolder(ctx, menu, bucketId);
+  })();
+
+
+  folderCache.set(cacheKey, task);
+  try {
+    return await task;
+  } catch (e) {
+    folderCache.delete(cacheKey);
+    throw e;
   }
-  rootId = (await findFolder(ctx, menu, rootId)) ?? (await createFolder(ctx, menu, rootId));
-  folderCache.set(cacheKey, rootId);
-  return rootId;
+}
+
+/** Cari nama file unik di folder: "foto.png" -> "foto (1).png" bila sudah ada. */
+async function uniqueFileName(ctx: DriveCtx, parentId: string, name: string): Promise<string> {
+  const dot = name.lastIndexOf(".");
+  const base = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  const q = `'${parentId}' in parents and trashed=false and name contains '${base.replace(/'/g, "\\'")}'`;
+  const res = await driveFetch(
+    ctx,
+    `/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(name)&pageSize=200`,
+  );
+  if (!res.ok) return name;
+  const data = (await res.json().catch(() => null)) as { files?: { name: string }[] } | null;
+  const taken = new Set((data?.files ?? []).map((f) => f.name));
+  if (!taken.has(name)) return name;
+  for (let i = 1; i < 1000; i += 1) {
+    const candidate = `${base} (${i})${ext}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${base} (${Date.now()})${ext}`;
 }
 
 
@@ -174,11 +241,13 @@ export async function uploadToDrive(
   userId: string,
   file: { name: string; type: string; bytes: ArrayBuffer },
   source?: string | null,
+  origin?: string | null,
 ): Promise<UploadedDriveFile> {
-  const parent = await ensureFolder(ctx, userId, source);
+  const parent = await ensureFolder(ctx, userId, source, origin);
+  const finalName = await uniqueFileName(ctx, parent, file.name);
 
   const boundary = `aacs${Math.random().toString(36).slice(2)}${Date.now()}`;
-  const meta = JSON.stringify({ name: file.name, parents: [parent] });
+  const meta = JSON.stringify({ name: finalName, parents: [parent] });
   const mime = file.type || "application/octet-stream";
   const body = new Blob([
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${boundary}\r\nContent-Type: ${mime}\r\n\r\n`,
