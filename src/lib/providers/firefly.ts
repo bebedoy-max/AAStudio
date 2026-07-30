@@ -11,10 +11,7 @@
 // (format sama seperti provider simple lain: { id, key, balance, status, note }).
 
 import { pushTokenAsync } from "@/lib/tokens/sync";
-<<<<<<< HEAD
 import { isRelayAvailable, relayFireflyRequest, bytesToBase64 } from "./firefly-relay";
-=======
->>>>>>> ef9350020d02fad57e6331a633cc3b105c736445
 
 export const LS_FIREFLY_KEYS = "aatools.firefly.keys";
 export const FIREFLY_API = "https://firefly.adobe.io";
@@ -125,7 +122,6 @@ export async function fireflyFetch<T = unknown>(opts: {
   const acc = opts.accountId ?? getFireflyAccountId(opts.token);
   if (acc) headers["X-Firefly-Account"] = acc;
 
-<<<<<<< HEAD
   // Prefer the extension relay: Adobe's 3P gate rejects datacenter IPs, so the
   // server proxy can only be a fallback (it still works for CORS-only calls).
   if (await isRelayAvailable()) {
@@ -147,8 +143,6 @@ export async function fireflyFetch<T = unknown>(opts: {
     }
   }
 
-=======
->>>>>>> ef9350020d02fad57e6331a633cc3b105c736445
   const r = await fetch("/api/public/firefly", {
     method: "POST",
     headers,
@@ -205,7 +199,6 @@ async function fireflyUploadBinary<T = unknown>(opts: {
   const acc = opts.accountId ?? getFireflyAccountId(opts.token);
   if (acc) headers["X-Firefly-Account"] = acc;
 
-<<<<<<< HEAD
   if (await isRelayAvailable()) {
     try {
       return await relayFireflyRequest<T>({
@@ -224,8 +217,6 @@ async function fireflyUploadBinary<T = unknown>(opts: {
     }
   }
 
-=======
->>>>>>> ef9350020d02fad57e6331a633cc3b105c736445
   const r = await fetch("/api/public/firefly", { method: "POST", headers, body: opts.bytes });
   return parseProxyResponse<T>(r);
 }
@@ -622,15 +613,12 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
     ...(!referenceId && opts.imageUrl ? { image: { source: { url: opts.imageUrl } } } : {}),
   };
 
-<<<<<<< HEAD
   const relayOn = await isRelayAvailable(true);
   opts.onProgress?.(
     relayOn ? "Submit via extension relay (browser kamu)…" : "Submit Firefly…",
     15,
   );
 
-=======
->>>>>>> ef9350020d02fad57e6331a633cc3b105c736445
   // Firefly frequently answers 408 "system under load" / 429 on the first hits.
   // Retry with backoff before surfacing an error to the user.
   let res = await fireflyFetch<AsyncSubmit>({
@@ -659,14 +647,10 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
   if (!res.ok) {
     if (res.status === 408 || res.status === 429) {
       throw new Error(
-<<<<<<< HEAD
         `Firefly sedang penuh/limit (${res.status}: ${(res.data as { message?: string } | null)?.message || "system under load"}).` +
           (relayOn
             ? " Coba lagi beberapa menit."
             : " Adobe menolak request dari IP server — pasang/aktifkan extension AA Creative dan buka tab firefly.adobe.com agar request dikirim dari browser kamu."),
-=======
-        `Firefly sedang penuh/limit (${res.status}: ${(res.data as { message?: string } | null)?.message || "system under load"}). Coba lagi beberapa menit.`,
->>>>>>> ef9350020d02fad57e6331a633cc3b105c736445
       );
     }
     throw new Error(
