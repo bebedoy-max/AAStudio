@@ -227,6 +227,28 @@ function TextToVideoPage() {
             />
           </Field>
 
+          <Field label="Model AI" right={<ProviderActivePill cap="video" />}>
+            {isFirefly ? (
+              <Select
+                value={ffModelKey}
+                onChange={(e) => setFfModelKey(e.target.value)}
+                options={FIREFLY_VIDEO_MODELS.map((m) => ({
+                  value: m.key,
+                  label: `${m.label} — ${m.cost}`,
+                }))}
+              />
+            ) : (
+              <Select
+                value={vidModelId}
+                onChange={(e) => setVidModelId(e.target.value)}
+                options={LEONARDO_VIDEO_MODELS.map((m) => ({
+                  value: m.id,
+                  label: `${m.label} — ${m.group}`,
+                }))}
+              />
+            )}
+          </Field>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Provider">
               <Select
@@ -234,27 +256,6 @@ function TextToVideoPage() {
                 onChange={(e) => setVidProvider(e.target.value as T2VProvider)}
                 options={T2V_PROVIDERS.map((p) => ({ value: p.value, label: p.label }))}
               />
-            </Field>
-            <Field label="Model AI" right={<ProviderActivePill cap="video" />}>
-              {isFirefly ? (
-                <Select
-                  value={ffModelKey}
-                  onChange={(e) => setFfModelKey(e.target.value)}
-                  options={FIREFLY_VIDEO_MODELS.map((m) => ({
-                    value: m.key,
-                    label: `${m.label} — ${m.cost}`,
-                  }))}
-                />
-              ) : (
-                <Select
-                  value={vidModelId}
-                  onChange={(e) => setVidModelId(e.target.value)}
-                  options={LEONARDO_VIDEO_MODELS.map((m) => ({
-                    value: m.id,
-                    label: `${m.label} — ${m.group}`,
-                  }))}
-                />
-              )}
             </Field>
             <Field label="Aspect Ratio">
               {isFirefly ? (

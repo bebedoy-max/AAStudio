@@ -5,7 +5,7 @@ import { useAuth, type FeatureAccessMode, normalizeFeatureAccessMode as normaliz
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList } from "lucide-react";
+import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Trash2, RefreshCw } from "lucide-react";
 import { PROVIDER_FLAGS, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 import { toast } from "sonner";
 
@@ -479,14 +479,95 @@ function ProviderSection() {
 }
 
 // =============================================================================
-// Global Brain — fallback API Brain milik platform
+// Global Brain — fallback API Brain milik platform.
+// UI: tab per provider brain, box input hanya untuk paste token, tombol Tambah
+// menjalankan pengecekan (format → duplikat → validasi live) lalu key valid
+// masuk ke list token aktif dan langsung tersimpan ke DB.
 // =============================================================================
+
+type BrainProviderId = "gemini" | "openai";
+
+type BrainKeyCheck = {
+  key: string;
+  state: "checking" | "active" | "limited" | "invalid" | "failed";
+  detail?: string;
+};
+
+const BRAIN_PROVIDERS: {
+  id: BrainProviderId;
+  label: string;
+  placeholder: string;
+  column: "gemini_keys" | "openai_keys";
+  validFormat: (k: string) => boolean;
+  hint: string;
+}[] = [
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    placeholder: "AIzaXXXX...\nAQ.XXXX...",
+    column: "gemini_keys",
+    validFormat: (k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k),
+    hint: "Format AIza… atau AQ… (auth key Gemini baru).",
+  },
+  {
+    id: "openai",
+    label: "OpenAI",
+    placeholder: "sk-XXXX...\nsk-YYYY...",
+    column: "openai_keys",
+    validFormat: (k) => /^sk-[A-Za-z0-9_-]{20,}$/.test(k),
+    hint: "Format sk-… (API key OpenAI).",
+  },
+];
+
+async function checkGlobalBrainKey(provider: BrainProviderId, key: string): Promise<BrainKeyCheck> {
+  try {
+    if (provider === "gemini") {
+      const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {
+        headers: { "x-goog-api-key": key },
+      });
+      if (r.ok) {
+        const data = (await r.json().catch(() => ({}))) as { models?: unknown[] };
+        const n = Array.isArray(data.models) ? data.models.length : 0;
+        return { key, state: "active", detail: n > 0 ? `OK · ${n}+ model tersedia` : "OK" };
+      }
+      if (r.status === 429) return { key, state: "limited", detail: "429 · quota / rate-limit" };
+      if (r.status === 400 || r.status === 401 || r.status === 403)
+        return { key, state: "invalid", detail: `${r.status} · key ditolak` };
+      return { key, state: "failed", detail: `${r.status} · gagal` };
+    }
+    const r = await fetch("https://api.openai.com/v1/models", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (r.ok) {
+      const data = (await r.json().catch(() => ({}))) as { data?: unknown[] };
+      const n = Array.isArray(data.data) ? data.data.length : 0;
+      return { key, state: "active", detail: n > 0 ? `OK · ${n} model` : "OK" };
+    }
+    if (r.status === 429) return { key, state: "limited", detail: "429 · quota / credit habis" };
+    if (r.status === 401 || r.status === 403) return { key, state: "invalid", detail: `${r.status} · key ditolak` };
+    return { key, state: "failed", detail: `${r.status} · gagal` };
+  } catch (e) {
+    return { key, state: "failed", detail: (e as Error).message };
+  }
+}
+
 function GlobalBrainSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState(false);
-  const [gemini, setGemini] = useState("");
-  const [openai, setOpenai] = useState("");
+  const [tab, setTab] = useState<BrainProviderId>("gemini");
+  const [input, setInput] = useState("");
+  const [keys, setKeys] = useState<Record<BrainProviderId, string[]>>({ gemini: [], openai: [] });
+  const [checks, setChecks] = useState<Record<BrainProviderId, BrainKeyCheck[]>>({ gemini: [], openai: [] });
+  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({
+    show: false,
+    pct: 0,
+    text: "",
+  });
+  const [report, setReport] = useState<null | { title: string; ok: BrainKeyCheck[]; bad: { key: string; reason: string }[] }>(null);
+
+  const provider = BRAIN_PROVIDERS.find((p) => p.id === tab)!;
 
   useEffect(() => {
     (async () => {
@@ -500,36 +581,138 @@ function GlobalBrainSection() {
         | null;
       if (row) {
         setEnabled(!!row.enabled);
-        setGemini((row.gemini_keys ?? []).join("\n"));
-        setOpenai((row.openai_keys ?? []).join("\n"));
+        setKeys({ gemini: row.gemini_keys ?? [], openai: row.openai_keys ?? [] });
       }
       setLoading(false);
     })();
   }, []);
 
-  const split = (v: string) =>
-    v.split(/[\n,]/g).map((s) => s.trim()).filter(Boolean);
-
-  async function save() {
+  async function persist(next: Record<BrainProviderId, string[]>, nextEnabled = enabled) {
     setSaving(true);
     const { error } = await supabase.from("global_brain" as never).upsert(
       {
         id: 1,
-        enabled,
-        gemini_keys: split(gemini),
-        openai_keys: split(openai),
+        enabled: nextEnabled,
+        gemini_keys: next.gemini,
+        openai_keys: next.openai,
         updated_at: new Date().toISOString(),
       } as never,
       { onConflict: "id" },
     );
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
     void refreshPlatformFlags();
-    toast.success("Global Brain tersimpan");
+    return true;
   }
 
-  const inputCls =
-    "w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary/60";
+  async function toggleEnabled() {
+    const next = !enabled;
+    setEnabled(next);
+    if (await persist(keys, next)) {
+      toast.success(next ? "Global Brain diaktifkan" : "Global Brain dinonaktifkan");
+    } else {
+      setEnabled(!next);
+    }
+  }
+
+  async function tambah() {
+    const raw = input
+      .split(/[\n,;\s]+/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (raw.length === 0) return;
+    setBusy(true);
+
+    const bad: { key: string; reason: string }[] = [];
+    const seen = new Set<string>();
+    const candidates: string[] = [];
+    for (const k of raw) {
+      if (seen.has(k)) {
+        bad.push({ key: k, reason: "Duplikat di input" });
+        continue;
+      }
+      seen.add(k);
+      if (keys[tab].includes(k)) {
+        bad.push({ key: k, reason: "Sudah ada di list aktif" });
+        continue;
+      }
+      if (!provider.validFormat(k)) {
+        bad.push({ key: k, reason: "Format salah" });
+        continue;
+      }
+      candidates.push(k);
+    }
+
+    const ok: BrainKeyCheck[] = [];
+    for (let i = 0; i < candidates.length; i++) {
+      setProgress({
+        show: true,
+        pct: Math.round((i / Math.max(1, candidates.length)) * 100),
+        text: `Cek key ${i + 1}/${candidates.length}…`,
+      });
+      const r = await checkGlobalBrainKey(tab, candidates[i]);
+      if (r.state === "active" || r.state === "limited") ok.push(r);
+      else bad.push({ key: candidates[i], reason: r.detail || r.state });
+    }
+    setProgress({ show: false, pct: 0, text: "" });
+
+    const next = { ...keys, [tab]: [...keys[tab], ...ok.map((r) => r.key)] };
+    if (ok.length > 0) {
+      const saved = await persist(next);
+      if (saved) {
+        setKeys(next);
+        setChecks((c) => ({ ...c, [tab]: [...c[tab].filter((x) => !ok.some((o) => o.key === x.key)), ...ok] }));
+      }
+    }
+    setInput("");
+    setBusy(false);
+    setReport({ title: `Hasil pengecekan ${provider.label}`, ok, bad });
+  }
+
+  async function removeKey(k: string) {
+    const next = { ...keys, [tab]: keys[tab].filter((x) => x !== k) };
+    if (await persist(next)) {
+      setKeys(next);
+      setChecks((c) => ({ ...c, [tab]: c[tab].filter((x) => x.key !== k) }));
+      toast.success("Token dihapus");
+    }
+  }
+
+  async function checkAll() {
+    const list = keys[tab];
+    if (list.length === 0) return;
+    setBusy(true);
+    const results: BrainKeyCheck[] = [];
+    for (let i = 0; i < list.length; i++) {
+      setProgress({ show: true, pct: Math.round((i / list.length) * 100), text: `Cek ${i + 1}/${list.length}…` });
+      results.push(await checkGlobalBrainKey(tab, list[i]));
+      setChecks((c) => ({ ...c, [tab]: [...results] }));
+    }
+    setProgress({ show: false, pct: 0, text: "" });
+    setBusy(false);
+    setReport({
+      title: `Status token ${provider.label}`,
+      ok: results.filter((r) => r.state === "active" || r.state === "limited"),
+      bad: results
+        .filter((r) => r.state === "invalid" || r.state === "failed")
+        .map((r) => ({ key: r.key, reason: r.detail || r.state })),
+    });
+  }
+
+  const mask = (k: string) => (k.length <= 14 ? k : `${k.slice(0, 8)}…${k.slice(-4)}`);
+  const badgeCls = (s: BrainKeyCheck["state"] | "unknown") =>
+    s === "active"
+      ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/30"
+      : s === "limited"
+        ? "text-amber-300 bg-amber-500/10 border-amber-500/30"
+        : s === "invalid" || s === "failed"
+          ? "text-rose-300 bg-rose-500/10 border-rose-500/30"
+          : "text-muted-foreground bg-muted/30 border-border";
+  const badgeLabel = (s: BrainKeyCheck["state"] | "unknown") =>
+    ({ active: "Active", limited: "Rate-limited", invalid: "Invalid", failed: "Failed", checking: "Checking…", unknown: "—" })[s];
 
   return (
     <Card>
@@ -540,67 +723,198 @@ function GlobalBrainSection() {
         >
           <Brain className="h-4 w-4" />
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="font-display text-lg">Global Brain</div>
           <div className="text-xs text-muted-foreground">
-            Key Brain milik platform. Dipakai otomatis untuk user yang belum punya API Brain di Token
-            Manager, atau saat key milik user kena limit. Key user tetap jadi prioritas pertama dan
-            key global tidak pernah dikirim ke browser user.
+            Key Brain milik platform. Dipakai otomatis untuk user yang belum punya API Brain sendiri,
+            atau saat key user kena limit. Key global tidak pernah dikirim ke browser user.
           </div>
         </div>
       </div>
+
       {loading ? (
         <div className="p-8 grid place-items-center">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="p-4 space-y-4 max-w-2xl">
-          <button
-            onClick={() => setEnabled((v) => !v)}
-            className={[
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition",
-              enabled
-                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-                : "border-border text-muted-foreground",
-            ].join(" ")}
-          >
-            {enabled ? "Global Brain: Aktif" : "Global Brain: Nonaktif"}
-          </button>
+        <div className="p-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={toggleEnabled}
+              disabled={saving}
+              className={[
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition disabled:opacity-60",
+                enabled
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                  : "border-border text-muted-foreground",
+              ].join(" ")}
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {enabled ? "Global Brain: Aktif" : "Global Brain: Nonaktif"}
+            </button>
+            <span className="text-[11px] text-muted-foreground">
+              Total token aktif: {keys.gemini.length + keys.openai.length}
+            </span>
+          </div>
 
-          <label className="block">
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
-              Gemini Keys (satu per baris)
-            </div>
-            <textarea
-              rows={4}
-              value={gemini}
-              onChange={(e) => setGemini(e.target.value)}
-              placeholder={"AIza...\nAIza..."}
-              className={inputCls}
-            />
-          </label>
-          <label className="block">
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
-              OpenAI Keys (satu per baris)
-            </div>
-            <textarea
-              rows={3}
-              value={openai}
-              onChange={(e) => setOpenai(e.target.value)}
-              placeholder={"sk-...\nsk-..."}
-              className={inputCls}
-            />
-          </label>
+          {/* Tab per provider brain */}
+          <div className="flex flex-wrap gap-2 border-b border-border/60 pb-3">
+            {BRAIN_PROVIDERS.map((p) => {
+              const active = tab === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    setTab(p.id);
+                    setInput("");
+                  }}
+                  className={[
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition",
+                    active
+                      ? "border-transparent text-primary-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                  style={active ? { background: "var(--gradient-neon)" } : undefined}
+                >
+                  {p.label}
+                  <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">{keys[p.id].length}</span>
+                </button>
+              );
+            })}
+          </div>
 
-          <button
-            onClick={save}
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-            style={{ background: "var(--gradient-neon)" }}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Kolom input */}
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Input token {provider.label} (satu per baris)
+              </div>
+              <textarea
+                rows={5}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={provider.placeholder}
+                className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-xs font-mono outline-none focus:border-primary/60"
+              />
+              <div className="text-[10px] text-muted-foreground">{provider.hint}</div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={tambah}
+                  disabled={busy || input.trim().length === 0}
+                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
+                  style={{ background: "var(--gradient-neon)" }}
+                >
+                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  Tambah & Cek
+                </button>
+                <button
+                  onClick={checkAll}
+                  disabled={busy || keys[tab].length === 0}
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} /> Cek Ulang Status
+                </button>
+              </div>
+              {progress.show && (
+                <div className="rounded-md border border-border bg-card/40 p-2">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
+                  </div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">{progress.text}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Kolom list token aktif */}
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                Token aktif {provider.label} ({keys[tab].length})
+              </div>
+              {keys[tab].length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border/70 p-6 text-center text-xs text-muted-foreground">
+                  Belum ada token tersimpan.
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {keys[tab].map((k) => {
+                    const c = checks[tab].find((x) => x.key === k);
+                    const state = c?.state ?? "unknown";
+                    return (
+                      <div
+                        key={k}
+                        className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/40 px-3 py-2"
+                      >
+                        <code className="text-[11px] font-mono text-foreground/85 truncate">{mask(k)}</code>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {c?.detail && (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{c.detail}</span>
+                          )}
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeCls(state)}`}>
+                            {badgeLabel(state)}
+                          </span>
+                          <button
+                            onClick={() => removeKey(k)}
+                            className="rounded-full border border-border bg-card/60 p-1 text-muted-foreground transition hover:border-destructive/50 hover:text-destructive"
+                            title="Hapus token"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Popup ringkasan hasil pengecekan */}
+      {report && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
+          onClick={() => setReport(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Simpan Global Brain
-          </button>
+            <div className="font-display text-lg">{report.title}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              {report.ok.length} token valid · {report.bad.length} ditolak
+            </div>
+            <div className="mt-4 max-h-[50vh] space-y-1.5 overflow-y-auto">
+              {report.ok.map((r) => (
+                <div
+                  key={`ok-${r.key}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
+                >
+                  <code className="text-[11px] font-mono truncate">{mask(r.key)}</code>
+                  <span className="text-[10px] text-emerald-300 shrink-0">{r.detail || "Valid"}</span>
+                </div>
+              ))}
+              {report.bad.map((r, i) => (
+                <div
+                  key={`bad-${i}-${r.key}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2"
+                >
+                  <code className="text-[11px] font-mono truncate">{mask(r.key)}</code>
+                  <span className="text-[10px] text-rose-300 shrink-0 truncate max-w-[200px]">{r.reason}</span>
+                </div>
+              ))}
+              {report.ok.length === 0 && report.bad.length === 0 && (
+                <div className="text-xs text-muted-foreground">Tidak ada token diproses.</div>
+              )}
+            </div>
+            <button
+              onClick={() => setReport(null)}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-primary-foreground"
+              style={{ background: "var(--gradient-neon)" }}
+            >
+              <Save className="h-4 w-4" /> Tutup
+            </button>
+          </div>
         </div>
       )}
     </Card>

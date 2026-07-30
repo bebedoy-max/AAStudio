@@ -252,7 +252,12 @@ export const Route = createFileRoute("/api/router/brain-analyze")({
 
         const geminiKeys = (request.headers.get("x-user-gemini-keys") || "").trim();
         const openaiKeys = (request.headers.get("x-user-openai-keys") || "").trim();
-        const hasBrainKey = Boolean(geminiKeys || openaiKeys);
+        // Global Brain (key platform) dihitung sebagai key yang tersedia, supaya
+        // user tanpa key sendiri tetap bisa jalan saat admin mengaktifkannya.
+        const { loadGlobalBrainKeys } = await import("./chat");
+        const globalBrain = await loadGlobalBrainKeys();
+        const hasBrainKey =
+          Boolean(geminiKeys || openaiKeys) || globalBrain.gemini.length + globalBrain.openai.length > 0;
 
         const encoder = new TextEncoder();
         const stream = new ReadableStream({

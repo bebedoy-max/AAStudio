@@ -3,7 +3,7 @@
 // leonardo, dsb — user bisa mengubah routing provider tanpa pindah menu.
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Check, Zap, ExternalLink } from "lucide-react";
+import { X, Check, Zap, ExternalLink, Repeat } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   type CapKey,
@@ -60,6 +60,8 @@ export function ProviderActivePill({
         <b className="text-primary normal-case tracking-normal">
           {active?.name ?? activeId}
         </b>
+        <Repeat className="h-3 w-3 text-primary animate-switch-hint" aria-hidden />
+
       </button>
       {open && <RoutingDialog cap={cap} onClose={() => setOpen(false)} />}
     </>

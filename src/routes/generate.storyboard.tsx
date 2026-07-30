@@ -839,6 +839,20 @@ function StoryboardPage() {
         <div className="flex flex-col gap-5 order-2 lg:order-none lg:row-span-2">
           <Card title="Pengaturan">
             <div className="flex flex-col gap-4">
+              <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+                {models.length ? (
+                  <Select
+                    value={modelKey}
+                    onChange={(e) => setModelKey(e.target.value)}
+                    options={models.map((m) => ({ value: m.key, label: m.label }))}
+                  />
+                ) : (
+                  <div className="text-[11px] text-muted-foreground py-2">
+                    Tidak tersedia di provider ini
+                  </div>
+                )}
+              </Field>
+
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Jumlah Panel">
                   <Select
@@ -850,22 +864,6 @@ function StoryboardPage() {
                     })}
                   />
                 </Field>
-                <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
-                  {models.length ? (
-                    <Select
-                      value={modelKey}
-                      onChange={(e) => setModelKey(e.target.value)}
-                      options={models.map((m) => ({ value: m.key, label: m.label }))}
-                    />
-                  ) : (
-                    <div className="text-[11px] text-muted-foreground py-2">
-                      Tidak tersedia di provider ini
-                    </div>
-                  )}
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
                 <Field label="Aspek Rasio">
                   <Select
                     value={ratio}
@@ -879,21 +877,24 @@ function StoryboardPage() {
                     ]}
                   />
                 </Field>
-                <Field label="Kualitas">
-                  {activeModel && activeModel.qualities.length ? (
-                    <Select
-                      value={qualityV}
-                      onChange={(e) => setQualityV(e.target.value)}
-                      options={activeModel.qualities.map((q) => ({
-                        value: q.v,
-                        label: q.label,
-                      }))}
-                    />
-                  ) : (
-                    <div className="text-[11px] text-muted-foreground py-2">—</div>
-                  )}
-                </Field>
               </div>
+
+
+              <Field label="Kualitas">
+                {activeModel && activeModel.qualities.length ? (
+                  <Select
+                    value={qualityV}
+                    onChange={(e) => setQualityV(e.target.value)}
+                    options={activeModel.qualities.map((q) => ({
+                      value: q.v,
+                      label: q.label,
+                    }))}
+                  />
+                ) : (
+                  <div className="text-[11px] text-muted-foreground py-2">—</div>
+                )}
+              </Field>
+
 
               <Field label="Framing / Pengambilan Gambar">
                 <Select

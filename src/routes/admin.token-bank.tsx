@@ -423,6 +423,7 @@ function Body() {
       {addOpen && (
         <AddKeysDialog
           defaultProvider={provider || "brain"}
+          existing={rows.map((r) => ({ provider: r.provider, key_value: r.key_value }))}
           onClose={() => setAddOpen(false)}
           onDone={async () => {
             setAddOpen(false);
@@ -668,12 +669,32 @@ function StatusIcon({ state }: { state: CheckState["status"] }) {
   return <div className="h-4 w-4 rounded-full border border-border shrink-0" />;
 }
 
+// Provider yang tidak punya endpoint cek aman (cek otomatis dilewati).
+const UNCHECKABLE_PROVIDERS: BankProvider[] = ["magnific", "shotstack", "creatomate"];
+
+// Validasi format dasar sebelum hit provider (hemat request & tolak sampah).
+function formatIssue(provider: BankProvider, key: string): string | null {
+  if (/\s/.test(key)) return "Format salah · mengandung spasi";
+  if (key.length < 12) return "Format salah · terlalu pendek";
+  if (provider === "brain" && !/^AIza[\w-]{20,}$/.test(key) && !/^sk-[\w-]{20,}$/.test(key))
+    return "Format salah · bukan Gemini (AIza…) / OpenAI (sk-…)";
+  if (provider === "eleven" && !/^[A-Za-z0-9_-]{20,}$/.test(key)) return "Format salah";
+  return null;
+}
+
+type VerifyRow = {
+  key: string;
+  state: CheckState | { status: "skip"; detail: string } | { status: "dup"; detail: string };
+};
+
 function AddKeysDialog({
   defaultProvider,
+  existing,
   onClose,
   onDone,
 }: {
   defaultProvider: BankProvider;
+  existing: { provider: BankProvider; key_value: string }[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -681,6 +702,9 @@ function AddKeysDialog({
   const [label, setLabel] = useState("");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [results, setResults] = useState<VerifyRow[] | null>(null);
 
   const keys = useMemo(
     () =>
@@ -695,17 +719,62 @@ function AddKeysDialog({
     [text],
   );
 
-  async function submit() {
+  const existingSet = useMemo(
+    () => new Set(existing.filter((r) => r.provider === provider).map((r) => r.key_value)),
+    [existing, provider],
+  );
+
+  const accepted = useMemo(
+    () => (results ?? []).filter((r) => r.state.status === "ok" || r.state.status === "skip"),
+    [results],
+  );
+  const rejected = useMemo(
+    () => (results ?? []).filter((r) => r.state.status !== "ok" && r.state.status !== "skip"),
+    [results],
+  );
+
+  async function verify() {
     if (keys.length === 0) {
       toast.error("Masukkan minimal 1 key");
+      return;
+    }
+    setVerifying(true);
+    setResults(null);
+    setProgress({ done: 0, total: keys.length });
+    const out: VerifyRow[] = [];
+    const seen = new Set<string>();
+    for (const k of keys) {
+      if (existingSet.has(k) || seen.has(k)) {
+        out.push({ key: k, state: { status: "dup", detail: "Duplikat · sudah ada di Token Bank" } });
+      } else {
+        seen.add(k);
+        const fmt = formatIssue(provider, k);
+        if (fmt) {
+          out.push({ key: k, state: { status: "fail", detail: fmt } });
+        } else if (UNCHECKABLE_PROVIDERS.includes(provider)) {
+          out.push({ key: k, state: { status: "skip", detail: "Cek otomatis tidak tersedia · disimpan" } });
+        } else {
+          out.push({ key: k, state: await checkOne(provider, k) });
+        }
+      }
+      setProgress((p) => ({ ...p, done: p.done + 1 }));
+      setResults([...out]);
+    }
+    setVerifying(false);
+  }
+
+  async function saveAccepted() {
+    const list = accepted.map((r) => r.key);
+    if (list.length === 0) {
+      toast.error("Tidak ada key valid untuk disimpan");
       return;
     }
     setBusy(true);
     try {
       const r = (await addBankKeys({
-        data: { provider, keys, label: label.trim() || undefined },
+        data: { provider, keys: list, label: label.trim() || undefined },
       })) as unknown as { added: number };
-      toast.success(`${r.added} key ditambahkan ke ${PROVIDER_LABELS[provider]}`);
+      toast.success(`${r.added} key valid ditambahkan ke ${PROVIDER_LABELS[provider]}`);
       onDone();
     } catch (e) {
       toast.error("Gagal menambah: " + (e instanceof Error ? e.message : ""));
@@ -714,11 +783,25 @@ function AddKeysDialog({
     }
   }
 
+  const badge = (s: VerifyRow["state"]["status"]) =>
+    s === "ok"
+      ? "text-emerald-300 border-emerald-400/40 bg-emerald-400/10"
+      : s === "skip"
+        ? "text-sky-300 border-sky-400/40 bg-sky-400/10"
+        : s === "warn"
+          ? "text-amber-300 border-amber-400/40 bg-amber-400/10"
+          : s === "dup"
+            ? "text-violet-300 border-violet-400/40 bg-violet-400/10"
+            : "text-rose-300 border-rose-400/40 bg-rose-400/10";
+
+  const labelOf = (s: VerifyRow["state"]["status"]) =>
+    s === "ok" ? "Valid" : s === "skip" ? "Tanpa cek" : s === "warn" ? "Credit kosong" : s === "dup" ? "Duplikat" : "Gagal";
+
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="neumorph w-full max-w-md p-5 relative"
+        className="neumorph w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 relative"
         style={{ background: "var(--gradient-card, hsl(var(--card)))" }}
       >
         <button
@@ -729,8 +812,8 @@ function AddKeysDialog({
         </button>
         <div className="font-display text-lg mb-1">Tambah Key ke Token Bank</div>
         <div className="text-xs text-muted-foreground mb-4">
-          Pilih provider, lalu tempel satu atau beberapa key (satu per baris atau dipisah koma).
-          Duplikat otomatis dilewati.
+          Semua key dicek dulu (valid, expired, format, credit, duplikat). Hanya key valid yang
+          disimpan ke Token Bank.
         </div>
 
         <div className="space-y-3">
@@ -740,7 +823,10 @@ function AddKeysDialog({
             </label>
             <select
               value={provider}
-              onChange={(e) => setProvider(e.target.value as BankProvider)}
+              onChange={(e) => {
+                setProvider(e.target.value as BankProvider);
+                setResults(null);
+              }}
               className="mt-1 w-full h-9 rounded-lg border border-border bg-card/50 px-3 text-sm"
             >
               {BANK_PROVIDERS.map((p) => (
@@ -769,21 +855,68 @@ function AddKeysDialog({
             </label>
             <textarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={7}
+              onChange={(e) => {
+                setText(e.target.value);
+                setResults(null);
+              }}
+              rows={6}
               placeholder="Tempel key di sini. Satu key per baris."
               className="mt-1 w-full rounded-lg border border-border bg-card/50 px-3 py-2 text-sm font-mono resize-y"
             />
           </div>
         </div>
 
+        {verifying && (
+          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+            Mengecek key… {progress.done}/{progress.total}
+          </div>
+        )}
+
+        {results && (
+          <div className="mt-4 rounded-xl border border-border bg-card/40 p-3">
+            <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest">
+              <span className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-emerald-300">
+                {accepted.length} siap simpan
+              </span>
+              <span className="rounded-full border border-rose-400/40 bg-rose-400/10 px-2 py-0.5 text-rose-300">
+                {rejected.length} ditolak
+              </span>
+            </div>
+            <div className="mt-2 max-h-60 overflow-y-auto flex flex-col gap-1.5">
+              {results.map((r) => (
+                <div key={r.key} className="flex items-start gap-2 text-xs">
+                  <span
+                    className={
+                      "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-mono " +
+                      badge(r.state.status)
+                    }
+                  >
+                    {labelOf(r.state.status)}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-mono text-[11px] text-muted-foreground truncate">{mask(r.key)}</div>
+                    <div className="text-[11px]">
+                      {"detail" in r.state ? r.state.detail : "—"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mt-5 flex justify-end gap-2">
-          <GhostButton onClick={onClose} disabled={busy}>
-            Batal
+          <GhostButton onClick={onClose} disabled={busy || verifying}>
+            Tutup
           </GhostButton>
-          <PrimaryButton onClick={submit} disabled={busy || keys.length === 0}>
+          <GhostButton onClick={verify} disabled={busy || verifying || keys.length === 0}>
+            {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+            Cek {keys.length} key
+          </GhostButton>
+          <PrimaryButton onClick={saveAccepted} disabled={busy || verifying || accepted.length === 0}>
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            Simpan ({keys.length})
+            Simpan {accepted.length} valid
           </PrimaryButton>
         </div>
       </div>

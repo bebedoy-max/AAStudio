@@ -569,7 +569,7 @@ function MotionControl() {
             <div className="flex flex-col gap-4">
 
 
-              <Field label="Model" right={<ProviderActivePill cap="motion" />}>
+              <Field label="Model AI" right={<ProviderActivePill cap="motion" />}>
                 <Select
                   value={modelKey}
                   onChange={(e) => setModelKey(e.target.value)}

@@ -29,6 +29,7 @@ import {
   Send,
   LineChart,
   Lock,
+  ShoppingCart,
   SlidersHorizontal,
   Wand2,
   Palette,
@@ -254,7 +255,11 @@ function HoverFlyout({
                   <CIcon className="h-3.5 w-3.5" />
                 </span>
                 <span className="flex-1 truncate">{item.title}</span>
-                <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                {isLocked ? (
+                  <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                ) : (
+                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                )}
               </button>
             );
           }
@@ -345,7 +350,11 @@ function InlineSubmenu({
                 <CIcon className="h-3.5 w-3.5" />
               </span>
               <span className="flex-1 truncate">{item.title}</span>
-              <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              {isLocked ? (
+                <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              ) : (
+                <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+              )}
             </button>
           );
         }

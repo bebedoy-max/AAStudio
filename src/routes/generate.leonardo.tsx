@@ -389,14 +389,15 @@ function LeonardoPage() {
               />
             </Field>
 
+            <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+              <Select
+                value={activeGenModel?.key ?? ""}
+                onChange={(e) => setGenModelKey(e.target.value)}
+                options={genModels.map((m) => ({ value: m.key, label: m.label }))}
+              />
+            </Field>
+
             <div className="grid grid-cols-2 gap-3">
-              <Field label={`Model (${IMAGE_PROVIDER_LABEL[imgProvider]})`} right={<ProviderActivePill cap="image" />}>
-                <Select
-                  value={activeGenModel?.key ?? ""}
-                  onChange={(e) => setGenModelKey(e.target.value)}
-                  options={genModels.map((m) => ({ value: m.key, label: m.label }))}
-                />
-              </Field>
               <Field label="Kualitas / Resolusi">
                 <Select
                   value={genQuality}
@@ -503,28 +504,30 @@ function LeonardoPage() {
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`Model${remoteModels.length > 0 ? ` (${remoteModels.length})` : ""}`} right={<ProviderActivePill cap="image" />}>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Select
-                    value={modelId}
-                    onChange={(e) => setModelId(e.target.value)}
-                    options={modelOptions}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={refreshModels}
-                  disabled={loadingModels || keyCount === 0}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"
-                  title="Ambil daftar model dari akun Leonardo"
-                >
-                  <RefreshCw className={`h-3 w-3 ${loadingModels ? "animate-spin" : ""}`} />
-                  {loadingModels ? "…" : "Refresh"}
-                </button>
+          <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select
+                  value={modelId}
+                  onChange={(e) => setModelId(e.target.value)}
+                  options={modelOptions}
+                />
               </div>
-            </Field>
+              <button
+                type="button"
+                onClick={refreshModels}
+                disabled={loadingModels || keyCount === 0}
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"
+                title="Ambil daftar model dari akun Leonardo"
+              >
+                <RefreshCw className={`h-3 w-3 ${loadingModels ? "animate-spin" : ""}`} />
+                {loadingModels ? "…" : "Refresh"}
+              </button>
+            </div>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+
 
 
             <Field label="Aspect ratio">
