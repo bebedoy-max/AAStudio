@@ -4,6 +4,7 @@
 
 import { Image as ImageIcon, Film, Mic, Move3d, Brain } from "lucide-react";
 import type { ComponentType } from "react";
+import { isProviderEnabled, type ProviderFlagMap } from "@/lib/platform/provider-flags";
 
 export type CapKey = "brain" | "image" | "video" | "voice" | "motion";
 export type ProviderOpt = {
@@ -185,4 +186,9 @@ export function writeRoutingCap(cap: CapKey, id: string) {
 
 export function getCap(cap: CapKey): Cap | undefined {
   return CAPS.find((c) => c.key === cap);
+}
+
+/** Provider yang sedang dinonaktifkan admin disembunyikan dari user. */
+export function enabledProviders(cap: Cap, flags?: ProviderFlagMap): ProviderOpt[] {
+  return cap.providers.filter((p) => isProviderEnabled(p.id, flags));
 }

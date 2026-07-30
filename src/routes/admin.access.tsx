@@ -5,7 +5,8 @@ import { useAuth, type FeatureAccessMode, normalizeFeatureAccessMode as normaliz
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, Globe, Lock, Clock, LifeBuoy, EyeOff, Sparkles, Ban } from "lucide-react";
+import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList } from "lucide-react";
+import { PROVIDER_FLAGS, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/access")({
@@ -54,7 +55,48 @@ function Gate() {
         </div>
       </Card>
     );
-  return <AccessBody />;
+  return <AdminSettingsTabs />;
+}
+
+const TABS = [
+  { key: "pages", label: "Halaman", icon: LayoutList },
+  { key: "providers", label: "Provider", icon: Plug },
+  { key: "brain", label: "Global Brain", icon: Brain },
+  { key: "contact", label: "Kontak", icon: LifeBuoy },
+] as const;
+
+function AdminSettingsTabs() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("pages");
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={[
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition",
+                active
+                  ? "border-transparent text-primary-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+              style={active ? { background: "var(--gradient-neon)" } : undefined}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {tab === "pages" && <AccessBody />}
+      {tab === "providers" && <ProviderSection />}
+      {tab === "brain" && <GlobalBrainSection />}
+      {tab === "contact" && <ContactSection />}
+    </div>
+  );
 }
 
 type Draft = { mode: FeatureAccessMode; trialUntil: string | null };
@@ -154,12 +196,12 @@ function AccessBody() {
     setSaved((s) => ({ ...s, [key]: JSON.parse(JSON.stringify(draft)) }));
   }
 
-  const MODES: { value: FeatureAccessMode; label: string; icon: typeof Globe; hint: string }[] = [
-    { value: "open", label: "Open", icon: Globe, hint: "Terbuka gratis untuk semua user" },
-    { value: "premium", label: "Premium", icon: Sparkles, hint: "Fitur berbayar — user harus beli/berlangganan" },
-    { value: "trial", label: "Trial", icon: Clock, hint: "Uji coba sampai tanggal tertentu" },
-    { value: "lock", label: "Lock", icon: Ban, hint: "Muncul di navigasi tapi dinonaktifkan" },
-    { value: "hide", label: "Hide", icon: EyeOff, hint: "Sembunyikan dari navigasi user" },
+  const MODES: { value: FeatureAccessMode; label: string; hint: string }[] = [
+    { value: "open", label: "Open", hint: "gratis untuk semua user" },
+    { value: "premium", label: "Premium", hint: "berbayar / langganan" },
+    { value: "trial", label: "Trial", hint: "uji coba sampai tanggal tertentu" },
+    { value: "lock", label: "Lock", hint: "tampil tapi dinonaktifkan" },
+    { value: "hide", label: "Hide", hint: "disembunyikan dari user" },
   ];
 
   if (loading)
@@ -188,7 +230,7 @@ function AccessBody() {
               const price = prices[f.key];
               return (
                 <div key={f.key} className="rounded-2xl border border-border bg-card/40 p-3">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                  <div className="flex flex-wrap items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{f.label}</div>
                       <div className="text-[10px] font-mono text-muted-foreground break-all">
@@ -197,58 +239,32 @@ function AccessBody() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                      {/* Mobile: native select — hindari overflow di layar sempit */}
+                    <div className="flex items-center gap-2">
                       <select
                         value={draft.mode}
                         onChange={(e) => setMode(f.key, e.target.value as FeatureAccessMode)}
-                        className="sm:hidden w-full rounded-full border border-border bg-background/60 px-3 py-2 text-xs font-medium outline-none focus:border-primary/60"
+                        className="w-40 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-medium outline-none focus:border-primary/60"
                       >
                         {MODES.map((m) => (
-                          <option key={m.value} value={m.value}>
+                          <option key={m.value} value={m.value} className="bg-[oklch(0.19_0.055_275)]">
                             {m.label} — {m.hint}
                           </option>
                         ))}
                       </select>
-
-                      {/* Desktop / tablet: pill toggles */}
-                      <div className="hidden sm:inline-flex flex-wrap rounded-full border border-border bg-background/60 p-0.5">
-                        {MODES.map((m) => {
-                          const MIcon = m.icon;
-                          const active = draft.mode === m.value;
-                          return (
-                            <button
-                              key={m.value}
-                              onClick={() => setMode(f.key, m.value)}
-                              title={m.hint}
-                              className={[
-                                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
-                                active
-                                  ? "text-primary-foreground"
-                                  : "text-muted-foreground hover:text-foreground",
-                              ].join(" ")}
-                              style={active ? { background: "var(--gradient-neon)" } : undefined}
-                            >
-                              <MIcon className="h-3.5 w-3.5" />
-                              {m.label}
-                            </button>
-                          );
-                        })}
-                      </div>
 
                       {draft.mode === "trial" && (
                         <input
                           type="datetime-local"
                           value={toLocalInput(draft.trialUntil)}
                           onChange={(e) => setTrial(f.key, e.target.value)}
-                          className="w-full sm:w-auto rounded-lg border border-border bg-background/60 px-2 py-1.5 text-xs outline-none focus:border-primary/60"
+                          className="rounded-xl border border-border bg-background/60 px-2 py-2 text-xs outline-none focus:border-primary/60"
                         />
                       )}
 
                       <button
                         onClick={() => save(f.key)}
                         disabled={!dirty || saving === f.key}
-                        className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+                        className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40"
                         style={{ background: "var(--gradient-neon)" }}
                       >
                         {saving === f.key ? (
@@ -267,7 +283,6 @@ function AccessBody() {
         </Card>
       ))}
 
-      <ContactSection />
     </div>
   );
 }
@@ -354,6 +369,237 @@ function ContactSection() {
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Simpan Kontak
+          </button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+
+// =============================================================================
+// Provider on/off — provider yang dimatikan hilang dari Token Manager & Routing
+// =============================================================================
+function ProviderSection() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [state, setState] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("provider_settings" as never).select("id, enabled");
+      const map: Record<string, boolean> = {};
+      PROVIDER_FLAGS.forEach((p) => (map[p.id] = true));
+      ((data ?? []) as unknown as { id: string; enabled: boolean }[]).forEach((r) => {
+        map[r.id] = r.enabled !== false;
+      });
+      setState(map);
+      setLoading(false);
+    })();
+  }, []);
+
+  async function toggle(id: string, label: string) {
+    const next = !state[id];
+    setSaving(id);
+    const { error } = await supabase.from("provider_settings" as never).upsert(
+      { id, enabled: next, updated_at: new Date().toISOString() } as never,
+      { onConflict: "id" },
+    );
+    setSaving(null);
+    if (error) return toast.error(error.message);
+    setState((s) => ({ ...s, [id]: next }));
+    void refreshPlatformFlags();
+    toast.success(`${label} ${next ? "diaktifkan" : "dinonaktifkan sementara"}`);
+  }
+
+  const groups = useMemo(() => {
+    const by: Record<string, typeof PROVIDER_FLAGS> = {};
+    PROVIDER_FLAGS.forEach((p) => (by[p.group] ||= []).push(p));
+    return by;
+  }, []);
+
+  if (loading)
+    return (
+      <Card>
+        <div className="p-8 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      </Card>
+    );
+
+  return (
+    <Card>
+      <div className="p-4 border-b border-border/60">
+        <div className="font-display text-lg">Opsi Provider</div>
+        <div className="text-xs text-muted-foreground">
+          Provider yang dinonaktifkan otomatis hilang dari Token / API Manager dan Routing Provider
+          milik user. Aktifkan lagi kapan saja untuk memunculkannya kembali.
+        </div>
+      </div>
+      <div className="p-4 flex flex-col gap-4">
+        {Object.entries(groups).map(([group, list]) => (
+          <div key={group}>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+              {group}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {list.map((p) => {
+                const on = state[p.id] !== false;
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card/40 px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{p.label}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground">{p.id}</div>
+                    </div>
+                    <button
+                      onClick={() => toggle(p.id, p.label)}
+                      disabled={saving === p.id}
+                      className={[
+                        "shrink-0 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                        on
+                          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                          : "border-red-500/50 bg-red-500/10 text-red-300",
+                      ].join(" ")}
+                    >
+                      {saving === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      {on ? "Aktif" : "Nonaktif"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// =============================================================================
+// Global Brain — fallback API Brain milik platform
+// =============================================================================
+function GlobalBrainSection() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [gemini, setGemini] = useState("");
+  const [openai, setOpenai] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("global_brain" as never)
+        .select("enabled, gemini_keys, openai_keys")
+        .eq("id", 1)
+        .maybeSingle();
+      const row = data as unknown as
+        | { enabled: boolean; gemini_keys: string[] | null; openai_keys: string[] | null }
+        | null;
+      if (row) {
+        setEnabled(!!row.enabled);
+        setGemini((row.gemini_keys ?? []).join("\n"));
+        setOpenai((row.openai_keys ?? []).join("\n"));
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const split = (v: string) =>
+    v.split(/[\n,]/g).map((s) => s.trim()).filter(Boolean);
+
+  async function save() {
+    setSaving(true);
+    const { error } = await supabase.from("global_brain" as never).upsert(
+      {
+        id: 1,
+        enabled,
+        gemini_keys: split(gemini),
+        openai_keys: split(openai),
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: "id" },
+    );
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    void refreshPlatformFlags();
+    toast.success("Global Brain tersimpan");
+  }
+
+  const inputCls =
+    "w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm font-mono outline-none focus:border-primary/60";
+
+  return (
+    <Card>
+      <div className="p-4 border-b border-border/60 flex items-center gap-3">
+        <div
+          className="h-9 w-9 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+          style={{ background: "var(--gradient-neon)" }}
+        >
+          <Brain className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="font-display text-lg">Global Brain</div>
+          <div className="text-xs text-muted-foreground">
+            Key Brain milik platform. Dipakai otomatis untuk user yang belum punya API Brain di Token
+            Manager, atau saat key milik user kena limit. Key user tetap jadi prioritas pertama dan
+            key global tidak pernah dikirim ke browser user.
+          </div>
+        </div>
+      </div>
+      {loading ? (
+        <div className="p-8 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : (
+        <div className="p-4 space-y-4 max-w-2xl">
+          <button
+            onClick={() => setEnabled((v) => !v)}
+            className={[
+              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition",
+              enabled
+                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                : "border-border text-muted-foreground",
+            ].join(" ")}
+          >
+            {enabled ? "Global Brain: Aktif" : "Global Brain: Nonaktif"}
+          </button>
+
+          <label className="block">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
+              Gemini Keys (satu per baris)
+            </div>
+            <textarea
+              rows={4}
+              value={gemini}
+              onChange={(e) => setGemini(e.target.value)}
+              placeholder={"AIza...\nAIza..."}
+              className={inputCls}
+            />
+          </label>
+          <label className="block">
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
+              OpenAI Keys (satu per baris)
+            </div>
+            <textarea
+              rows={3}
+              value={openai}
+              onChange={(e) => setOpenai(e.target.value)}
+              placeholder={"sk-...\nsk-..."}
+              className={inputCls}
+            />
+          </label>
+
+          <button
+            onClick={save}
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+            style={{ background: "var(--gradient-neon)" }}
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Simpan Global Brain
           </button>
         </div>
       )}

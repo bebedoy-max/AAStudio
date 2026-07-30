@@ -1,6 +1,8 @@
 // Utility to check if API keys required by AI-powered features are configured.
 // Keys are stored client-side in localStorage by the Token Manager.
 
+import { globalBrainEnabled, refreshPlatformFlags } from "@/lib/platform/provider-flags";
+
 export type KeyRequirement = "brain" | "eleven";
 
 function readArray(key: string): string[] {
@@ -26,7 +28,15 @@ function readArray(key: string): string[] {
 }
 
 export function hasBrainKey(): boolean {
-  return readArray("aatools.brain.geminiKeys").length > 0 || readArray("aatools.brain.openaiKeys").length > 0;
+  if (
+    readArray("aatools.brain.geminiKeys").length > 0 ||
+    readArray("aatools.brain.openaiKeys").length > 0
+  ) {
+    return true;
+  }
+  // Fallback: admin mengaktifkan Global Brain untuk semua user.
+  void refreshPlatformFlags();
+  return globalBrainEnabled();
 }
 
 export function hasElevenKey(): boolean {

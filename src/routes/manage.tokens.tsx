@@ -13,6 +13,7 @@ import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
+import { useProviderFlags, tokenTabFlagIds } from "@/lib/platform/provider-flags";
 import { useAuth } from "@/lib/auth-context";
 import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
 import { confirmDialog } from "@/components/ui-confirm";
@@ -169,8 +170,18 @@ const writeJSON = (k: string, v: unknown) => {
 
 function TokensPage() {
   const { user, loading } = useAuth();
+  const { isEnabled } = useProviderFlags();
+  // Provider yang dinonaktifkan admin disembunyikan dari Token Manager.
+  const visibleProviders = providers.filter((p) =>
+    tokenTabFlagIds(p.key).some((id) => isEnabled(id)),
+  );
   const [tab, setTab] = useState<ProviderKey>("brain");
   const [tabOpen, setTabOpen] = useState(false);
+  useEffect(() => {
+    if (visibleProviders.length && !visibleProviders.some((p) => p.key === tab)) {
+      setTab(visibleProviders[0].key);
+    }
+  }, [visibleProviders, tab]);
   const active = providers.find((p) => p.key === tab)!;
   const [showImport, setShowImport] = useState(false);
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
@@ -297,7 +308,7 @@ function TokensPage() {
                     role="listbox"
                     className="absolute left-0 right-0 top-full mt-2 z-40 grid grid-cols-1 md:grid-cols-2 gap-2 rounded-2xl border border-border bg-[oklch(0.19_0.055_275)] p-2 shadow-2xl max-h-[60vh] overflow-y-auto"
                   >
-                    {providers.map((p) => {
+                    {visibleProviders.map((p) => {
                       const isActive = p.key === tab;
                       const glow = PROVIDER_GLOW[p.key];
                       return (

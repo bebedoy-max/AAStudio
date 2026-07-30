@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
+import { useProviderFlags } from "@/lib/platform/provider-flags";
 import {
   CAPS,
+  enabledProviders,
   DEFAULT_ROUTING,
   LS_ROUTING,
   type CapKey,
@@ -18,6 +20,7 @@ export const Route = createFileRoute("/manage/routing")({
 
 
 function RoutingPage() {
+  const { flags } = useProviderFlags();
   const [routing, setRouting] = useState<RoutingState>(DEFAULT_ROUTING);
   const [savedAt, setSavedAt] = useState<string>("");
 
@@ -66,7 +69,8 @@ function RoutingPage() {
       <div className="md:hidden flex flex-col gap-3">
         {CAPS.map((cap) => {
           const Icon = cap.icon;
-          const activeProv = cap.providers.find((p) => p.id === routing[cap.key]);
+          const capProviders = enabledProviders(cap, flags);
+          const activeProv = capProviders.find((p) => p.id === routing[cap.key]);
           return (
             <div key={cap.key} className="neumorph p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -78,7 +82,7 @@ function RoutingPage() {
                 onChange={(e) => setCap(cap.key, e.target.value)}
                 className="w-full rounded-xl border border-border bg-card/50 px-3 py-2.5 text-sm font-medium outline-none focus:border-primary/60"
               >
-                {cap.providers.map((p) => (
+                {capProviders.map((p) => (
                   <option
                     key={p.id}
                     value={p.id}
@@ -104,7 +108,8 @@ function RoutingPage() {
       <div className="hidden md:flex flex-col gap-4">
         {CAPS.map((cap) => {
           const Icon = cap.icon;
-          const activeProv = cap.providers.find((p) => p.id === routing[cap.key]);
+          const capProviders = enabledProviders(cap, flags);
+          const activeProv = capProviders.find((p) => p.id === routing[cap.key]);
           return (
             <Card key={cap.key}>
               <div className="grid grid-cols-[140px_minmax(0,1fr)_minmax(0,1.4fr)] gap-5 items-stretch">
@@ -127,7 +132,7 @@ function RoutingPage() {
                       onChange={(e) => setCap(cap.key, e.target.value)}
                       className="w-full appearance-none rounded-xl border border-primary/40 bg-card/60 px-3 py-2.5 pr-9 text-sm font-medium text-foreground outline-none focus:border-primary hover:border-primary/70 transition cursor-pointer"
                     >
-                      {cap.providers.map((p) => (
+                      {capProviders.map((p) => (
                         <option
                           key={p.id}
                           value={p.id}
