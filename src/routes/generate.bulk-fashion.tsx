@@ -1,7 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { setUpscaleHandoff } from "@/lib/creative/upscale-handoff";
+
 import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Rocket, Trash2, Plus, RefreshCw, X, Square } from "lucide-react";
+import { Rocket, Trash2, Plus, RefreshCw, X, Square, Sparkles, Check } from "lucide-react";
 import { logGenerate } from "@/lib/activity/log";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
@@ -183,6 +185,19 @@ function BulkFashion() {
     ],
     [gallery.items, errors],
   );
+  // Pilihan gambar hasil untuk dikirim ke menu Upscaler.
+  const [selected, setSelected] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const doneResults = useMemo(() => results.filter((r) => r.status === "done" && r.url), [results]);
+  const sendToUpscaler = () => {
+    const picked = doneResults.filter((r) => selected.includes(r.id));
+    if (!picked.length) return;
+    setUpscaleHandoff(picked.map((r, i) => ({ url: r.url, name: `bulk-fashion-${String(i + 1).padStart(2, "0")}.jpg` })));
+    void navigate({ to: "/generate/upscaler" });
+  };
+
   const [productType, setProductType] = useSticky<string>("bf.productType", PRODUCT_TYPES[0]);
   const [ratio, setRatio] = useSticky<string>("bf.ratio", "9:16");
   const [provider, setProvider] = useSticky<string>("bf.provider", "weavy");
@@ -554,7 +569,21 @@ function BulkFashion() {
         title="👗 Hasil Bulk Fashion"
         sub={`(${results.filter((r) => r.status === "done").length})`}
         right={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {doneResults.length > 0 && (
+              <GhostButton
+                onClick={() =>
+                  setSelected((prev) => (prev.length === doneResults.length ? [] : doneResults.map((r) => r.id)))
+                }
+                title="Pilih semua / batal"
+              >
+                {selected.length === doneResults.length ? "Batal pilih" : "Pilih semua"}
+              </GhostButton>
+            )}
+            <PrimaryButton onClick={sendToUpscaler} disabled={selected.length === 0} title="Kirim gambar terpilih ke menu Upscaler">
+              <Sparkles className="h-3.5 w-3.5" /> Upscale{selected.length ? ` (${selected.length})` : ""}
+            </PrimaryButton>
+
             <GhostButton
               onClick={async () => {
                 const done = results.filter((r) => r.status === "done" && r.url);
@@ -584,9 +613,25 @@ function BulkFashion() {
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {results.map((r) => (
-              <div key={r.id} className="rounded-xl overflow-hidden border border-border bg-black/40">
+              <div
+                key={r.id}
+                className={`relative rounded-xl overflow-hidden border bg-black/40 ${selected.includes(r.id) ? "border-primary" : "border-border"}`}
+              >
                 {r.status === "done" ? (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => toggleSelected(r.id)}
+                      title="Pilih untuk di-upscale"
+                      aria-pressed={selected.includes(r.id)}
+                      className={`absolute z-10 top-2 left-2 h-6 w-6 rounded-md border grid place-items-center transition ${
+                        selected.includes(r.id)
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "bg-background/70 border-border text-transparent hover:border-primary"
+                      }`}
+                    >
+                      <Check className="h-4 w-4" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => setLightbox(r.url)}
@@ -595,6 +640,7 @@ function BulkFashion() {
                     >
                       <img src={r.url} alt="" className="w-full h-full object-cover" />
                     </button>
+
                     <div className="p-2 flex justify-between">
                       <a href={r.url} download className="text-[11px] text-primary hover:underline" title="Download">Download</a>
                       <button onClick={() => void gallery.remove(r.id)} className="text-[11px] text-destructive hover:underline" title="Hapus">Hapus</button>

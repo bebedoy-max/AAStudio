@@ -19,6 +19,8 @@ import { logGenerate } from "@/lib/activity/log";
 import { useAuth } from "@/lib/auth-context";
 import { confirmDialog } from "@/components/ui-confirm";
 import { useCloudGallery } from "@/lib/cloud/gallery";
+import { consumeUpscaleHandoff, urlToFile } from "@/lib/creative/upscale-handoff";
+
 
 export const Route = createFileRoute("/generate/upscaler")({
   head: () => ({
@@ -147,6 +149,27 @@ function UpscalerPage() {
       img.src = url;
     });
   }
+
+  // Terima gambar terpilih dari menu lain (mis. Bulk Fashion → Upscale).
+  useEffect(() => {
+    const items = consumeUpscaleHandoff();
+    if (!items.length) return;
+    let cancelled = false;
+    void (async () => {
+      const files: File[] = [];
+      for (const it of items) {
+        const f = await urlToFile(it.url, it.name);
+        if (f) files.push(f);
+      }
+      if (!cancelled && files.length) {
+        addFiles(toFileList(files));
+        pushLog(`📥 ${files.length} gambar diterima dari menu lain, siap di-upscale.`);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   function removeRow(id: string) {
     setRows((prev) => {

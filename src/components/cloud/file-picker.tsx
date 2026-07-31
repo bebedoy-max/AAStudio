@@ -71,8 +71,10 @@ export function useFilePicker() {
     setLoading(true);
     try {
       const kind = opts.kind ?? KIND_FROM_ACCEPT(opts.accept);
-      const data = (await listCloudFiles({ data: { kind } })) as unknown as CloudRow[];
+      // Hanya file hasil upload user — hasil generate tidak ikut ditampilkan.
+      const data = (await listCloudFiles({ data: { kind, origin: "upload" } })) as unknown as CloudRow[];
       setRows(data);
+
     } catch (e) {
       console.warn("[file-picker] load cloud failed", e);
       setRows([]);
