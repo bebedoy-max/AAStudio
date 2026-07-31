@@ -18,11 +18,7 @@ import {
 import { logGenerate } from "@/lib/activity/log";
 import { useAuth } from "@/lib/auth-context";
 import { confirmDialog } from "@/components/ui-confirm";
-<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
-=======
-import { archiveUrlInBackground } from "@/lib/cloud/client";
->>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 export const Route = createFileRoute("/generate/upscaler")({
   head: () => ({
@@ -103,7 +99,6 @@ function UpscalerPage() {
 
   const canRun = useMemo(() => rows.length > 0 && !running, [rows.length, running]);
 
-<<<<<<< HEAD
   // Galeri hasil = cloud (Google Drive), bukan localStorage — sama di semua perangkat.
   const gallery = useCloudGallery<{ provider?: string; mode?: string; sourceName?: string }>("upscaler", "image");
   const results = useMemo<ResultItem[]>(
@@ -118,23 +113,6 @@ function UpscalerPage() {
       })),
     [gallery.items],
   );
-=======
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(lsKey(uid));
-      setResults(raw ? JSON.parse(raw) : []);
-    } catch { setResults([]); }
-  }, [uid]);
-
-  const persistResults = (next: ResultItem[] | ((prev: ResultItem[]) => ResultItem[])) => {
-    setResults((prev) => {
-      const v = typeof next === "function" ? (next as (p: ResultItem[]) => ResultItem[])(prev) : next;
-      v.forEach((r) => r.url && archiveUrlInBackground(r.url, { source: "upscaler" }));
-      try { localStorage.setItem(lsKey(uid), JSON.stringify(v)); } catch {}
-      return v;
-    });
-  };
->>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
   const pushLog = (msg: string, level = "info") =>
     setLogs((prev) => [...prev, { time: new Date().toLocaleTimeString(), msg, level }].slice(-300));

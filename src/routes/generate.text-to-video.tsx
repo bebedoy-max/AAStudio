@@ -20,11 +20,7 @@ import {
   runFireflyWithRotation,
   getAllFireflyKeys,
 } from "@/lib/providers/firefly";
-<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
-=======
-import { archiveUrlInBackground } from "@/lib/cloud/client";
->>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 const T2V_PROVIDERS = [
   { value: "leonardo", label: "Leonardo.ai" },
@@ -175,12 +171,7 @@ function TextToVideoPage() {
             }),
           (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         );
-<<<<<<< HEAD
         void gallery.add(url, { prompt: prompt.trim() });
-=======
-        setVideos((v) => [url, ...v]);
-        archiveUrlInBackground(url, { source: "text-to-video" });
->>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
         log("✅ Video siap", 100);
         setRunState("sukses");
         setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -200,12 +191,7 @@ function TextToVideoPage() {
         onProgress: (m) => log(m),
         onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
       });
-<<<<<<< HEAD
       void gallery.add(url, { prompt: prompt.trim() });
-=======
-      setVideos((v) => [url, ...v]);
-        archiveUrlInBackground(url, { source: "text-to-video" });
->>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
       log(`✅ Video siap`, 100);
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
