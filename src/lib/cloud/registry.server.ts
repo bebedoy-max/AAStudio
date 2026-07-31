@@ -72,17 +72,22 @@ export async function storeMediaForUser(params: {
         source_url: params.sourceUrl ?? null,
   } as Record<string, unknown>;
 
-  const upsert = (row: Record<string, unknown>) =>
-    db
-      .from("cloud_files")
-      .upsert(row, { onConflict: "user_id,source_url", ignoreDuplicates: false })
-      .select("*")
-      .single();
+  // Catatan: unique index (user_id, source_url) bersifat partial, jadi ON CONFLICT
+  // (upsert PostgREST) tidak bisa dipakai — pakai cek manual lalu insert/update.
+  const insert = (row: Record<string, unknown>) =>
+    db.from("cloud_files").insert(row).select("*").single();
+  const update = (id: string, row: Record<string, unknown>) =>
+    db.from("cloud_files").update(row).eq("id", id).select("*").single();
 
-  let { data, error } = await upsert({ ...baseRow, meta: params.meta ?? {} });
+  const existing = params.sourceUrl ? await findBySourceUrl(params.userId, params.sourceUrl) : null;
+
+  const run = (row: Record<string, unknown>) => (existing ? update(existing.id, row) : insert(row));
+
+  let { data, error } = await run({ ...baseRow, meta: params.meta ?? {} });
   // Kolom meta bersifat opsional (migrasi belum dijalankan) — fallback tanpa meta.
-  if (error && /meta/i.test(error.message ?? "")) ({ data, error } = await upsert(baseRow));
-  if (error) throw new Error(error.message);
+  if (error && /meta/i.test(error.message ?? "")) ({ data, error } = await run(baseRow));
+  if (error) throw new Error(`Simpan registry cloud gagal: ${error.message}`);
+
   return data as CloudFileRow;
 }
 
