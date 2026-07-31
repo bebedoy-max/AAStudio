@@ -22,7 +22,6 @@ import { Route as SystemHelpRouteImport } from './routes/system.help'
 import { Route as SystemCloudRouteImport } from './routes/system.cloud'
 import { Route as SystemAnalyticRouteImport } from './routes/system.analytic'
 import { Route as ReffEditVideoRouteImport } from './routes/reff-edit.video'
-import { Route as ReffEditLibraryRouteImport } from './routes/reff-edit.library'
 import { Route as ReffEditImageRouteImport } from './routes/reff-edit.image'
 import { Route as ReffEditHistoryRouteImport } from './routes/reff-edit.history'
 import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
@@ -77,7 +76,6 @@ import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/pro
 import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
 import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
 import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
-import { Route as ApiPublicLeonardoUploadRouteImport } from './routes/api/public/leonardo-upload'
 import { Route as ApiPublicLeonardoCognitoRouteImport } from './routes/api/public/leonardo-cognito'
 import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
 import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
@@ -162,11 +160,6 @@ const SystemAnalyticRoute = SystemAnalyticRouteImport.update({
 const ReffEditVideoRoute = ReffEditVideoRouteImport.update({
   id: '/video',
   path: '/video',
-  getParentRoute: () => ReffEditRoute,
-} as any)
-const ReffEditLibraryRoute = ReffEditLibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
   getParentRoute: () => ReffEditRoute,
 } as any)
 const ReffEditImageRoute = ReffEditImageRouteImport.update({
@@ -441,11 +434,6 @@ const ApiPublicMagnificRoute = ApiPublicMagnificRouteImport.update({
   path: '/api/public/magnific',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicLeonardoUploadRoute = ApiPublicLeonardoUploadRouteImport.update({
-  id: '/api/public/leonardo-upload',
-  path: '/api/public/leonardo-upload',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicLeonardoCognitoRoute =
   ApiPublicLeonardoCognitoRouteImport.update({
     id: '/api/public/leonardo-cognito',
@@ -595,7 +583,6 @@ export interface FileRoutesByFullPath {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
-  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -614,7 +601,6 @@ export interface FileRoutesByFullPath {
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
-  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -684,7 +670,6 @@ export interface FileRoutesByTo {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
-  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -703,7 +688,6 @@ export interface FileRoutesByTo {
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
-  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -776,7 +760,6 @@ export interface FileRoutesById {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
-  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -795,7 +778,6 @@ export interface FileRoutesById {
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
-  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -869,7 +851,6 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
-    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -888,7 +869,6 @@ export interface FileRouteTypes {
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
-    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -958,7 +938,6 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
-    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -977,7 +956,6 @@ export interface FileRouteTypes {
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
-    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -1049,7 +1027,6 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
-    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -1068,7 +1045,6 @@ export interface FileRouteTypes {
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
-    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -1139,7 +1115,6 @@ export interface RootRouteChildren {
   ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
   ApiPublicLeonardoRoute: typeof ApiPublicLeonardoRoute
   ApiPublicLeonardoCognitoRoute: typeof ApiPublicLeonardoCognitoRoute
-  ApiPublicLeonardoUploadRoute: typeof ApiPublicLeonardoUploadRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
@@ -1263,13 +1238,6 @@ declare module '@tanstack/react-router' {
       path: '/video'
       fullPath: '/reff-edit/video'
       preLoaderRoute: typeof ReffEditVideoRouteImport
-      parentRoute: typeof ReffEditRoute
-    }
-    '/reff-edit/library': {
-      id: '/reff-edit/library'
-      path: '/library'
-      fullPath: '/reff-edit/library'
-      preLoaderRoute: typeof ReffEditLibraryRouteImport
       parentRoute: typeof ReffEditRoute
     }
     '/reff-edit/image': {
@@ -1650,13 +1618,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMagnificRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/leonardo-upload': {
-      id: '/api/public/leonardo-upload'
-      path: '/api/public/leonardo-upload'
-      fullPath: '/api/public/leonardo-upload'
-      preLoaderRoute: typeof ApiPublicLeonardoUploadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/leonardo-cognito': {
       id: '/api/public/leonardo-cognito'
       path: '/api/public/leonardo-cognito'
@@ -1864,14 +1825,12 @@ const MixingRouteWithChildren =
 interface ReffEditRouteChildren {
   ReffEditHistoryRoute: typeof ReffEditHistoryRoute
   ReffEditImageRoute: typeof ReffEditImageRoute
-  ReffEditLibraryRoute: typeof ReffEditLibraryRoute
   ReffEditVideoRoute: typeof ReffEditVideoRoute
 }
 
 const ReffEditRouteChildren: ReffEditRouteChildren = {
   ReffEditHistoryRoute: ReffEditHistoryRoute,
   ReffEditImageRoute: ReffEditImageRoute,
-  ReffEditLibraryRoute: ReffEditLibraryRoute,
   ReffEditVideoRoute: ReffEditVideoRoute,
 }
 
@@ -1917,7 +1876,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFramiaRoute: ApiPublicFramiaRoute,
   ApiPublicLeonardoRoute: ApiPublicLeonardoRoute,
   ApiPublicLeonardoCognitoRoute: ApiPublicLeonardoCognitoRoute,
-  ApiPublicLeonardoUploadRoute: ApiPublicLeonardoUploadRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,

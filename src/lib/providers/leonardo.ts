@@ -85,10 +85,21 @@ export async function runLeonardoWithRotation<T>(
   fn: (token: string) => Promise<T>,
   opts: LeonardoRotateOpts = {},
 ): Promise<T> {
-  const keys = getAllLeonardoKeys();
-  if (keys.length === 0) {
+  if (getAllLeonardoKeys().length === 0) {
     throw new Error(
       "Belum ada token Leonardo. Buka Manage → Tokens → Leonardo dan tambahkan Bearer JWT.",
+    );
+  }
+  // Preflight: buang token invalid/expired, tandai yang habis credit, dan
+  // dahulukan token yang benar-benar available sebelum generate dijalankan.
+  const { preflightTokens } = await import("@/lib/tokens/preflight");
+  const pre = await preflightTokens("leonardo", {
+    onLog: (m) => opts.onRotate?.(0, 0, m),
+  });
+  const keys = pre.keys.length ? pre.keys : pre.emptyKeys;
+  if (keys.length === 0) {
+    throw new Error(
+      "Tidak ada token Leonardo yang available (semua expired / habis credit). Update di Manage → Tokens.",
     );
   }
   let lastErr: Error | null = null;
@@ -110,6 +121,7 @@ export async function runLeonardoWithRotation<T>(
   }
   throw lastErr ?? new Error("Leonardo: semua token gagal / expired");
 }
+
 
 /* ---------------------------- low-level proxy ---------------------------- */
 

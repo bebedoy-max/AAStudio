@@ -30,6 +30,20 @@ type CloudRow = {
   url: string;
 };
 
+/**
+ * Potong nama file yang kepanjangan jadi `awal…` sambil mempertahankan
+ * ekstensi. Nama lengkap tetap tampil lewat tooltip (atribut title).
+ */
+function shortenFileName(name: string, max = 38): string {
+  if (!name || name.length <= max) return name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 && name.length - dot <= 6 ? name.slice(dot) : "";
+  const base = ext ? name.slice(0, dot) : name;
+  const keep = Math.max(8, max - ext.length - 1);
+  return `${base.slice(0, keep).trimEnd()}…${ext}`;
+}
+
+
 const KIND_FROM_ACCEPT = (accept?: string): string | null => {
   if (!accept) return null;
   if (accept.includes("image/")) return "image";
@@ -208,12 +222,15 @@ export function useFilePicker() {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="text-sm truncate">{r.name}</div>
+                        <div className="text-sm truncate" title={r.name}>
+                          {shortenFileName(r.name)}
+                        </div>
                         <div className="text-[11px] text-muted-foreground truncate">
                           {r.origin === "upload" ? "Upload" : "Generate"}
                           {r.source ? ` · ${r.source}` : ""} · {new Date(r.createdAt).toLocaleDateString()}
                         </div>
                       </div>
+
                     </button>
                   ))
                 )}

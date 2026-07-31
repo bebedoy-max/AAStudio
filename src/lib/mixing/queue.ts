@@ -1,65 +1,59 @@
-// Simple in-memory FIFO queue with concurrency + retry.
-// Reused by Clipper and Dubbing to keep long chains (upload→stt→brain→…→render) predictable.
-
-export type Job<T> = {
+export type QueueTask<T> = {
   id: string;
   label: string;
-  run: (ctx: { attempt: number }) => Promise<T>;
+  /** number of extra attempts after the first one fails */
   retries?: number;
-  onProgress?: (msg: string) => void;
+  /** delay between retries in ms (default 800, exponential) */
+  retryDelayMs?: number;
+  run: () => Promise<T>;
 };
 
-export type JobResult<T> =
-  | { ok: true; value: T; attempts: number }
-  | { ok: false; error: string; attempts: number };
+export type QueueResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: string };
 
-export class Queue {
-  private concurrency: number;
-  private running = 0;
-  private pending: Array<() => void> = [];
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-  constructor(concurrency = 1) {
-    this.concurrency = concurrency;
+/**
+ * Minimal sequential task queue used by the mixing pipelines (clipper, dubbing).
+ * Tasks run one at a time in submit order, with optional retries, and never
+ * throw — failures come back as `{ ok: false, error }`.
+ */
+class MixingQueue {
+  private chain: Promise<unknown> = Promise.resolve();
+  private running = new Set<string>();
+
+  get activeIds(): string[] {
+    return [...this.running];
   }
 
-  private acquire(): Promise<void> {
-    if (this.running < this.concurrency) {
-      this.running++;
-      return Promise.resolve();
-    }
-    return new Promise((res) => this.pending.push(res));
-  }
+  submit<T>(task: QueueTask<T>): Promise<QueueResult<T>> {
+    const attempts = Math.max(0, task.retries ?? 0) + 1;
+    const baseDelay = task.retryDelayMs ?? 800;
 
-  private release() {
-    this.running--;
-    const next = this.pending.shift();
-    if (next) {
-      this.running++;
-      next();
-    }
-  }
-
-  async submit<T>(job: Job<T>): Promise<JobResult<T>> {
-    await this.acquire();
-    const retries = Math.max(0, job.retries ?? 1);
-    let lastErr = "unknown";
-    try {
-      for (let attempt = 1; attempt <= retries + 1; attempt++) {
-        try {
-          const value = await job.run({ attempt });
-          return { ok: true, value, attempts: attempt };
-        } catch (e) {
-          lastErr = (e as Error).message || String(e);
-          job.onProgress?.(`retry ${attempt}/${retries + 1}: ${lastErr}`);
-          if (attempt > retries) break;
-          await new Promise((r) => setTimeout(r, 400 * attempt));
+    const exec = async (): Promise<QueueResult<T>> => {
+      this.running.add(task.id);
+      try {
+        let lastError = "unknown error";
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+          try {
+            const value = await task.run();
+            return { ok: true, value };
+          } catch (err) {
+            lastError = err instanceof Error ? err.message : String(err);
+            if (attempt < attempts) await sleep(baseDelay * attempt);
+          }
         }
+        return { ok: false, error: `${task.label}: ${lastError}` };
+      } finally {
+        this.running.delete(task.id);
       }
-      return { ok: false, error: lastErr, attempts: retries + 1 };
-    } finally {
-      this.release();
-    }
+    };
+
+    const next = this.chain.then(exec, exec);
+    this.chain = next.catch(() => undefined);
+    return next;
   }
 }
 
-export const mixingQueue = new Queue(2);
+export const mixingQueue = new MixingQueue();
