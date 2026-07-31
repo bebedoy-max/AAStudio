@@ -9,7 +9,11 @@ import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
+=======
+import { archiveUrlInBackground } from "@/lib/cloud/client";
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 
 
@@ -363,7 +367,12 @@ function BulkFashion() {
           if (ac.signal.aborted) return;
           if (msg === "done" && url) {
             doneCount.n += 1;
+<<<<<<< HEAD
             void gallery.add(url, {});
+=======
+            setResults((r) => [...r, { url, status: "done" }]);
+            archiveUrlInBackground(url, { source: "bulk-fashion" });
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
           } else if (msg === "error") {
             setErrors((r) => [...r, { error: err }]);
           }

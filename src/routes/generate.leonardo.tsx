@@ -22,7 +22,11 @@ import {
   type ImageProviderId,
 } from "@/lib/providers/image-catalog";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
+=======
+import { archiveUrlInBackground } from "@/lib/cloud/client";
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 
 export const Route = createFileRoute("/generate/leonardo")({
@@ -264,7 +268,12 @@ function LeonardoPage() {
           onRotate: (idx, total, reason) => log(`↻ rotate token #${idx}/${total}: ${reason}`),
         });
         out.push(url);
+<<<<<<< HEAD
         void gallery.add(url, { prompt: prompt.trim() });
+=======
+        setImages((prev) => [url, ...prev]);
+        archiveUrlInBackground(url, { source: "leonardo" });
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
       }
       log(`✅ Selesai — ${out.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -344,7 +353,12 @@ function LeonardoPage() {
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         },
       );
+<<<<<<< HEAD
       for (const u of images) void gallery.add(u, { prompt: prompt.trim() });
+=======
+      setImages((prev) => [...images, ...prev]);
+      images.forEach((u) => archiveUrlInBackground(u, { source: "leonardo" }));
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
       log(`✅ Selesai — ${images.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {

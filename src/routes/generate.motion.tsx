@@ -35,7 +35,11 @@ import { startNotification, finishNotification, failNotification } from "@/lib/s
 import { confirmDialog } from "@/components/ui-confirm";
 import { toast } from "sonner";
 import { compressMediaFile, fmtMB, ROBONEO_MAX_BYTES } from "@/lib/media/compress";
+<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
+=======
+import { archiveUrlInBackground } from "@/lib/cloud/client";
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -263,6 +267,19 @@ function MotionControl() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+<<<<<<< HEAD
+=======
+  const persistResults = (updater: ResultItem[] | ((prev: ResultItem[]) => ResultItem[])) => {
+    setResults((prev) => {
+      const next = typeof updater === "function" ? (updater as (p: ResultItem[]) => ResultItem[])(prev) : updater;
+      next.forEach((r) => r.url && archiveUrlInBackground(r.url, { source: "motion" }));
+      try {
+        localStorage.setItem(lsResultsKey(uid), JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
   const [exporting, setExporting] = useState(false);
   const [compressing, setCompressing] = useState<{ msg: string; pct?: number } | null>(null);

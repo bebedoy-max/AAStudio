@@ -32,7 +32,11 @@ import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
 
 import { confirmDialog } from "@/components/ui-confirm";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
+=======
+import { archiveUrlInBackground } from "@/lib/cloud/client";
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 
 
@@ -543,6 +547,7 @@ function StoryboardPage() {
   const setBusy = (b: boolean) => sbRunStore.set((s) => ({ ...s, busy: b }));
   const pushLog = (s: string) =>
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
+<<<<<<< HEAD
   // Galeri hasil tersinkron cloud (Google Drive) — sama di semua perangkat.
   const gallery = useCloudGallery<{ title?: string; ratio?: string }>("storyboard", "image");
   useEffect(() => {
@@ -573,6 +578,11 @@ function StoryboardPage() {
         if (item) patchResult(resultId, { cloudId: item.id, imgUrl: item.url });
       });
     }
+=======
+  const patchResult = (resultId: string, patch: Partial<GenResult>) => {
+    if (patch.imgUrl) archiveUrlInBackground(patch.imgUrl, { source: "storyboard" });
+    setResults((prev) => prev.map((r) => (r.resultId === resultId ? { ...r, ...patch } : r)));
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
   };
 
   const canGenerate = okCount > 0 && !!modelKey && !busy;

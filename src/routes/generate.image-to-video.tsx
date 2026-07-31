@@ -10,7 +10,11 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 import { leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { useProviderCredit } from "@/lib/providers/credit-summary";
+<<<<<<< HEAD
 import { useCloudGallery } from "@/lib/cloud/gallery";
+=======
+import { archiveUrlInBackground } from "@/lib/cloud/client";
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
 
 
 
@@ -423,7 +427,12 @@ function ImageToVideo() {
         },
       });
 
+<<<<<<< HEAD
       void gallery.add(url, { prompt: prompt.trim() });
+=======
+      setResults((r) => [url, ...r]);
+      archiveUrlInBackground(url, { source: "image-to-video" });
+>>>>>>> 6ddde2bb8b40f5c9ad6348fe0d4c7f95b0bc8f41
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
       pushLog(`✅ Video selesai · ${url.slice(0, 60)}${url.length > 60 ? "…" : ""}`);
