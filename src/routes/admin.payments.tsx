@@ -164,7 +164,11 @@ function PricesSection() {
   const bundleRow = rows.find((r) => r.route_key === FULL_KEY) ?? null;
 
   // Normalisasi mode lama (public/subscription) → mode baru (open/premium/...).
+<<<<<<< HEAD
   const modeOf = (key: string) => normalizeMode(access[key]?.access_mode);
+=======
+  const modeOf = (key: string) => normalizeMode(access[key]?.access_mode ?? "premium");
+>>>>>>> b22044afd0f7b86353aff6b16dc8233ee445faa4
 
   // Hanya fitur yang statusnya Premium yang tampil di kolom harga.
   const featureRows = useMemo(
