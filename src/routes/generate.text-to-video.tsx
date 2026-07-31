@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useRef, useState } from "react";
 import { Download, ExternalLink } from "lucide-react";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -19,6 +20,7 @@ import {
   runFireflyWithRotation,
   getAllFireflyKeys,
 } from "@/lib/providers/firefly";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 const T2V_PROVIDERS = [
   { value: "leonardo", label: "Leonardo.ai" },
@@ -61,7 +63,9 @@ function TextToVideoPage() {
   });
   const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">("t2v.runState", "idle");
   const [error, setError] = useSticky<string | null>("t2v.error", null);
-  const [videos, setVideos] = useSticky<string[]>("t2v.videos", []);
+  // Galeri hasil tersimpan di cloud (Google Drive), sama di semua perangkat.
+  const gallery = useCloudGallery<{ prompt?: string }>("text-to-video", "video");
+  const videos = gallery.items;
   const [keyCount, setKeyCount] = useState(0);
   const [vidProvider, setVidProvider] = useSticky<T2VProvider>("t2v.provider", "leonardo");
   const [ffModelKey, setFfModelKey] = useSticky<string>("t2v.ffModel", FIREFLY_VIDEO_MODELS[0].key);
@@ -78,6 +82,11 @@ function TextToVideoPage() {
   const [vidImageFile, setVidImageFile] = useState<File | null>(null);
   const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
   const vidInput = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker();
+  const pickVidImage = () =>
+    void picker.pick({ accept: "image/*", source: "text-to-video", title: "Pilih image reference" }).then((fs) => {
+      if (fs.length) onPickVidImage(toFileList(fs));
+    });
 
   const activeVidModel =
     LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
@@ -162,7 +171,7 @@ function TextToVideoPage() {
             }),
           (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         );
-        setVideos((v) => [url, ...v]);
+        void gallery.add(url, { prompt: prompt.trim() });
         log("✅ Video siap", 100);
         setRunState("sukses");
         setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -182,7 +191,7 @@ function TextToVideoPage() {
         onProgress: (m) => log(m),
         onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
       });
-      setVideos((v) => [url, ...v]);
+      void gallery.add(url, { prompt: prompt.trim() });
       log(`✅ Video siap`, 100);
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -227,7 +236,13 @@ function TextToVideoPage() {
             />
           </Field>
 
-          <Field label="Model AI" right={<ProviderActivePill cap="video" />}>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+              <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                Model AI
+              </label>
+              <ProviderActivePill cap="video" />
+            </div>
             {isFirefly ? (
               <Select
                 value={ffModelKey}
@@ -247,7 +262,7 @@ function TextToVideoPage() {
                 }))}
               />
             )}
-          </Field>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Provider">
@@ -348,7 +363,8 @@ function TextToVideoPage() {
                     hidden
                     onChange={(e) => onPickVidImage(e.target.files)}
                   />
-                  <GhostButton onClick={() => vidInput.current?.click()} disabled={busy}>
+                  {picker.element}
+                  <GhostButton onClick={pickVidImage} disabled={busy}>
                     {vidImagePreview ? "Ganti" : "Upload"}
                   </GhostButton>
                   {vidImagePreview && (
@@ -381,7 +397,6 @@ function TextToVideoPage() {
             <GhostButton
               onClick={() => {
                 setPrompt("");
-                setVideos([]);
                 setLogs([]);
                 setError(null);
                 setRunState("idle");
@@ -448,8 +463,8 @@ function TextToVideoPage() {
           <div className="text-xs text-muted-foreground italic">Belum ada video.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {videos.map((url, i) => (
-              <div key={url + i} className="rounded-lg overflow-hidden border border-border bg-black/40">
+            {videos.map(({ id, url }) => (
+              <div key={id} className="rounded-lg overflow-hidden border border-border bg-black/40">
                 <video
                   src={url}
                   controls
@@ -466,7 +481,7 @@ function TextToVideoPage() {
                     <Download className="h-3 w-3" /> Unduh
                   </a>
                   <button
-                    onClick={() => setVideos((v) => v.filter((_, idx) => idx !== i))}
+                    onClick={() => void gallery.remove(id)}
                     className="text-destructive hover:underline"
                   >
                     Hapus

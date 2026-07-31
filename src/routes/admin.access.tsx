@@ -5,7 +5,8 @@ import { useAuth, type FeatureAccessMode, normalizeFeatureAccessMode as normaliz
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Trash2, RefreshCw, Cloud } from "lucide-react";
+import { GlobalCloudSection } from "@/components/admin/global-cloud-section";
 import { PROVIDER_FLAGS, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 import { toast } from "sonner";
 
@@ -62,6 +63,7 @@ const TABS = [
   { key: "pages", label: "Halaman", icon: LayoutList },
   { key: "providers", label: "Provider", icon: Plug },
   { key: "brain", label: "Global Brain", icon: Brain },
+  { key: "cloud", label: "Global Cloud", icon: Cloud },
   { key: "contact", label: "Kontak", icon: LifeBuoy },
 ] as const;
 
@@ -94,6 +96,7 @@ function AdminSettingsTabs() {
       {tab === "pages" && <AccessBody />}
       {tab === "providers" && <ProviderSection />}
       {tab === "brain" && <GlobalBrainSection />}
+      {tab === "cloud" && <GlobalCloudSection />}
       {tab === "contact" && <ContactSection />}
     </div>
   );

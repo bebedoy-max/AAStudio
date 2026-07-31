@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   KeyRound,
+  Cloud,
   Route as RouteIcon,
   Move3d,
   Package,
@@ -150,6 +151,7 @@ const DEFAULT_NAV: NavEntry[] = [
     icon: Cog,
     items: [
       { title: "Analytic", url: "/system/analytic", icon: BarChart3, permKey: "system.analytic" },
+      { title: "Cloud Storage", url: "/system/cloud", icon: Cloud, permKey: "system.cloud" },
       { title: "Pengaturan", url: "/system/settings", icon: Settings, permKey: "system.settings" },
       { title: "Help", url: "/system/help", icon: HelpCircle, permKey: "system.help" },
     ],

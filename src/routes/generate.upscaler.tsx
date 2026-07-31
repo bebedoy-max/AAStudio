@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useMemo, useState } from "react";
 import { X, Upload, Download, Trash2, Loader2, Search } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -17,6 +18,7 @@ import {
 import { logGenerate } from "@/lib/activity/log";
 import { useAuth } from "@/lib/auth-context";
 import { confirmDialog } from "@/components/ui-confirm";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 export const Route = createFileRoute("/generate/upscaler")({
   head: () => ({
@@ -32,8 +34,6 @@ const MAX_IMAGES = 50;
 
 type Row = { id: string; file: File; preview: string; ratio: number; status: string; url?: string; error?: string };
 type ResultItem = { id: string; url: string; provider: UpscalerProvider; mode: UpscalerMode; date: string; sourceName: string };
-const LS_BASE = "aatools.upscaler.results";
-const lsKey = (uid: string | null) => (uid ? `${LS_BASE}.${uid}` : `${LS_BASE}.anon`);
 type LogItem = { time: string; msg: string; level: string };
 
 // In-memory session store — kept across route unmount/mount so upload progress
@@ -64,7 +64,6 @@ function UpscalerPage() {
   const [running, setRunning] = useState(upscalerSession.running);
   const [logs, setLogs] = useState<LogItem[]>(upscalerSession.logs);
   const [progress, setProgress] = useState(upscalerSession.progress);
-  const [results, setResults] = useState<ResultItem[]>([]);
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
 
@@ -100,23 +99,29 @@ function UpscalerPage() {
 
   const canRun = useMemo(() => rows.length > 0 && !running, [rows.length, running]);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(lsKey(uid));
-      setResults(raw ? JSON.parse(raw) : []);
-    } catch { setResults([]); }
-  }, [uid]);
-
-  const persistResults = (next: ResultItem[] | ((prev: ResultItem[]) => ResultItem[])) => {
-    setResults((prev) => {
-      const v = typeof next === "function" ? (next as (p: ResultItem[]) => ResultItem[])(prev) : next;
-      try { localStorage.setItem(lsKey(uid), JSON.stringify(v)); } catch {}
-      return v;
-    });
-  };
+  // Galeri hasil = cloud (Google Drive), bukan localStorage — sama di semua perangkat.
+  const gallery = useCloudGallery<{ provider?: string; mode?: string; sourceName?: string }>("upscaler", "image");
+  const results = useMemo<ResultItem[]>(
+    () =>
+      gallery.items.map((it) => ({
+        id: it.id,
+        url: it.url,
+        provider: (it.meta?.provider as UpscalerProvider) || "topaz",
+        mode: (it.meta?.mode as UpscalerMode) || "upscale",
+        date: it.createdAt,
+        sourceName: (it.meta?.sourceName as string) || it.name,
+      })),
+    [gallery.items],
+  );
 
   const pushLog = (msg: string, level = "info") =>
     setLogs((prev) => [...prev, { time: new Date().toLocaleTimeString(), msg, level }].slice(-300));
+
+  const picker = useFilePicker();
+  const pickImages = () =>
+    void picker.pick({ accept: "image/*", multiple: true, source: "upscaler", title: "Pilih gambar" }).then((fs) => {
+      if (fs.length) addFiles(toFileList(fs));
+    });
 
   function addFiles(files: FileList | null) {
     if (!files) return;
@@ -187,17 +192,11 @@ function UpscalerPage() {
           setRows((prev) => prev.map((r, i) => (i === index ? { ...r, status, url: url ?? r.url, error: error ?? r.error } : r)));
           if (status === "done" && url) {
             setProgress((p) => ({ ...p, done: p.done + 1 }));
-            persistResults((prev) => [
-              {
-                id: Math.random().toString(36).slice(2),
-                url,
-                provider,
-                mode,
-                date: new Date().toISOString(),
-                sourceName: snapshot[index]?.name || `image-${index + 1}`,
-              },
-              ...prev,
-            ]);
+            void gallery.add(
+              url,
+              { provider, mode, sourceName: snapshot[index]?.name || `image-${index + 1}` },
+              snapshot[index]?.name || `upscale-${index + 1}`,
+            );
           } else if (status === "error") {
             setProgress((p) => ({ ...p, done: p.done + 1 }));
           }
@@ -235,12 +234,12 @@ function UpscalerPage() {
     if (results.length === 0) return;
     const ok = await confirmDialog({
       title: `Hapus semua ${results.length} hasil dari gallery?`,
-      description: "Semua item akan dihapus dari gallery ini. Tindakan tidak bisa dibatalkan.",
+      description: "Item dihapus dari gallery aplikasi. File di Google Drive tetap tersimpan.",
       confirmLabel: "Ya, hapus semua",
       tone: "danger",
     });
     if (!ok) return;
-    persistResults([]);
+    await gallery.removeAll();
   };
 
   const downloadOne = async (r: ResultItem) => {
@@ -467,16 +466,15 @@ function UpscalerPage() {
             title={`Gambar (${rows.length}/${MAX_IMAGES})`}
             sub="Drop / pilih gambar, satuan atau banyak sekaligus"
             right={
-              <label className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border border-border cursor-pointer hover:bg-accent/40">
-                <Upload className="h-4 w-4" /> Tambah
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => { addFiles(e.target.files); e.currentTarget.value = ""; }}
-                />
-              </label>
+              <>
+                <button
+                  onClick={pickImages}
+                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold border border-border cursor-pointer hover:bg-accent/40"
+                >
+                  <Upload className="h-4 w-4" /> Tambah
+                </button>
+                {picker.element}
+              </>
             }
           >
             {rows.length === 0 ? (
@@ -604,7 +602,7 @@ function UpscalerPage() {
                         <Download className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        onClick={() => persistResults(results.filter((x) => x.id !== r.id))}
+                        onClick={() => void gallery.remove(r.id)}
                         className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 hover:text-destructive hover:border-destructive/50 transition"
                         title="Hapus"
                       >

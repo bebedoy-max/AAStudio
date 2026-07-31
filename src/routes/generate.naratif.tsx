@@ -1374,7 +1374,7 @@ function NaratifPage() {
       )}
 
       {material && (
-        <Card title="🧠 Brain — Naskah & Model" right={<div className="flex flex-wrap gap-1.5"><ProviderActivePill cap="image" label="Image:" /><ProviderActivePill cap="video" label="Video:" /><ProviderActivePill cap="voice" label="Voice:" /></div>}>
+        <Card title="🧠 Brain — Naskah & Model">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Field label="Aspek Rasio">
               <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={[
@@ -1383,26 +1383,45 @@ function NaratifPage() {
                 { value: "1:1", label: "1:1 Square" },
               ]} />
             </Field>
-            <Field label={`Model AI Gambar (provider: ${imgProvider})`}>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+                <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                  Model AI Gambar
+                </label>
+                <ProviderActivePill cap="image" label="Image:" />
+              </div>
               <Select value={imgModel} onChange={(e) => setImgModel(e.target.value)} options={imgModels.map((m) => ({ value: m.key, label: m.label }))} />
-            </Field>
+            </div>
             <Field label="Kualitas Gambar">
               <Select value={imgQuality} onChange={(e) => setImgQuality(e.target.value)} options={(activeImgModel?.qualities || []).map((q) => ({ value: q.v, label: q.label }))} />
             </Field>
-            <Field label="Model Video (Image→Video)">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+                <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                  Model Video
+                </label>
+                <ProviderActivePill cap="video" label="Video:" />
+              </div>
               <Select value={vidModel} onChange={(e) => setVidModel(e.target.value)} options={vidModels.map((m) => ({ value: m.key, label: m.label }))} />
-            </Field>
+            </div>
             <Field label="Kualitas Video">
               <Select value={vidQuality} onChange={(e) => setVidQuality(e.target.value)} options={(activeVidModel?.qualities || []).map((q) => ({ value: q.v, label: q.label }))} />
             </Field>
-            <Field label="Voice-Over">
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+                <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                  Voice-Over
+                </label>
+                <ProviderActivePill cap="voice" label="Voice:" />
+              </div>
               <div className="flex gap-2">
                 <Select value={voice} onChange={(e) => setVoice(e.target.value)} options={VOICES} className="flex-1" />
                 <PrimaryButton onClick={testVoice} disabled={testingVoice} title="Tes suara" className="!px-3 whitespace-nowrap">
                   <Play className="h-3.5 w-3.5" /> {testingVoice ? "..." : "Tes"}
                 </PrimaryButton>
               </div>
-            </Field>
+            </div>
+
             <Field label="Intonasi Narasi (Voice Preset)">
               <Select
                 value={voicePreset}

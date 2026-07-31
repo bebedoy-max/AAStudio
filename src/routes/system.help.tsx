@@ -2,9 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import {
-  Search, BookOpen, KeyRound, Route as RouteIcon, Wand2, Film, Image as ImageIcon,
-  Mic2, Scissors, Users, Sparkles, ShieldCheck, CreditCard, Settings2, LifeBuoy,
-  ExternalLink, ChevronRight, Zap, Server, Mail, MessageCircle, Info,
+  Search, KeyRound, Route as RouteIcon, Brain, Mic2, Sparkles, ShieldCheck,
+  ExternalLink, ChevronRight, Zap, LifeBuoy, Mail, MessageCircle, Info, Wallet,
 } from "lucide-react";
 import { APP_NAME, APP_VERSION } from "@/lib/dashboard/help-guides-index";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,14 +21,10 @@ type Guide = {
 };
 
 const CATEGORIES = [
-  { id: "start", label: "Mulai Cepat" },
+  { id: "start", label: "Mulai" },
   { id: "keys", label: "Token & API" },
   { id: "routing", label: "Routing Provider" },
-  { id: "generate", label: "Generate" },
-  { id: "mixing", label: "Mixing" },
-  { id: "influencer", label: "AI Influencer" },
-  { id: "account", label: "Akun & Billing" },
-  { id: "trouble", label: "Troubleshooting" },
+  { id: "tips", label: "Tips & Shortcut" },
 ] as const;
 
 const GUIDES: Guide[] = [
@@ -37,371 +32,143 @@ const GUIDES: Guide[] = [
     id: "quickstart",
     category: "start",
     icon: Sparkles,
-    title: "Panduan Cepat 5 Menit",
-    summary: "Dari login sampai render pertama — jalur tercepat menggunakan AA Creative Studio.",
-    tags: ["mulai", "onboarding", "workflow"],
+    title: "Mulai dari Nol (3 Langkah)",
+    summary: "Urutan paling singkat sebelum bisa generate apa pun.",
+    tags: ["mulai", "onboarding"],
     steps: [
-      "Login memakai Google atau email (fitur akan terkunci sebelum login).",
-      "Buka Manage → Token/API Manager, tempel minimal 1 key Gemini + 1 key ElevenLabs.",
-      "Buka Manage → Routing Provider untuk memilih provider default per fitur (Video/Voice/Brain).",
-      "Pilih tool dari sidebar (Motion, Storyboard, Naratif, dll) dan mulai generate.",
-      "Semua output masuk ke Library / Asset Hub di dashboard.",
+      "Isi token: Manage → Token/API Manager. Minimal 1 key Brain (Gemini/OpenAI).",
+      "Pilih provider: Manage → Routing Provider, tentukan provider default untuk Brain, Image, Video, dan Voice.",
+      "Buka menu generate yang diinginkan dari sidebar, lalu jalankan.",
     ],
     tips: [
-      "Semua key disimpan terenkripsi di akun Anda — aman lintas device.",
-      "Anda bisa menambahkan banyak key per provider; sistem otomatis rotasi saat rate-limit.",
+      "Menu yang butuh Brain akan mengunci diri sampai key Brain terisi (atau admin mengaktifkan Global Brain).",
+      "Token disimpan terenkripsi di akun Anda, jadi otomatis ikut saat pindah perangkat.",
     ],
     links: [
-      { label: "Buka Token Manager", to: "/manage/tokens" },
-      { label: "Buka Routing Provider", to: "/manage/routing" },
+      { label: "Token Manager", to: "/manage/tokens" },
+      { label: "Routing Provider", to: "/manage/routing" },
     ],
   },
-
   {
-    id: "keys-overview",
-    category: "keys",
-    icon: KeyRound,
-    title: "Cara Menambahkan Token / API Key",
-    summary: "Semua provider AI eksternal memakai key milik Anda sendiri (BYOK) — kredit tidak dipotong dari AA Creative Studio.",
-    tags: ["api", "key", "token", "byok"],
+    id: "brain",
+    category: "start",
+    icon: Brain,
+    title: "Menu yang Butuh Brain API",
+    summary: "Storyboard, Naratif, AI Influencer, Clipper, dan Dubbing memakai Brain (text AI).",
+    tags: ["brain", "gemini", "openai"],
     steps: [
-      "Buka menu Manage → Token/API Manager.",
-      "Pilih tab provider (Gemini, OpenAI, ElevenLabs, Wavespeed, Weavy, Magnific).",
-      "Klik + Add Key lalu tempel API key. Beri label opsional (mis. 'Akun kantor').",
-      "Klik Test — tombol hijau berarti valid, merah berarti invalid/limit.",
-      "Simpan. Key otomatis tersinkron ke semua fitur AA Creative Studio.",
+      "Ambil API key Gemini gratis di aistudio.google.com/apikey (formatnya diawali AIza… atau AQ…).",
+      "Atau pakai OpenAI: platform.openai.com/api-keys (format sk-…).",
+      "Tempel di Token Manager → tab Brain, klik Tambah & Cek — hanya key valid yang tersimpan.",
+      "Setelah tersimpan, menu yang tadinya terkunci langsung bisa dipakai (refresh bila perlu).",
     ],
     tips: [
-      "Tambahkan minimal 2 key per provider agar sistem bisa rotasi otomatis saat 429/quota.",
-      "Key tidak pernah dikirim ke browser lain — dienkripsi AES-GCM sebelum disimpan.",
+      "Tambahkan beberapa key sekaligus: sistem otomatis rotasi saat satu key kena limit 429.",
+      "Kalau Anda belum punya key, admin bisa mengaktifkan Global Brain sebagai brain sementara.",
     ],
-    links: [{ label: "Token/API Manager", to: "/manage/tokens" }],
+    links: [
+      { label: "Isi key Brain", to: "/manage/tokens" },
+      { label: "Ambil key Gemini", href: "https://aistudio.google.com/apikey" },
+    ],
   },
   {
-    id: "keys-gemini",
-    category: "keys",
-    icon: KeyRound,
-    title: "Mendapatkan Gemini API Key (Google AI Studio)",
-    summary: "Key Gemini dipakai sebagai Brain default (analisa, storyboard, naratif, planner).",
-    tags: ["gemini", "google", "brain"],
-    steps: [
-      "Kunjungi aistudio.google.com dan login dengan akun Google.",
-      "Klik 'Get API Key' → 'Create API key in new project'.",
-      "Copy key yang diawali 'AIza...' atau 'AQ...' — inilah yang ditempel di Token Manager tab Gemini.",
-      "Untuk kuota lebih besar, aktifkan billing project di Google Cloud Console.",
-    ],
-    tips: ["Gratis-tier Gemini sudah cukup untuk pemakaian ringan; batas kuota reset harian."],
-    links: [{ label: "Google AI Studio", href: "https://aistudio.google.com/apikey" }],
-  },
-  {
-    id: "keys-openai",
-    category: "keys",
-    icon: KeyRound,
-    title: "Mendapatkan OpenAI API Key",
-    summary: "Opsional — dipakai sebagai fallback Brain (prioritas 1) sebelum Gemini bila Anda ingin GPT-4o.",
-    tags: ["openai", "gpt", "brain"],
-    steps: [
-      "Buka platform.openai.com/api-keys dan login.",
-      "Klik 'Create new secret key' → beri nama → copy (diawali 'sk-...').",
-      "Pastikan billing/credits terisi minimal $5.",
-      "Tempel di Token Manager tab OpenAI.",
-    ],
-    links: [{ label: "OpenAI Platform", href: "https://platform.openai.com/api-keys" }],
-  },
-  {
-    id: "keys-eleven",
-    category: "keys",
+    id: "voice",
+    category: "start",
     icon: Mic2,
-    title: "Mendapatkan ElevenLabs API Key (TTS & STT)",
-    summary: "Wajib untuk Dubbing, Clipper (transcribe), dan Naratif Voice Over.",
-    tags: ["elevenlabs", "voice", "tts", "stt"],
+    title: "Menu yang Butuh Voice Over API",
+    summary: "Naratif Video Maker & Dubbing butuh key ElevenLabs untuk suara.",
+    tags: ["voice", "tts", "elevenlabs"],
     steps: [
-      "Buka elevenlabs.io → Profile → API Keys → Create.",
-      "Copy key dan tempel di Token Manager tab ElevenLabs.",
-      "Untuk Voice Clone, upload sample suara langsung di dashboard ElevenLabs — AA Creative Studio akan otomatis membaca voice list Anda.",
+      "Daftar di elevenlabs.io, buka Profile → API Keys, salin key-nya.",
+      "Tempel di Token Manager → tab Voice, klik Tambah & Cek (sisa credit langsung terlihat).",
+      "Di menu Naratif/Dubbing pilih voice, lalu generate voice over.",
     ],
-    tips: ["Plan Starter sudah cukup untuk 30rb karakter/bulan."],
-    links: [{ label: "ElevenLabs API", href: "https://elevenlabs.io/app/settings/api-keys" }],
+    tips: [
+      "Key dengan credit 0 tidak akan disimpan — isi ulang dulu atau pakai key lain.",
+      "Beberapa key ElevenLabs boleh ditambahkan agar kuota gabungan lebih besar.",
+    ],
+    links: [
+      { label: "Isi key Voice", to: "/manage/tokens" },
+      { label: "Ambil key ElevenLabs", href: "https://elevenlabs.io/app/settings/api-keys" },
+    ],
   },
   {
-    id: "keys-video",
+    id: "isi-token",
     category: "keys",
-    icon: Film,
-    title: "Wavespeed, Weavy & Magnific (Video/Image Providers)",
-    summary: "Provider render video & image high-end. Cukup salah satu — tapi punya semua = flexibility maksimum.",
-    tags: ["wavespeed", "weavy", "magnific", "video"],
+    icon: KeyRound,
+    title: "Cara Isi Token / API Key",
+    summary: "Alur yang sama untuk semua provider: tempel → cek → tersimpan.",
+    tags: ["token", "api key", "manage"],
     steps: [
-      "Wavespeed: wavespeed.ai → Dashboard → API Keys. Cocok untuk I2V, Reframe, Upscale, Lip-Sync.",
-      "Weavy: weavy.ai → Settings → Access Tokens. Cocok untuk Recipes & Bulk Fashion.",
-      "Magnific: magnific.ai → Account → API. Cocok untuk Upscale/Enhance + Motion Control premium.",
-      "Tempel masing-masing di tab yang sesuai pada Token Manager.",
+      "Buka Manage → Token/API Manager, pilih tab provider.",
+      "Tempel key di kotak input (boleh banyak sekaligus, satu key per baris).",
+      "Klik Tambah & Cek. Sistem memeriksa format, duplikat, validitas, dan sisa credit.",
+      "Popup ringkasan muncul: mana yang valid (beserta credit) dan mana yang ditolak.",
+      "Hanya key valid yang masuk ke daftar token aktif.",
     ],
+    tips: [
+      "Key ditolak biasanya karena salah format, expired, duplikat, atau credit habis.",
+      "Anda bisa menghapus/menonaktifkan key kapan saja dari daftar token aktif.",
+    ],
+    links: [{ label: "Buka Token Manager", to: "/manage/tokens" }],
   },
-
   {
-    id: "routing-what",
+    id: "ambil-token",
+    category: "keys",
+    icon: Wallet,
+    title: "Cara Ambil Token dari Provider",
+    summary: "Tempat mengambil key untuk tiap provider yang didukung.",
+    tags: ["gemini", "openai", "elevenlabs", "wavespeed", "weavy"],
+    steps: [
+      "Gemini: aistudio.google.com/apikey → Create API key.",
+      "OpenAI: platform.openai.com/api-keys → Create new secret key.",
+      "ElevenLabs: elevenlabs.io → Settings → API Keys.",
+      "Wavespeed / Weavy / Magnific: login ke dashboard masing-masing, buka menu API/Token, salin key.",
+      "Leonardo / Firefly / Framia: pakai token sesi (Bearer) dari browser, lihat panduan di tab provider terkait.",
+    ],
+    tips: [
+      "Jangan bagikan key ke orang lain — semua pemakaian dihitung ke akun provider Anda.",
+      "Bila tidak ingin pakai key sendiri, cek Token Bank untuk token yang disediakan platform.",
+    ],
+    links: [{ label: "Token Manager", to: "/manage/tokens" }],
+  },
+  {
+    id: "routing",
     category: "routing",
     icon: RouteIcon,
-    title: "Apa itu Routing Provider?",
-    summary: "Routing adalah aturan siapa yang menjalankan setiap tugas AI — Brain, Voice, STT, Video, Image.",
-    tags: ["routing", "provider", "fallback"],
+    title: "Cara Route Provider",
+    summary: "Menentukan provider mana yang dipakai untuk Brain, Image, Video, Voice, dan Motion.",
+    tags: ["routing", "provider"],
     steps: [
-      "Setiap fitur AA Creative Studio punya kategori: Brain (analisa/tulis), Voice (TTS), STT (transcribe), Video (render), Image (generate).",
-      "Di Manage → Routing Provider Anda memilih provider utama + urutan fallback per kategori.",
-      "Contoh: Brain → OpenAI (utama) → Gemini (fallback). Video → Wavespeed → Weavy → Magnific.",
-      "Saat request gagal (401/429/5xx), sistem otomatis pindah ke provider berikutnya dengan key berikutnya.",
+      "Buka Manage → Routing Provider.",
+      "Pilih kapabilitas (Brain / Image / Video / Voice / Motion).",
+      "Klik kartu provider yang diinginkan — pilihan langsung tersimpan.",
+      "Semua menu generate otomatis memakai provider tersebut.",
     ],
     tips: [
-      "Semakin banyak provider aktif = semakin tinggi uptime.",
-      "Anda bisa nonaktifkan provider tertentu (mis. matikan OpenAI untuk hemat biaya).",
+      "Setiap kartu provider menampilkan model dan perkiraan biayanya.",
+      "Provider yang dinonaktifkan admin tidak akan muncul di daftar.",
+    ],
+    links: [{ label: "Buka Routing Provider", to: "/manage/routing" }],
+  },
+  {
+    id: "shortcut",
+    category: "tips",
+    icon: Zap,
+    title: "Tips & Shortcut Cepat",
+    summary: "Trik kecil yang menghemat banyak klik.",
+    tags: ["shortcut", "tips"],
+    steps: [
+      "Ganti provider tanpa pindah menu: klik label \"Provider aktif: …\" di halaman generate — ikon switch berputar menandakan tombol itu bisa diklik.",
+      "Tempel banyak key sekaligus di Token Manager (satu per baris) — pengecekan berjalan otomatis.",
+      "Klik ikon gembok pada menu = fitur dikunci admin; ikon keranjang = fitur premium yang bisa dibeli.",
+      "Semua hasil generate tersimpan di Library / Asset Hub, tidak perlu download satu per satu saat itu juga.",
+    ],
+    tips: [
+      "Kena error 429? Tambah key cadangan; rotasi otomatis akan memakainya.",
+      "Error 401/403 biasanya token expired — ambil ulang token dari provider dan cek lagi.",
     ],
     links: [{ label: "Routing Provider", to: "/manage/routing" }],
-  },
-  {
-    id: "routing-rotation",
-    category: "routing",
-    icon: Zap,
-    title: "Rotasi Key & Anti Rate-Limit",
-    summary: "Bagaimana AA Creative Studio memilih key mana yang dipakai dari pool Anda.",
-    tags: ["rate-limit", "quota", "rotation"],
-    steps: [
-      "Untuk tiap request, backend membaca semua key aktif provider terkait.",
-      "Coba key #1 → jika 401/403/429/5xx → coba key #2 → dst.",
-      "Setelah semua key provider utama habis, pindah ke provider fallback berikutnya.",
-      "Semua kegagalan diringkas di response ('tried openai:2 keys, gemini:3 keys...').",
-    ],
-    tips: ["Tambah key gratis dari akun berbeda untuk memperbesar pool tanpa biaya."],
-  },
-
-  {
-    id: "gen-motion",
-    category: "generate",
-    icon: Wand2,
-    title: "Motion Control (Generate → Motion)",
-    summary: "Kontrol pergerakan karakter/objek dengan referensi video motion + gambar asli.",
-    tags: ["motion", "magnific", "wavespeed", "video"],
-    steps: [
-      "Buka Generate → Motion Control.",
-      "Upload Image (karakter/produk yang ingin digerakkan).",
-      "Upload Reference Video (motion yang ingin ditiru — dance, walk, kamera dolly, dll).",
-      "Pilih orientasi (Image atau Video sebagai acuan komposisi).",
-      "Tambahkan prompt opsional (mis. 'kamera slow zoom in').",
-      "Klik Generate — proses 3–8 menit tergantung durasi. Hasil masuk Library.",
-    ],
-    tips: [
-      "Gunakan reference video pendek (5–10 detik) untuk hasil lebih presisi.",
-      "Untuk lip-sync khusus, pakai Wavespeed I2V lalu Magnific untuk polish.",
-    ],
-    links: [{ label: "Buka Motion", to: "/generate/motion" }],
-  },
-  {
-    id: "gen-i2v",
-    category: "generate",
-    icon: Film,
-    title: "Image to Video (I2V)",
-    summary: "Ubah gambar diam menjadi video pendek dengan gerakan natural.",
-    tags: ["i2v", "video", "wavespeed", "weavy"],
-    steps: [
-      "Generate → Image to Video.",
-      "Upload gambar (ratio 9:16, 1:1, atau 16:9).",
-      "Tulis prompt gerakan ('kamera dolly in, rambut tertiup angin').",
-      "Pilih model (Kling 2.5 = paling stabil, Wavespeed = paling cepat).",
-      "Klik Generate. Preview & download dari Library.",
-    ],
-    links: [{ label: "Buka I2V", to: "/generate/image-to-video" }],
-  },
-  {
-    id: "gen-storyboard",
-    category: "generate",
-    icon: ImageIcon,
-    title: "Product Storyboard",
-    summary: "AI otomatis menyusun 6–12 scene iklan produk dari 1 foto + deskripsi.",
-    tags: ["storyboard", "product", "ads"],
-    steps: [
-      "Generate → Storyboard.",
-      "Upload foto produk (background bersih paling ideal).",
-      "Isi nama produk, USP, target audience, durasi ads.",
-      "Brain akan menghasilkan naskah scene-by-scene + prompt gambar tiap scene.",
-      "Klik Generate All Scenes → hasil bisa langsung Handoff ke Motion/I2V untuk animasi.",
-    ],
-    tips: ["Tekan tombol Regenerate per scene bila hasil belum pas — tidak perlu ulang semuanya."],
-    links: [{ label: "Buka Storyboard", to: "/generate/storyboard" }],
-  },
-  {
-    id: "gen-naratif",
-    category: "generate",
-    icon: BookOpen,
-    title: "Video Naratif",
-    summary: "Buat video story/edukasi dari artikel/URL/teks — otomatis naskah + voice over + gambar.",
-    tags: ["naratif", "story", "voiceover"],
-    steps: [
-      "Generate → Naratif.",
-      "Pilih sumber: paste URL artikel, teks bebas, atau prompt topik.",
-      "Brain merangkum, memecah menjadi paragraf naratif, dan menyarankan gambar per paragraf.",
-      "Pilih voice (ElevenLabs) dan bahasa.",
-      "Generate — hasilkan bundle: SRT + audio + storyboard gambar → siap diedit di CapCut/Premiere.",
-    ],
-    links: [{ label: "Buka Naratif", to: "/generate/naratif" }],
-  },
-  {
-    id: "gen-bulk-fashion",
-    category: "generate",
-    icon: Users,
-    title: "Bulk Fashion Generator",
-    summary: "Generate ratusan variasi outfit/pose untuk katalog fashion sekali klik.",
-    tags: ["fashion", "bulk", "weavy"],
-    steps: [
-      "Generate → Bulk Fashion.",
-      "Upload model (foto orang) dan referensi outfit.",
-      "Pilih preset pose & jumlah variasi.",
-      "Sistem antri di Weavy — progress terlihat di Running Tasks (dashboard).",
-    ],
-    links: [{ label: "Buka Bulk Fashion", to: "/generate/bulk-fashion" }],
-  },
-
-  {
-    id: "mix-clipper",
-    category: "mixing",
-    icon: Scissors,
-    title: "Clipper — Long Video → Short Clips",
-    summary: "Auto-transcribe video panjang, deteksi highlight, potong menjadi short/reels dengan subtitle.",
-    tags: ["clipper", "shorts", "reels", "subtitle"],
-    steps: [
-      "Mixing → Clipper.",
-      "Upload atau tempel URL video.",
-      "ElevenLabs STT transcribe otomatis (butuh key ElevenLabs).",
-      "Brain menandai bagian menarik → Anda pilih klip yang ingin diambil.",
-      "Export bundle: mp4 + srt + timeline JSON (bisa import ke CapCut/DaVinci).",
-    ],
-    links: [{ label: "Buka Clipper", to: "/mixing/clipper" }],
-  },
-  {
-    id: "mix-dubbing",
-    category: "mixing",
-    icon: Mic2,
-    title: "Dubbing / Voice Over Multi-Bahasa",
-    summary: "Ganti suara video dengan voice ElevenLabs (termasuk voice clone Anda) dalam 30+ bahasa.",
-    tags: ["dubbing", "voice", "translation"],
-    steps: [
-      "Mixing → Dubbing.",
-      "Upload video / audio sumber.",
-      "Sistem transcribe → translate ke bahasa target → generate voice baru.",
-      "Preview per segment; edit teks bila perlu → Render Final.",
-    ],
-    tips: ["Gunakan Voice Clone di ElevenLabs untuk konsistensi karakter."],
-    links: [{ label: "Buka Dubbing", to: "/mixing/dubbing" }],
-  },
-
-  {
-    id: "inf-character",
-    category: "influencer",
-    icon: Users,
-    title: "AI Influencer — Bikin Karakter Konsisten",
-    summary: "Buat 'artis virtual' dengan wajah & gaya konsisten di semua konten Anda.",
-    tags: ["influencer", "character", "consistency"],
-    steps: [
-      "AI Influencer → Character.",
-      "Upload 3–5 foto referensi wajah (angle berbeda).",
-      "Isi kepribadian, gaya bicara, niche konten.",
-      "Simpan sebagai Active Character — dipakai otomatis di Planner, Publisher, Storyboard.",
-    ],
-    links: [{ label: "Buka Character", to: "/ai-influencer/character" }],
-  },
-  {
-    id: "inf-planner",
-    category: "influencer",
-    icon: BookOpen,
-    title: "Weekly Content Planner",
-    summary: "Brain merencanakan 7–30 hari konten (topik, hook, caption, hashtag) berdasarkan niche karakter.",
-    tags: ["planner", "content", "calendar"],
-    links: [{ label: "Buka Planner", to: "/ai-influencer/planner" }],
-  },
-  {
-    id: "inf-publisher",
-    category: "influencer",
-    icon: Sparkles,
-    title: "Publisher — Auto Kaption & Export",
-    summary: "Susun caption per platform (IG/TikTok/YT) + export bundle siap upload.",
-    tags: ["publisher", "caption"],
-    links: [{ label: "Buka Publisher", to: "/ai-influencer/publisher" }],
-  },
-
-  {
-    id: "acc-billing",
-    category: "account",
-    icon: CreditCard,
-    title: "Paket & Pembayaran",
-    summary: "Perbedaan mode akses fitur: Public, Subscription, Trial.",
-    tags: ["billing", "subscription", "trial"],
-    steps: [
-      "Public: fitur bisa dipakai siapa saja tanpa langganan.",
-      "Subscription: hanya subscriber aktif.",
-      "Trial: akses terbatas sampai tanggal tertentu (untuk promo).",
-      "Admin bisa mengatur mode tiap fitur di Admin → Access.",
-    ],
-  },
-  {
-    id: "acc-security",
-    category: "account",
-    icon: ShieldCheck,
-    title: "Keamanan Akun & Single Session",
-    summary: "Satu akun hanya bisa aktif di 1 device pada waktu bersamaan.",
-    tags: ["security", "session"],
-    steps: [
-      "Login di device baru akan otomatis logout device lama.",
-      "Cek session aktif di Settings → Keamanan.",
-      "Tombol 'Sign out everywhere' untuk paksa logout semua.",
-    ],
-    links: [{ label: "Settings", to: "/system/settings" }],
-  },
-  {
-    id: "acc-settings",
-    category: "account",
-    icon: Settings2,
-    title: "Pengaturan Aplikasi",
-    summary: "Tema, bahasa, notifikasi, default render, cache lokal.",
-    tags: ["settings", "preferences"],
-    links: [{ label: "Buka Settings", to: "/system/settings" }],
-  },
-
-  {
-    id: "tr-429",
-    category: "trouble",
-    icon: Server,
-    title: "Error 429 / Rate Limit / Quota Habis",
-    summary: "Semua key kena rate-limit di response.",
-    tags: ["error", "429", "quota"],
-    steps: [
-      "Tambahkan key baru (akun Google/OpenAI berbeda) di Token Manager.",
-      "Untuk Gemini, aktifkan billing di Google Cloud untuk naik ke tier berbayar.",
-      "Cek status quota di dashboard provider masing-masing.",
-    ],
-  },
-  {
-    id: "tr-401",
-    category: "trouble",
-    icon: ShieldCheck,
-    title: "Error 401 / Invalid Key",
-    summary: "Key ditolak provider.",
-    tags: ["error", "401"],
-    steps: [
-      "Kembali ke Token Manager, klik Test pada key merah.",
-      "Bila tetap merah, hapus dan generate key baru dari dashboard provider.",
-      "Pastikan Anda copy full string (tanpa spasi di awal/akhir).",
-    ],
-  },
-  {
-    id: "tr-render",
-    category: "trouble",
-    icon: Film,
-    title: "Video Tidak Muncul / Timeout Render",
-    summary: "Task render tidak selesai atau URL output kosong.",
-    tags: ["render", "timeout"],
-    steps: [
-      "Cek Running Tasks di dashboard — status 'processing' berarti masih diproses.",
-      "Timeout default 15 menit. Video panjang/kompleks bisa gagal.",
-      "Coba ulang dengan durasi lebih pendek atau provider lain (ubah di Routing).",
-    ],
   },
 ];
 
@@ -411,7 +178,18 @@ export const Route = createFileRoute("/system/help")({
   head: () => ({
     meta: [
       { title: "Pusat Bantuan — AA Creative Studio" },
-      { name: "description", content: "Perpustakaan lengkap panduan AA Creative Studio: token/API, routing provider, motion, storyboard, naratif, dubbing, dan lainnya." },
+      {
+        name: "description",
+        content:
+          "Panduan singkat AA Creative Studio: cara isi token/API, mengambil token provider, routing provider, serta tips dan shortcut pemakaian.",
+      },
+      { property: "og:title", content: "Pusat Bantuan — AA Creative Studio" },
+      {
+        property: "og:description",
+        content: "Panduan singkat: token/API, routing provider, dan shortcut pemakaian AA Creative Studio.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: HelpPage,
@@ -451,8 +229,6 @@ function HelpPage() {
     })();
   }, []);
 
-
-
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return GUIDES.filter((g) => {
@@ -467,9 +243,9 @@ function HelpPage() {
     <DashboardShell>
       <PageHero
         eyebrow="Pusat Bantuan"
-        title="Perpustakaan"
+        title="Panduan Singkat"
         highlight="AA Creative Studio"
-        desc="Semua yang perlu Anda tahu — cara isi token/API, routing provider, sampai panduan detail tiap tool."
+        desc="Fokus pada yang penting: isi token, ambil token, atur routing provider, dan shortcut harian."
       />
 
       {/* Search + Category */}
@@ -479,7 +255,7 @@ function HelpPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cari panduan… (mis. 'gemini key', 'motion', 'dubbing', '429')"
+            placeholder="Cari panduan… (mis. 'token', 'brain', 'voice', 'routing')"
             className="w-full bg-card/60 border border-border/60 rounded-xl pl-10 pr-4 py-3 text-sm outline-none focus:border-primary/60"
           />
         </div>
@@ -538,15 +314,6 @@ function HelpPage() {
                       </ul>
                     </div>
                   )}
-                  {g.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {g.tags.map((t) => (
-                        <span key={t} className="text-[10px] rounded-full border border-border/60 px-2 py-0.5 text-muted-foreground">
-                          #{t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                   {g.links && g.links.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {g.links.map((l) =>
@@ -577,7 +344,6 @@ function HelpPage() {
 
       {/* Contact + Version + Agreement */}
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Kontak Support */}
         <div className="neumorph p-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
@@ -621,7 +387,6 @@ function HelpPage() {
           </div>
         </div>
 
-        {/* Versi Aplikasi */}
         <div className="neumorph p-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
@@ -641,10 +406,6 @@ function HelpPage() {
               <dt className="text-muted-foreground">Versi</dt>
               <dd className="text-foreground/90 font-mono">v{APP_VERSION}</dd>
             </div>
-            <div className="flex justify-between border-b border-border/40 pb-1.5">
-              <dt className="text-muted-foreground">Build</dt>
-              <dd className="text-foreground/90 font-mono">stable · 2026</dd>
-            </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Runtime</dt>
               <dd className="text-foreground/90">Web · SSR Edge</dd>
@@ -652,7 +413,6 @@ function HelpPage() {
           </dl>
         </div>
 
-        {/* Perjanjian Umum */}
         <div className="neumorph p-5">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
@@ -666,36 +426,27 @@ function HelpPage() {
           <ul className="mt-4 text-xs text-foreground/85 space-y-2.5">
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Bring Your Own Key (BYOK).</b> Semua API key & token yang Anda tempel adalah milik pribadi, disimpan terenkripsi, dan tidak dibagikan ke pengguna lain.</span>
+              <span><b className="text-foreground">Bring Your Own Key (BYOK).</b> Key Anda disimpan terenkripsi dan tidak dibagikan ke pengguna lain.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Tanggung jawab konten.</b> Seluruh hasil generate menjadi tanggung jawab pembuat. Dilarang untuk konten ilegal, kekerasan, pornografi, atau melanggar hak cipta.</span>
+              <span><b className="text-foreground">Tanggung jawab konten.</b> Seluruh hasil generate menjadi tanggung jawab pembuat.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Satu akun, satu pengguna.</b> Sharing akun akan menonaktifkan sesi lama secara otomatis (single-session).</span>
+              <span><b className="text-foreground">Satu akun, satu pengguna.</b> Sesi lama otomatis dinonaktifkan (single-session).</span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Provider pihak ketiga.</b> Kami tidak menjamin uptime, harga, atau kebijakan Gemini, OpenAI, ElevenLabs, Wavespeed, Weavy, Magnific, maupun provider lain.</span>
+              <span><b className="text-foreground">Provider pihak ketiga.</b> Uptime, harga, dan kebijakan provider di luar kendali kami.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Data & privasi.</b> Hanya data yang diperlukan untuk menjalankan fitur (profil, project, key terenkripsi) yang disimpan. Anda dapat menghapus akun kapan saja.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Perubahan layanan.</b> Fitur dapat berubah, ditambah, atau dihentikan sewaktu-waktu untuk perbaikan kualitas.</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Persetujuan.</b> Dengan menggunakan {APP_NAME}, Anda dianggap menyetujui seluruh ketentuan di atas.</span>
+              <span><b className="text-foreground">Persetujuan.</b> Dengan menggunakan {APP_NAME}, Anda menyetujui ketentuan di atas.</span>
             </li>
           </ul>
         </div>
       </div>
-
     </DashboardShell>
   );
 }

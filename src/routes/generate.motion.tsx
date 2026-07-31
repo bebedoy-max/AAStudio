@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Rocket,
@@ -34,6 +35,7 @@ import { startNotification, finishNotification, failNotification } from "@/lib/s
 import { confirmDialog } from "@/components/ui-confirm";
 import { toast } from "sonner";
 import { compressMediaFile, fmtMB, ROBONEO_MAX_BYTES } from "@/lib/media/compress";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 
 export const Route = createFileRoute("/generate/motion")({
@@ -112,8 +114,6 @@ function newSlot(): RefSlot {
 }
 
 type ResultItem = { id: string; url: string; provider: Provider; modelKey: string; prompt: string; date: string };
-const LS_RESULTS_BASE = "aatools.motion.results";
-const lsResultsKey = (uid: string | null) => (uid ? `${LS_RESULTS_BASE}.${uid}` : `${LS_RESULTS_BASE}.anon`);
 
 const LS_ROUTING = "aatools.routing.v2";
 function readRoutedMotionProvider(): Provider | null {
@@ -191,7 +191,6 @@ function MotionControl() {
   const [logs, setLogs] = useSticky<{ time: string; msg: string; level: string }[]>("motion.logs", []);
   const [elapsed, setElapsed] = useState("0:00");
   const startedAtRef = useRef<number | null>(null);
-  const [results, setResults] = useState<ResultItem[]>([]);
   const [search, setSearch] = useState("");
 
   // Global progress bar: rata-rata dari status semua slot yg sudah dimulai.
@@ -239,16 +238,20 @@ function MotionControl() {
   }, [generating]);
 
 
-  // Load results scoped by current user id. Re-run when user changes (login/logout switch).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(lsResultsKey(uid));
-      setResults(raw ? JSON.parse(raw) : []);
-    } catch {
-      setResults([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid]);
+  // Galeri hasil tersimpan di cloud (Google Drive), bukan localStorage.
+  const gallery = useCloudGallery<{ provider?: string; modelKey?: string; prompt?: string }>("motion", "video");
+  const results = useMemo<ResultItem[]>(
+    () =>
+      gallery.items.map((it) => ({
+        id: it.id,
+        url: it.url,
+        provider: (it.meta?.provider as Provider) || ("weavy" as Provider),
+        modelKey: (it.meta?.modelKey as string) || "",
+        prompt: (it.meta?.prompt as string) || "",
+        date: it.createdAt,
+      })),
+    [gallery.items],
+  );
 
   useEffect(() => {
     // Consume handoff dari Creative Dashboard → prefill prompt (sekali saja)
@@ -260,15 +263,6 @@ function MotionControl() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const persistResults = (updater: ResultItem[] | ((prev: ResultItem[]) => ResultItem[])) => {
-    setResults((prev) => {
-      const next = typeof updater === "function" ? (updater as (p: ResultItem[]) => ResultItem[])(prev) : updater;
-      try {
-        localStorage.setItem(lsResultsKey(uid), JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
 
   const [exporting, setExporting] = useState(false);
   const [compressing, setCompressing] = useState<{ msg: string; pct?: number } | null>(null);
@@ -316,12 +310,12 @@ function MotionControl() {
     if (results.length === 0) return;
     const ok = await confirmDialog({
       title: `Hapus semua ${results.length} video dari gallery?`,
-      description: "Semua video di gallery ini akan dihapus permanen.",
+      description: "Video dihapus dari gallery aplikasi. File di Google Drive tetap tersimpan.",
       confirmLabel: "Ya, hapus semua",
       tone: "danger",
     });
     if (!ok) return;
-    persistResults([]);
+    await gallery.removeAll();
   };
 
   const canGenerate = readySlots > 0 && !generating;
@@ -440,17 +434,7 @@ function MotionControl() {
           );
           if (status === "done" && url) {
             doneCount += 1;
-            persistResults((prev) => [
-              {
-                id: Math.random().toString(36).slice(2),
-                url,
-                provider,
-                modelKey,
-                prompt: prompt.trim(),
-                date: new Date().toISOString(),
-              },
-              ...prev,
-            ]);
+            void gallery.add(url, { provider, modelKey, prompt: prompt.trim() });
           } else if (status === "error") {
             errCount += 1;
           }
@@ -746,7 +730,7 @@ function MotionControl() {
                           <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Download</span>
                         </button>
                         <button
-                          onClick={() => persistResults(results.filter((x) => x.id !== r.id))}
+                          onClick={() => void gallery.remove(r.id)}
                           className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] hover:text-destructive hover:border-destructive/50 transition"
                           title="Hapus dari gallery"
                         >
@@ -892,6 +876,11 @@ function MediaUpload({
   onChange: (f: File | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker();
+  const pickFile = () =>
+    void picker.pick({ accept, source: "motion-control", title: `Pilih ${label}` }).then((fs) => {
+      if (fs[0]) onChange(fs[0]);
+    });
   const Icon = kind === "image" ? ImageIcon : Video;
   const has = !!file && !!previewUrl;
 
@@ -907,7 +896,7 @@ function MediaUpload({
         {label}
       </label>
       <div
-        onClick={() => inputRef.current?.click()}
+        onClick={pickFile}
         className={
           "relative overflow-hidden rounded-xl border border-dashed cursor-pointer group transition " +
           (has
@@ -970,6 +959,8 @@ function MediaUpload({
           onChange={(e) => onChange(e.target.files?.[0] ?? null)}
         />
       </div>
+      {picker.element}
     </div>
+
   );
 }

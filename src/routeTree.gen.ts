@@ -19,6 +19,7 @@ import { Route as AiInfluencerIndexRouteImport } from './routes/ai-influencer.in
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SystemSettingsRouteImport } from './routes/system.settings'
 import { Route as SystemHelpRouteImport } from './routes/system.help'
+import { Route as SystemCloudRouteImport } from './routes/system.cloud'
 import { Route as SystemAnalyticRouteImport } from './routes/system.analytic'
 import { Route as ReffEditVideoRouteImport } from './routes/reff-edit.video'
 import { Route as ReffEditLibraryRouteImport } from './routes/reff-edit.library'
@@ -55,6 +56,7 @@ import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
+import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth.google-drive.return'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
 import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
 import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
@@ -89,10 +91,13 @@ import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/c
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
+import { Route as ApiPublicGoogleDriveCallbackRouteImport } from './routes/api/public/google-drive/callback'
 import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
 import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
 import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
+import { Route as ApiPublicCloudUploadRouteImport } from './routes/api/public/cloud/upload'
+import { Route as ApiPublicCloudFileIdRouteImport } from './routes/api/public/cloud/file.$id'
 
 const ReffEditRoute = ReffEditRouteImport.update({
   id: '/reff-edit',
@@ -142,6 +147,11 @@ const SystemSettingsRoute = SystemSettingsRouteImport.update({
 const SystemHelpRoute = SystemHelpRouteImport.update({
   id: '/system/help',
   path: '/system/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemCloudRoute = SystemCloudRouteImport.update({
+  id: '/system/cloud',
+  path: '/system/cloud',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SystemAnalyticRoute = SystemAnalyticRouteImport.update({
@@ -324,6 +334,11 @@ const AdminAccessRoute = AdminAccessRouteImport.update({
   path: '/access',
   getParentRoute: () => AdminRoute,
 } as any)
+const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
+  id: '/oauth/google-drive/return',
+  path: '/oauth/google-drive/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
   id: '/api/router/voice',
   path: '/api/router/voice',
@@ -500,6 +515,12 @@ const ApiPublicMidtransNotificationRoute =
     path: '/api/public/midtrans/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicGoogleDriveCallbackRoute =
+  ApiPublicGoogleDriveCallbackRouteImport.update({
+    id: '/api/public/google-drive/callback',
+    path: '/api/public/google-drive/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicExtensionRefreshRoute =
   ApiPublicExtensionRefreshRouteImport.update({
     id: '/api/public/extension/refresh',
@@ -523,6 +544,16 @@ const ApiPublicDokuNotificationRoute =
     path: '/api/public/doku/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCloudUploadRoute = ApiPublicCloudUploadRouteImport.update({
+  id: '/api/public/cloud/upload',
+  path: '/api/public/cloud/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCloudFileIdRoute = ApiPublicCloudFileIdRouteImport.update({
+  id: '/api/public/cloud/file/$id',
+  path: '/api/public/cloud/file/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -567,6 +598,7 @@ export interface FileRoutesByFullPath {
   '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
+  '/system/cloud': typeof SystemCloudRoute
   '/system/help': typeof SystemHelpRoute
   '/system/settings': typeof SystemSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -603,12 +635,16 @@ export interface FileRoutesByFullPath {
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
+  '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
+  '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -651,6 +687,7 @@ export interface FileRoutesByTo {
   '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
+  '/system/cloud': typeof SystemCloudRoute
   '/system/help': typeof SystemHelpRoute
   '/system/settings': typeof SystemSettingsRoute
   '/admin': typeof AdminIndexRoute
@@ -687,12 +724,16 @@ export interface FileRoutesByTo {
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
+  '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
+  '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -738,6 +779,7 @@ export interface FileRoutesById {
   '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
+  '/system/cloud': typeof SystemCloudRoute
   '/system/help': typeof SystemHelpRoute
   '/system/settings': typeof SystemSettingsRoute
   '/admin/': typeof AdminIndexRoute
@@ -774,12 +816,16 @@ export interface FileRoutesById {
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
+  '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
+  '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
+  '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
+  '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -826,6 +872,7 @@ export interface FileRouteTypes {
     | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
+    | '/system/cloud'
     | '/system/help'
     | '/system/settings'
     | '/admin/'
@@ -862,12 +909,16 @@ export interface FileRouteTypes {
     | '/api/router/stt'
     | '/api/router/subtitle'
     | '/api/router/voice'
+    | '/oauth/google-drive/return'
+    | '/api/public/cloud/upload'
     | '/api/public/doku/notification'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
+    | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
+    | '/api/public/cloud/file/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -910,6 +961,7 @@ export interface FileRouteTypes {
     | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
+    | '/system/cloud'
     | '/system/help'
     | '/system/settings'
     | '/admin'
@@ -946,12 +998,16 @@ export interface FileRouteTypes {
     | '/api/router/stt'
     | '/api/router/subtitle'
     | '/api/router/voice'
+    | '/oauth/google-drive/return'
+    | '/api/public/cloud/upload'
     | '/api/public/doku/notification'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
+    | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
+    | '/api/public/cloud/file/$id'
   id:
     | '__root__'
     | '/'
@@ -996,6 +1052,7 @@ export interface FileRouteTypes {
     | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
+    | '/system/cloud'
     | '/system/help'
     | '/system/settings'
     | '/admin/'
@@ -1032,12 +1089,16 @@ export interface FileRouteTypes {
     | '/api/router/stt'
     | '/api/router/subtitle'
     | '/api/router/voice'
+    | '/oauth/google-drive/return'
+    | '/api/public/cloud/upload'
     | '/api/public/doku/notification'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
+    | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
     | '/api/public/tiktok/callback'
+    | '/api/public/cloud/file/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1064,6 +1125,7 @@ export interface RootRouteChildren {
   ManageRoutingRoute: typeof ManageRoutingRoute
   ManageTokensRoute: typeof ManageTokensRoute
   SystemAnalyticRoute: typeof SystemAnalyticRoute
+  SystemCloudRoute: typeof SystemCloudRoute
   SystemHelpRoute: typeof SystemHelpRoute
   SystemSettingsRoute: typeof SystemSettingsRoute
   ApiPublicBacksoundSearchRoute: typeof ApiPublicBacksoundSearchRoute
@@ -1098,12 +1160,16 @@ export interface RootRouteChildren {
   ApiRouterSttRoute: typeof ApiRouterSttRoute
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
+  OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
+  ApiPublicCloudUploadRoute: typeof ApiPublicCloudUploadRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicExtensionLoginRoute: typeof ApiPublicExtensionLoginRoute
   ApiPublicExtensionPushTokenRoute: typeof ApiPublicExtensionPushTokenRoute
   ApiPublicExtensionRefreshRoute: typeof ApiPublicExtensionRefreshRoute
+  ApiPublicGoogleDriveCallbackRoute: typeof ApiPublicGoogleDriveCallbackRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
+  ApiPublicCloudFileIdRoute: typeof ApiPublicCloudFileIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1176,6 +1242,13 @@ declare module '@tanstack/react-router' {
       path: '/system/help'
       fullPath: '/system/help'
       preLoaderRoute: typeof SystemHelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system/cloud': {
+      id: '/system/cloud'
+      path: '/system/cloud'
+      fullPath: '/system/cloud'
+      preLoaderRoute: typeof SystemCloudRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/system/analytic': {
@@ -1430,6 +1503,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAccessRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/oauth/google-drive/return': {
+      id: '/oauth/google-drive/return'
+      path: '/oauth/google-drive/return'
+      fullPath: '/oauth/google-drive/return'
+      preLoaderRoute: typeof OauthGoogleDriveReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/router/voice': {
       id: '/api/router/voice'
       path: '/api/router/voice'
@@ -1668,6 +1748,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/google-drive/callback': {
+      id: '/api/public/google-drive/callback'
+      path: '/api/public/google-drive/callback'
+      fullPath: '/api/public/google-drive/callback'
+      preLoaderRoute: typeof ApiPublicGoogleDriveCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/extension/refresh': {
       id: '/api/public/extension/refresh'
       path: '/api/public/extension/refresh'
@@ -1694,6 +1781,20 @@ declare module '@tanstack/react-router' {
       path: '/api/public/doku/notification'
       fullPath: '/api/public/doku/notification'
       preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cloud/upload': {
+      id: '/api/public/cloud/upload'
+      path: '/api/public/cloud/upload'
+      fullPath: '/api/public/cloud/upload'
+      preLoaderRoute: typeof ApiPublicCloudUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cloud/file/$id': {
+      id: '/api/public/cloud/file/$id'
+      path: '/api/public/cloud/file/$id'
+      fullPath: '/api/public/cloud/file/$id'
+      preLoaderRoute: typeof ApiPublicCloudFileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -1802,6 +1903,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManageRoutingRoute: ManageRoutingRoute,
   ManageTokensRoute: ManageTokensRoute,
   SystemAnalyticRoute: SystemAnalyticRoute,
+  SystemCloudRoute: SystemCloudRoute,
   SystemHelpRoute: SystemHelpRoute,
   SystemSettingsRoute: SystemSettingsRoute,
   ApiPublicBacksoundSearchRoute: ApiPublicBacksoundSearchRoute,
@@ -1836,12 +1938,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterSttRoute: ApiRouterSttRoute,
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
+  OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
+  ApiPublicCloudUploadRoute: ApiPublicCloudUploadRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicExtensionLoginRoute: ApiPublicExtensionLoginRoute,
   ApiPublicExtensionPushTokenRoute: ApiPublicExtensionPushTokenRoute,
   ApiPublicExtensionRefreshRoute: ApiPublicExtensionRefreshRoute,
+  ApiPublicGoogleDriveCallbackRoute: ApiPublicGoogleDriveCallbackRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
+  ApiPublicCloudFileIdRoute: ApiPublicCloudFileIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -32,6 +32,7 @@ import { consumeHandoff, setHandoff } from "@/lib/creative/handoff";
 
 import { confirmDialog } from "@/components/ui-confirm";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 
 
@@ -346,6 +347,8 @@ type GenResult = {
   error?: string;
   status: "pending" | "brain" | "image" | "done" | "err";
   ratio?: string;
+  /** id entri cloud (galeri tersinkron Google Drive) */
+  cloudId?: string;
 };
 type SbRun = { results: GenResult[]; logs: string[]; busy: boolean };
 const sbRunStore = createRunStore<SbRun>({ results: [], logs: [], busy: false });
@@ -540,8 +543,37 @@ function StoryboardPage() {
   const setBusy = (b: boolean) => sbRunStore.set((s) => ({ ...s, busy: b }));
   const pushLog = (s: string) =>
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
-  const patchResult = (resultId: string, patch: Partial<GenResult>) =>
+  // Galeri hasil tersinkron cloud (Google Drive) — sama di semua perangkat.
+  const gallery = useCloudGallery<{ title?: string; ratio?: string }>("storyboard", "image");
+  useEffect(() => {
+    if (gallery.loading) return;
+    setResults((prev) => {
+      const known = new Set(prev.map((r) => r.cloudId).filter(Boolean) as string[]);
+      const hydrated = gallery.items
+        .filter((it) => !known.has(it.id))
+        .map<GenResult>((it) => ({
+          resultId: `cloud_${it.id}`,
+          rowId: `cloud_${it.id}`,
+          title: (it.meta?.title as string) || it.name,
+          imgUrl: it.url,
+          status: "done",
+          ratio: (it.meta?.ratio as string) || undefined,
+          cloudId: it.id,
+        }));
+      return hydrated.length ? [...prev, ...hydrated] : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gallery.loading, gallery.items]);
+
+  const patchResult = (resultId: string, patch: Partial<GenResult>) => {
     setResults((prev) => prev.map((r) => (r.resultId === resultId ? { ...r, ...patch } : r)));
+    if (patch.imgUrl && !patch.cloudId) {
+      const title = results.find((r) => r.resultId === resultId)?.title;
+      void gallery.add(patch.imgUrl, { title, ratio: patch.ratio ?? ratio }).then((item) => {
+        if (item) patchResult(resultId, { cloudId: item.id, imgUrl: item.url });
+      });
+    }
+  };
 
   const canGenerate = okCount > 0 && !!modelKey && !busy;
 
@@ -734,6 +766,7 @@ function StoryboardPage() {
   const clearResults = () => {
     setResults([]);
     setLogs([]);
+    void gallery.removeAll();
   };
 
   async function sendToImageToVideo(imgUrl: string, title: string) {
@@ -839,7 +872,13 @@ function StoryboardPage() {
         <div className="flex flex-col gap-5 order-2 lg:order-none lg:row-span-2">
           <Card title="Pengaturan">
             <div className="flex flex-col gap-4">
-              <Field label="Model AI" right={<ProviderActivePill cap="image" />}>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+                  <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                    Model AI
+                  </label>
+                  <ProviderActivePill cap="image" />
+                </div>
                 {models.length ? (
                   <Select
                     value={modelKey}
@@ -851,7 +890,8 @@ function StoryboardPage() {
                     Tidak tersedia di provider ini
                   </div>
                 )}
-              </Field>
+              </div>
+
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Jumlah Panel">

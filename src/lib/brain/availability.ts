@@ -63,3 +63,18 @@ export function notifyKeysChanged() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("aatools:keys-changed"));
 }
+
+/**
+ * Async version of hasBrainKey(): kalau user tidak punya key sendiri, tunggu
+ * flag Global Brain terbaru dari server dulu sebelum memutuskan.
+ */
+export async function ensureBrainAccess(): Promise<boolean> {
+  if (
+    readArray("aatools.brain.geminiKeys").length > 0 ||
+    readArray("aatools.brain.openaiKeys").length > 0
+  ) {
+    return true;
+  }
+  await refreshPlatformFlags();
+  return globalBrainEnabled();
+}

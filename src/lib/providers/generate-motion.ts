@@ -1,3 +1,4 @@
+import { archiveUploadInBackground } from "@/lib/cloud/client";
 // High-level orchestrator for Motion Control generation.
 // Handles provider dispatch (weavy / wavespeed) + auto-rotate on Weavy credit failure.
 
@@ -334,6 +335,7 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     const r = await fetch("/api/public/upload-catbox", { method: "POST", body: fd });
     const j = (await r.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!r.ok || !j.url) throw new Error(j.error || `Upload gagal (${r.status})`);
+    archiveUploadInBackground(file, { source: "motion-control" });
     return j.url;
   };
 

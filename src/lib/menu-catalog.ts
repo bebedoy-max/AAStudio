@@ -47,6 +47,7 @@ export const MENU_CATALOG: MenuCatalogEntry[] = [
 
   // System
   { key: "system.analytic", label: "Analytic", group: "System", url: "/system/analytic" },
+  { key: "system.cloud", label: "Cloud Storage", group: "System", url: "/system/cloud" },
   { key: "system.settings", label: "Pengaturan", group: "System", url: "/system/settings" },
   { key: "system.help", label: "Help", group: "System", url: "/system/help" },
 ];

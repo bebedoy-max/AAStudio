@@ -142,21 +142,32 @@ async function callGemini(
   return last || { ok: false, status: 502, body: "gemini: no models" };
 }
 
-async function loadGlobalBrainKeys(): Promise<{ gemini: string[]; openai: string[] }> {
+export async function loadGlobalBrainKeys(): Promise<{ gemini: string[]; openai: string[] }> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SERVICE_ROLE_KEY) {
+    console.error(
+      "[global-brain] SUPABASE_SERVICE_ROLE_KEY belum di-set — key Global Brain tidak bisa dibaca server.",
+    );
+    return { gemini: [], openai: [] };
+  }
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("global_brain" as never)
       .select("enabled, gemini_keys, openai_keys")
       .eq("id", 1)
       .maybeSingle();
+    if (error) {
+      console.error("[global-brain] gagal membaca tabel global_brain:", error.message);
+      return { gemini: [], openai: [] };
+    }
     const row = data as unknown as
       | { enabled?: boolean; gemini_keys?: string[]; openai_keys?: string[] }
       | null;
     if (!row?.enabled) return { gemini: [], openai: [] };
     const clean = (arr?: string[]) => (arr ?? []).map((s) => (s || "").trim()).filter(Boolean);
     return { gemini: clean(row.gemini_keys), openai: clean(row.openai_keys) };
-  } catch {
+  } catch (e) {
+    console.error("[global-brain] error:", (e as Error).message);
     return { gemini: [], openai: [] };
   }
 }

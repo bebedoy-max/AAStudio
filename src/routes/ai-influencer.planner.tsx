@@ -19,6 +19,7 @@ import {
 } from "@/lib/ai-influencer/studio.functions";
 import { getCharacter } from "@/lib/ai-influencer/service";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
+import { ensureBrainAccess } from "@/lib/brain/availability";
 import { openConfirm } from "@/components/ai-influencer/dialogs";
 
 export const Route = createFileRoute("/ai-influencer/planner")({
@@ -209,7 +210,7 @@ function PlannerPage() {
       const socialRefs = learning.sources ?? [];
 
       const keys = getCreativeKeys();
-      if (!keys.gemini && !keys.openai) {
+      if (!keys.gemini && !keys.openai && !(await ensureBrainAccess())) {
         throw new Error("Brain API key kosong. Isi Gemini/OpenAI di Manage → Tokens.");
       }
       const res = await fetch("/api/router/plan-weekly", {

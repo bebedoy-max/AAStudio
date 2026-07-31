@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useRef, useState } from "react";
 import { Rocket, Trash2, Plus, RefreshCw, X } from "lucide-react";
 import { logGenerate } from "@/lib/activity/log";
@@ -9,6 +10,7 @@ import { consumeHandoff } from "@/lib/creative/handoff";
 import { leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { useProviderCredit } from "@/lib/providers/credit-summary";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 
 
@@ -290,6 +292,11 @@ function ImageToVideo() {
   const pushLog = (s: string) =>
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
   const imgInput = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker();
+  const pickImage = () =>
+    void picker.pick({ accept: "image/*", source: "image-to-video", title: "Pilih gambar input" }).then((fs) => {
+      if (fs.length) onFile(toFileList(fs));
+    });
 
   // Real token/credit dari Token / API Manager (live)
   const { tokens, credits } = useProviderCredit(provider);
@@ -361,7 +368,9 @@ function ImageToVideo() {
 
   const [imgFile, setImgFile] = useSticky<File | null>("i2v.imgFile", null);
   const [imgAspect, setImgAspect] = useState<number | null>(null);
-  const [results, setResults] = useSticky<string[]>("i2v.results", []);
+  // Galeri hasil tersimpan di cloud (Google Drive) — konsisten di semua perangkat.
+  const gallery = useCloudGallery<{ prompt?: string }>("image-to-video", "video");
+  const results = gallery.items;
 
 
   const onFile = (files: FileList | null) => {
@@ -414,7 +423,7 @@ function ImageToVideo() {
         },
       });
 
-      setResults((r) => [url, ...r]);
+      void gallery.add(url, { prompt: prompt.trim() });
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
       pushLog(`✅ Video selesai · ${url.slice(0, 60)}${url.length > 60 ? "…" : ""}`);
@@ -468,8 +477,9 @@ function ImageToVideo() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card title="🖼️ Gambar Input" sub="1 file (JPG / PNG / WEBP)">
           <input ref={imgInput} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files)} />
+          {picker.element}
           {!img ? (
-            <button onClick={() => imgInput.current?.click()} className="w-full aspect-[9/16] rounded-2xl border border-dashed border-border/80 bg-card/30 grid place-items-center hover:border-primary/60 transition text-center px-4">
+            <button onClick={pickImage} className="w-full aspect-[9/16] rounded-2xl border border-dashed border-border/80 bg-card/30 grid place-items-center hover:border-primary/60 transition text-center px-4">
               <div>
                 <div className="text-3xl">🖼️</div>
                 <div className="text-sm mt-1">Tap atau tarik <b>gambar</b> (1 file)</div>
@@ -492,7 +502,7 @@ function ImageToVideo() {
                   }
                 }}
               />
-              <button onClick={() => imgInput.current?.click()} className="absolute top-2 right-2 rounded-full px-2 md:px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
+              <button onClick={pickImage} className="absolute top-2 right-2 rounded-full px-2 md:px-2.5 py-1 text-xs bg-black/60 text-white flex items-center gap-1">
                 <RefreshCw className="h-3 w-3" /> <span className="hidden md:inline">Ganti</span>
               </button>
             </div>
@@ -572,7 +582,7 @@ function ImageToVideo() {
         title="🎬 Hasil Image To Video"
         sub={`(${results.length})`}
         right={
-          <GhostButton className="text-destructive hover:text-destructive" onClick={() => setResults([])} title="Clear">
+          <GhostButton className="text-destructive hover:text-destructive" onClick={() => void gallery.removeAll()} title="Clear">
             <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Clear</span>
           </GhostButton>
 
@@ -582,15 +592,15 @@ function ImageToVideo() {
           <GalleryEmpty />
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {results.map((u, i) => (
-              <div key={i} className="rounded-xl overflow-hidden border border-border bg-black/40">
-                <a href={u} target="_blank" rel="noreferrer" className="block">
-                  <video src={u} controls preload="metadata" playsInline crossOrigin="anonymous" className="w-full aspect-[9/16] object-cover" />
+            {results.map((item) => (
+              <div key={item.id} className="rounded-xl overflow-hidden border border-border bg-black/40">
+                <a href={item.url} target="_blank" rel="noreferrer" className="block">
+                  <video src={item.url} controls preload="metadata" playsInline crossOrigin="anonymous" className="w-full aspect-[9/16] object-cover" />
                 </a>
                 <div className="p-2 flex justify-between">
-                  <a href={u} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline">▶ Open</a>
-                  <a href={u} download className="text-[11px] text-primary hover:underline">Download</a>
-                  <button onClick={() => setResults((r) => r.filter((_, idx) => idx !== i))} className="text-[11px] text-destructive hover:underline">Hapus</button>
+                  <a href={item.url} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline">▶ Open</a>
+                  <a href={item.url} download className="text-[11px] text-primary hover:underline">Download</a>
+                  <button onClick={() => void gallery.remove(item.id)} className="text-[11px] text-destructive hover:underline">Hapus</button>
                 </div>
               </div>
             ))}
