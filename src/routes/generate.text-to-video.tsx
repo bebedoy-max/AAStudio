@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useRef, useState } from "react";
 import { Download, ExternalLink } from "lucide-react";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
-import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { ProviderActivePill, useActiveProvider } from "@/components/routing/quick-routing-dialog";
+import { useProviderCredit } from "@/lib/providers/credit-summary";
+
 import { getAllLeonardoKeys } from "@/lib/providers/leonardo";
 import {
   LEONARDO_VIDEO_MODELS,
@@ -19,7 +22,7 @@ import {
   runFireflyWithRotation,
   getAllFireflyKeys,
 } from "@/lib/providers/firefly";
-import { archiveUrlInBackground } from "@/lib/cloud/client";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 const T2V_PROVIDERS = [
   { value: "leonardo", label: "Leonardo.ai" },
@@ -62,15 +65,28 @@ function TextToVideoPage() {
   });
   const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">("t2v.runState", "idle");
   const [error, setError] = useSticky<string | null>("t2v.error", null);
-  const [videos, setVideos] = useSticky<string[]>("t2v.videos", []);
+  // Galeri hasil tersimpan di cloud (Google Drive), sama di semua perangkat.
+  const gallery = useCloudGallery<{ prompt?: string }>("text-to-video", "video");
+  const videos = gallery.items;
   const [keyCount, setKeyCount] = useState(0);
   const [vidProvider, setVidProvider] = useSticky<T2VProvider>("t2v.provider", "leonardo");
+  // Provider mengikuti label "Provider aktif" (routing cap video) — tidak ada
+  // dropdown provider terpisah di halaman ini.
+  const routedProvider = useActiveProvider("video");
+  useEffect(() => {
+    const next: T2VProvider | null =
+      routedProvider === "firefly" ? "firefly" : routedProvider === "leonardo" ? "leonardo" : null;
+    if (next && next !== vidProvider) setVidProvider(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routedProvider]);
   const [ffModelKey, setFfModelKey] = useSticky<string>("t2v.ffModel", FIREFLY_VIDEO_MODELS[0].key);
   const [ffRatio, setFfRatio] = useSticky<string>("t2v.ffRatio", "9:16");
   const [ffDuration, setFfDuration] = useSticky<number>("t2v.ffDuration", 8);
   const isFirefly = vidProvider === "firefly";
+  const { credits } = useProviderCredit(vidProvider);
   const activeFfModel =
     FIREFLY_VIDEO_MODELS.find((m) => m.key === ffModelKey) ?? FIREFLY_VIDEO_MODELS[0];
+
 
   const [vidModelId, setVidModelId] = useSticky<string>("t2v.modelId", LEONARDO_VIDEO_MODELS[0].id);
   const [vidAspect, setVidAspect] = useSticky<LeonardoVideoAspect>("t2v.aspect", "9:16");
@@ -79,6 +95,11 @@ function TextToVideoPage() {
   const [vidImageFile, setVidImageFile] = useState<File | null>(null);
   const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
   const vidInput = useRef<HTMLInputElement>(null);
+  const picker = useFilePicker();
+  const pickVidImage = () =>
+    void picker.pick({ accept: "image/*", source: "text-to-video", title: "Pilih image reference" }).then((fs) => {
+      if (fs.length) onPickVidImage(toFileList(fs));
+    });
 
   const activeVidModel =
     LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
@@ -163,8 +184,7 @@ function TextToVideoPage() {
             }),
           (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         );
-        setVideos((v) => [url, ...v]);
-        archiveUrlInBackground(url, { source: "text-to-video" });
+        void gallery.add(url, { prompt: prompt.trim() });
         log("✅ Video siap", 100);
         setRunState("sukses");
         setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -184,8 +204,7 @@ function TextToVideoPage() {
         onProgress: (m) => log(m),
         onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
       });
-      setVideos((v) => [url, ...v]);
-        archiveUrlInBackground(url, { source: "text-to-video" });
+      void gallery.add(url, { prompt: prompt.trim() });
       log(`✅ Video siap`, 100);
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -259,13 +278,7 @@ function TextToVideoPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Provider">
-              <Select
-                value={vidProvider}
-                onChange={(e) => setVidProvider(e.target.value as T2VProvider)}
-                options={T2V_PROVIDERS.map((p) => ({ value: p.value, label: p.label }))}
-              />
-            </Field>
+
             <Field label="Aspect Ratio">
               {isFirefly ? (
                 <Select
@@ -288,14 +301,6 @@ function TextToVideoPage() {
                   onChange={(e) => setFfDuration(Number(e.target.value))}
                   options={(activeFfModel.durations ?? [8]).map((d) => ({ value: String(d), label: `${d}s` }))}
                 />
-              </Field>
-            )}
-            {isFirefly && (
-              <Field label="Estimasi biaya">
-                <div className="rounded-lg border border-border bg-card/40 px-3 py-2 text-sm">
-                  <span className="font-mono text-emerald-300">{activeFfModel.cost}</span>{" "}
-                  <span className="text-muted-foreground text-xs">Firefly generative credits</span>
-                </div>
               </Field>
             )}
             {!isFirefly && (
@@ -334,19 +339,6 @@ function TextToVideoPage() {
               />
             </Field>
             )}
-            {!isFirefly && (
-            <Field label="Estimasi biaya">
-              <div className="rounded-lg border border-border bg-card/40 px-3 py-2 text-sm">
-                <span className="font-mono text-emerald-300">{vidCostEstimate}</span>{" "}
-                <span className="text-muted-foreground text-xs">Leonardo credits (≈ {activeVidModel.crPerSecond}/s)</span>
-                {activeVidModel.audio && (
-                  <span className="ml-2 text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded border border-primary/40 text-primary">
-                    audio
-                  </span>
-                )}
-              </div>
-            </Field>
-            )}
             {!isFirefly && activeVidModel.supportsI2V && (
               <Field label="Image reference (opsional — untuk I2V)">
                 <div className="flex items-center gap-2">
@@ -357,7 +349,8 @@ function TextToVideoPage() {
                     hidden
                     onChange={(e) => onPickVidImage(e.target.files)}
                   />
-                  <GhostButton onClick={() => vidInput.current?.click()} disabled={busy}>
+                  {picker.element}
+                  <GhostButton onClick={pickVidImage} disabled={busy}>
                     {vidImagePreview ? "Ganti" : "Upload"}
                   </GhostButton>
                   {vidImagePreview && (
@@ -390,7 +383,6 @@ function TextToVideoPage() {
             <GhostButton
               onClick={() => {
                 setPrompt("");
-                setVideos([]);
                 setLogs([]);
                 setError(null);
                 setRunState("idle");
@@ -402,9 +394,16 @@ function TextToVideoPage() {
               Reset
             </GhostButton>
             <div className="text-xs text-muted-foreground">
+              Cost: <b className="text-foreground font-mono">{isFirefly ? activeFfModel.cost : vidCostEstimate}</b>
+              {!isFirefly && " credits"}
+            </div>
+            <div className="text-xs text-muted-foreground">
               Token: <b className="text-fuchsia-300">{keyCount}</b>
+              {" · "}Sisa credit:{" "}
+              <b className="text-emerald-400">{credits == null ? "—" : credits.toLocaleString()}</b>
               {" · "}Status: <b className={statusTone}>{runState}</b>
             </div>
+
           </div>
 
           {error && (
@@ -457,8 +456,8 @@ function TextToVideoPage() {
           <div className="text-xs text-muted-foreground italic">Belum ada video.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {videos.map((url, i) => (
-              <div key={url + i} className="rounded-lg overflow-hidden border border-border bg-black/40">
+            {videos.map(({ id, url }) => (
+              <div key={id} className="rounded-lg overflow-hidden border border-border bg-black/40">
                 <video
                   src={url}
                   controls
@@ -475,7 +474,7 @@ function TextToVideoPage() {
                     <Download className="h-3 w-3" /> Unduh
                   </a>
                   <button
-                    onClick={() => setVideos((v) => v.filter((_, idx) => idx !== i))}
+                    onClick={() => void gallery.remove(id)}
                     className="text-destructive hover:underline"
                   >
                     Hapus

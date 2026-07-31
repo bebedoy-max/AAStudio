@@ -44,10 +44,17 @@ export const setCloudStorageMode = createServerFn({ method: "POST" })
 
 export const listCloudFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { kind?: string | null } | undefined) => ({ kind: data?.kind ?? null }))
+  .inputValidator((data: { kind?: string | null; source?: string | null; origin?: string | null } | undefined) => ({
+    kind: data?.kind ?? null,
+    source: data?.source ?? null,
+    origin: data?.origin ?? null,
+  }))
   .handler(async ({ data, context }) => {
     const { listCloudFilesForUser } = await import("./registry.server");
-    const rows = await listCloudFilesForUser(context.userId, data.kind);
+    const rows = await listCloudFilesForUser(context.userId, data.kind, {
+      source: data.source,
+      origin: data.origin,
+    });
     return rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -57,6 +64,8 @@ export const listCloudFiles = createServerFn({ method: "GET" })
       storage: r.storage_mode,
       origin: r.origin,
       source: r.source,
+      meta: (r.meta ?? {}) as Record<string, string | number | boolean | null>,
+      sourceUrl: r.source_url,
       createdAt: r.created_at,
       url: `/api/public/cloud/file/${r.id}`,
     }));
@@ -76,10 +85,18 @@ export const deleteCloudFile = createServerFn({ method: "POST" })
 
 export const archiveGeneratedUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { url: string; name?: string; source?: string; origin?: string }) => {
-    if (!/^https?:\/\//i.test(data?.url ?? "")) throw new Error("URL tidak valid");
-    return data;
-  })
+  .inputValidator(
+    (data: {
+      url: string;
+      name?: string;
+      source?: string;
+      origin?: string;
+      meta?: Record<string, string | number | boolean | null> | null;
+    }) => {
+      if (!/^https?:\/\//i.test(data?.url ?? "")) throw new Error("URL tidak valid");
+      return data;
+    },
+  )
   .handler(async ({ data, context }) => {
     const { archiveRemoteUrlForUser } = await import("./registry.server");
     const row = await archiveRemoteUrlForUser({
@@ -88,8 +105,20 @@ export const archiveGeneratedUrl = createServerFn({ method: "POST" })
       name: data.name,
       source: data.source ?? null,
       origin: data.origin ?? "generate",
+      meta: data.meta ?? null,
     });
-    return { id: row.id, url: `/api/public/cloud/file/${row.id}` };
+    return {
+      id: row.id,
+      url: `/api/public/cloud/file/${row.id}`,
+      name: row.name,
+      kind: row.kind,
+      mimeType: row.mime_type,
+      size: Number(row.size_bytes || 0),
+      source: row.source,
+      sourceUrl: row.source_url,
+      meta: (row.meta ?? {}) as Record<string, string | number | boolean | null>,
+      createdAt: row.created_at,
+    };
   });
 
 export const startDriveConnect = createServerFn({ method: "POST" })

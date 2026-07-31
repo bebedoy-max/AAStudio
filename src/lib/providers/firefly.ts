@@ -837,9 +837,16 @@ export async function runFireflyWithRotation<T>(
   fn: (token: string) => Promise<T>,
   onRotate?: (index: number, total: number, reason: string) => void,
 ): Promise<T> {
-  const tokens = getAllFireflyKeys();
-  if (!tokens.length)
+  if (!getAllFireflyKeys().length)
     throw new Error("Belum ada token Firefly. Buka Token Manager → Firefly dan tempel Bearer token.");
+  const { preflightTokens } = await import("@/lib/tokens/preflight");
+  const pre = await preflightTokens("firefly", { onLog: (m) => onRotate?.(0, 0, m) });
+  const tokens = pre.keys.length ? pre.keys : pre.emptyKeys;
+  if (!tokens.length)
+    throw new Error(
+      "Tidak ada token Firefly yang available (semua invalid / habis credit). Update di Token Manager.",
+    );
+
   let lastErr: Error | null = null;
   for (let i = 0; i < tokens.length; i++) {
     try {

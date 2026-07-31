@@ -13,11 +13,11 @@ import {
   WEAVY_API,
 } from "./weavy";
 import {
-  getFirstLeonardoKey,
   uploadLeonardoInitImage,
   leonardoFetch,
-  isLeonardoTokenExpired,
+  runLeonardoWithRotation,
 } from "./leonardo";
+
 
 // ------------------------------------------------------------------
 // Catalog
@@ -730,9 +730,21 @@ async function runLeonardoAuroraOne(
   params: LeonardoAuroraParams,
   onLog: (m: string) => void,
 ): Promise<string> {
-  const token = getFirstLeonardoKey();
-  if (!token) throw new Error("Belum ada token Leonardo di Kelola Token");
-  if (isLeonardoTokenExpired(token)) throw new Error("Token Leonardo expired — paste JWT baru");
+  // Preflight + auto-rotate: token invalid/expired/habis credit dibersihkan
+  // dulu, lalu job dijalankan dengan token pertama yang available.
+  return runLeonardoWithRotation((token) => runLeonardoAuroraWithToken(token, file, params, onLog), {
+    onRotate: (idx, total, reason) =>
+      onLog(total ? `↻ rotate token Leonardo #${idx}/${total}: ${reason}` : reason),
+  });
+}
+
+async function runLeonardoAuroraWithToken(
+  token: string,
+  file: File,
+  params: LeonardoAuroraParams,
+  onLog: (m: string) => void,
+): Promise<string> {
+
 
   const source = file.size > 8 * 1024 * 1024 ? await compressImage(file, 2048, 0.92) : file;
   const { width, height } = await getImageDims(source);

@@ -22,7 +22,7 @@ import {
   type ImageProviderId,
 } from "@/lib/providers/image-catalog";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
-import { archiveUrlInBackground } from "@/lib/cloud/client";
+import { useCloudGallery } from "@/lib/cloud/gallery";
 
 
 export const Route = createFileRoute("/generate/leonardo")({
@@ -173,7 +173,9 @@ function LeonardoPage() {
   const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>("t2i.status", {
     show: false, text: "", pct: 0, time: "0:00",
   });
-  const [images, setImages] = useSticky<string[]>("t2i.images", []);
+  // Galeri hasil tersimpan di cloud (Google Drive), sama di semua perangkat.
+  const gallery = useCloudGallery<{ prompt?: string }>("leonardo", "image");
+  const images = gallery.items;
   const [error, setError] = useSticky<string | null>("t2i.error", null);
   const [keyCount, setKeyCount] = useState(0);
   const [remoteModels, setRemoteModels] = useState<LeonardoPlatformModel[]>([]);
@@ -262,8 +264,7 @@ function LeonardoPage() {
           onRotate: (idx, total, reason) => log(`↻ rotate token #${idx}/${total}: ${reason}`),
         });
         out.push(url);
-        setImages((prev) => [url, ...prev]);
-        archiveUrlInBackground(url, { source: "leonardo" });
+        void gallery.add(url, { prompt: prompt.trim() });
       }
       log(`✅ Selesai — ${out.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
@@ -343,8 +344,7 @@ function LeonardoPage() {
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         },
       );
-      setImages((prev) => [...images, ...prev]);
-      images.forEach((u) => archiveUrlInBackground(u, { source: "leonardo" }));
+      for (const u of images) void gallery.add(u, { prompt: prompt.trim() });
       log(`✅ Selesai — ${images.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
@@ -440,7 +440,6 @@ function LeonardoPage() {
               <GhostButton
                 onClick={() => {
                   setPrompt("");
-                  setImages([]);
                   setLogs([]);
                   setError(null);
                 }}
@@ -456,13 +455,6 @@ function LeonardoPage() {
               </div>
             )}
 
-            <div className="text-[11px] text-muted-foreground">
-              Ganti provider di{" "}
-              <a href="/manage/routing" className="underline text-primary">
-                Manage → Routing → Image
-              </a>
-              .
-            </div>
           </div>
 
           <div className="neumorph rounded-xl p-4 space-y-3">
@@ -604,7 +596,6 @@ function LeonardoPage() {
               onClick={() => {
                 setPrompt("");
                 setNeg("");
-                setImages([]);
                 setLogs([]);
                 setError(null);
               }}
@@ -662,9 +653,9 @@ function LeonardoPage() {
             <div className="text-xs text-muted-foreground italic">Belum ada gambar.</div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {images.map((url, i) => (
+              {images.map(({ id, url }, i) => (
                 <div
-                  key={url + i}
+                  key={id}
                   className="group relative rounded-lg overflow-hidden border border-border bg-black/40"
                 >
                   <img src={url} alt={`Leonardo ${i + 1}`} className="w-full h-auto block" />

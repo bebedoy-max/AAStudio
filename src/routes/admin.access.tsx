@@ -199,12 +199,17 @@ function AccessBody() {
     setSaved((s) => ({ ...s, [key]: JSON.parse(JSON.stringify(draft)) }));
   }
 
-  const MODES: { value: FeatureAccessMode; label: string; hint: string }[] = [
-    { value: "open", label: "Open", hint: "gratis untuk semua user" },
-    { value: "premium", label: "Premium", hint: "berbayar / langganan" },
-    { value: "trial", label: "Trial", hint: "uji coba sampai tanggal tertentu" },
-    { value: "lock", label: "Lock", hint: "tampil tapi dinonaktifkan" },
-    { value: "hide", label: "Hide", hint: "disembunyikan dari user" },
+  const MODES: {
+    value: FeatureAccessMode;
+    label: string;
+    hint: string;
+    cls: string;
+  }[] = [
+    { value: "open", label: "Open", hint: "Gratis untuk semua user", cls: "border-emerald-400/60 bg-emerald-400/15 text-emerald-300" },
+    { value: "premium", label: "Premium", hint: "Berbayar / langganan", cls: "border-primary/60 bg-primary/15 text-primary" },
+    { value: "trial", label: "Trial", hint: "Uji coba sampai tanggal tertentu", cls: "border-amber-400/60 bg-amber-400/15 text-amber-300" },
+    { value: "lock", label: "Lock", hint: "Tampil tapi dinonaktifkan", cls: "border-rose-400/60 bg-rose-400/15 text-rose-300" },
+    { value: "hide", label: "Hide", hint: "Disembunyikan dari user", cls: "border-slate-400/50 bg-slate-400/10 text-slate-300" },
   ];
 
   if (loading)
@@ -220,75 +225,110 @@ function AccessBody() {
     <div className="flex flex-col gap-4">
       {Object.entries(groups).map(([groupName, features]) => (
         <Card key={groupName}>
-          <div className="p-4 border-b border-border/60">
-            <div className="font-display text-lg">{groupName}</div>
-            <div className="text-xs text-muted-foreground">
-              Atur akses tiap menu di grup ini untuk user umum.
+          <div className="p-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-display text-lg">{groupName}</div>
+              <div className="text-xs text-muted-foreground">
+                Atur akses tiap menu di grup ini untuk user umum.
+              </div>
+            </div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              {features.length} menu
             </div>
           </div>
-          <div className="p-4 flex flex-col gap-3">
+          <div className="p-4 grid gap-3">
             {features.map((f) => {
               const draft = drafts[f.key];
               const dirty = isDirty(f.key);
               const price = prices[f.key];
+              const active = MODES.find((m) => m.value === draft.mode)!;
               return (
-                <div key={f.key} className="rounded-2xl border border-border bg-card/40 p-3">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{f.label}</div>
-                      <div className="text-[10px] font-mono text-muted-foreground break-all">
-                        {f.key}
-                        {price != null ? ` · ${formatRupiah(price)} / 30 hari` : " · harga belum diatur"}
+                <div
+                  key={f.key}
+                  className={[
+                    "rounded-2xl border bg-card/40 p-4 transition-colors",
+                    dirty ? "border-primary/50 bg-primary/[0.04]" : "border-border",
+                  ].join(" ")}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">{f.label}</span>
+                        <span
+                          className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${active.cls}`}
+                        >
+                          {active.label}
+                        </span>
                       </div>
+                      <div className="text-[10px] font-mono text-muted-foreground break-all mt-0.5">
+                        {f.key}
+                        {draft.mode === "premium"
+                          ? price != null
+                            ? ` · ${formatRupiah(price)} / 30 hari`
+                            : " · harga belum diatur"
+                          : ""}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-1">{active.hint}</div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={draft.mode}
-                        onChange={(e) => setMode(f.key, e.target.value as FeatureAccessMode)}
-                        className="w-40 rounded-xl border border-border bg-background/60 px-3 py-2 text-xs font-medium outline-none focus:border-primary/60"
-                      >
-                        {MODES.map((m) => (
-                          <option key={m.value} value={m.value} className="bg-[oklch(0.19_0.055_275)]">
-                            {m.label} — {m.hint}
-                          </option>
-                        ))}
-                      </select>
-
-                      {draft.mode === "trial" && (
-                        <input
-                          type="datetime-local"
-                          value={toLocalInput(draft.trialUntil)}
-                          onChange={(e) => setTrial(f.key, e.target.value)}
-                          className="rounded-xl border border-border bg-background/60 px-2 py-2 text-xs outline-none focus:border-primary/60"
-                        />
+                    <button
+                      onClick={() => save(f.key)}
+                      disabled={!dirty || saving === f.key}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40 shrink-0"
+                      style={{ background: "var(--gradient-neon)" }}
+                    >
+                      {saving === f.key ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Save className="h-3.5 w-3.5" />
                       )}
-
-                      <button
-                        onClick={() => save(f.key)}
-                        disabled={!dirty || saving === f.key}
-                        className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40"
-                        style={{ background: "var(--gradient-neon)" }}
-                      >
-                        {saving === f.key ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Save className="h-3 w-3" />
-                        )}
-                        Simpan
-                      </button>
-                    </div>
+                      Simpan
+                    </button>
                   </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {MODES.map((m) => {
+                      const on = draft.mode === m.value;
+                      return (
+                        <button
+                          key={m.value}
+                          type="button"
+                          title={m.hint}
+                          onClick={() => setMode(f.key, m.value)}
+                          className={[
+                            "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
+                            on
+                              ? m.cls
+                              : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30",
+                          ].join(" ")}
+                        >
+                          {m.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {draft.mode === "trial" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">Trial berlaku sampai</span>
+                      <input
+                        type="datetime-local"
+                        value={toLocalInput(draft.trialUntil)}
+                        onChange={(e) => setTrial(f.key, e.target.value)}
+                        className="rounded-xl border border-border bg-background/60 px-3 py-2 text-xs outline-none focus:border-primary/60"
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </Card>
       ))}
-
     </div>
   );
 }
+
 
 function ContactSection() {
   const [loading, setLoading] = useState(true);

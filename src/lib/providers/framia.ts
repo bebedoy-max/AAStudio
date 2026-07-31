@@ -74,12 +74,20 @@ export async function runFramiaWithRotation<T>(
   fn: (token: string) => Promise<T>,
   opts: FramiaRotateOpts = {},
 ): Promise<T> {
-  const keys = getAllFramiaKeys();
-  if (keys.length === 0) {
+  if (getAllFramiaKeys().length === 0) {
     throw new Error(
       "Belum ada token Framia. Buka Manage → Tokens → Framia dan tambahkan Bearer JWT.",
     );
   }
+  const { preflightTokens } = await import("@/lib/tokens/preflight");
+  const pre = await preflightTokens("framia", { onLog: (m) => opts.onRotate?.(0, 0, m) });
+  const keys = pre.keys.length ? pre.keys : pre.emptyKeys;
+  if (keys.length === 0) {
+    throw new Error(
+      "Tidak ada token Framia yang available (semua expired / habis credit). Update di Manage → Tokens.",
+    );
+  }
+
   let lastErr: Error | null = null;
   for (let i = 0; i < keys.length; i++) {
     const token = keys[i];

@@ -14,6 +14,7 @@ export type CloudFileRow = {
   origin: string;
   source: string | null;
   source_url: string | null;
+  meta: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -42,6 +43,7 @@ export async function storeMediaForUser(params: {
   origin?: string;
   source?: string | null;
   sourceUrl?: string | null;
+  meta?: Record<string, unknown> | null;
 }): Promise<CloudFileRow> {
   if (params.bytes.byteLength <= 0 || params.bytes.byteLength > MAX_CLOUD_BYTES) {
     throw new Error("Ukuran file tidak valid atau terlalu besar untuk cloud.");
@@ -56,10 +58,7 @@ export async function storeMediaForUser(params: {
   }, params.source ?? null, origin);
 
   const db = await admin();
-  const { data, error } = await db
-    .from("cloud_files")
-    .upsert(
-      {
+  const baseRow = {
         user_id: params.userId,
         storage_mode: mode,
         drive_file_id: uploaded.id,
@@ -71,12 +70,24 @@ export async function storeMediaForUser(params: {
 
         source: params.source ?? null,
         source_url: params.sourceUrl ?? null,
-      },
-      { onConflict: "user_id,source_url", ignoreDuplicates: false },
-    )
-    .select("*")
-    .single();
-  if (error) throw new Error(error.message);
+  } as Record<string, unknown>;
+
+  // Catatan: unique index (user_id, source_url) bersifat partial, jadi ON CONFLICT
+  // (upsert PostgREST) tidak bisa dipakai — pakai cek manual lalu insert/update.
+  const insert = (row: Record<string, unknown>) =>
+    db.from("cloud_files").insert(row).select("*").single();
+  const update = (id: string, row: Record<string, unknown>) =>
+    db.from("cloud_files").update(row).eq("id", id).select("*").single();
+
+  const existing = params.sourceUrl ? await findBySourceUrl(params.userId, params.sourceUrl) : null;
+
+  const run = (row: Record<string, unknown>) => (existing ? update(existing.id, row) : insert(row));
+
+  let { data, error } = await run({ ...baseRow, meta: params.meta ?? {} });
+  // Kolom meta bersifat opsional (migrasi belum dijalankan) — fallback tanpa meta.
+  if (error && /meta/i.test(error.message ?? "")) ({ data, error } = await run(baseRow));
+  if (error) throw new Error(`Simpan registry cloud gagal: ${error.message}`);
+
   return data as CloudFileRow;
 }
 
@@ -97,10 +108,16 @@ export async function getCloudFile(id: string): Promise<CloudFileRow | null> {
   return (data as CloudFileRow | null) ?? null;
 }
 
-export async function listCloudFilesForUser(userId: string, kind?: string | null): Promise<CloudFileRow[]> {
+export async function listCloudFilesForUser(
+  userId: string,
+  kind?: string | null,
+  filters?: { source?: string | null; origin?: string | null },
+): Promise<CloudFileRow[]> {
   const db = await admin();
   let query = db.from("cloud_files").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(500);
   if (kind && kind !== "all") query = query.eq("kind", kind);
+  if (filters?.source) query = query.eq("source", filters.source);
+  if (filters?.origin) query = query.eq("origin", filters.origin);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data as CloudFileRow[]) ?? [];
@@ -139,6 +156,7 @@ export async function archiveRemoteUrlForUser(params: {
   name?: string;
   origin?: string;
   source?: string | null;
+  meta?: Record<string, unknown> | null;
 }): Promise<CloudFileRow> {
   const existing = await findBySourceUrl(params.userId, params.url);
   if (existing) return existing;
@@ -162,5 +180,6 @@ export async function archiveRemoteUrlForUser(params: {
     origin: params.origin ?? "generate",
     source: params.source ?? null,
     sourceUrl: params.url,
+    meta: params.meta ?? null,
   });
 }

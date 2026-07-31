@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, normalizeFeatureAccessMode as normalizeMode } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import {
@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
+import { MENU_CATALOG } from "@/lib/menu-catalog";
+
 import { confirmDialog } from "@/components/ui-confirm";
 
 export const Route = createFileRoute("/admin/payments")({
@@ -77,7 +79,9 @@ function Gate() {
 
 type Price = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
-type AccessRow = { route_key: string; access_mode: "public" | "subscription" | "trial"; trial_until: string | null };
+type AccessRow = { route_key: string; access_mode: string; trial_until: string | null };
+
+const DEFAULT_FEATURE_PRICE = 50000;
 
 function PricesSection() {
   const [rows, setRows] = useState<Price[]>([]);
@@ -86,12 +90,6 @@ function PricesSection() {
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
-  const DEFAULT_ROWS: { route_key: string; label: string; price_idr: number }[] = [
-    { route_key: "ai-influencer", label: "AI Influencer Studio", price_idr: 50000 },
-    { route_key: "mixing.clipper", label: "AI Clipper", price_idr: 50000 },
-    { route_key: "mixing.dubbing", label: "AI Dubber", price_idr: 50000 },
-  ];
-
   async function load() {
     setLoading(true);
     const [{ data }, { data: accessData }] = await Promise.all([
@@ -99,22 +97,31 @@ function PricesSection() {
       supabase.from("feature_access" as never).select("route_key, access_mode, trial_until"),
     ]);
     const existing = (data ?? []) as Price[];
-    const existingKeys = new Set(existing.map((r) => r.route_key));
-    const missing = DEFAULT_ROWS.filter((r) => !existingKeys.has(r.route_key));
-    let finalRows = existing;
-    if (missing.length > 0) {
-      const { error: insErr } = await supabase
-        .from("feature_prices")
-        .insert(missing.map((m) => ({ ...m, is_active: true })));
-      if (!insErr) {
-        const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
-        finalRows = (refetched ?? []) as Price[];
-      }
-    }
     const accessMap: Record<string, AccessRow> = {};
     ((accessData ?? []) as AccessRow[]).forEach((a) => {
       accessMap[a.route_key] = a;
     });
+
+    // Menu yang statusnya Premium (key mengikuti MENU_CATALOG / Pengaturan Halaman).
+    const premiumMenus = MENU_CATALOG.filter(
+      (m) => normalizeMode(accessMap[m.key]?.access_mode) === "premium",
+    );
+    const existingKeys = new Set(existing.map((r) => r.route_key));
+    const missing = premiumMenus
+      .filter((m) => !existingKeys.has(m.key))
+      .map((m) => ({ route_key: m.key, label: m.label, price_idr: DEFAULT_FEATURE_PRICE, is_active: true }));
+
+    let finalRows = existing;
+    if (missing.length > 0) {
+      const { error: insErr } = await supabase.from("feature_prices").insert(missing);
+      if (!insErr) {
+        const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
+        finalRows = (refetched ?? []) as Price[];
+      } else {
+        finalRows = [...existing, ...missing];
+      }
+    }
+
     setAccess(accessMap);
     setRows(finalRows);
     setLoading(false);
@@ -122,6 +129,8 @@ function PricesSection() {
   useEffect(() => {
     load();
   }, []);
+
+
 
   async function save(row: Price) {
     const newPrice = drafts[row.route_key];
@@ -153,16 +162,54 @@ function PricesSection() {
 
   const FULL_KEY = "__full_access__";
   const bundleRow = rows.find((r) => r.route_key === FULL_KEY) ?? null;
-  const featureRows = rows.filter((r) => r.route_key !== FULL_KEY);
 
-  // Default when there's no row: "subscription" (matches admin.access default).
-  const modeOf = (key: string) => access[key]?.access_mode ?? "subscription";
+  // Normalisasi mode lama (public/subscription) → mode baru (open/premium/...).
+  const modeOf = (key: string) => normalizeMode(access[key]?.access_mode);
+
+  // Hanya fitur yang statusnya Premium yang tampil di kolom harga.
+  const featureRows = useMemo(
+    () => rows.filter((r) => r.route_key !== FULL_KEY && modeOf(r.route_key) === "premium"),
+    [rows, access],
+  );
+
+  // Harga Full Akses = 70% dari total harga fitur premium yang aktif,
+  // dibulatkan ke ribuan terdekat.
+  const autoBundlePrice = useMemo(() => {
+    const total = featureRows
+      .filter((r) => r.is_active)
+      .reduce((s, r) => s + (r.price_idr ?? 0), 0);
+    return Math.round((total * 0.7) / 1000) * 1000;
+  }, [featureRows]);
+
+  const featuresTotal = useMemo(
+    () => featureRows.filter((r) => r.is_active).reduce((s, r) => s + (r.price_idr ?? 0), 0),
+    [featureRows],
+  );
+
+  // Sinkronkan harga bundle di database begitu total fitur premium berubah.
+  useEffect(() => {
+    if (loading || !bundleRow) return;
+    if (bundleRow.price_idr === autoBundlePrice) return;
+    (async () => {
+      const { error } = await supabase
+        .from("feature_prices")
+        .update({ price_idr: autoBundlePrice })
+        .eq("route_key", FULL_KEY);
+      if (!error) {
+        setRows((rs) =>
+          rs.map((r) => (r.route_key === FULL_KEY ? { ...r, price_idr: autoBundlePrice } : r)),
+        );
+      }
+    })();
+  }, [autoBundlePrice, bundleRow?.price_idr, loading]);
 
   return (
     <Card>
       <div className="p-4 border-b border-border/60">
         <div className="font-display text-lg">Harga Fitur Premium</div>
-        <div className="text-xs text-muted-foreground">Ubah harga per fitur (dalam Rupiah, per 30 hari).</div>
+        <div className="text-xs text-muted-foreground">
+          Hanya menu berstatus <b>Premium</b> (di Pengaturan Halaman) yang muncul di sini.
+        </div>
       </div>
       {loading ? (
         <div className="p-8 grid place-items-center">
@@ -173,155 +220,112 @@ function PricesSection() {
           {bundleRow && (
             <div className="rounded-2xl border border-primary/40 bg-primary/[0.06] p-4">
               <div className="text-[10px] font-mono uppercase tracking-widest text-primary/90 mb-1">
-                Bundle Diskon
+                Bundle Diskon · Otomatis 70%
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{bundleRow.label}</div>
+                  <div className="text-sm font-medium">{bundleRow.label}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    Harga khusus untuk user yang beli semua fitur sekaligus (30 hari).
+                    Dihitung otomatis: 70% dari total {featureRows.filter((r) => r.is_active).length} fitur
+                    premium aktif ({formatRupiah(featuresTotal)}).
                   </div>
                 </div>
-                <BundleRow row={bundleRow} drafts={drafts} setDrafts={setDrafts} save={save} toggleActive={toggleActive} saving={saving} />
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <div className="font-display text-xl text-gradient">
+                    {formatRupiah(bundleRow.price_idr)}
+                  </div>
+                  <button
+                    onClick={() => toggleActive(bundleRow)}
+                    className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border ${
+                      bundleRow.is_active
+                        ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
+                        : "border-rose-400/50 text-rose-300 bg-rose-400/10"
+                    }`}
+                  >
+                    {bundleRow.is_active ? "aktif" : "off"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {featureRows.map((r) => {
-            const draft = drafts[r.route_key];
-            const dirty = draft !== undefined && draft !== r.price_idr;
-            const mode = modeOf(r.route_key);
-            const locked = mode !== "subscription";
-            const modeLabel = mode === "public" ? "Umum" : mode === "trial" ? "Trial" : "Langganan";
-            return (
-              <div
-                key={r.route_key}
-                className={`rounded-2xl border bg-card/40 p-3 flex flex-col sm:flex-row sm:items-center gap-3 ${
-                  locked ? "border-dashed border-border/60 opacity-70" : "border-border"
-                }`}
-              >
-                <div className="flex-1 min-w-0 w-full">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="text-sm font-medium truncate">{r.label}</div>
-                    <span
-                      className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${
-                        locked
-                          ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
-                          : "border-primary/40 text-primary bg-primary/10"
-                      }`}
-                    >
-                      {modeLabel}
-                    </span>
-                  </div>
-                  <div className="text-[10px] font-mono text-muted-foreground">{r.route_key}</div>
-                  {locked && (
-                    <div className="text-[11px] text-muted-foreground mt-1">
-                      Harga hanya bisa diatur ketika mode akses fitur ini <b>Langganan</b>. Ubah di bagian
-                      pengaturan akses di atas.
+          {featureRows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+              Belum ada menu berstatus Premium. Atur di Admin → Pengaturan Halaman.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {featureRows.map((r) => {
+                const draft = drafts[r.route_key];
+                const dirty = draft !== undefined && draft !== r.price_idr;
+                return (
+                  <div
+                    key={r.route_key}
+                    className="rounded-2xl border border-border bg-card/40 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+                  >
+                    <div className="flex-1 min-w-0 w-full">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="text-sm font-medium">{r.label}</div>
+                        <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border border-primary/40 text-primary bg-primary/10">
+                          Premium
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-mono text-muted-foreground break-all">
+                        {r.route_key}
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
-                  <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground">Rp</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1000}
-                    value={draft ?? r.price_idr}
-                    disabled={locked}
-                    onChange={(e) =>
-                      setDrafts((d) => ({ ...d, [r.route_key]: Number(e.target.value) }))
-                    }
-                    className="w-28 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-sm text-right font-mono outline-none focus:border-primary/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                  />
+                    <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground">Rp</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={draft ?? r.price_idr}
+                          onChange={(e) =>
+                            setDrafts((d) => ({ ...d, [r.route_key]: Number(e.target.value) }))
+                          }
+                          className="w-28 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-sm text-right font-mono outline-none focus:border-primary/60"
+                        />
+                      </div>
+                      <button
+                        onClick={() => toggleActive(r)}
+                        className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border ${
+                          r.is_active
+                            ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
+                            : "border-rose-400/50 text-rose-300 bg-rose-400/10"
+                        }`}
+                      >
+                        {r.is_active ? "aktif" : "off"}
+                      </button>
+                      <button
+                        onClick={() => save(r)}
+                        disabled={!dirty || saving === r.route_key}
+                        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+                        style={{ background: "var(--gradient-neon)" }}
+                      >
+                        {saving === r.route_key ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Save className="h-3 w-3" />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                <button
-                  onClick={() => toggleActive(r)}
-                  disabled={locked}
-                  className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border disabled:opacity-50 disabled:cursor-not-allowed ${
-                    r.is_active
-                      ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
-                      : "border-rose-400/50 text-rose-300 bg-rose-400/10"
-                  }`}
-                >
-                  {r.is_active ? "aktif" : "off"}
-                </button>
-                <button
-                  onClick={() => save(r)}
-                  disabled={!dirty || saving === r.route_key || locked}
-                  className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
-                  style={{ background: "var(--gradient-neon)" }}
-                >
-                  {saving === r.route_key ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Save className="h-3 w-3" />
-                  )}
-                </button>
-                </div>
-              </div>
-            );
-          })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </Card>
   );
 }
 
-function BundleRow({
-  row,
-  drafts,
-  setDrafts,
-  save,
-  toggleActive,
-  saving,
-}: {
-  row: Price;
-  drafts: Record<string, number>;
-  setDrafts: React.Dispatch<React.SetStateAction<Record<string, number>>>;
-  save: (row: Price) => void;
-  toggleActive: (row: Price) => void;
-  saving: string | null;
-}) {
-  const draft = drafts[row.route_key];
-  const dirty = draft !== undefined && draft !== row.price_idr;
-  return (
-    <div className="flex items-center gap-2 flex-wrap justify-end">
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-muted-foreground">Rp</span>
-        <input
-          type="number"
-          min={0}
-          step={1000}
-          value={draft ?? row.price_idr}
-          onChange={(e) => setDrafts((d) => ({ ...d, [row.route_key]: Number(e.target.value) }))}
-          className="w-32 rounded-lg border border-border bg-background/60 px-2 py-1.5 text-sm text-right font-mono outline-none focus:border-primary/60"
-        />
-      </div>
-      <button
-        onClick={() => toggleActive(row)}
-        className={`text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border ${
-          row.is_active
-            ? "border-emerald-400/50 text-emerald-300 bg-emerald-400/10"
-            : "border-rose-400/50 text-rose-300 bg-rose-400/10"
-        }`}
-      >
-        {row.is_active ? "aktif" : "off"}
-      </button>
-      <button
-        onClick={() => save(row)}
-        disabled={!dirty || saving === row.route_key}
-        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
-        style={{ background: "var(--gradient-neon)" }}
-      >
-        {saving === row.route_key ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-      </button>
-    </div>
-  );
+function formatRupiah(n: number) {
+  return "Rp " + (n ?? 0).toLocaleString("id-ID");
 }
+
 
 // ============= Methods =============
 
