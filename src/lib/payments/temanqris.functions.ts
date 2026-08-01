@@ -85,24 +85,16 @@ export const checkTemanQrisStatus = createServerFn({ method: "POST" })
     if (pr.status === "approved") return { status: "approved" as const };
     if (!pr.temanqris_order_id) return { status: pr.status };
 
-    const { loadTemanQrisConfig, fetchTemanQrisOrder, claimTemanQrisPaid, verifyTemanQrisOrder } =
-      await import("@/lib/payments/temanqris.server");
+    const { loadTemanQrisConfig, fetchTemanQrisOrder } = await import(
+      "@/lib/payments/temanqris.server"
+    );
     const loaded = await loadTemanQrisConfig(pr.payment_gateway_id ?? undefined);
     if (!loaded) return { status: "pending" as const };
-    let order = await fetchTemanQrisOrder(loaded.cfg, pr.temanqris_order_id).catch(() => null);
+    // Polling HANYA membaca status asli dari TemanQRIS. Jangan pernah
+    // mengirim confirm/verify sendiri di sini — itu membuat order yang belum
+    // dibayar ikut ditandai lunas (false positive).
+    const order = await fetchTemanQrisOrder(loaded.cfg, pr.temanqris_order_id).catch(() => null);
 
-    // Mode otomatis: tidak perlu user menekan "Saya sudah bayar". Begitu polling
-    // melihat order belum paid, backend sendiri yang mengirim confirm + verify
-    // ke TemanQRIS, lalu cek ulang status sebenarnya.
-    if (loaded.cfg.autoVerify && order && !order.isPaid && !order.isExpired) {
-      if (order.status === "pending" && pr.temanqris_link_code) {
-        await claimTemanQrisPaid(pr.temanqris_link_code).catch(() => false);
-      }
-      await verifyTemanQrisOrder(loaded.cfg, pr.temanqris_order_id, {
-        payerNote: "Auto-verify (mode otomatis aktif)",
-      }).catch(() => false);
-      order = await fetchTemanQrisOrder(loaded.cfg, pr.temanqris_order_id).catch(() => order);
-    }
 
     if (order?.isPaid) {
       const { fulfillPurchaseAfterPayment } = await import("@/lib/midtrans/fulfill.server");

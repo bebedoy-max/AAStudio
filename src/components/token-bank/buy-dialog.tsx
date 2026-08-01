@@ -410,7 +410,16 @@ function OrderStatusView({
   onApproved: () => void;
 }) {
   const paid = order.status === "approved";
+  // Pembayaran sukses → beri notifikasi lalu tutup popup otomatis.
+  useEffect(() => {
+    if (!paid) return;
+    toast.success("Pembayaran sukses — token sudah dikirim ke Token Manager.");
+    const t = setTimeout(() => onClose(), 2200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paid]);
   return (
+
     <div className="mt-5 flex flex-col gap-4">
       <div className="rounded-2xl border border-border bg-card/40 p-4">
         <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
