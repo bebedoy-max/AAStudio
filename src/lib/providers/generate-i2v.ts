@@ -259,7 +259,9 @@ async function runDolaI2V(opts: I2VOpts): Promise<string> {
   if (cookies.length === 0) {
     throw new Error("Belum ada cookie Dola. Tambahkan di Token Manager → Dola atau ambil via extension.");
   }
-  const file = await normalizeImage(opts.imageFile);
+  // ImageX menerima file asli secara langsung; jangan re-encode atau membesarkan
+  // payload lewat base64 sebelum melewati proxy.
+  const file = opts.imageFile;
   let lastErr: Error | null = null;
   for (const cookie of cookies) {
     try {

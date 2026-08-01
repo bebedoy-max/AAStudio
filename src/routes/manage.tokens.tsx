@@ -12,6 +12,7 @@ import { fetchFireflyBalance, checkFireflyToken } from "@/lib/providers/firefly"
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { checkDolaCookie } from "@/lib/providers/dola";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useProviderFlags, tokenTabFlagIds } from "@/lib/platform/provider-flags";
 import { useAuth } from "@/lib/auth-context";
@@ -1504,7 +1505,8 @@ function ProviderKeyPane({
     writeJSON(lsKey, next);
   };
   const parseBulk = (raw: string) =>
-    raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+    // Cookie Dola boleh mengandung koma (mis. Expires) → pisah per baris saja.
+    raw.split(provider === "dola" ? /\n/ : /[\n,]/).map((s) => s.trim()).filter(Boolean);
 
   const isValidFormat = (key: string) =>
     provider === "wavespeed"
@@ -1513,9 +1515,22 @@ function ProviderKeyPane({
         ? /^_v2[A-Za-z0-9+/=_-]{20,}$/i.test(key)
         : provider === "framia" || provider === "leonardo" || provider === "firefly"
           ? /^eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)
-          : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
+          : provider === "dola"
+            ? // Dola = cookie session penuh, bukan JWT. Cukup ada salah satu cookie sesi.
+              /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token|passport_auth_status)=/i.test(key)
+            : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
   const probe = async (key: string): Promise<SimpleKey> => {
+    if (provider === "dola") {
+      const ok = await checkDolaCookie(key);
+      return {
+        id: uid(),
+        key,
+        balance: null,
+        status: ok ? "active" : "failed",
+        note: ok ? "cookie session aktif" : "cookie ditolak Dola (mungkin sudah expired)",
+      };
+    }
     if (provider === "wavespeed") {
       const res = await checkWavespeedBalance(key);
       return {

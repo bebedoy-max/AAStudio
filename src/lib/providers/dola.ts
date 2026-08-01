@@ -66,16 +66,29 @@ type ProxyResult = {
   videos?: string[];
   images?: string[];
   uri?: string;
+  upload?: { host: string; uri: string; auth: string };
   raw?: string;
 };
 
 async function call(cookie: string, body: Record<string, unknown>): Promise<ProxyResult> {
   const res = await fetch("/api/public/dola", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Dola-Cookie": cookie },
-    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    // Cookie Dola dapat berukuran beberapa KB setelah STS ImageX ditambahkan.
+    // Kirim di body agar tidak ditolak oleh batas header gateway.
+    body: JSON.stringify({ ...body, _cookie: cookie }),
   });
-  return (await res.json()) as ProxyResult;
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as ProxyResult;
+  } catch {
+    // Server/edge mengembalikan HTML (mis. 502 Bad gateway).
+    const hint =
+      res.status === 502 || res.status === 413
+        ? "gateway upload Dola gagal sebelum respons API diterima"
+        : text.slice(0, 120).replace(/<[^>]*>/g, " ").trim();
+    return { ok: false, status: res.status, error: `Dola proxy error ${res.status}: ${hint || "respons bukan JSON"}` };
+  }
 }
 
 /** Cek cookie masih login (dipakai Token Manager & preflight sebelum generate). */
@@ -89,17 +102,51 @@ export async function checkDolaCookie(cookie: string): Promise<boolean> {
 }
 
 export async function uploadDolaImage(cookie: string, file: File | Blob): Promise<string> {
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(String(fr.result).split(",")[1] ?? "");
-    fr.onerror = () => reject(new Error("gagal membaca file"));
-    fr.readAsDataURL(file);
-  });
-  const type = (file as File).type || "image/png";
+  const type = file.type || "image/png";
   const ext = type.includes("jpeg") || type.includes("jpg") ? ".jpeg" : type.includes("webp") ? ".webp" : ".png";
-  const r = await call(cookie, { action: "upload-image", base64, ext });
-  if (!r.ok || !r.uri) throw new Error(r.error || "upload gambar ke Dola gagal");
-  return r.uri;
+  const authorization = await call(cookie, {
+    action: "authorize-upload",
+    ext,
+    fileSize: file.size,
+  });
+  if (!authorization.ok || !authorization.upload) {
+    throw new Error(authorization.error || "otorisasi upload gambar Dola gagal");
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const putRes = await fetch(
+    `https://${authorization.upload.host}/upload/v1/${authorization.upload.uri}`,
+    {
+    method: "POST",
+      headers: {
+        Authorization: authorization.upload.auth,
+        "Content-Type": "application/octet-stream",
+        "Content-CRC32": crc32(bytes),
+      },
+      body: file,
+    },
+  );
+  if (!putRes.ok) {
+    const detail = (await putRes.text().catch(() => "")).slice(0, 240);
+    throw new Error(`upload ImageX gagal (${putRes.status})${detail ? `: ${detail}` : ""}`);
+  }
+  return authorization.upload.uri;
+}
+
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes: Uint8Array): string {
+  let c = 0xffffffff;
+  for (const byte of bytes) c = CRC_TABLE[(c ^ byte) & 0xff]! ^ (c >>> 8);
+  return ((c ^ 0xffffffff) >>> 0).toString(16).padStart(8, "0");
 }
 
 export type DolaVideoOpts = {

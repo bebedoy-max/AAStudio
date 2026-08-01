@@ -186,6 +186,12 @@ async function signImageX(opts: {
 
 type StsCreds = { AccessKeyId: string; SecretAccessKey: string; SessionToken: string };
 
+type ImageXUploadTarget = {
+  host: string;
+  uri: string;
+  auth: string;
+};
+
 async function fetchUploadCreds(cookie: string): Promise<StsCreds | null> {
   // 1) Header STS asli dari browser (paling akurat) bila extension mengirimnya.
   const captured = cookieValue(cookie, "__imagex_sts");
@@ -274,7 +280,7 @@ function crc32(bytes: Uint8Array): string {
   return ((c ^ 0xffffffff) >>> 0).toString(16).padStart(8, "0");
 }
 
-async function uploadImage(cookie: string, base64: string, ext: string) {
+async function authorizeImageUpload(cookie: string, fileSize: number, ext: string): Promise<Response> {
   const creds = await fetchUploadCreds(cookie);
   if (!creds) {
     return json(
@@ -287,15 +293,20 @@ async function uploadImage(cookie: string, base64: string, ext: string) {
     );
   }
 
-  const bin = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const amzDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const query = new URLSearchParams({
-    Action: "ApplyImageUpload",
-    FileExtension: ext.startsWith(".") ? ext : `.${ext}`,
-    FileSize: String(bin.byteLength),
-    ServiceId: IMAGEX_SERVICE_ID,
-    Version: "2018-08-01",
-  }).toString();
+  // Query harus urut byte-order (SigV4) — "s" (random) selalu terakhir.
+  const params: [string, string][] = [
+    ["Action", "ApplyImageUpload"],
+    ["FileExtension", ext.startsWith(".") ? ext : `.${ext}`],
+    ["FileSize", String(fileSize)],
+    ["ServiceId", IMAGEX_SERVICE_ID],
+    ["Version", "2018-08-01"],
+    ["s", Math.random().toString(36).slice(2, 14)],
+  ];
+  const query = params
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
   const authorization = await signImageX({
     accessKeyId: creds.AccessKeyId,
     secretAccessKey: creds.SecretAccessKey,
@@ -314,17 +325,51 @@ async function uploadImage(cookie: string, base64: string, ext: string) {
       "x-amz-security-token": creds.SessionToken,
     },
   });
-  const apply = (await applyRes.json().catch(() => null)) as
-    | { Result?: { UploadAddress?: { StoreInfos?: { StoreUri: string; Auth: string }[]; UploadHosts?: string[] } } }
-    | null;
+  const applyText = await applyRes.text();
+  let apply: {
+    Result?: { UploadAddress?: { StoreInfos?: { StoreUri: string; Auth: string }[]; UploadHosts?: string[] } };
+    ResponseMetadata?: { Error?: { Code?: string; Message?: string } };
+  } | null = null;
+  try {
+    apply = JSON.parse(applyText);
+  } catch {
+    /* non-JSON */
+  }
   const store = apply?.Result?.UploadAddress?.StoreInfos?.[0];
   const host = apply?.Result?.UploadAddress?.UploadHosts?.[0];
-  if (!store || !host) return json({ ok: false, error: "apply_upload_failed", data: apply }, 502);
+  if (!store || !host) {
+    const err = apply?.ResponseMetadata?.Error;
+    const detail = err?.Message || err?.Code || applyText.slice(0, 300) || `HTTP ${applyRes.status}`;
+    const expired = /expire|token|denied|signature/i.test(detail);
+    return json(
+      {
+        ok: false,
+        error:
+          `apply_upload_failed — ${detail}` +
+          (expired
+            ? " · Token upload ImageX kemungkinan kadaluarsa. Buka tab www.dola.com, kirim 1 gambar sekali, lalu Grab ulang token di extension."
+            : ""),
+      },
+      502,
+    );
+  }
 
-  const putRes = await fetch(`https://${host}/upload/v1/${store.StoreUri}`, {
+  const target: ImageXUploadTarget = { host, uri: store.StoreUri, auth: store.Auth };
+  return json({ ok: true, upload: target });
+}
+
+async function uploadImage(cookie: string, bin: Uint8Array, ext: string) {
+  const authorized = await authorizeImageUpload(cookie, bin.byteLength, ext);
+  const result = (await authorized.clone().json().catch(() => null)) as {
+    ok?: boolean;
+    upload?: ImageXUploadTarget;
+  } | null;
+  if (!result?.ok || !result.upload) return authorized;
+
+  const putRes = await fetch(`https://${result.upload.host}/upload/v1/${result.upload.uri}`, {
     method: "POST",
     headers: {
-      Authorization: store.Auth,
+      Authorization: result.upload.auth,
       "Content-Type": "application/octet-stream",
       "Content-CRC32": crc32(bin),
     },
@@ -332,7 +377,7 @@ async function uploadImage(cookie: string, base64: string, ext: string) {
   });
   if (!putRes.ok) return json({ ok: false, error: `upload_failed_${putRes.status}` }, 502);
 
-  return json({ ok: true, uri: store.StoreUri });
+  return json({ ok: true, uri: result.upload.uri });
 }
 
 /* ------------------------------- completion ------------------------------ */
@@ -587,19 +632,44 @@ export const Route = createFileRoute("/api/public/dola")({
           },
         }),
       POST: async ({ request }) => {
-        const cookie = request.headers.get("X-Dola-Cookie") || "";
+        const contentType = request.headers.get("content-type") || "";
+        let cookie = request.headers.get("X-Dola-Cookie") || "";
+        let body: Record<string, unknown> | null = null;
+        let uploadBytes: Uint8Array | null = null;
+        let uploadExt = ".png";
+        if (contentType.includes("multipart/form-data")) {
+          const form = await request.formData().catch(() => null);
+          const image = form?.get("image");
+          body = { action: String(form?.get("action") ?? "") };
+          cookie = cookie || String(form?.get("cookie") ?? "");
+          uploadExt = String(form?.get("ext") ?? ".png");
+          if (image instanceof File) uploadBytes = new Uint8Array(await image.arrayBuffer());
+        } else {
+          body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+          cookie = cookie || String(body?.["_cookie"] ?? "");
+        }
         const hasSession = /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt)=/.test(cookie);
         if (!cookie || !hasSession) {
-          return json({ ok: false, error: "X-Dola-Cookie (cookie session dola.com) required" }, 400);
+          return json({ ok: false, error: "Cookie session dola.com required" }, 400);
         }
-        const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
         const action = String(body?.["action"] ?? "");
         try {
           if (action === "ping") return await ping(cookie);
           if (action === "completion") return await completion(cookie, body ?? {});
           if (action === "poll") return await poll(cookie, String(body?.["conversationId"] ?? ""));
+          if (action === "authorize-upload") {
+            const fileSize = Number(body?.["fileSize"] ?? 0);
+            if (!Number.isSafeInteger(fileSize) || fileSize <= 0 || fileSize > 20 * 1024 * 1024) {
+              return json({ ok: false, error: "invalid image size" }, 400);
+            }
+            return await authorizeImageUpload(cookie, fileSize, String(body?.["ext"] ?? ".png"));
+          }
           if (action === "upload-image") {
-            return await uploadImage(cookie, String(body?.["base64"] ?? ""), String(body?.["ext"] ?? ".png"));
+            if (uploadBytes) return await uploadImage(cookie, uploadBytes, uploadExt);
+            const base64 = String(body?.["base64"] ?? "");
+            if (!base64) return json({ ok: false, error: "image file required" }, 400);
+            const legacyBytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+            return await uploadImage(cookie, legacyBytes, String(body?.["ext"] ?? ".png"));
           }
           return json({ ok: false, error: "unknown action" }, 400);
         } catch (e) {
