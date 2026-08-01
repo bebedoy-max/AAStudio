@@ -27,6 +27,7 @@ import { PaymentPicker } from "@/components/payments/payment-picker";
 import { useServerFn } from "@tanstack/react-start";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
+import { syncTokensForUser } from "@/lib/tokens/sync";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -189,7 +190,10 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
       .eq("id", order.id)
       .maybeSingle();
     const st = (data as { status?: OrderInfo["status"] } | null)?.status;
-    if (st && st !== order.status) setOrder({ ...order, status: st });
+    if (st && st !== order.status) {
+      setOrder({ ...order, status: st });
+      if (st === "approved" && user) await syncTokensForUser(user.id, { force: true });
+    }
   }
 
   return (

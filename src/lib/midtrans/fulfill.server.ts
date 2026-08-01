@@ -86,6 +86,29 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
   }
 }
 
+function storedKeyValues(provider: BankProvider, currentJson: string | null): Set<string> {
+  if (!currentJson) return new Set();
+  try {
+    const parsed = JSON.parse(currentJson) as unknown;
+    if (provider === "brain") {
+      return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
+    }
+    if (provider === "eleven") {
+      const keys = (parsed as { keys?: unknown })?.keys;
+      return new Set(Array.isArray(keys) ? keys.filter((v): v is string => typeof v === "string") : []);
+    }
+    if (!Array.isArray(parsed)) return new Set();
+    const field = provider === "weavy" ? "token" : "key";
+    return new Set(
+      parsed
+        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>)[field] : null))
+        .filter((v): v is string => typeof v === "string"),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 function parseCartFromNote(note: string | null | undefined): { provider: BankProvider; qty: number }[] | null {
   if (!note) return null;
   const i = note.indexOf(CART_MARKER);
@@ -127,19 +150,6 @@ async function deliverKeysForItem(
     .order("created_at", { ascending: true })
     .limit(Math.max(params.qty * 5, params.qty + 20));
   if (kErr) throw new Error(kErr.message);
-  const seen = new Set<string>();
-  const available = ((keys ?? []) as { id: string; key_value: string }[]).filter((k) => {
-    const v = (k.key_value ?? "").trim();
-    if (!v || seen.has(v)) return false;
-    seen.add(v);
-    return true;
-  });
-  const picked = available.slice(0, params.qty);
-  if (picked.length === 0) {
-    throw new Error(`Stok habis: tidak ada key ${params.provider} tersedia`);
-  }
-
-
   const storageKey = BANK_STORAGE_KEY[params.provider];
   const { data: existing } = await admin
     .from("user_tokens")
@@ -157,8 +167,23 @@ async function deliverKeysForItem(
       currentJson = null;
     }
   }
+  const existingValues = storedKeyValues(params.provider, currentJson);
+  const seen = new Set(existingValues);
+  const available = ((keys ?? []) as { id: string; key_value: string }[]).filter((k) => {
+    const v = (k.key_value ?? "").trim();
+    if (!v || seen.has(v)) return false;
+    seen.add(v);
+    return true;
+  });
+  const picked = available.slice(0, params.qty);
+  if (picked.length < params.qty) {
+    throw new Error(
+      `Stok unik tidak cukup: butuh ${params.qty}, tersedia ${picked.length} untuk ${params.provider}`,
+    );
+  }
   for (const k of picked) currentJson = appendKey(params.provider, currentJson, k.key_value);
-  const ciphertext = await encryptString(currentJson!);
+  if (!currentJson) throw new Error(`Gagal menyusun token ${params.provider}`);
+  const ciphertext = await encryptString(currentJson);
 
   const { error: upErr } = await admin.from("user_tokens").upsert(
     {
@@ -208,7 +233,7 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
 
   const { data: prRaw, error } = await admin
     .from("purchase_requests")
-    .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note, route_key")
+    .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note, route_key, admin_note")
     .eq("id", purchaseRequestId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -222,26 +247,26 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
     status: string;
     note: string | null;
     route_key: string;
+    admin_note: string | null;
   } | null;
   if (!pr) throw new Error("Purchase request not found");
   if (pr.status === "approved") return { ok: true, skipped: "already approved" };
 
-  // Kunci atomik: hanya satu pemanggil (webhook / polling / claim) yang boleh
-  // memproses. Tanpa ini, dua panggilan paralel bisa mengirim 2 key untuk
-  // pembelian 1 key.
+  // Kunci atomik tanpa menandai approved terlalu dini. UI hanya boleh melihat
+  // approved setelah seluruh token benar-benar tersimpan dan tercatat.
   const activatedUntil = new Date();
   activatedUntil.setDate(activatedUntil.getDate() + 30);
-  const { data: lockRows, error: lockErr } = await admin
+  let lockQuery = admin
     .from("purchase_requests")
     .update({
-      status: "approved",
-      reviewed_at: new Date().toISOString(),
-      activated_until: activatedUntil.toISOString(),
-      admin_note: "Auto-approved: pembayaran terverifikasi",
+      admin_note: "PROCESSING_TOKEN_FULFILLMENT",
     })
     .eq("id", pr.id)
-    .neq("status", "approved")
-    .select("id");
+    .eq("status", "pending");
+  lockQuery = pr.admin_note === null
+    ? lockQuery.is("admin_note", null)
+    : lockQuery.eq("admin_note", pr.admin_note);
+  const { data: lockRows, error: lockErr } = await lockQuery.select("id");
   if (lockErr) throw new Error(lockErr.message);
   if (!Array.isArray(lockRows) || lockRows.length === 0) {
     return { ok: true, skipped: "already approved" };
@@ -250,13 +275,7 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
   const isTokenBank = pr.request_kind === "token_bank";
 
   if (isTokenBank) {
-    // Skip if transactions already exist (race).
-    const { data: existingTx } = await admin
-      .from("token_bank_transactions")
-      .select("id")
-      .eq("purchase_request_id", pr.id)
-      .limit(1);
-    if (!(Array.isArray(existingTx) && existingTx.length > 0)) {
+    {
       const cart = parseCartFromNote(pr.note);
       const items =
         cart ??
@@ -266,19 +285,15 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
       if (!items || items.length === 0) throw new Error("Request is missing token cart items");
       const totalKeys = items.reduce((a, it) => a + it.qty, 0);
       const perKeyPrice = totalKeys > 0 ? Math.round(pr.price_idr / totalKeys) : 0;
-      const shortages: string[] = [];
       try {
         for (const it of items) {
-          const res = await deliverKeysForItem(admin, {
+          await deliverKeysForItem(admin, {
             provider: it.provider,
             qty: it.qty,
             targetUserId: pr.user_id,
             purchaseRequestId: pr.id,
             priceIdr: perKeyPrice * it.qty,
           });
-          if (res.delivered < res.requested) {
-            shortages.push(`${it.provider}: ${res.delivered}/${res.requested}`);
-          }
         }
       } catch (e) {
         // Lepas kunci supaya bisa dicoba lagi / ditinjau admin.
@@ -293,19 +308,20 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
           .eq("id", pr.id);
         throw e;
       }
-      if (shortages.length > 0) {
-        // Sebagian terkirim — pesanan tetap approved, tapi catat kekurangannya
-        // supaya admin bisa melengkapi stok & mengirim sisanya.
-        await admin
-          .from("purchase_requests")
-          .update({
-            admin_note: `Sebagian token terkirim (stok kurang) — ${shortages.join(", ")}`,
-          })
-          .eq("id", pr.id);
-      }
-
     }
   }
+
+  const { error: approveErr } = await admin
+    .from("purchase_requests")
+    .update({
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      activated_until: activatedUntil.toISOString(),
+      admin_note: "Auto-approved: pembayaran terverifikasi dan token terkirim",
+    })
+    .eq("id", pr.id)
+    .eq("admin_note", "PROCESSING_TOKEN_FULFILLMENT");
+  if (approveErr) throw new Error(approveErr.message);
 
   // Bundle checkouts encode ALL feature route_keys in the note. Grant
   // route_permissions for every listed feature (including the primary) so
