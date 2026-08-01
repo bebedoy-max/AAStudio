@@ -15,7 +15,7 @@ function newInvoice(prefix: string) {
 export type CreatePaymentInput = {
   purchaseRequestId: string;
   gatewayId: string;
-  provider: "midtrans" | "doku";
+  provider: "midtrans" | "doku" | "temanqris";
   methodCode: string; // e.g. QRIS, VIRTUAL_ACCOUNT_BCA
 };
 
@@ -35,6 +35,16 @@ export type CreatePaymentResult =
       amount: number;
       expiresAt: string | null;
       provider: "midtrans";
+    }
+  | {
+      mode: "temanqris_qris";
+      orderId: string;
+      qrImage: string | null;
+      qrisString: string | null;
+      paymentUrl: string | null;
+      amount: number;
+      expiresAt: string | null;
+      provider: "temanqris";
     };
 
 export const createPayment = createServerFn({ method: "POST" })
@@ -42,7 +52,8 @@ export const createPayment = createServerFn({ method: "POST" })
   .inputValidator((d: CreatePaymentInput) => {
     if (!d.purchaseRequestId) throw new Error("purchaseRequestId required");
     if (!d.gatewayId) throw new Error("gatewayId required");
-    if (d.provider !== "midtrans" && d.provider !== "doku") throw new Error("provider tidak didukung");
+    if (d.provider !== "midtrans" && d.provider !== "doku" && d.provider !== "temanqris")
+      throw new Error("provider tidak didukung");
     if (!d.methodCode) throw new Error("methodCode required");
     return d;
   })
@@ -51,7 +62,7 @@ export const createPayment = createServerFn({ method: "POST" })
     const { data: prRaw, error } = await db
       .from("purchase_requests")
       .select(
-        "id, user_id, price_idr, status, note, route_key, midtrans_order_id, midtrans_qr_url, midtrans_expires_at, doku_invoice_number, doku_payment_url, doku_expires_at, payment_provider",
+        "id, user_id, price_idr, status, note, route_key, midtrans_order_id, midtrans_qr_url, midtrans_expires_at, doku_invoice_number, doku_payment_url, doku_expires_at, payment_provider, temanqris_order_id, temanqris_link_code, temanqris_qr_image, temanqris_payment_url, temanqris_expires_at",
       )
       .eq("id", data.purchaseRequestId)
       .maybeSingle();
@@ -71,6 +82,11 @@ export const createPayment = createServerFn({ method: "POST" })
           doku_payment_url: string | null;
           doku_expires_at: string | null;
           payment_provider: string | null;
+          temanqris_order_id: string | null;
+          temanqris_link_code: string | null;
+          temanqris_qr_image: string | null;
+          temanqris_payment_url: string | null;
+          temanqris_expires_at: string | null;
         }
       | null;
     if (!pr) throw new Error("Purchase request tidak ditemukan");
@@ -79,6 +95,78 @@ export const createPayment = createServerFn({ method: "POST" })
     if (pr.price_idr < 1) throw new Error("Amount harus >= Rp 1");
 
     const itemName = (pr.note ?? pr.route_key ?? "Payment").replace(/\s+/g, " ").trim().slice(0, 60);
+
+    // Origin untuk callback / notification URL
+    function currentOrigin() {
+      let origin = process.env.SITE_URL ?? "";
+      try {
+        const host = getRequestHost();
+        if (host) origin = `https://${host}`;
+      } catch {
+        /* not in request scope */
+      }
+      return origin;
+    }
+
+    if (data.provider === "temanqris") {
+      // Reuse QR yang masih berlaku.
+      if (pr.temanqris_order_id && pr.temanqris_qr_image) {
+        const stillValid = pr.temanqris_expires_at
+          ? new Date(pr.temanqris_expires_at).getTime() > Date.now()
+          : true;
+        if (stillValid) {
+          return {
+            mode: "temanqris_qris",
+            provider: "temanqris",
+            orderId: pr.temanqris_order_id,
+            qrImage: pr.temanqris_qr_image,
+            qrisString: null,
+            paymentUrl: pr.temanqris_payment_url,
+            amount: pr.price_idr,
+            expiresAt: pr.temanqris_expires_at,
+          };
+        }
+      }
+      const { loadTemanQrisConfig, createTemanQrisCharge } = await import("./temanqris.server");
+      const loaded = await loadTemanQrisConfig(data.gatewayId);
+      if (!loaded) throw new Error("Konfigurasi TemanQRIS tidak ditemukan / tidak bisa didekripsi");
+      const origin = currentOrigin();
+      const orderId = newInvoice("AA");
+      const charge = await createTemanQrisCharge({
+        cfg: loaded.cfg,
+        orderId,
+        amountIdr: pr.price_idr,
+        description: itemName || pr.route_key,
+        webhookUrl: origin ? `${origin}/api/public/temanqris/notification` : undefined,
+        callbackUrl: origin || undefined,
+      });
+      await db
+        .from("purchase_requests")
+        .update({
+          temanqris_order_id: charge.orderId,
+          temanqris_link_code: charge.linkCode,
+          temanqris_qr_image: charge.qrImage,
+          temanqris_payment_url: charge.paymentUrl,
+          temanqris_total_amount: Math.round(charge.totalAmount),
+          temanqris_expires_at: charge.expiresAt,
+          temanqris_raw: charge.raw,
+          payment_provider: "temanqris",
+          payment_gateway_id: data.gatewayId,
+          payment_method_code: data.methodCode,
+          payment_method_name: "QRIS (TemanQRIS)",
+        })
+        .eq("id", pr.id);
+      return {
+        mode: "temanqris_qris",
+        provider: "temanqris",
+        orderId: charge.orderId,
+        qrImage: charge.qrImage,
+        qrisString: charge.qrisString,
+        paymentUrl: charge.paymentUrl,
+        amount: charge.totalAmount,
+        expiresAt: charge.expiresAt,
+      };
+    }
 
     if (data.provider === "midtrans") {
       // Reuse existing Midtrans QRIS flow.
@@ -152,14 +240,7 @@ export const createPayment = createServerFn({ method: "POST" })
     const loaded = await loadDokuConfig(data.gatewayId);
     if (!loaded) throw new Error("Konfigurasi DOKU tidak ditemukan / tidak bisa didekripsi");
     const invoice = newInvoice("AA");
-    // Origin untuk callback / notification URL
-    let origin = process.env.SITE_URL ?? "";
-    try {
-      const host = getRequestHost();
-      if (host) origin = `https://${host}`;
-    } catch {
-      /* not in request scope */
-    }
+    const origin = currentOrigin();
     const notifPath = "/api/public/doku/notification";
     const notificationUrl = origin ? `${origin}${notifPath}` : undefined;
     const checkout = await createDokuCheckout({

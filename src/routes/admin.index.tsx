@@ -339,6 +339,15 @@ function SeriesChart({ data }: { data: DayPoint[] }) {
 
 type DetailRow = AdminDetailRow;
 
+// meta dari server berupa ISO timestamp — format di client supaya identik
+// dengan tampilan pada halaman Log Aktivitas (zona waktu perangkat user).
+function fmtMeta(meta?: string): string {
+  if (!meta) return "";
+  const t = Date.parse(meta);
+  if (Number.isNaN(t)) return meta;
+  return new Date(t).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "medium" });
+}
+
 const DETAIL_TITLES: Record<DetailKey, { title: string; subtitle: string }> = {
   users: { title: "Total User", subtitle: "30 user terbaru terdaftar" },
   onlineUsers: { title: "User Online Sekarang", subtitle: "Heartbeat < 2 menit terakhir" },
@@ -410,7 +419,9 @@ function KpiDetailModal({ type, onClose }: { type: DetailKey; onClose: () => voi
                   {r.badge && (
                     <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/40 bg-primary/10 text-primary">{r.badge}</span>
                   )}
-                  {r.meta && <div className="text-[11px] text-muted-foreground whitespace-nowrap">{r.meta}</div>}
+                  {r.meta && (
+                    <div className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">{fmtMeta(r.meta)}</div>
+                  )}
                 </div>
               ))}
             </div>

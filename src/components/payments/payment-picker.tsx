@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listActivePaymentMethods, type ActivePaymentMethod } from "@/lib/payments/methods.functions";
 import { createPayment, pollPurchaseStatus } from "@/lib/payments/charge.functions";
 import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
+import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
 
 function rupiah(n: number) {
   return "Rp " + (n || 0).toLocaleString("id-ID");
@@ -63,6 +64,13 @@ export function PaymentPicker({
     expiresAt: string | null;
   } | null>(null);
   const [midtrans, setMidtrans] = useState<boolean>(false); // sekali user pilih QRIS midtrans, render panel
+  const [temanqris, setTemanqris] = useState<{
+    orderId: string;
+    qrImage: string | null;
+    paymentUrl: string | null;
+    amount: number;
+    expiresAt: string | null;
+  } | null>(null);
   const [approved, setApproved] = useState(false);
   const notifiedRef = useRef(false);
 
@@ -132,7 +140,7 @@ export function PaymentPicker({
         data: {
           purchaseRequestId,
           gatewayId: m.gatewayId,
-          provider: m.provider as "midtrans" | "doku",
+          provider: m.provider as "midtrans" | "doku" | "temanqris",
           methodCode: m.methodCode,
         },
       });
@@ -140,6 +148,14 @@ export function PaymentPicker({
         setDokuRedirect({ url: r.redirectUrl, invoice: r.invoiceNumber, expiresAt: r.expiresAt });
       } else if (r.mode === "inline_qris") {
         setMidtrans(true);
+      } else if (r.mode === "temanqris_qris") {
+        setTemanqris({
+          orderId: r.orderId,
+          qrImage: r.qrImage,
+          paymentUrl: r.paymentUrl,
+          amount: r.amount,
+          expiresAt: r.expiresAt,
+        });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal memulai pembayaran");
@@ -166,6 +182,25 @@ export function PaymentPicker({
         purchaseRequestId={purchaseRequestId}
         amount={amount}
         onApproved={() => finalize("approved")}
+      />
+    );
+  }
+
+  // TemanQRIS inline QR + konfirmasi "sudah bayar".
+  if (temanqris) {
+    return (
+      <TemanQrisPanel
+        purchaseRequestId={purchaseRequestId}
+        orderId={temanqris.orderId}
+        qrImage={temanqris.qrImage}
+        paymentUrl={temanqris.paymentUrl}
+        amount={temanqris.amount || amount}
+        expiresAt={temanqris.expiresAt}
+        onApproved={() => finalize("approved")}
+        onBack={() => {
+          setTemanqris(null);
+          setSelected(null);
+        }}
       />
     );
   }

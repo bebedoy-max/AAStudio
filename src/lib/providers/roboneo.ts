@@ -71,6 +71,29 @@ export function removeRoboneoKeyFromManager(
   }
 }
 
+export function updateRoboneoKeyBalance(accessToken: string, balance: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(LS_ROBONEO_KEYS);
+    const list = raw ? (JSON.parse(raw) as RoboneoKey[]) : [];
+    const next = list.map((item) =>
+      item?.key === accessToken
+        ? { ...item, balance, status: balance > 0 ? ("active" as const) : ("empty" as const) }
+        : item,
+    );
+    const value = JSON.stringify(next);
+    localStorage.setItem(LS_ROBONEO_KEYS, value);
+    pushTokenAsync(LS_ROBONEO_KEYS, value);
+    window.dispatchEvent(
+      new CustomEvent("aatools:tokens-synced", {
+        detail: { provider: "roboneo", action: "balance" },
+      }),
+    );
+  } catch {
+    /* Token selection must still work when storage synchronization fails. */
+  }
+}
+
 /* --------------------------------- helpers --------------------------------- */
 
 const uuid = () =>
@@ -1007,13 +1030,30 @@ export async function pollRoboneoTask(opts: {
   throw new Error("Roboneo timeout");
 }
 
-/** Detect if an error looks like an auth/credit failure worth rotating tokens for. */
-export function isRoboneoRotatableError(msg: string): boolean {
-  return (
-    /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL|CHARGE_FAILED|charge.?failed|payment.?required|余额不足|余额不够|积分不足|账户余额|欠费|VIP|会员/i.test(
-      msg,
-    )
+/** Content/risk failures belong to the input, never to token health. */
+export function isRoboneoSafetyError(msg: string): boolean {
+  return /safety review|risk control|risk con|content review|moderation|原图审核不过|审核不通过|审核不过|code["'=:\s]+10025|error_code["'=:\s]+10025/i.test(
+    msg,
   );
+}
+
+export function isRoboneoCredentialError(msg: string): boolean {
+  if (isRoboneoSafetyError(msg)) return false;
+  return /token error|invalid token|access-token.*(?:expired|invalid)|auth(?:entication)? failed|please log in|not logged in|unauth(?:orized)?|\b401\b|\b403\b/i.test(
+    msg,
+  );
+}
+
+export function isRoboneoBalanceError(msg: string): boolean {
+  if (isRoboneoSafetyError(msg)) return false;
+  return /insufficient|credit\/quota habis|credit.*(?:empty|exhausted|habis)|balance.*(?:low|empty|insufficient|habis)|CHARGE_FAILED|charge.?failed|payment.?required|余额不足|余额不够|积分不足|账户余额|欠费/i.test(
+    msg,
+  );
+}
+
+/** Detect if an error is specifically auth/credit-related and worth rotating. */
+export function isRoboneoRotatableError(msg: string): boolean {
+  return isRoboneoCredentialError(msg) || isRoboneoBalanceError(msg);
 }
 
 /**

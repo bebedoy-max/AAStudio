@@ -23,6 +23,9 @@ import {
   submitRoboneoMotion,
   pollRoboneoTask,
   isRoboneoRotatableError,
+  isRoboneoCredentialError,
+  fetchRoboneoBalance,
+  updateRoboneoKeyBalance,
 } from "./roboneo";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
@@ -184,8 +187,47 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
     opts.onLog?.(`#${index + 1} [RN] ${m}`, l);
 
-  const tokens = getAllRoboneoKeys();
-  if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
+  const storedTokens = getAllRoboneoKeys();
+  if (!storedTokens.length) throw new Error("Belum ada Roboneo access-token.");
+
+  // Motion Control Roboneo consumes 72 Cyber Carrots per generation. Verify
+  // every token before any media is uploaded, then only submit with tokens
+  // whose current balance can pay for the job.
+  const REQUIRED_CREDITS = 72;
+  const tokens: string[] = [];
+  log(`Preflight ${storedTokens.length} token (minimum ${REQUIRED_CREDITS} credit)...`);
+  opts.onStatus?.({ index, status: "checking token balance" });
+  for (let ti = 0; ti < storedTokens.length; ti++) {
+    const token = storedTokens[ti];
+    if (!token) continue;
+    const result = await fetchRoboneoBalance(token);
+    if (!result.ok) {
+      const reason = result.message || "balance check gagal";
+      if (isRoboneoCredentialError(reason)) {
+        removeRoboneoKeyFromManager(token, reason);
+        log(`Token ${ti + 1} invalid/expired — dihapus dari Token Manager.`, "warn");
+      } else {
+        log(`Token ${ti + 1} dilewati: saldo tidak dapat diverifikasi (${reason}).`, "warn");
+      }
+      continue;
+    }
+    if (result.balance === null) {
+      log(`Token ${ti + 1} dilewati: jumlah credit tidak terbaca.`, "warn");
+      continue;
+    }
+    updateRoboneoKeyBalance(token, result.balance);
+    if (result.balance < REQUIRED_CREDITS) {
+      log(`Token ${ti + 1} credit ${result.balance} < ${REQUIRED_CREDITS} — dilewati.`, "warn");
+      continue;
+    }
+    log(`Token ${ti + 1} tersedia (${result.balance} credit).`, "success");
+    tokens.push(token);
+  }
+  if (!tokens.length) {
+    throw new Error(
+      `Tidak ada token Roboneo dengan minimal ${REQUIRED_CREDITS} credit. Media belum di-upload.`,
+    );
+  }
 
   // Upload media. Untuk file besar, hindari edge worker (limit ~100MB / 413).
   // Coba direct browser → Uguu / Catbox dulu (keduanya set CORS *), lalu
@@ -477,13 +519,16 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
         }
         log(`Token ${ti + 1} failed: ${msg}`, "warn");
         if (!isRoboneoRotatableError(msg)) throw e;
-        const removed = removeRoboneoKeyFromManager(at, msg);
+        const credentialFailure = isRoboneoCredentialError(msg);
+        const removed = credentialFailure
+          ? removeRoboneoKeyFromManager(at, msg)
+          : { removed: false, remaining: tokens.length - ti - 1 };
         log(
           removed.removed && ti < tokens.length - 1
             ? "Token Roboneo habis/invalid — dihapus dari Token Manager, rotate ke token berikutnya..."
             : removed.removed
               ? "Token Roboneo habis/invalid — dihapus dari Token Manager."
-            : "Rotating to next Roboneo token...",
+            : "Credit token tidak cukup — rotate ke token berikutnya tanpa menghapus token.",
           "info",
         );
         break;
@@ -501,26 +546,31 @@ async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promi
 
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
 export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOpts): Promise<void> {
-  await Promise.all(
-    slots.map(async (slot) => {
-      await new Promise((r) => setTimeout(r, slot.index * 1500));
-      try {
-        let url: string;
-        if (opts.provider === "weavy") url = await generateOneWeavy(slot, opts);
-        else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
-        else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
-        else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
-        else if (opts.provider === "framia") url = await generateOneFramia(slot, opts);
-        else throw new Error("Provider tidak dikenal: " + opts.provider);
-        opts.onStatus?.({ index: slot.index, status: "done", url });
-        opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");
-      } catch (e) {
-        const err = (e as Error).message || String(e);
-        opts.onStatus?.({ index: slot.index, status: "error", error: err });
-        opts.onLog?.(`#${slot.index + 1} Error: ${err}`, "error");
-      }
-    }),
-  );
+  const runSlot = async (slot: MotionSlotInput) => {
+    await new Promise((r) => setTimeout(r, slot.index * 1500));
+    try {
+      let url: string;
+      if (opts.provider === "weavy") url = await generateOneWeavy(slot, opts);
+      else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
+      else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
+      else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
+      else if (opts.provider === "framia") url = await generateOneFramia(slot, opts);
+      else throw new Error("Provider tidak dikenal: " + opts.provider);
+      opts.onStatus?.({ index: slot.index, status: "done", url });
+      opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");
+    } catch (e) {
+      const err = (e as Error).message || String(e);
+      opts.onStatus?.({ index: slot.index, status: "error", error: err });
+      opts.onLog?.(`#${slot.index + 1} Error: ${err}`, "error");
+    }
+  };
+  // Roboneo balance is checked per generation. Run slots sequentially so two
+  // concurrent jobs cannot both reserve the same 72-credit balance.
+  if (opts.provider === "roboneo") {
+    for (const slot of slots) await runSlot(slot);
+  } else {
+    await Promise.all(slots.map(runSlot));
+  }
   // Setelah batch selesai, refresh saldo provider yang dipakai supaya Token
   // Manager selalu up-to-date & token yang habis auto ter-prune.
   notifyGenerationDone(opts.provider);

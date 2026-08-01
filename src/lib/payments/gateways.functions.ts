@@ -259,6 +259,19 @@ async function testDoku(config: Record<string, string>, env: "sandbox" | "produc
   return { ok: r.ok, message: r.message };
 }
 
+async function testTemanQris(config: Record<string, string>): Promise<GatewayTestResult> {
+  const apiKey = config.api_key;
+  if (!apiKey) return { ok: false, message: "api_key kosong" };
+  const { pingTemanQris } = await import("./temanqris.server");
+  const r = await pingTemanQris({
+    apiKey,
+    webhookSecret: config.webhook_secret || undefined,
+    autoVerify: String(config.auto_verify ?? "").trim().toLowerCase() === "on",
+    qrisId: config.qris_id ? Number(config.qris_id) || undefined : undefined,
+  });
+  return r;
+}
+
 export const testPaymentGateway = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
@@ -286,6 +299,8 @@ export const testPaymentGateway = createServerFn({ method: "POST" })
         result = await testMidtrans(config, row.environment);
       } else if (row.provider === "doku") {
         result = await testDoku(config, row.environment);
+      } else if (row.provider === "temanqris") {
+        result = await testTemanQris(config);
       } else {
         const def = getProviderDef(row.provider);
         const missing = def?.fields.filter((f) => f.required && !config[f.key]).map((f) => f.label) ?? [];

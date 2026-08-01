@@ -52,6 +52,43 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     ],
   },
   {
+    id: "temanqris",
+    name: "TemanQRIS",
+    category: "aggregator",
+    docsUrl: "https://temanqris.com/docs",
+    description:
+      "QRIS dinamis dari QRIS statis milikmu (tanpa MDR). QR + payment link dibuat via API, status masuk lewat webhook. Test koneksi live tersedia.",
+    liveTestSupported: true,
+    fields: [
+      {
+        key: "api_key",
+        label: "API Key",
+        required: true,
+        secret: true,
+        placeholder: "tq_live_...",
+        help: "Dashboard TemanQRIS → Settings → API Key.",
+      },
+      {
+        key: "webhook_secret",
+        label: "Webhook Secret",
+        secret: true,
+        help: "Dipakai memverifikasi header X-TemanQRIS-Signature. Kosongkan kalau belum diatur di dashboard.",
+      },
+      {
+        key: "auto_verify",
+        label: "Auto verify (on/off)",
+        placeholder: "off",
+        help: "on = pesanan langsung disetujui saat customer klik 'Sudah bayar' (tanpa cek manual dana masuk). off = tunggu verifikasi merchant.",
+      },
+      {
+        key: "qris_id",
+        label: "QRIS ID (opsional)",
+        placeholder: "123",
+        help: "Hanya jika kamu punya beberapa QRIS statis tersimpan di TemanQRIS.",
+      },
+    ],
+  },
+  {
     id: "doku",
     name: "DOKU (Jokul)",
     category: "aggregator",

@@ -76,7 +76,7 @@ const MOTION_MODELS: Record<Provider, ModelOpt[]> = {
     { key: "mag:kling-v2-6-motion-control-std", label: "Kling V2.6 Standard (Magnific)", cr: 21 },
   ],
   roboneo: [
-    { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 0 },
+    { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 72 },
   ],
   framia: [
     { key: "framia:kling-v2.1-motion", label: "Kling V2.1 Motion Control (Framia)", cr: 40 },
