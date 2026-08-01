@@ -4,6 +4,7 @@ import { Loader2, Smartphone, RefreshCw, Power, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/dashboard/ui";
 import { confirmDialog } from "@/components/ui-confirm";
+import { CompanionQrisCard } from "@/components/admin/companion-qris-card";
 import {
   listCompanionDevices,
   listCompanionEvents,
@@ -101,6 +102,10 @@ export function CompanionSection() {
       title="Companion GoPay (Android)"
       sub="Perangkat yang membaca notifikasi GoPay Merchant lalu mencocokkan nominal dengan pesanan pending (jendela 90 menit)."
     >
+      <div className="mb-4">
+        <CompanionQrisCard />
+      </div>
+
       <div className="mb-3 flex justify-end">
         <button
           onClick={() => void load()}

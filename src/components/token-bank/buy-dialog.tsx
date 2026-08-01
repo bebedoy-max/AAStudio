@@ -26,6 +26,7 @@ import {
 import { PaymentPicker } from "@/components/payments/payment-picker";
 import { useServerFn } from "@tanstack/react-start";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
+import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -475,11 +476,11 @@ function OrderStatusView({
             onApproved={onApproved}
           />
           {gopayAmount !== null && (
-            <div className="rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-              Bayar manual ke <b className="text-foreground">GoPay Merchant</b>? Transfer tepat{" "}
-              <b className="text-foreground font-mono">{rupiah(gopayAmount)}</b> (kode unik) agar
-              pembayaran terverifikasi otomatis.
-            </div>
+            <GopayQrisPanel
+              purchaseRequestId={order.id}
+              amount={gopayAmount}
+              onApproved={onApproved}
+            />
           )}
         </div>
       )}

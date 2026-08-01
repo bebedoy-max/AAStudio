@@ -10,6 +10,7 @@ import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { PaymentPicker } from "@/components/payments/payment-picker";
 import { useServerFn } from "@tanstack/react-start";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
+import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 
 type FeaturePrice = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
@@ -219,10 +220,12 @@ export function CheckoutDialog({
                     onApproved={refreshStatus}
                   />
                   {gopayAmount !== null && (
-                    <div className="mt-3 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-                      Bayar manual ke <b className="text-foreground">GoPay Merchant</b>? Transfer
-                      tepat <b className="text-foreground font-mono">{rupiah(gopayAmount)}</b> (kode
-                      unik) agar pembayaran terverifikasi otomatis.
+                    <div className="mt-3">
+                      <GopayQrisPanel
+                        purchaseRequestId={order.id}
+                        amount={gopayAmount}
+                        onApproved={refreshStatus}
+                      />
                     </div>
                   )}
                 </div>

@@ -78,8 +78,8 @@ function Gate() {
 const TABS = [
   { key: "prices", label: "Harga Fitur", icon: Tag },
   { key: "tokens", label: "Harga Token", icon: Coins },
-  { key: "gateways", label: "Metode Bayar", icon: WalletIcon },
-  { key: "companion", label: "Companion", icon: Smartphone },
+  { key: "gateways", label: "Payment Gateway", icon: WalletIcon },
+  { key: "companion", label: "Companion Payment", icon: Smartphone },
 ] as const;
 
 function PaymentsTabs() {
