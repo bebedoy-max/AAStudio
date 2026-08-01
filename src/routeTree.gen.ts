@@ -96,7 +96,11 @@ import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/publ
 import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
 import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
+import { Route as ApiPublicCompanionHealthRouteImport } from './routes/api/public/companion/health'
 import { Route as ApiPublicCloudUploadRouteImport } from './routes/api/public/cloud/upload'
+import { Route as ApiPublicCompanionPaymentVerifyRouteImport } from './routes/api/public/companion/payment/verify'
+import { Route as ApiPublicCompanionPaymentPaidRouteImport } from './routes/api/public/companion/payment/paid'
+import { Route as ApiPublicCompanionDeviceRegisterRouteImport } from './routes/api/public/companion/device/register'
 import { Route as ApiPublicCloudFileIdRouteImport } from './routes/api/public/cloud/file.$id'
 
 const ReffEditRoute = ReffEditRouteImport.update({
@@ -545,11 +549,35 @@ const ApiPublicDokuNotificationRoute =
     path: '/api/public/doku/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCompanionHealthRoute =
+  ApiPublicCompanionHealthRouteImport.update({
+    id: '/api/public/companion/health',
+    path: '/api/public/companion/health',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCloudUploadRoute = ApiPublicCloudUploadRouteImport.update({
   id: '/api/public/cloud/upload',
   path: '/api/public/cloud/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCompanionPaymentVerifyRoute =
+  ApiPublicCompanionPaymentVerifyRouteImport.update({
+    id: '/api/public/companion/payment/verify',
+    path: '/api/public/companion/payment/verify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCompanionPaymentPaidRoute =
+  ApiPublicCompanionPaymentPaidRouteImport.update({
+    id: '/api/public/companion/payment/paid',
+    path: '/api/public/companion/payment/paid',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCompanionDeviceRegisterRoute =
+  ApiPublicCompanionDeviceRegisterRouteImport.update({
+    id: '/api/public/companion/device/register',
+    path: '/api/public/companion/device/register',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCloudFileIdRoute = ApiPublicCloudFileIdRouteImport.update({
   id: '/api/public/cloud/file/$id',
   path: '/api/public/cloud/file/$id',
@@ -637,6 +665,7 @@ export interface FileRoutesByFullPath {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
+  '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
@@ -646,6 +675,9 @@ export interface FileRoutesByFullPath {
   '/api/public/temanqris/notification': typeof ApiPublicTemanqrisNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
+  '/api/public/companion/device/register': typeof ApiPublicCompanionDeviceRegisterRoute
+  '/api/public/companion/payment/paid': typeof ApiPublicCompanionPaymentPaidRoute
+  '/api/public/companion/payment/verify': typeof ApiPublicCompanionPaymentVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -726,6 +758,7 @@ export interface FileRoutesByTo {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
+  '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
@@ -735,6 +768,9 @@ export interface FileRoutesByTo {
   '/api/public/temanqris/notification': typeof ApiPublicTemanqrisNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
+  '/api/public/companion/device/register': typeof ApiPublicCompanionDeviceRegisterRoute
+  '/api/public/companion/payment/paid': typeof ApiPublicCompanionPaymentPaidRoute
+  '/api/public/companion/payment/verify': typeof ApiPublicCompanionPaymentVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -818,6 +854,7 @@ export interface FileRoutesById {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
+  '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
@@ -827,6 +864,9 @@ export interface FileRoutesById {
   '/api/public/temanqris/notification': typeof ApiPublicTemanqrisNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
+  '/api/public/companion/device/register': typeof ApiPublicCompanionDeviceRegisterRoute
+  '/api/public/companion/payment/paid': typeof ApiPublicCompanionPaymentPaidRoute
+  '/api/public/companion/payment/verify': typeof ApiPublicCompanionPaymentVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -911,6 +951,7 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
+    | '/api/public/companion/health'
     | '/api/public/doku/notification'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
@@ -920,6 +961,9 @@ export interface FileRouteTypes {
     | '/api/public/temanqris/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
+    | '/api/public/companion/device/register'
+    | '/api/public/companion/payment/paid'
+    | '/api/public/companion/payment/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1000,6 +1044,7 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
+    | '/api/public/companion/health'
     | '/api/public/doku/notification'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
@@ -1009,6 +1054,9 @@ export interface FileRouteTypes {
     | '/api/public/temanqris/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
+    | '/api/public/companion/device/register'
+    | '/api/public/companion/payment/paid'
+    | '/api/public/companion/payment/verify'
   id:
     | '__root__'
     | '/'
@@ -1091,6 +1139,7 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
+    | '/api/public/companion/health'
     | '/api/public/doku/notification'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
@@ -1100,6 +1149,9 @@ export interface FileRouteTypes {
     | '/api/public/temanqris/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
+    | '/api/public/companion/device/register'
+    | '/api/public/companion/payment/paid'
+    | '/api/public/companion/payment/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1163,6 +1215,7 @@ export interface RootRouteChildren {
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
   ApiPublicCloudUploadRoute: typeof ApiPublicCloudUploadRoute
+  ApiPublicCompanionHealthRoute: typeof ApiPublicCompanionHealthRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
   ApiPublicExtensionLoginRoute: typeof ApiPublicExtensionLoginRoute
   ApiPublicExtensionPushTokenRoute: typeof ApiPublicExtensionPushTokenRoute
@@ -1172,6 +1225,9 @@ export interface RootRouteChildren {
   ApiPublicTemanqrisNotificationRoute: typeof ApiPublicTemanqrisNotificationRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicCloudFileIdRoute: typeof ApiPublicCloudFileIdRoute
+  ApiPublicCompanionDeviceRegisterRoute: typeof ApiPublicCompanionDeviceRegisterRoute
+  ApiPublicCompanionPaymentPaidRoute: typeof ApiPublicCompanionPaymentPaidRoute
+  ApiPublicCompanionPaymentVerifyRoute: typeof ApiPublicCompanionPaymentVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1785,11 +1841,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/companion/health': {
+      id: '/api/public/companion/health'
+      path: '/api/public/companion/health'
+      fullPath: '/api/public/companion/health'
+      preLoaderRoute: typeof ApiPublicCompanionHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cloud/upload': {
       id: '/api/public/cloud/upload'
       path: '/api/public/cloud/upload'
       fullPath: '/api/public/cloud/upload'
       preLoaderRoute: typeof ApiPublicCloudUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/payment/verify': {
+      id: '/api/public/companion/payment/verify'
+      path: '/api/public/companion/payment/verify'
+      fullPath: '/api/public/companion/payment/verify'
+      preLoaderRoute: typeof ApiPublicCompanionPaymentVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/payment/paid': {
+      id: '/api/public/companion/payment/paid'
+      path: '/api/public/companion/payment/paid'
+      fullPath: '/api/public/companion/payment/paid'
+      preLoaderRoute: typeof ApiPublicCompanionPaymentPaidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/device/register': {
+      id: '/api/public/companion/device/register'
+      path: '/api/public/companion/device/register'
+      fullPath: '/api/public/companion/device/register'
+      preLoaderRoute: typeof ApiPublicCompanionDeviceRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cloud/file/$id': {
@@ -1940,6 +2024,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
   ApiPublicCloudUploadRoute: ApiPublicCloudUploadRoute,
+  ApiPublicCompanionHealthRoute: ApiPublicCompanionHealthRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
   ApiPublicExtensionLoginRoute: ApiPublicExtensionLoginRoute,
   ApiPublicExtensionPushTokenRoute: ApiPublicExtensionPushTokenRoute,
@@ -1949,6 +2034,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTemanqrisNotificationRoute: ApiPublicTemanqrisNotificationRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicCloudFileIdRoute: ApiPublicCloudFileIdRoute,
+  ApiPublicCompanionDeviceRegisterRoute: ApiPublicCompanionDeviceRegisterRoute,
+  ApiPublicCompanionPaymentPaidRoute: ApiPublicCompanionPaymentPaidRoute,
+  ApiPublicCompanionPaymentVerifyRoute: ApiPublicCompanionPaymentVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
