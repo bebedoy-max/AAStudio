@@ -44,35 +44,28 @@ export const claimTemanQrisPayment = createServerFn({ method: "POST" })
     if (pr.status === "approved") return { status: "approved" as const };
     if (!pr.temanqris_link_code) throw new Error("Order TemanQRIS belum dibuat");
 
-    const { loadTemanQrisConfig, claimTemanQrisPaid, fetchTemanQrisOrder, verifyTemanQrisOrder } =
+    const { loadTemanQrisConfig, claimTemanQrisPaid, fetchTemanQrisOrder } =
       await import("@/lib/payments/temanqris.server");
     const loaded = await loadTemanQrisConfig(pr.payment_gateway_id ?? undefined);
     if (!loaded) throw new Error("Konfigurasi TemanQRIS tidak ditemukan");
 
+    // Klik "Saya sudah bayar" HANYA menandai klaim user (awaiting_confirmation).
+    // Sistem TIDAK BOLEH memanggil verify di sini — verify menandai order lunas
+    // di TemanQRIS tanpa dana benar-benar masuk (false positive).
     await claimTemanQrisPaid(pr.temanqris_link_code);
 
     const orderId = pr.temanqris_order_id;
     if (orderId) {
-      // Kalau dana benar-benar sudah masuk & TemanQRIS sudah tandai paid, fulfill.
       const order = await fetchTemanQrisOrder(loaded.cfg, orderId).catch(() => null);
       if (order?.isPaid) {
         const { fulfillPurchaseAfterPayment } = await import("@/lib/midtrans/fulfill.server");
         await fulfillPurchaseAfterPayment(pr.id);
         return { status: "approved" as const };
       }
-      if (loaded.cfg.autoVerify) {
-        const ok = await verifyTemanQrisOrder(loaded.cfg, orderId, {
-          payerNote: "Auto-verify (mode otomatis aktif)",
-        });
-        if (ok) {
-          const { fulfillPurchaseAfterPayment } = await import("@/lib/midtrans/fulfill.server");
-          await fulfillPurchaseAfterPayment(pr.id);
-          return { status: "approved" as const };
-        }
-      }
     }
     return { status: "awaiting_confirmation" as const };
   });
+
 
 export const checkTemanQrisStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

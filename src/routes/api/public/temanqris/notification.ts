@@ -65,9 +65,9 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
           const {
             loadTemanQrisConfig,
             verifyTemanQrisSignature,
-            verifyTemanQrisOrder,
             fetchTemanQrisOrder,
           } = await import("@/lib/payments/temanqris.server");
+
           const loaded = await loadTemanQrisConfig(pr.payment_gateway_id ?? undefined);
           if (!loaded) {
             console.warn("[temanqris-webhook] no config, ignored");
@@ -108,20 +108,15 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
             return OK({ ok: true, status: "approved" });
           }
 
-          // Customer klaim sudah bayar. Kalau auto_verify=on → verify + fulfill otomatis.
+          // Customer klaim sudah bayar. JANGAN auto-verify: verify menandai
+          // order lunas di TemanQRIS tanpa bukti dana masuk. Cek status asli;
+          // hanya fulfill kalau TemanQRIS sendiri sudah menyatakan paid.
           if (event === "payment.awaiting_confirmation" || status === "awaiting_confirmation") {
-            if (loaded.cfg.autoVerify) {
-              const ok = await verifyTemanQrisOrder(loaded.cfg, effectiveOrderId, {
-                payerNote: "Auto-verified oleh webhook TemanQRIS",
-              });
-              if (ok) {
-                const { fulfillPurchaseAfterPayment } = await import(
-                  "@/lib/midtrans/fulfill.server"
-                );
-                await fulfillPurchaseAfterPayment(pr.id);
-                return OK({ ok: true, status: "approved", auto_verified: true });
-              }
-              console.warn("[temanqris-webhook] auto-verify gagal", effectiveOrderId);
+            const order = await fetchTemanQrisOrder(loaded.cfg, effectiveOrderId).catch(() => null);
+            if (order?.isPaid) {
+              const { fulfillPurchaseAfterPayment } = await import("@/lib/midtrans/fulfill.server");
+              await fulfillPurchaseAfterPayment(pr.id);
+              return OK({ ok: true, status: "approved" });
             }
             await admin
               .from("purchase_requests")
@@ -132,6 +127,7 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
               .eq("id", pr.id);
             return OK({ ok: true, status: "awaiting_confirmation" });
           }
+
 
           if (["expired", "cancelled"].includes(status)) {
             await admin
