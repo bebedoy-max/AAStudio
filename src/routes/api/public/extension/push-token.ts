@@ -55,7 +55,10 @@ export const Route = createFileRoute("/api/public/extension/push-token")({
         if (!storageKey) return json({ error: "unknown_provider" }, 400);
         // Dola memakai cookie session (bukan JWT) — validasi longgar untuk provider itu.
         if (provider === "dola") {
-          if (!/sessionid=/.test(token)) return json({ error: "invalid_cookie" }, 400);
+          const hasSession = /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token)=/.test(
+            token,
+          );
+          if (!hasSession) return json({ error: "invalid_cookie" }, 400);
         } else if (!JWT_RE.test(token)) {
           return json({ error: "invalid_jwt" }, 400);
         }
