@@ -88,13 +88,15 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     })();
   }, []);
 
+  // Hanya token yang benar-benar dijual: aktif, ada harga, dan stok tersedia.
   const catalog = useMemo(() => {
     return BANK_PROVIDERS.filter((p) => {
       const price = prices[p];
       if (!price || !price.is_active || price.price_idr <= 0) return false;
+      if ((stock[p] ?? 0) <= 0) return false;
       return true;
     });
-  }, [prices]);
+  }, [prices, stock]);
 
   const cartItems: CartItem[] = useMemo(() => {
     const out: CartItem[] = [];
@@ -374,12 +376,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-              Setelah <b className="text-foreground">Lanjut</b>, kamu akan memilih metode pembayaran
-              (QRIS Midtrans / DOKU, VA bank BCA·Mandiri·BRI·BNI·CIMB·Permata, OVO, DANA,
-              ShopeePay, LinkAja, Alfamart, dsb.). Token masuk otomatis ke Token Manager setelah
-              pembayaran terkonfirmasi.
-            </div>
+
 
             <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
               <button

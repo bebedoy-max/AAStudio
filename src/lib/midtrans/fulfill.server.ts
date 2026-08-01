@@ -215,6 +215,27 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
   if (!pr) throw new Error("Purchase request not found");
   if (pr.status === "approved") return { ok: true, skipped: "already approved" };
 
+  // Kunci atomik: hanya satu pemanggil (webhook / polling / claim) yang boleh
+  // memproses. Tanpa ini, dua panggilan paralel bisa mengirim 2 key untuk
+  // pembelian 1 key.
+  const activatedUntil = new Date();
+  activatedUntil.setDate(activatedUntil.getDate() + 30);
+  const { data: lockRows, error: lockErr } = await admin
+    .from("purchase_requests")
+    .update({
+      status: "approved",
+      reviewed_at: new Date().toISOString(),
+      activated_until: activatedUntil.toISOString(),
+      admin_note: "Auto-approved: pembayaran terverifikasi",
+    })
+    .eq("id", pr.id)
+    .neq("status", "approved")
+    .select("id");
+  if (lockErr) throw new Error(lockErr.message);
+  if (!Array.isArray(lockRows) || lockRows.length === 0) {
+    return { ok: true, skipped: "already approved" };
+  }
+
   const isTokenBank = pr.request_kind === "token_bank";
 
   if (isTokenBank) {
@@ -234,32 +255,31 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
       if (!items || items.length === 0) throw new Error("Request is missing token cart items");
       const totalKeys = items.reduce((a, it) => a + it.qty, 0);
       const perKeyPrice = totalKeys > 0 ? Math.round(pr.price_idr / totalKeys) : 0;
-      for (const it of items) {
-        await deliverKeysForItem(admin, {
-          provider: it.provider,
-          qty: it.qty,
-          targetUserId: pr.user_id,
-          purchaseRequestId: pr.id,
-          priceIdr: perKeyPrice * it.qty,
-        });
+      try {
+        for (const it of items) {
+          await deliverKeysForItem(admin, {
+            provider: it.provider,
+            qty: it.qty,
+            targetUserId: pr.user_id,
+            purchaseRequestId: pr.id,
+            priceIdr: perKeyPrice * it.qty,
+          });
+        }
+      } catch (e) {
+        // Lepas kunci supaya bisa dicoba lagi / ditinjau admin.
+        await admin
+          .from("purchase_requests")
+          .update({
+            status: "pending",
+            reviewed_at: null,
+            activated_until: null,
+            admin_note: `Gagal kirim token: ${e instanceof Error ? e.message : String(e)}`,
+          })
+          .eq("id", pr.id);
+        throw e;
       }
     }
   }
-
-  // Approve + activate for 30 days (used by feature-access checks).
-  // The pr_on_approved DB trigger writes route_permissions for pr.route_key.
-  const activatedUntil = new Date();
-  activatedUntil.setDate(activatedUntil.getDate() + 30);
-  const { error: uErr } = await admin
-    .from("purchase_requests")
-    .update({
-      status: "approved",
-      reviewed_at: new Date().toISOString(),
-      activated_until: activatedUntil.toISOString(),
-      admin_note: "Auto-approved: pembayaran terverifikasi",
-    })
-    .eq("id", pr.id);
-  if (uErr) throw new Error(uErr.message);
 
   // Bundle checkouts encode ALL feature route_keys in the note. Grant
   // route_permissions for every listed feature (including the primary) so

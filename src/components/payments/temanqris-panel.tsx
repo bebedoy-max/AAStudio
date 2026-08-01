@@ -84,7 +84,7 @@ export function TemanQrisPanel({
         const st = (data as { status?: string } | null)?.status;
         if (st === "approved") return finish("approved");
         if (st === "rejected") return finish("rejected");
-        if (tick % 3 === 0) {
+        if (tick >= 1) {
           const r = await checkFn({ data: { purchaseRequestId } });
           if (r.status === "approved") return finish("approved");
           if (r.status === "rejected") return finish("rejected");
@@ -115,8 +115,17 @@ export function TemanQrisPanel({
   const secondsLeft = expiresAt
     ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - now) / 1000))
     : null;
-  const mm = secondsLeft != null ? String(Math.floor(secondsLeft / 60)).padStart(2, "0") : null;
-  const ss = secondsLeft != null ? String(secondsLeft % 60).padStart(2, "0") : null;
+  // Format HH:MM:SS (atau MM:SS kalau kurang dari 1 jam).
+  const countdown =
+    secondsLeft != null
+      ? (() => {
+          const h = Math.floor(secondsLeft / 3600);
+          const m = Math.floor((secondsLeft % 3600) / 60);
+          const s = secondsLeft % 60;
+          const pad = (n: number) => String(n).padStart(2, "0");
+          return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+        })()
+      : null;
 
   if (state === "approved") {
     return (
@@ -174,7 +183,7 @@ export function TemanQrisPanel({
         <div className="text-[11px] text-muted-foreground font-mono">Order: {orderId}</div>
         {secondsLeft != null && secondsLeft > 0 && (
           <div className="mt-1 text-[11px] text-amber-300 font-mono">
-            Kadaluarsa dalam {mm}:{ss}
+            Kadaluarsa dalam {countdown}
           </div>
         )}
       </div>
