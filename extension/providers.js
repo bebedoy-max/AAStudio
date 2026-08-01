@@ -54,11 +54,24 @@ self.AA_PROVIDERS = [
     id: "dola",
     label: "Dola",
     hostMatch: /https:\/\/([\w-]+\.)?dola\.com\//,
-    urlPatterns: ["https://www.dola.com/*", "https://*.dola.com/*"],
+    urlPatterns: [
+      "https://www.dola.com/*",
+      "https://*.dola.com/*",
+      "https://*.bytevcloudapi.com/*",
+    ],
     openUrl: "https://www.dola.com/chat/",
     hint: "Login ke www.dola.com lalu klik Ambil Token (cookie session diambil otomatis).",
     // Dola tidak memakai JWT — auth-nya cookie session penuh.
-    cookieCapture: { domain: "dola.com", required: ["sessionid"] },
+    // Nama cookie session Dola berbeda-beda per region/akun, jadi cukup salah
+    // satu dari daftar ini yang ada supaya jar dianggap valid.
+    cookieCapture: {
+      domain: "dola.com",
+      urls: ["https://www.dola.com/", "https://dola.com/"],
+      required: [],
+      anyOf: ["sessionid", "sessionid_ss", "sid_tt", "sid_guard", "session_id", "passport_auth_status", "uid_tt"],
+      // Header STS ImageX (upload gambar) ikut ditangkap dari request browser.
+      stsHosts: /bytevcloudapi\.com$/i,
+    },
     scoreKeys: /dola|doubao|samantha/i,
   },
 ];

@@ -207,14 +207,17 @@ $("grab").addEventListener("click", async () => {
   }
   // Provider berbasis cookie (Dola): baca cookie jar, bukan localStorage.
   if (p.cookieCapture) {
-    const cookies = await chrome.cookies.getAll({ domain: p.cookieCapture.domain });
-    const names = (cookies || []).map((c) => c.name);
-    const required = p.cookieCapture.required || [];
-    if (!cookies?.length || !required.every((r) => names.includes(r))) {
-      setStatus(`Login dulu di ${p.openUrl.replace(/^https?:\/\//, "")}.`, "err");
+    const r = await chrome.runtime.sendMessage({ kind: "AA_GRAB_COOKIES", providerId: p.id }).catch(() => null);
+    if (!r?.ok) {
+      setStatus(
+        r?.error === "no-session"
+          ? `Cookie ${p.cookieCapture.domain} ada tapi belum ada sesi login — refresh halaman ${p.openUrl.replace(/^https?:\/\//, "")} lalu coba lagi.`
+          : `Login dulu di ${p.openUrl.replace(/^https?:\/\//, "")}.`,
+        "err",
+      );
       return;
     }
-    const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    const jar = r.jar;
     await chrome.storage.local.set({ [`captured::${p.id}`]: { token: jar, source: "cookies", at: Date.now() } });
     await onGrabbed(p.id, jar, "cookies");
     return;

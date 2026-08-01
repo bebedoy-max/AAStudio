@@ -31,6 +31,32 @@ function cookieValue(cookie: string, name: string): string {
   return m?.[1] ? decodeURIComponent(m[1]) : "";
 }
 
+/** Extension menempelkan header STS ImageX ke cookie string sebagai
+ *  `__imagex_sts=STS2<base64>`. Buang sebelum cookie dikirim ke dola.com. */
+function stripSts(cookie: string): string {
+  return cookie
+    .split(/;\s*/)
+    .filter((c) => c && !c.startsWith("__imagex_sts="))
+    .join("; ");
+}
+
+/** STS2<base64 JSON> memuat AccessKeyId + SignedSecretAccessKey + ExpiredTime,
+ *  jadi kredensial AWS4 bisa diturunkan langsung dari header browser. */
+function credsFromStsToken(token: string): StsCreds | null {
+  const raw = token.startsWith("STS2") ? token.slice(4) : token;
+  try {
+    const json = JSON.parse(atob(raw)) as Record<string, unknown>;
+    const accessKeyId = String(json["AccessKeyId"] ?? "");
+    const secret = String(json["SignedSecretAccessKey"] ?? json["SecretAccessKey"] ?? "");
+    if (!accessKeyId || !secret) return null;
+    const exp = Number(json["ExpiredTime"] ?? 0);
+    if (exp && exp * 1000 < Date.now()) return null;
+    return { AccessKeyId: accessKeyId, SecretAccessKey: secret, SessionToken: token };
+  } catch {
+    return null;
+  }
+}
+
 function commonQuery(cookie: string): string {
   const webId = cookieValue(cookie, "ttwid") ? "" : "";
   void webId;
@@ -61,7 +87,7 @@ function dolaHeaders(cookie: string, extra: Record<string, string> = {}) {
     "accept-language": "en-GB,en;q=0.9",
     "agw-js-conv": "str",
     "content-type": "application/json",
-    cookie,
+    cookie: stripSts(cookie),
     origin: DOLA,
     referer: `${DOLA}/chat/`,
     "user-agent": UA,
@@ -159,6 +185,13 @@ async function signImageX(opts: {
 type StsCreds = { AccessKeyId: string; SecretAccessKey: string; SessionToken: string };
 
 async function fetchUploadCreds(cookie: string): Promise<StsCreds | null> {
+  // 1) Header STS asli dari browser (paling akurat) bila extension mengirimnya.
+  const captured = cookieValue(cookie, "__imagex_sts");
+  if (captured) {
+    const creds = credsFromStsToken(captured);
+    if (creds) return creds;
+  }
+  // 2) Fallback: minta token upload lewat API Dola.
   const paths = ["/alice/upload/auth_token", "/samantha/media/get_upload_token", "/alice/upload/upload_token"];
   for (const p of paths) {
     try {
@@ -390,7 +423,8 @@ export const Route = createFileRoute("/api/public/dola")({
         }),
       POST: async ({ request }) => {
         const cookie = request.headers.get("X-Dola-Cookie") || "";
-        if (!cookie || !/sessionid=/.test(cookie)) {
+        const hasSession = /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt)=/.test(cookie);
+        if (!cookie || !hasSession) {
           return json({ ok: false, error: "X-Dola-Cookie (cookie session dola.com) required" }, 400);
         }
         const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
