@@ -30,7 +30,7 @@ export function CheckoutDialog({
   onClose: () => void;
   onSubmitted?: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [prices, setPrices] = useState<FeaturePrice[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -102,7 +102,19 @@ export function CheckoutDialog({
       .eq("id", order.id)
       .maybeSingle();
     const st = (data as { status?: Order["status"] } | null)?.status;
-    if (st && st !== order.status) setOrder({ ...order, status: st });
+    if (st && st !== order.status) {
+      setOrder({ ...order, status: st });
+      // Pembayaran terverifikasi → muat ulang izin rute agar fitur premium
+      // langsung terbuka tanpa reload manual.
+      if (st === "approved") {
+        try {
+          await refresh();
+        } catch {
+          /* non-fatal */
+        }
+        toast.success("Pembayaran terverifikasi — fitur premium aktif");
+      }
+    }
   }
 
   return (

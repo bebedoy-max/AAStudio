@@ -21,6 +21,9 @@ export type BankProvider =
   | "weavy"
   | "wavespeed"
   | "magnific"
+  | "roboneo"
+  | "framia"
+  | "firefly"
   | "eleven"
   | "shotstack"
   | "creatomate";
@@ -30,6 +33,9 @@ const BANK_STORAGE_KEY: Record<BankProvider, string> = {
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
+  framia: "aatools.framia.keys",
+  firefly: "aatools.firefly.keys",
   eleven: "aatools.eleven",
   shotstack: "aatools.shotstack.keys",
   creatomate: "aatools.creatomate.keys",
@@ -58,7 +64,10 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
     case "wavespeed":
     case "magnific":
     case "shotstack":
-    case "creatomate": {
+    case "creatomate":
+    case "roboneo":
+    case "framia":
+    case "firefly": {
       type T = { id: string; key: string; balance: number | null; status: string };
       const arr: T[] = currentJson ? (JSON.parse(currentJson) as T[]) : [];
       if (!arr.some((k) => k.key === keyValue))
@@ -247,7 +256,7 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
       status: "approved",
       reviewed_at: new Date().toISOString(),
       activated_until: activatedUntil.toISOString(),
-      admin_note: "Auto-approved by Midtrans QRIS payment",
+      admin_note: "Auto-approved: pembayaran terverifikasi",
     })
     .eq("id", pr.id);
   if (uErr) throw new Error(uErr.message);

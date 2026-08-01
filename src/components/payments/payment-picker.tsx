@@ -73,6 +73,8 @@ export function PaymentPicker({
   } | null>(null);
   const [approved, setApproved] = useState(false);
   const notifiedRef = useRef(false);
+  const autoPickedRef = useRef(false);
+  const [autoFailed, setAutoFailed] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -160,10 +162,20 @@ export function PaymentPicker({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal memulai pembayaran");
       setSelected(null);
+      setAutoFailed(true);
     } finally {
       setCreating(false);
     }
   }
+
+  // Kalau hanya ada 1 metode aktif, langsung buat pembayaran tanpa memilih.
+  useEffect(() => {
+    if (!methods || methods.length !== 1) return;
+    if (autoPickedRef.current) return;
+    autoPickedRef.current = true;
+    void pick(methods[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [methods]);
 
   if (approved) {
     return (
@@ -263,6 +275,18 @@ export function PaymentPicker({
         <div>
           Belum ada metode pembayaran aktif. Admin dapat mengaktifkan di{" "}
           <span className="font-mono">/admin/payments</span>.
+        </div>
+      </div>
+    );
+  }
+
+  // Single-method: tampilkan loader saja sementara payment dibuat otomatis.
+  if (methods.length === 1 && !autoFailed) {
+    return (
+      <div className="rounded-2xl border border-border bg-card/40 p-6 grid place-items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <div className="text-xs text-muted-foreground">
+          Menyiapkan pembayaran {methods[0].methodLabel} · {rupiah(amount)}…
         </div>
       </div>
     );

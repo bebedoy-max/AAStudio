@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
+import { TokenBankPricesSection } from "@/components/admin/token-bank-prices-section";
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 
 import { confirmDialog } from "@/components/ui-confirm";
@@ -70,6 +71,7 @@ function Gate() {
   return (
     <div className="flex flex-col gap-4">
       <PricesSection />
+      <TokenBankPricesSection />
       <PaymentGatewaysSection />
     </div>
   );
