@@ -11,7 +11,8 @@ export const Route = createFileRoute("/api/public/companion/device/register")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
-        const enrollSecret = process.env["COMPANION_ENROLL_SECRET"];
+        // .trim(): nilai env dari dashboard sering terbawa spasi/newline saat copy-paste.
+        const enrollSecret = process.env["COMPANION_ENROLL_SECRET"]?.trim();
         if (!enrollSecret) {
           return jsonResponse({ ok: false, error: "server not configured" }, 503);
         }
@@ -29,8 +30,28 @@ export const Route = createFileRoute("/api/public/companion/device/register")({
         }
 
         const { safeEqual, registerDevice } = await import("@/lib/companion/companion.server");
-        if (!body.enroll_secret || !safeEqual(body.enroll_secret, enrollSecret)) {
-          return jsonResponse({ ok: false, error: "unauthorized" }, 401);
+        const received = (body.enroll_secret ?? "").trim();
+        const matches = received.length > 0 && safeEqual(received, enrollSecret);
+        if (!matches) {
+          // Diagnostik aman: hanya panjang & sidik jari pendek, bukan nilai rahasianya.
+          const { shortFingerprint } = await import("@/lib/companion/companion.server");
+          const reason = !received
+            ? "body.enroll_secret missing"
+            : received.length !== enrollSecret.length
+              ? "length mismatch"
+              : "value mismatch";
+          console.warn("[companion/register] unauthorized", {
+            envLoaded: true,
+            envLength: enrollSecret.length,
+            envTrimmedLength: enrollSecret.trim().length,
+            envFingerprint: await shortFingerprint(enrollSecret),
+            receivedLength: received.length,
+            receivedTrimmedLength: received.trim().length,
+            receivedFingerprint: await shortFingerprint(received),
+            trimmedMatch: received.trim() === enrollSecret.trim(),
+            reason,
+          });
+          return jsonResponse({ ok: false, error: "unauthorized", reason }, 401);
         }
         const deviceId = (body.device_id ?? "").trim();
         if (deviceId.length < 8 || deviceId.length > 128) {

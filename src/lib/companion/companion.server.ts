@@ -43,6 +43,19 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/**
+ * Sidik jari pendek untuk debugging perbandingan rahasia tanpa membocorkan nilainya.
+ * 8 hex pertama dari SHA-256 — cukup untuk membandingkan dua sisi, tidak cukup untuk dibalik.
+ */
+export async function shortFingerprint(value: string): Promise<string> {
+  if (!value) return "-";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest))
+    .slice(0, 4)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export type CompanionDevice = {
   id: string;
   device_id: string;
