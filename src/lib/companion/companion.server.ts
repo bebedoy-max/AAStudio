@@ -138,8 +138,8 @@ function expectedAmounts(pr: PurchaseRow): number[] {
   return Array.from(new Set(list.filter((n): n is number => typeof n === "number" && n > 0)));
 }
 
-/** Rentang kode unik yang ditambahkan ke harga dasar (Rp1 – Rp999). */
-const UNIQUE_CODE_MAX = 999;
+/** Rentang kode unik yang ditambahkan ke harga dasar (Rp1 – Rp99). */
+const UNIQUE_CODE_MAX = 99;
 
 /**
  * Tentukan nominal unik untuk pembayaran GoPay Merchant: harga dasar + kode
@@ -201,7 +201,7 @@ export async function assignUniqueGopayAmount(
     if (usedCodes.has(c)) break;
     usedCodes.add(c);
   }
-  // Seluruh 1..999 sudah terpakai tepat satu kali → mulai siklus acak baru.
+  // Seluruh 1..99 sudah terpakai tepat satu kali → mulai siklus acak baru.
   if (usedCodes.size >= UNIQUE_CODE_MAX) usedCodes.clear();
 
   const candidates: number[] = [];
