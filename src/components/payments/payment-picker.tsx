@@ -10,7 +10,7 @@ import {
   Store,
   ExternalLink,
   CircleCheck,
-  CircleAlert,
+  
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -269,16 +269,10 @@ export function PaymentPicker({
   }
 
   if (methods.length === 0) {
-    return (
-      <div className="rounded-2xl border border-rose-400/40 bg-rose-400/5 p-4 text-sm text-rose-200 flex items-start gap-2">
-        <CircleAlert className="h-4 w-4 mt-0.5" />
-        <div>
-          Belum ada metode pembayaran aktif. Admin dapat mengaktifkan di{" "}
-          <span className="font-mono">/admin/payments</span>.
-        </div>
-      </div>
-    );
+    // Tidak ada payment gateway aktif — pembayaran ditangani Companion (QRIS).
+    return null;
   }
+
 
   // Single-method: tampilkan loader saja sementara payment dibuat otomatis.
   if (methods.length === 1 && !autoFailed) {

@@ -456,9 +456,16 @@ function OrderStatusView({
           <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
             Total
           </span>
-          <span className="font-display text-lg text-gradient">{rupiah(order.total)}</span>
+          <span className="font-display text-lg text-gradient">
+            {rupiah(gopayAmount ?? order.total)}
+          </span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Order ID</span>
+          <span className="font-mono">{order.id.slice(0, 8)}…</span>
         </div>
       </div>
+
 
       {paid ? (
         <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/5 p-6 flex flex-col items-center gap-2 text-emerald-200">

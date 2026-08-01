@@ -1,5 +1,7 @@
 // Popup showing purchase detail + live payment status. Opened from the
 // notification bell when a user clicks a purchase row.
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { X, Clock, CircleCheck, CircleAlert, QrCode, Landmark, Wallet, CircleDollarSign } from "lucide-react";
 import { PROVIDER_LABELS } from "@/lib/token-bank/bank.functions";
 import type { PurchaseView } from "@/lib/stores/purchase-feed";
@@ -7,6 +9,9 @@ import { rupiah } from "@/lib/stores/purchase-feed";
 import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
 import { PaymentPicker } from "@/components/payments/payment-picker";
+import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
+import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
+
 
 const statusMeta = {
   pending: {
@@ -47,6 +52,28 @@ export function PurchaseDetailDialog({
   const MethodIcon = methodIcon(purchase.payment_method_name);
   const dt = new Date(purchase.created_at);
   const reviewedAt = purchase.reviewed_at ? new Date(purchase.reviewed_at) : null;
+  const assignGopay = useServerFn(ensureGopayAmount);
+  const [gopayAmount, setGopayAmount] = useState<number | null>(null);
+
+  // Companion payment: nominal unik yang sama dengan yang tampil di pop-up
+  // pembelian token, supaya kedua popup sinkron.
+  useEffect(() => {
+    if (purchase.status !== "pending" || purchase.payment_provider) return;
+    let alive = true;
+    void assignGopay({ data: { purchaseId: purchase.id } })
+      .then((r) => {
+        if (alive && r) setGopayAmount(r.amount);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchase.id, purchase.status, purchase.payment_provider]);
+
+  const displayTotal = gopayAmount ?? purchase.price_idr;
+
+
 
 
   return (
@@ -99,8 +126,9 @@ export function PurchaseDetailDialog({
         <div className="mt-4 rounded-2xl border border-border bg-card/40 p-4 flex flex-col gap-2 text-sm">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Total</span>
-            <span className="font-display text-lg text-gradient">{rupiah(purchase.price_idr)}</span>
+            <span className="font-display text-lg text-gradient">{rupiah(displayTotal)}</span>
           </div>
+
           {purchase.payment_method_name && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Metode</span>
@@ -153,10 +181,14 @@ export function PurchaseDetailDialog({
           </div>
         )}
         {purchase.status === "pending" && !purchase.payment_provider && (
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col gap-3">
             <PaymentPicker purchaseRequestId={purchase.id} amount={purchase.price_idr} />
+            {gopayAmount !== null && (
+              <GopayQrisPanel purchaseRequestId={purchase.id} amount={gopayAmount} />
+            )}
           </div>
         )}
+
         {purchase.status === "approved" && purchase.kind === "token_bank" && (
           <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-xs text-emerald-200/90">
             Token sudah dikirim ke Token Manager. Buka menu <b>Manage → Token / API Manager</b>.
