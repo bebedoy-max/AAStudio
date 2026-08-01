@@ -90,7 +90,7 @@ export const Route = createFileRoute("/manage/tokens")({
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "eleven" | "render";
+type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola" | "eleven" | "render";
 
 const PROVIDER_GLOW: Record<ProviderKey, string> = {
   brain: "#f472b6",
@@ -101,6 +101,7 @@ const PROVIDER_GLOW: Record<ProviderKey, string> = {
   framia: "#fb923c",
   leonardo: "#facc15",
   firefly: "#f87171",
+  dola: "#2dd4bf",
   eleven: "#818cf8",
   render: "#94a3b8",
 };
@@ -114,6 +115,7 @@ const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "framia", label: "Framia", desc: "Canvas workflow (Converge AI) — semua node & recipe: image, video, avatar, garment, storyboard." },
   { key: "leonardo", label: "Leonardo.ai", desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision)." },
   { key: "firefly", label: "Adobe Firefly", desc: "Firefly image (Image 3/4) & video (Veo) via session token firefly.adobe.com." },
+  { key: "dola", label: "Dola", desc: "Video (Text-to-Video & Image-to-Video) via sesi web dola.com — auth pakai cookie session." },
   { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
   { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
@@ -135,6 +137,7 @@ const LS = {
   framia: "aatools.framia.keys",
   leonardo: "aatools.leonardo.keys",
   firefly: "aatools.firefly.keys",
+  dola: "aatools.dola.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
@@ -222,6 +225,8 @@ function TokensPage() {
                       ? LS.leonardo
                       : tab === "firefly"
                       ? LS.firefly
+                      : tab === "dola"
+                      ? LS.dola
                       : tab === "eleven"
                         ? LS.eleven
                         : LS.shotstack;
@@ -402,6 +407,16 @@ function TokensPage() {
                       helper="Roboneo access-token = login-session token (per docs roboneo.com/cli). Token tersimpan di akun kamu (localStorage + user_tokens server, sinkron antar device). Saat generate mendeteksi credit/quota habis atau token invalid, token itu otomatis dihapus dan flow lanjut rotate ke token berikutnya."
                     />
                   )}
+                  {tab === "dola" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="dola"
+                      lsKey={LS.dola}
+                      singlePlaceholder="i18next=en-GB; sessionid=...; sid_guard=...; msToken=... (cookie penuh dola.com)"
+                      bulkPlaceholder={"sessionid=aaa...; sid_guard=...\nsessionid=bbb...; sid_guard=..."}
+                      helper="Dola memakai cookie session (bukan API key). Cara termudah: pakai extension AA Creative — login di www.dola.com lalu klik Ambil Token, cookie tersinkron otomatis ke akunmu. Manual: DevTools → Network → request ke www.dola.com → copy seluruh header Cookie. Multi-cookie (multi akun) auto-rotate saat expired."
+                    />
+                  )}
                   {tab === "firefly" && (
                     <ProviderKeyPane
                       key={paneKey}
@@ -490,6 +505,8 @@ function CompactSummary({
                       ? LS.leonardo
                       : provider === "firefly"
                       ? LS.firefly
+                      : provider === "dola"
+                      ? LS.dola
                       : provider === "eleven"
                         ? LS.eleven
                         : LS.shotstack,
@@ -605,6 +622,18 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Alternatif (session token, cepat expired): DevTools → Application → Local Storage → https://www.roboneo.com → copy value `access-token`." },
     ],
     tip: "Model yang didukung: Kling 2.6 Std (motion control + i2v), Seedance Pro, Google Omni. Panduan resmi: roboneo.com/cli/en.",
+  },
+  dola: {
+    url: "https://www.dola.com/chat/",
+    urlLabel: "dola.com",
+    prefix: "sessionid=…; sid_guard=… (cookie session penuh)",
+    steps: [
+      { text: "REKOMENDASI: install extension AA Creative, login di www.dola.com, lalu klik Ambil Token — cookie tersinkron otomatis." },
+      { text: "Manual: login di www.dola.com, buka DevTools (F12) → tab Network." },
+      { text: "Klik salah satu request ke www.dola.com → bagian Request Headers → copy seluruh nilai header 'Cookie'." },
+      { text: "Paste ke input di sebelah (harus mengandung sessionid). Simpan beberapa cookie akun berbeda untuk auto-rotate." },
+    ],
+    tip: "Cookie Dola bisa expired saat kamu logout di browser — ambil ulang lewat extension bila generate gagal 401.",
   },
   firefly: {
     url: "https://firefly.adobe.com/",
@@ -1367,7 +1396,7 @@ function ProviderKeyPane({
   singlePlaceholder?: string;
   bulkPlaceholder: string;
   helper: string;
-  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly";
+  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola";
 }) {
   const [bulk, setBulk] = useState("");
   const [list, setList] = useState<SimpleKey[]>([]);
@@ -1582,13 +1611,13 @@ function ProviderKeyPane({
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
     const summary = provider === "wavespeed"
       ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
-      : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
+      : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
         ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
       : `${merged.length} key tersimpan`;
     void summary;
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : provider === "dola" ? "Dola" : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
@@ -1602,7 +1631,7 @@ function ProviderKeyPane({
       ],
       footer:
         `Total key tersimpan sekarang: ${merged.length}` +
-        (provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
+        (provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
           ? ` · Total credit: ${total.toLocaleString()} cr`
           : ""),
     });
@@ -1692,7 +1721,7 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : provider === "dola" ? "Dola" : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
@@ -1702,7 +1731,7 @@ function ProviderKeyPane({
           value:
             provider === "wavespeed"
               ? `${active}  ($${totBal.toFixed(2)})`
-              : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
+              : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
                 ? `${active}  (${totBal} credit)`
                 : active,
           tone: "ok",

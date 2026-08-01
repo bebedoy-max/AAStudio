@@ -12,7 +12,7 @@ const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
 for (const p of self.AA_PROVIDERS) {
   try {
     chrome.webRequest.onBeforeSendHeaders.addListener(
-      (details) => handleHeaders(details, p),
+      (details) => (p.cookieCapture ? handleCookies(p) : handleHeaders(details, p)),
       { urls: p.urlPatterns },
       ["requestHeaders", "extraHeaders"],
     );
@@ -36,6 +36,27 @@ async function handleHeaders(details, provider) {
     if (!JWT_RE.test(raw)) continue;
     await onTokenCaptured(provider.id, raw, `header:${name}@${new URL(details.url).hostname}`);
     return;
+  }
+}
+
+// Cookie-based providers (Dola): the session lives in cookies, not in an
+// Authorization header. Read the whole cookie jar for the domain and push it
+// as the "token" string.
+const lastCookieScan = {}; // providerId -> ms
+async function handleCookies(provider) {
+  const now = Date.now();
+  if (lastCookieScan[provider.id] && now - lastCookieScan[provider.id] < 10000) return;
+  lastCookieScan[provider.id] = now;
+  try {
+    const cookies = await chrome.cookies.getAll({ domain: provider.cookieCapture.domain });
+    if (!cookies?.length) return;
+    const required = provider.cookieCapture.required || [];
+    const names = cookies.map((c) => c.name);
+    if (!required.every((r) => names.includes(r))) return;
+    const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    await onTokenCaptured(provider.id, jar, `cookies@${provider.cookieCapture.domain}`);
+  } catch (e) {
+    console.debug("[aa] cookie capture", provider.id, e?.message || e);
   }
 }
 

@@ -1,35 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, ExternalLink } from "lucide-react";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
-import { ProviderActivePill, useActiveProvider } from "@/components/routing/quick-routing-dialog";
+import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { useProviderCredit } from "@/lib/providers/credit-summary";
-
-import { getAllLeonardoKeys } from "@/lib/providers/leonardo";
 import {
-  LEONARDO_VIDEO_MODELS,
-  runLeonardoVideo,
-  estimateLeonardoVideoCost,
-  type LeonardoVideoAspect,
-  type LeonardoVideoSizeTier,
-} from "@/lib/providers/leonardo-video";
-import {
-  FIREFLY_VIDEO_MODELS,
-  generateFireflyVideo,
-  runFireflyWithRotation,
-  getAllFireflyKeys,
-} from "@/lib/providers/firefly";
+  I2V_CATALOG,
+  RATIOS,
+  qualityOptsFor,
+  readRoutedVideoProvider,
+} from "@/lib/providers/video-catalog";
+import { runLeonardoVideo, type LeonardoVideoAspect, type LeonardoVideoSizeTier } from "@/lib/providers/leonardo-video";
+import { FIREFLY_VIDEO_MODELS, generateFireflyVideo, runFireflyWithRotation } from "@/lib/providers/firefly";
 import { useCloudGallery } from "@/lib/cloud/gallery";
 
-const T2V_PROVIDERS = [
-  { value: "leonardo", label: "Leonardo.ai" },
-  { value: "firefly", label: "Adobe Firefly" },
-] as const;
-type T2VProvider = (typeof T2V_PROVIDERS)[number]["value"];
+// Provider yang punya jalur text-to-video (tanpa gambar input).
+const T2V_SUPPORTED = ["leonardo", "firefly", "roboneo", "dola"];
 const FIREFLY_RATIOS = ["16:9", "9:16", "1:1"];
+const ROBONEO_RATIOS = ["9:16", "16:9", "1:1", "4:3", "3:4"];
+const DOLA_RATIOS = ["9:16", "16:9", "1:1", "4:3", "3:4"];
 
 export const Route = createFileRoute("/generate/text-to-video")({
   head: () => ({
@@ -37,19 +28,19 @@ export const Route = createFileRoute("/generate/text-to-video")({
       { title: "Text to Video — Creative Studio" },
       {
         name: "description",
-        content: "Generate video dari teks (T2V) atau gambar referensi (I2V) memakai model video Leonardo.",
+        content: "Generate video dari teks memakai model & parameter provider video yang sedang aktif.",
       },
       { property: "og:title", content: "Text to Video — Creative Studio" },
       {
         property: "og:description",
-        content: "Pilih model video Leonardo, aspect ratio, durasi, dan tier resolusi lalu generate video.",
+        content: "Model, aspect ratio, dan kualitas mengikuti provider video aktif.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Text to Video — Creative Studio" },
       {
         name: "twitter:description",
-        content: "Pilih model video Leonardo, aspect ratio, durasi, dan tier resolusi lalu generate video.",
+        content: "Model, aspect ratio, dan kualitas mengikuti provider video aktif.",
       },
     ],
   }),
@@ -65,81 +56,56 @@ function TextToVideoPage() {
   });
   const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">("t2v.runState", "idle");
   const [error, setError] = useSticky<string | null>("t2v.error", null);
-  // Galeri hasil tersimpan di cloud (Google Drive), sama di semua perangkat.
   const gallery = useCloudGallery<{ prompt?: string }>("text-to-video", "video");
   const videos = gallery.items;
-  const [keyCount, setKeyCount] = useState(0);
-  const [vidProvider, setVidProvider] = useSticky<T2VProvider>("t2v.provider", "leonardo");
-  // Provider mengikuti label "Provider aktif" (routing cap video) — tidak ada
-  // dropdown provider terpisah di halaman ini.
-  const routedProvider = useActiveProvider("video");
-  useEffect(() => {
-    const next: T2VProvider | null =
-      routedProvider === "firefly" ? "firefly" : routedProvider === "leonardo" ? "leonardo" : null;
-    if (next && next !== vidProvider) setVidProvider(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [routedProvider]);
-  const [ffModelKey, setFfModelKey] = useSticky<string>("t2v.ffModel", FIREFLY_VIDEO_MODELS[0].key);
-  const [ffRatio, setFfRatio] = useSticky<string>("t2v.ffRatio", "9:16");
-  const [ffDuration, setFfDuration] = useSticky<number>("t2v.ffDuration", 8);
-  const isFirefly = vidProvider === "firefly";
-  const { credits } = useProviderCredit(vidProvider);
-  const activeFfModel =
-    FIREFLY_VIDEO_MODELS.find((m) => m.key === ffModelKey) ?? FIREFLY_VIDEO_MODELS[0];
 
-
-  const [vidModelId, setVidModelId] = useSticky<string>("t2v.modelId", LEONARDO_VIDEO_MODELS[0].id);
-  const [vidAspect, setVidAspect] = useSticky<LeonardoVideoAspect>("t2v.aspect", "9:16");
-  const [vidDuration, setVidDuration] = useSticky<number>("t2v.duration", 5);
-  const [vidTierId, setVidTierId] = useSticky<LeonardoVideoSizeTier["id"]>("t2v.tier", "hd");
-  const [vidImageFile, setVidImageFile] = useState<File | null>(null);
-  const [vidImagePreview, setVidImagePreview] = useState<string | null>(null);
-  const vidInput = useRef<HTMLInputElement>(null);
-  const picker = useFilePicker();
-  const pickVidImage = () =>
-    void picker.pick({ accept: "image/*", source: "text-to-video", title: "Pilih image reference" }).then((fs) => {
-      if (fs.length) onPickVidImage(toFileList(fs));
-    });
-
-  const activeVidModel =
-    LEONARDO_VIDEO_MODELS.find((m) => m.id === vidModelId) ?? LEONARDO_VIDEO_MODELS[0];
+  // Provider mengikuti routing cap "video" (label Provider aktif).
+  const [provider, setProvider] = useSticky<string>("t2v.provider", "leonardo");
+  const [model, setModel] = useSticky<string>("t2v.model", "");
+  const [ratio, setRatio] = useSticky<string>("t2v.ratio", "9:16");
+  const [quality, setQuality] = useSticky<string>("t2v.quality", "");
+  const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
-    const count = () => (isFirefly ? getAllFireflyKeys().length : getAllLeonardoKeys().length);
-    setKeyCount(count());
-    const on = () => setKeyCount(count());
-    window.addEventListener("aatools:keys-changed", on);
-    window.addEventListener("storage", on);
-    return () => {
-      window.removeEventListener("aatools:keys-changed", on);
-      window.removeEventListener("storage", on);
+    const sync = () => {
+      const routed = readRoutedVideoProvider();
+      const p = routed || provider || "leonardo";
+      if (p !== provider) setProvider(p);
+      const list = I2V_CATALOG[p] || [];
+      if (!list.find((m) => m.value === model)) setModel(list[0]?.value || "");
+      setBootstrapped(true);
     };
-  }, [isFirefly]);
+    sync();
+    window.addEventListener("storage", sync);
+    window.addEventListener("focus", sync);
+    window.addEventListener("aatools:routing-changed", sync as EventListener);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("aatools:routing-changed", sync as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider, model]);
+
+  const isFirefly = provider === "firefly";
+  const isRoboneo = provider === "roboneo";
+  const isDola = provider === "dola";
+  const supported = T2V_SUPPORTED.includes(provider);
+  const { tokens, credits } = useProviderCredit(provider);
+
+  const models = I2V_CATALOG[provider] || [];
+  const activeModel = models.find((m) => m.value === model) || models[0];
+  const ratios = isFirefly ? FIREFLY_RATIOS : isRoboneo ? ROBONEO_RATIOS : isDola ? DOLA_RATIOS : RATIOS;
+  const qualityOpts = qualityOptsFor(activeModel?.value || "", ratio);
+  const activeQuality = qualityOpts.find((q) => q.value === quality) || qualityOpts[0];
+  const totalCost = activeQuality?.cr ?? Math.round((activeModel?.cr ?? 0) * (activeQuality?.mult ?? 1));
 
   useEffect(() => {
-    if (activeVidModel.durationMode === "buttons") {
-      if (!activeVidModel.durations.includes(vidDuration)) setVidDuration(activeVidModel.durations[0]);
-    } else {
-      const mn = activeVidModel.durations[0];
-      const mx = activeVidModel.durations[activeVidModel.durations.length - 1];
-      if (vidDuration < mn || vidDuration > mx) setVidDuration(mx);
-    }
-    if (!activeVidModel.sizeTiers.some((t) => t.id === vidTierId)) {
-      setVidTierId(activeVidModel.sizeTiers[0].id);
-    }
-    if (!activeVidModel.aspectRatios.includes(vidAspect)) {
-      setVidAspect(activeVidModel.aspectRatios[0]);
-    }
+    if (!bootstrapped) return;
+    if (!ratios.includes(ratio)) setRatio(ratios[0]);
+    if (!qualityOpts.find((q) => q.value === quality)) setQuality(qualityOpts[0]?.value || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vidModelId]);
-
-  useEffect(() => {
-    const list = activeFfModel.durations ?? [8];
-    if (!list.includes(ffDuration)) setFfDuration(list[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ffModelKey]);
-
-  const vidCostEstimate = estimateLeonardoVideoCost(activeVidModel, vidTierId, vidDuration);
+  }, [provider, model, ratio, bootstrapped]);
 
   const log = (m: string, pct?: number) => {
     setLogs((prev) => [`${new Date().toLocaleTimeString()} — ${m}`, ...prev].slice(0, 40));
@@ -156,56 +122,70 @@ function TextToVideoPage() {
     return () => clearInterval(tick);
   };
 
-  const onPickVidImage = (files: FileList | null) => {
-    const f = files?.[0];
-    if (!f) return;
-    setVidImageFile(f);
-    setVidImagePreview(URL.createObjectURL(f));
-  };
-
   const generateVideo = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || !supported || !activeModel) return;
     setBusy(true);
     setError(null);
     setRunState("processing");
-    const stopTick = startStatus(isFirefly ? "Firefly Video: submit…" : "Leonardo Video: submit…");
+    const stopTick = startStatus("Submit…");
     try {
+      const duration = activeQuality?.duration ?? 5;
+      let url: string;
       if (isFirefly) {
-        log(`Submit ${activeFfModel.label} (${ffDuration}s · ${ffRatio})`);
-        const url = await runFireflyWithRotation(
+        const ffKey = activeModel.value.replace(/^ff:/, "");
+        const ffModel =
+          FIREFLY_VIDEO_MODELS.find((m) => m.key === activeModel.value || m.key === ffKey) ??
+          FIREFLY_VIDEO_MODELS[0];
+        log(`Submit ${ffModel.label} (${duration}s · ${ratio})`);
+        url = await runFireflyWithRotation(
           (token) =>
             generateFireflyVideo({
               token,
-              modelKey: activeFfModel.key,
+              modelKey: ffModel.key,
               prompt,
-              ratio: ffRatio,
-              duration: ffDuration,
+              ratio,
+              duration,
               onProgress: (m, pct) => log(m, pct),
             }),
           (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         );
-        void gallery.add(url, { prompt: prompt.trim() });
-        log("✅ Video siap", 100);
-        setRunState("sukses");
-        setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
-        stopTick();
-        setBusy(false);
-        return;
+      } else if (isDola) {
+        const { runDolaWithRotation } = await import("@/lib/providers/dola");
+        log(`Submit ${activeModel.label} (${activeQuality?.label ?? ""} · ${ratio})`);
+        url = await runDolaWithRotation({
+          prompt: prompt.trim(),
+          ratio,
+          duration,
+          resolution: activeQuality?.resolution,
+          onLog: (m) => log(m),
+        });
+      } else if (isRoboneo) {
+        const { runRoboneoT2V } = await import("@/lib/providers/roboneo");
+        log(`Submit ${activeModel.label} (${activeQuality?.label ?? ""} · ${ratio})`);
+        url = await runRoboneoT2V({
+          prompt: prompt.trim(),
+          modelKey: activeModel.value,
+          ratio,
+          duration,
+          resolution: activeQuality?.resolution,
+          sound: activeQuality?.sound,
+          onProgress: (m, pct) => log(m, pct),
+        });
+      } else {
+
+        log(`Submit ${activeModel.label} (${activeQuality?.label ?? ""} · ${ratio})`);
+        url = await runLeonardoVideo({
+          modelKey: activeModel.value,
+          prompt,
+          aspectRatio: ratio as LeonardoVideoAspect,
+          sizeTier: (activeQuality?.sizeTier ?? "hd") as LeonardoVideoSizeTier["id"],
+          duration,
+          onProgress: (m) => log(m),
+          onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
+        });
       }
-      const tierLabel = activeVidModel.sizeTiers.find((t) => t.id === vidTierId)?.label ?? vidTierId;
-      log(`Submit ${activeVidModel.label} (${tierLabel} · ${vidDuration}s · ${vidAspect})`);
-      const url = await runLeonardoVideo({
-        modelKey: activeVidModel.id,
-        prompt,
-        aspectRatio: vidAspect,
-        sizeTier: vidTierId,
-        duration: vidDuration,
-        imageFile: vidImageFile ?? undefined,
-        onProgress: (m) => log(m),
-        onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
-      });
       void gallery.add(url, { prompt: prompt.trim() });
-      log(`✅ Video siap`, 100);
+      log("✅ Video siap", 100);
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
@@ -235,7 +215,7 @@ function TextToVideoPage() {
         eyebrow="Generate"
         title="Text to"
         highlight="Video"
-        desc="Generate video dari teks (T2V) atau tambahkan gambar referensi untuk I2V."
+        desc="Generate video dari teks — model, rasio, dan kualitas mengikuti provider aktif."
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
@@ -256,129 +236,40 @@ function TextToVideoPage() {
               </label>
               <ProviderActivePill cap="video" />
             </div>
-            {isFirefly ? (
-              <Select
-                value={ffModelKey}
-                onChange={(e) => setFfModelKey(e.target.value)}
-                options={FIREFLY_VIDEO_MODELS.map((m) => ({
-                  value: m.key,
-                  label: `${m.label} — ${m.cost}`,
-                }))}
-              />
-            ) : (
-              <Select
-                value={vidModelId}
-                onChange={(e) => setVidModelId(e.target.value)}
-                options={LEONARDO_VIDEO_MODELS.map((m) => ({
-                  value: m.id,
-                  label: `${m.label} — ${m.group}`,
-                }))}
-              />
-            )}
+            <Select
+              value={activeModel?.value || ""}
+              onChange={(e) => setModel(e.target.value)}
+              options={models.map((m) => ({ value: m.value, label: `${m.label} — ${m.cr} cr` }))}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-
-            <Field label="Aspect Ratio">
-              {isFirefly ? (
-                <Select
-                  value={ffRatio}
-                  onChange={(e) => setFfRatio(e.target.value)}
-                  options={FIREFLY_RATIOS.map((a) => ({ value: a, label: a }))}
-                />
-              ) : (
-                <Select
-                  value={vidAspect}
-                  onChange={(e) => setVidAspect(e.target.value as LeonardoVideoAspect)}
-                  options={activeVidModel.aspectRatios.map((a) => ({ value: a, label: a }))}
-                />
-              )}
-            </Field>
-            {isFirefly && (
-              <Field label="Durasi">
-                <Select
-                  value={String(ffDuration)}
-                  onChange={(e) => setFfDuration(Number(e.target.value))}
-                  options={(activeFfModel.durations ?? [8]).map((d) => ({ value: String(d), label: `${d}s` }))}
-                />
-              </Field>
-            )}
-            {!isFirefly && (
-            <Field
-              label={
-                activeVidModel.durationMode === "slider"
-                  ? `Durasi (${vidDuration}s · slider ${activeVidModel.durations[0]}–${activeVidModel.durations[activeVidModel.durations.length - 1]}s)`
-                  : "Durasi"
-              }
-            >
-              {activeVidModel.durationMode === "slider" ? (
-                <input
-                  type="range"
-                  min={activeVidModel.durations[0]}
-                  max={activeVidModel.durations[activeVidModel.durations.length - 1]}
-                  step={1}
-                  value={vidDuration}
-                  onChange={(e) => setVidDuration(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-              ) : (
-                <Select
-                  value={String(vidDuration)}
-                  onChange={(e) => setVidDuration(Number(e.target.value))}
-                  options={activeVidModel.durations.map((d) => ({ value: String(d), label: `${d}s` }))}
-                />
-              )}
-            </Field>
-            )}
-            {!isFirefly && (
-            <Field label="Ukuran (tier)">
+            <Field label="Aspek Rasio">
               <Select
-                value={vidTierId}
-                onChange={(e) => setVidTierId(e.target.value as LeonardoVideoSizeTier["id"])}
-                options={activeVidModel.sizeTiers.map((t) => ({ value: t.id, label: t.label }))}
+                value={ratio}
+                onChange={(e) => setRatio(e.target.value)}
+                options={ratios.map((r) => ({ value: r, label: r }))}
               />
             </Field>
-            )}
-            {!isFirefly && activeVidModel.supportsI2V && (
-              <Field label="Image reference (opsional — untuk I2V)">
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={vidInput}
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={(e) => onPickVidImage(e.target.files)}
-                  />
-                  {picker.element}
-                  <GhostButton onClick={pickVidImage} disabled={busy}>
-                    {vidImagePreview ? "Ganti" : "Upload"}
-                  </GhostButton>
-                  {vidImagePreview && (
-                    <>
-                      <img
-                        src={vidImagePreview}
-                        alt=""
-                        className="h-10 w-10 rounded object-cover border border-border"
-                      />
-                      <button
-                        onClick={() => {
-                          setVidImageFile(null);
-                          setVidImagePreview(null);
-                        }}
-                        className="text-[11px] text-destructive hover:underline"
-                      >
-                        hapus
-                      </button>
-                    </>
-                  )}
-                </div>
-              </Field>
-            )}
+            <Field label="Kualitas">
+              <Select
+                value={activeQuality?.value || ""}
+                onChange={(e) => setQuality(e.target.value)}
+                options={qualityOpts.map((q) => ({ value: q.value, label: q.label }))}
+              />
+            </Field>
           </div>
 
+          {!supported && (
+            <div className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-300">
+              Provider <b>{provider}</b> belum menyediakan jalur text-to-video (butuh gambar input).
+              Gunakan menu <b>Image to Video</b> atau ganti provider aktif ke Leonardo / Firefly.
+            </div>
+          )}
+
           <div className="flex gap-2 items-center flex-wrap">
-            <PrimaryButton onClick={generateVideo} disabled={busy || !prompt.trim() || keyCount === 0}>
-              {busy ? "Generating…" : vidImageFile ? "Generate (I2V)" : "Generate (T2V)"}
+            <PrimaryButton onClick={generateVideo} disabled={busy || !prompt.trim() || !supported || tokens === 0}>
+              {busy ? "Generating…" : "Generate Video"}
             </PrimaryButton>
             <GhostButton
               onClick={() => {
@@ -386,24 +277,20 @@ function TextToVideoPage() {
                 setLogs([]);
                 setError(null);
                 setRunState("idle");
-                setVidImageFile(null);
-                setVidImagePreview(null);
               }}
               disabled={busy}
             >
               Reset
             </GhostButton>
             <div className="text-xs text-muted-foreground">
-              Cost: <b className="text-foreground font-mono">{isFirefly ? activeFfModel.cost : vidCostEstimate}</b>
-              {!isFirefly && " credits"}
+              Cost: <b className="text-foreground font-mono">{totalCost}</b> credits
             </div>
             <div className="text-xs text-muted-foreground">
-              Token: <b className="text-fuchsia-300">{keyCount}</b>
+              Token: <b className="text-fuchsia-300">{tokens}</b>
               {" · "}Sisa credit:{" "}
               <b className="text-emerald-400">{credits == null ? "—" : credits.toLocaleString()}</b>
               {" · "}Status: <b className={statusTone}>{runState}</b>
             </div>
-
           </div>
 
           {error && (
@@ -443,7 +330,7 @@ function TextToVideoPage() {
             )}
           </div>
           <div className="text-[11px] text-muted-foreground">
-            Token tersimpan: <b className="text-emerald-400">{keyCount}</b>
+            Token tersimpan: <b className="text-emerald-400">{tokens}</b>
           </div>
         </div>
       </div>
@@ -473,10 +360,7 @@ function TextToVideoPage() {
                   <a href={url} download className="text-primary hover:underline inline-flex items-center gap-1">
                     <Download className="h-3 w-3" /> Unduh
                   </a>
-                  <button
-                    onClick={() => void gallery.remove(id)}
-                    className="text-destructive hover:underline"
-                  >
+                  <button className="text-destructive hover:underline" onClick={() => void gallery.remove(id)}>
                     Hapus
                   </button>
                 </div>

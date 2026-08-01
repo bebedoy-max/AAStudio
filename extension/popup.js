@@ -205,6 +205,20 @@ $("grab").addEventListener("click", async () => {
     await onGrabbed(p.id, cap.token, cap.source);
     return;
   }
+  // Provider berbasis cookie (Dola): baca cookie jar, bukan localStorage.
+  if (p.cookieCapture) {
+    const cookies = await chrome.cookies.getAll({ domain: p.cookieCapture.domain });
+    const names = (cookies || []).map((c) => c.name);
+    const required = p.cookieCapture.required || [];
+    if (!cookies?.length || !required.every((r) => names.includes(r))) {
+      setStatus(`Login dulu di ${p.openUrl.replace(/^https?:\/\//, "")}.`, "err");
+      return;
+    }
+    const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+    await chrome.storage.local.set({ [`captured::${p.id}`]: { token: jar, source: "cookies", at: Date.now() } });
+    await onGrabbed(p.id, jar, "cookies");
+    return;
+  }
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.url || !p.hostMatch.test(tab.url)) {

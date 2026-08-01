@@ -50,4 +50,15 @@ self.AA_PROVIDERS = [
     hint: "Login ke firefly.adobe.com lalu klik Ambil Token.",
     scoreKeys: /adobe|firefly|ims|access.?token|bearer/i,
   },
+  {
+    id: "dola",
+    label: "Dola",
+    hostMatch: /https:\/\/([\w-]+\.)?dola\.com\//,
+    urlPatterns: ["https://www.dola.com/*", "https://*.dola.com/*"],
+    openUrl: "https://www.dola.com/chat/",
+    hint: "Login ke www.dola.com lalu klik Ambil Token (cookie session diambil otomatis).",
+    // Dola tidak memakai JWT — auth-nya cookie session penuh.
+    cookieCapture: { domain: "dola.com", required: ["sessionid"] },
+    scoreKeys: /dola|doubao|samantha/i,
+  },
 ];

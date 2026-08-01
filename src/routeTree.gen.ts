@@ -84,6 +84,7 @@ import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmp
 import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
 import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
+import { Route as ApiPublicDolaRouteImport } from './routes/api/public/dola'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
@@ -476,6 +477,11 @@ const ApiPublicDubbingBrainRoute = ApiPublicDubbingBrainRouteImport.update({
   path: '/api/public/dubbing-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicDolaRoute = ApiPublicDolaRouteImport.update({
+  id: '/api/public/dola',
+  path: '/api/public/dola',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCreativeBrainRoute = ApiPublicCreativeBrainRouteImport.update({
   id: '/api/public/creative-brain',
   path: '/api/public/creative-brain',
@@ -593,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
+  '/api/public/dola': typeof ApiPublicDolaRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
@@ -680,6 +687,7 @@ export interface FileRoutesByTo {
   '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
+  '/api/public/dola': typeof ApiPublicDolaRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
@@ -770,6 +778,7 @@ export interface FileRoutesById {
   '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
+  '/api/public/dola': typeof ApiPublicDolaRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
@@ -861,6 +870,7 @@ export interface FileRouteTypes {
     | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
+    | '/api/public/dola'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
@@ -948,6 +958,7 @@ export interface FileRouteTypes {
     | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
+    | '/api/public/dola'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
@@ -1037,6 +1048,7 @@ export interface FileRouteTypes {
     | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
+    | '/api/public/dola'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
@@ -1107,6 +1119,7 @@ export interface RootRouteChildren {
   ApiPublicBacksoundSearchRoute: typeof ApiPublicBacksoundSearchRoute
   ApiPublicClipperBrainRoute: typeof ApiPublicClipperBrainRoute
   ApiPublicCreativeBrainRoute: typeof ApiPublicCreativeBrainRoute
+  ApiPublicDolaRoute: typeof ApiPublicDolaRoute
   ApiPublicDubbingBrainRoute: typeof ApiPublicDubbingBrainRoute
   ApiPublicElevenlabsTtsRoute: typeof ApiPublicElevenlabsTtsRoute
   ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
@@ -1674,6 +1687,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDubbingBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/dola': {
+      id: '/api/public/dola'
+      path: '/api/public/dola'
+      fullPath: '/api/public/dola'
+      preLoaderRoute: typeof ApiPublicDolaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/creative-brain': {
       id: '/api/public/creative-brain'
       path: '/api/public/creative-brain'
@@ -1868,6 +1888,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBacksoundSearchRoute: ApiPublicBacksoundSearchRoute,
   ApiPublicClipperBrainRoute: ApiPublicClipperBrainRoute,
   ApiPublicCreativeBrainRoute: ApiPublicCreativeBrainRoute,
+  ApiPublicDolaRoute: ApiPublicDolaRoute,
   ApiPublicDubbingBrainRoute: ApiPublicDubbingBrainRoute,
   ApiPublicElevenlabsTtsRoute: ApiPublicElevenlabsTtsRoute,
   ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,

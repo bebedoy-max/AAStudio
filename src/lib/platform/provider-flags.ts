@@ -24,6 +24,7 @@ export type ProviderFlagId =
   | "framia"
   | "leonardo"
   | "firefly"
+  | "dola"
   | "elevenlabs"
   | "render";
 
@@ -39,6 +40,7 @@ export const PROVIDER_FLAGS: { id: ProviderFlagId; label: string; group: string 
   { id: "framia", label: "Framia", group: "Image / Video / Motion" },
   { id: "leonardo", label: "Leonardo.ai", group: "Image / Video / Motion" },
   { id: "firefly", label: "Adobe Firefly", group: "Image / Video / Motion" },
+  { id: "dola", label: "Dola", group: "Image / Video / Motion" },
   { id: "elevenlabs", label: "ElevenLabs", group: "Voice" },
   { id: "render", label: "Cloud Render (Shotstack / Creatomate)", group: "Render" },
 ];

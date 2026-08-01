@@ -113,6 +113,10 @@ export const CAPS: Cap[] = [
         { name: "Veo 3.1 (Firefly)", cost: "~40 cr / 8s" },
         { name: "Firefly Video Model 1", cost: "~10 cr / 5s" },
       ] },
+      { id: "dola", name: "Dola", desc: "Video via sesi web dola.com (cookie session, ambil otomatis lewat extension). Support T2V & I2V.", models: [
+        { name: "Dola Video (Omni)", cost: "Gratis (kuota akun Dola)" },
+        { name: "Dola Video Pro", cost: "Gratis (kuota akun Dola)" },
+      ] },
       { id: "leonardo", name: "Leonardo.ai", desc: "GraphQL /v1/graphql. Support I2V (image_reference) & T2V.", models: [
         { name: "Veo 3.1 Fast · up to 4K", cost: "~150 cr/s" },
         { name: "Kling 2.6 · 1080p", cost: "~140 cr/s" },

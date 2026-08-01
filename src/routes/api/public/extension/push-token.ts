@@ -10,6 +10,7 @@ const PROVIDER_KEYS: Record<string, string> = {
   framia: "aatools.framia.keys",
   leonardo: "aatools.leonardo.keys",
   firefly: "aatools.firefly.keys",
+  dola: "aatools.dola.keys",
 };
 
 function cors(res: Response) {
@@ -52,7 +53,12 @@ export const Route = createFileRoute("/api/public/extension/push-token")({
         const token = body?.token ?? "";
         const storageKey = PROVIDER_KEYS[provider];
         if (!storageKey) return json({ error: "unknown_provider" }, 400);
-        if (!JWT_RE.test(token)) return json({ error: "invalid_jwt" }, 400);
+        // Dola memakai cookie session (bukan JWT) — validasi longgar untuk provider itu.
+        if (provider === "dola") {
+          if (!/sessionid=/.test(token)) return json({ error: "invalid_cookie" }, 400);
+        } else if (!JWT_RE.test(token)) {
+          return json({ error: "invalid_jwt" }, 400);
+        }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { encryptString, decryptString } = await import("@/lib/tokens/crypto.server");
