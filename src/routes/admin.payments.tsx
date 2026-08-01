@@ -17,10 +17,14 @@ import {
   Landmark,
   Wallet as WalletIcon,
   CircleDollarSign,
+  Tag,
+  Coins,
+  Smartphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
 import { TokenBankPricesSection } from "@/components/admin/token-bank-prices-section";
+import { CompanionSection } from "@/components/admin/companion-section";
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 
 import { confirmDialog } from "@/components/ui-confirm";
@@ -68,11 +72,46 @@ function Gate() {
         </div>
       </Card>
     );
+  return <PaymentsTabs />;
+}
+
+const TABS = [
+  { key: "prices", label: "Harga Fitur", icon: Tag },
+  { key: "tokens", label: "Harga Token", icon: Coins },
+  { key: "gateways", label: "Metode Bayar", icon: WalletIcon },
+  { key: "companion", label: "Companion", icon: Smartphone },
+] as const;
+
+function PaymentsTabs() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("prices");
   return (
     <div className="flex flex-col gap-4">
-      <PricesSection />
-      <TokenBankPricesSection />
-      <PaymentGatewaysSection />
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={[
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition",
+                active
+                  ? "border-transparent text-primary-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+              style={active ? { background: "var(--gradient-neon)" } : undefined}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {tab === "prices" && <PricesSection />}
+      {tab === "tokens" && <TokenBankPricesSection />}
+      {tab === "gateways" && <PaymentGatewaysSection />}
+      {tab === "companion" && <CompanionSection />}
     </div>
   );
 }

@@ -24,6 +24,8 @@ import {
   listBankStock,
 } from "@/lib/token-bank/bank.functions";
 import { PaymentPicker } from "@/components/payments/payment-picker";
+import { useServerFn } from "@tanstack/react-start";
+import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -68,6 +70,8 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<OrderInfo | null>(null);
+  const [gopayAmount, setGopayAmount] = useState<number | null>(null);
+  const assignGopay = useServerFn(ensureGopayAmount);
 
   useEffect(() => {
     (async () => {
@@ -161,6 +165,13 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
       if (error) throw error;
       const inserted = data as { id: string; status: OrderInfo["status"] };
       setOrder({ id: inserted.id, items: cartItems, total, status: inserted.status });
+      // Nominal unik untuk pencocokan otomatis transfer GoPay Merchant.
+      try {
+        const unique = await assignGopay({ data: { purchaseId: inserted.id } });
+        setGopayAmount(unique?.amount ?? null);
+      } catch {
+        setGopayAmount(null);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal membuat pesanan");
     } finally {
@@ -210,7 +221,12 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : order ? (
-          <OrderStatusView order={order} onClose={onClose} onApproved={refreshStatus} />
+          <OrderStatusView
+            order={order}
+            gopayAmount={gopayAmount}
+            onClose={onClose}
+            onApproved={refreshStatus}
+          />
         ) : catalog.length === 0 ? (
           <div className="mt-6 p-6 text-center rounded-2xl border border-border bg-card/40 text-sm text-muted-foreground">
             Belum ada token yang dijual saat ini. Hubungi admin.
@@ -402,10 +418,12 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
 
 function OrderStatusView({
   order,
+  gopayAmount,
   onClose,
   onApproved,
 }: {
   order: OrderInfo;
+  gopayAmount: number | null;
   onClose: () => void;
   onApproved: () => void;
 }) {
@@ -450,11 +468,20 @@ function OrderStatusView({
           </div>
         </div>
       ) : (
-        <PaymentPicker
-          purchaseRequestId={order.id}
-          amount={order.total}
-          onApproved={onApproved}
-        />
+        <div className="flex flex-col gap-3">
+          <PaymentPicker
+            purchaseRequestId={order.id}
+            amount={order.total}
+            onApproved={onApproved}
+          />
+          {gopayAmount !== null && (
+            <div className="rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
+              Bayar manual ke <b className="text-foreground">GoPay Merchant</b>? Transfer tepat{" "}
+              <b className="text-foreground font-mono">{rupiah(gopayAmount)}</b> (kode unik) agar
+              pembayaran terverifikasi otomatis.
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex justify-end">

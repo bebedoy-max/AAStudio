@@ -129,8 +129,74 @@ type PurchaseRow = {
 
 /** Nominal yang dianggap sah untuk sebuah pesanan. */
 function expectedAmounts(pr: PurchaseRow): number[] {
-  const list = [pr.gopay_expected_amount, pr.temanqris_total_amount, pr.price_idr];
+  // Kalau pesanan sudah punya nominal unik GoPay, HANYA nominal itu yang sah —
+  // fallback ke price_idr justru bikin dua order harga sama jadi ambiguous.
+  if (typeof pr.gopay_expected_amount === "number" && pr.gopay_expected_amount > 0) {
+    return [pr.gopay_expected_amount];
+  }
+  const list = [pr.temanqris_total_amount, pr.price_idr];
   return Array.from(new Set(list.filter((n): n is number => typeof n === "number" && n > 0)));
+}
+
+/** Rentang kode unik yang ditambahkan ke harga dasar (Rp1 – Rp999). */
+const UNIQUE_CODE_MAX = 999;
+
+/**
+ * Tentukan nominal unik untuk pembayaran GoPay Merchant: harga dasar + kode
+ * unik kecil yang belum dipakai pesanan pending lain di jendela pencocokan.
+ * Idempotent — kalau pesanan sudah punya nominal, nilai itu dikembalikan.
+ */
+export async function assignUniqueGopayAmount(
+  purchaseId: string,
+): Promise<{ amount: number; base: number; code: number } | null> {
+  const db = await admin();
+  const { data: row } = await db
+    .from("purchase_requests")
+    .select("id, status, price_idr, gopay_expected_amount")
+    .eq("id", purchaseId)
+    .maybeSingle();
+  const pr = row as { price_idr: number | null; gopay_expected_amount: number | null } | null;
+  if (!pr) return null;
+  const base = typeof pr.price_idr === "number" ? Math.round(pr.price_idr) : 0;
+  if (base <= 0) return null;
+  if (typeof pr.gopay_expected_amount === "number" && pr.gopay_expected_amount > 0) {
+    return {
+      amount: pr.gopay_expected_amount,
+      base,
+      code: pr.gopay_expected_amount - base,
+    };
+  }
+
+  const since = new Date(Date.now() - MATCH_WINDOW_MINUTES * 60_000).toISOString();
+  const { data: pending } = await db
+    .from("purchase_requests")
+    .select("gopay_expected_amount")
+    .eq("status", "pending")
+    .gte("created_at", since)
+    .not("gopay_expected_amount", "is", null)
+    .limit(1000);
+  const taken = new Set(
+    ((pending ?? []) as { gopay_expected_amount: number | null }[])
+      .map((r) => r.gopay_expected_amount)
+      .filter((n): n is number => typeof n === "number"),
+  );
+
+  let code = 0;
+  for (let i = 1; i <= UNIQUE_CODE_MAX; i++) {
+    if (!taken.has(base + i)) {
+      code = i;
+      break;
+    }
+  }
+  if (code === 0) return null; // semua kode terpakai — biarkan tanpa nominal unik
+
+  const amount = base + code;
+  const { error } = await db
+    .from("purchase_requests")
+    .update({ gopay_expected_amount: amount })
+    .eq("id", purchaseId);
+  if (error) return null;
+  return { amount, base, code };
 }
 
 export type MatchResult =

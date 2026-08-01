@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { PaymentPicker } from "@/components/payments/payment-picker";
+import { useServerFn } from "@tanstack/react-start";
+import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 
 type FeaturePrice = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
@@ -35,6 +37,8 @@ export function CheckoutDialog({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
+  const [gopayAmount, setGopayAmount] = useState<number | null>(null);
+  const assignGopay = useServerFn(ensureGopayAmount);
 
   useEffect(() => {
     (async () => {
@@ -86,6 +90,13 @@ export function CheckoutDialog({
       if (error) throw error;
       const inserted = data as { id: string; status: Order["status"] };
       setOrder({ id: inserted.id, total, status: inserted.status });
+      // Nominal unik untuk pencocokan otomatis transfer GoPay Merchant.
+      try {
+        const unique = await assignGopay({ data: { purchaseId: inserted.id } });
+        setGopayAmount(unique?.amount ?? null);
+      } catch {
+        setGopayAmount(null);
+      }
       onSubmitted?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal membuat pesanan");
@@ -207,6 +218,13 @@ export function CheckoutDialog({
                     amount={order.total}
                     onApproved={refreshStatus}
                   />
+                  {gopayAmount !== null && (
+                    <div className="mt-3 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
+                      Bayar manual ke <b className="text-foreground">GoPay Merchant</b>? Transfer
+                      tepat <b className="text-foreground font-mono">{rupiah(gopayAmount)}</b> (kode
+                      unik) agar pembayaran terverifikasi otomatis.
+                    </div>
+                  )}
                 </div>
               )
             ) : (
