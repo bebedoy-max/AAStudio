@@ -167,6 +167,9 @@ export async function assignUniqueGopayAmount(
     };
   }
 
+  // Kode unik dirotasi 1..999: ambil riwayat kode terakhir yang pernah
+  // dipakai (semua status) supaya tidak berulang di kode kecil, dan kode
+  // pesanan pending aktif supaya tidak bentrok saat pencocokan.
   const since = new Date(Date.now() - MATCH_WINDOW_MINUTES * 60_000).toISOString();
   const { data: pending } = await db
     .from("purchase_requests")
@@ -175,20 +178,57 @@ export async function assignUniqueGopayAmount(
     .gte("created_at", since)
     .not("gopay_expected_amount", "is", null)
     .limit(1000);
-  const taken = new Set(
+  const takenAmounts = new Set(
     ((pending ?? []) as { gopay_expected_amount: number | null }[])
       .map((r) => r.gopay_expected_amount)
       .filter((n): n is number => typeof n === "number"),
   );
 
+  const { data: history } = await db
+    .from("purchase_requests")
+    .select("price_idr, gopay_expected_amount, created_at")
+    .not("gopay_expected_amount", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(UNIQUE_CODE_MAX);
+  const histRows = (history ?? []) as {
+    price_idr: number | null;
+    gopay_expected_amount: number | null;
+  }[];
+  const usedCodes = new Set<number>();
+  for (const r of histRows) {
+    const c = Math.round((r.gopay_expected_amount ?? 0) - (r.price_idr ?? 0));
+    if (c >= 1 && c <= UNIQUE_CODE_MAX) usedCodes.add(c);
+  }
+  // Siklus penuh sudah terpakai → mulai lagi dari 1..999.
+  if (usedCodes.size >= UNIQUE_CODE_MAX) usedCodes.clear();
+
+  const lastRow = histRows[0];
+  const lastCode = lastRow
+    ? Math.round((lastRow.gopay_expected_amount ?? 0) - (lastRow.price_idr ?? 0))
+    : 0;
+  const start = lastCode >= 1 && lastCode <= UNIQUE_CODE_MAX ? lastCode : 0;
+
   let code = 0;
-  for (let i = 1; i <= UNIQUE_CODE_MAX; i++) {
-    if (!taken.has(base + i)) {
-      code = i;
-      break;
+  for (let step = 1; step <= UNIQUE_CODE_MAX; step++) {
+    const cand = ((start + step - 1) % UNIQUE_CODE_MAX) + 1;
+    if (usedCodes.has(cand)) continue;
+    if (takenAmounts.has(base + cand)) continue;
+    code = cand;
+    break;
+  }
+  if (code === 0) {
+    // Semua kode dalam siklus terpakai — jatuh balik ke kode apa pun yang
+    // tidak bentrok dengan pesanan pending aktif.
+    for (let step = 1; step <= UNIQUE_CODE_MAX; step++) {
+      const cand = ((start + step - 1) % UNIQUE_CODE_MAX) + 1;
+      if (!takenAmounts.has(base + cand)) {
+        code = cand;
+        break;
+      }
     }
   }
   if (code === 0) return null; // semua kode terpakai — biarkan tanpa nominal unik
+
 
   const amount = base + code;
   const { error } = await db

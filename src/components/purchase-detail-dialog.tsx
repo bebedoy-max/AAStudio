@@ -11,6 +11,7 @@ import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
 import { PaymentPicker } from "@/components/payments/payment-picker";
 import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 
 const statusMeta = {
@@ -47,7 +48,9 @@ export function PurchaseDetailDialog({
   purchase: PurchaseView;
   onClose: () => void;
 }) {
-  const meta = statusMeta[purchase.status];
+  const [liveStatus, setLiveStatus] = useState<PurchaseView["status"]>(purchase.status);
+  useEffect(() => setLiveStatus(purchase.status), [purchase.status]);
+  const meta = statusMeta[liveStatus];
   const StatusIcon = meta.Icon;
   const MethodIcon = methodIcon(purchase.payment_method_name);
   const dt = new Date(purchase.created_at);
@@ -72,6 +75,38 @@ export function PurchaseDetailDialog({
   }, [purchase.id, purchase.status, purchase.payment_provider]);
 
   const displayTotal = gopayAmount ?? purchase.price_idr;
+
+  // Pembayaran lunas → tampilkan status sukses lalu tutup popup otomatis,
+  // sama seperti popup pembelian token.
+  useEffect(() => {
+    if (liveStatus !== "approved") return;
+    const t = setTimeout(() => onClose(), 2200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveStatus]);
+
+  // Pantau status pesanan langsung dari server selama masih pending.
+  useEffect(() => {
+    if (liveStatus !== "pending") return;
+    let alive = true;
+    const tick = async () => {
+      const { data } = await supabase
+        .from("purchase_requests")
+        .select("status")
+        .eq("id", purchase.id)
+        .maybeSingle();
+      const st = (data as { status?: PurchaseView["status"] } | null)?.status;
+      if (alive && (st === "approved" || st === "rejected")) setLiveStatus(st);
+    };
+    const t = setInterval(tick, 5000);
+    void tick();
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [liveStatus, purchase.id]);
+
+
 
 
 
@@ -151,7 +186,7 @@ export function PurchaseDetailDialog({
           {reviewedAt && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">
-                {purchase.status === "approved" ? "Diverifikasi" : "Ditolak"}
+                {liveStatus === "approved" ? "Diverifikasi" : "Ditolak"}
               </span>
               <span className="font-mono text-xs">
                 {reviewedAt.toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
@@ -160,7 +195,7 @@ export function PurchaseDetailDialog({
           )}
         </div>
 
-        {purchase.status === "pending" && purchase.payment_provider === "temanqris" && purchase.temanqris_order_id && (
+        {liveStatus === "pending" && purchase.payment_provider === "temanqris" && purchase.temanqris_order_id && (
           <div className="mt-4">
             <TemanQrisPanel
               purchaseRequestId={purchase.id}
@@ -172,7 +207,7 @@ export function PurchaseDetailDialog({
             />
           </div>
         )}
-        {purchase.status === "pending" && purchase.payment_provider === "midtrans" && (
+        {liveStatus === "pending" && purchase.payment_provider === "midtrans" && (
           <div className="mt-4">
             <MidtransQrisPanel
               purchaseRequestId={purchase.id}
@@ -180,21 +215,25 @@ export function PurchaseDetailDialog({
             />
           </div>
         )}
-        {purchase.status === "pending" && !purchase.payment_provider && (
+        {liveStatus === "pending" && !purchase.payment_provider && (
           <div className="mt-4 flex flex-col gap-3">
             <PaymentPicker purchaseRequestId={purchase.id} amount={purchase.price_idr} />
             {gopayAmount !== null && (
-              <GopayQrisPanel purchaseRequestId={purchase.id} amount={gopayAmount} />
+              <GopayQrisPanel
+                purchaseRequestId={purchase.id}
+                amount={gopayAmount}
+                onApproved={() => setLiveStatus("approved")}
+              />
             )}
           </div>
         )}
 
-        {purchase.status === "approved" && purchase.kind === "token_bank" && (
+        {liveStatus === "approved" && purchase.kind === "token_bank" && (
           <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-xs text-emerald-200/90">
             Token sudah dikirim ke Token Manager. Buka menu <b>Manage → Token / API Manager</b>.
           </div>
         )}
-        {purchase.status === "rejected" && purchase.admin_note && (
+        {liveStatus === "rejected" && purchase.admin_note && (
           <div className="mt-4 rounded-xl border border-rose-400/30 bg-rose-400/5 p-3 text-xs text-rose-200/90">
             <div className="font-semibold mb-1">Catatan admin</div>
             {purchase.admin_note}

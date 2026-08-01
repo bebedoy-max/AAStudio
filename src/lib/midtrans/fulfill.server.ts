@@ -116,21 +116,29 @@ async function deliverKeysForItem(
     purchaseRequestId: string;
     priceIdr: number;
   },
-) {
+): Promise<{ requested: number; delivered: number }> {
+  // Ambil lebih banyak dari qty lalu buang duplikat nilai key — key kembar
+  // di bank akan digabung oleh appendKey sehingga user hanya menerima satu.
   const { data: keys, error: kErr } = await admin
     .from("token_bank_keys")
     .select("id, key_value")
     .eq("provider", params.provider)
     .eq("status", "available")
     .order("created_at", { ascending: true })
-    .limit(params.qty);
+    .limit(Math.max(params.qty * 5, params.qty + 20));
   if (kErr) throw new Error(kErr.message);
-  const picked = (keys ?? []) as { id: string; key_value: string }[];
-  if (picked.length < params.qty) {
-    throw new Error(
-      `Stok tidak cukup: butuh ${params.qty}, tersedia ${picked.length} untuk ${params.provider}`,
-    );
+  const seen = new Set<string>();
+  const available = ((keys ?? []) as { id: string; key_value: string }[]).filter((k) => {
+    const v = (k.key_value ?? "").trim();
+    if (!v || seen.has(v)) return false;
+    seen.add(v);
+    return true;
+  });
+  const picked = available.slice(0, params.qty);
+  if (picked.length === 0) {
+    throw new Error(`Stok habis: tidak ada key ${params.provider} tersedia`);
   }
+
 
   const storageKey = BANK_STORAGE_KEY[params.provider];
   const { data: existing } = await admin
@@ -186,7 +194,10 @@ async function deliverKeysForItem(
   }));
   const { error: txErr } = await admin.from("token_bank_transactions").insert(txRows);
   if (txErr) throw new Error(txErr.message);
+
+  return { requested: params.qty, delivered: picked.length };
 }
+
 
 /**
  * Fulfill a purchase after payment confirmation. Idempotent — safe to call
@@ -255,15 +266,19 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
       if (!items || items.length === 0) throw new Error("Request is missing token cart items");
       const totalKeys = items.reduce((a, it) => a + it.qty, 0);
       const perKeyPrice = totalKeys > 0 ? Math.round(pr.price_idr / totalKeys) : 0;
+      const shortages: string[] = [];
       try {
         for (const it of items) {
-          await deliverKeysForItem(admin, {
+          const res = await deliverKeysForItem(admin, {
             provider: it.provider,
             qty: it.qty,
             targetUserId: pr.user_id,
             purchaseRequestId: pr.id,
             priceIdr: perKeyPrice * it.qty,
           });
+          if (res.delivered < res.requested) {
+            shortages.push(`${it.provider}: ${res.delivered}/${res.requested}`);
+          }
         }
       } catch (e) {
         // Lepas kunci supaya bisa dicoba lagi / ditinjau admin.
@@ -278,6 +293,17 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
           .eq("id", pr.id);
         throw e;
       }
+      if (shortages.length > 0) {
+        // Sebagian terkirim — pesanan tetap approved, tapi catat kekurangannya
+        // supaya admin bisa melengkapi stok & mengirim sisanya.
+        await admin
+          .from("purchase_requests")
+          .update({
+            admin_note: `Sebagian token terkirim (stok kurang) — ${shortages.join(", ")}`,
+          })
+          .eq("id", pr.id);
+      }
+
     }
   }
 
