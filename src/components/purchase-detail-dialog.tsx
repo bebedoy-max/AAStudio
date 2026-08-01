@@ -5,6 +5,8 @@ import { PROVIDER_LABELS } from "@/lib/token-bank/bank.functions";
 import type { PurchaseView } from "@/lib/stores/purchase-feed";
 import { rupiah } from "@/lib/stores/purchase-feed";
 import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
+import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
+import { PaymentPicker } from "@/components/payments/payment-picker";
 
 const statusMeta = {
   pending: {
@@ -130,12 +132,29 @@ export function PurchaseDetailDialog({
           )}
         </div>
 
-        {purchase.status === "pending" && (
+        {purchase.status === "pending" && purchase.payment_provider === "temanqris" && purchase.temanqris_order_id && (
+          <div className="mt-4">
+            <TemanQrisPanel
+              purchaseRequestId={purchase.id}
+              orderId={purchase.temanqris_order_id}
+              qrImage={purchase.temanqris_qr_image}
+              paymentUrl={purchase.temanqris_payment_url}
+              amount={purchase.temanqris_total_amount ?? purchase.price_idr}
+              expiresAt={purchase.temanqris_expires_at}
+            />
+          </div>
+        )}
+        {purchase.status === "pending" && purchase.payment_provider === "midtrans" && (
           <div className="mt-4">
             <MidtransQrisPanel
               purchaseRequestId={purchase.id}
               amount={purchase.price_idr}
             />
+          </div>
+        )}
+        {purchase.status === "pending" && !purchase.payment_provider && (
+          <div className="mt-4">
+            <PaymentPicker purchaseRequestId={purchase.id} amount={purchase.price_idr} />
           </div>
         )}
         {purchase.status === "approved" && purchase.kind === "token_bank" && (

@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { decodeCartFromNote, type CartItem } from "@/components/token-bank/buy-dialog";
 
+type LooseClient = { from: (table: string) => any };
+
 export type PurchaseRow = {
   id: string;
   user_id: string;
@@ -12,6 +14,12 @@ export type PurchaseRow = {
   price_idr: number;
   payment_method_id: string | null;
   payment_method_name: string | null;
+  payment_provider: string | null;
+  temanqris_order_id: string | null;
+  temanqris_qr_image: string | null;
+  temanqris_payment_url: string | null;
+  temanqris_total_amount: number | null;
+  temanqris_expires_at: string | null;
   note: string | null;
   status: "pending" | "approved" | "rejected";
   admin_note: string | null;
@@ -68,10 +76,11 @@ export function usePurchaseFeed(pollMs = 20_000): {
     async function load() {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const db = supabase as unknown as LooseClient;
+        const { data, error } = await db
           .from("purchase_requests")
           .select(
-            "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
+            "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, payment_provider, temanqris_order_id, temanqris_qr_image, temanqris_payment_url, temanqris_total_amount, temanqris_expires_at, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
           )
           .eq("user_id", user!.id)
           .order("created_at", { ascending: false })
@@ -99,10 +108,11 @@ export function usePurchaseFeed(pollMs = 20_000): {
   const refresh = () => {
     // Trigger a manual reload by nudging the interval — cheap and safe.
     if (!user) return;
-    void supabase
+    const db = supabase as unknown as LooseClient;
+    void db
       .from("purchase_requests")
       .select(
-        "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
+        "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, payment_provider, temanqris_order_id, temanqris_qr_image, temanqris_payment_url, temanqris_total_amount, temanqris_expires_at, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
