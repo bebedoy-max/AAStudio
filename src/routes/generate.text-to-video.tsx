@@ -154,6 +154,7 @@ function TextToVideoPage() {
         log(`Submit ${activeModel.label} (${activeQuality?.label ?? ""} · ${ratio})`);
         url = await runDolaWithRotation({
           prompt: prompt.trim(),
+          modelKey: activeModel.value,
           ratio,
           duration,
           resolution: activeQuality?.resolution,

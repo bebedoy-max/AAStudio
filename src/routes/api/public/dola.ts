@@ -16,6 +16,7 @@ import { createFileRoute } from "@tanstack/react-router";
 const DOLA = "https://www.dola.com";
 const IMAGEX = "https://imagex-ap-southeast-1.bytevcloudapi.com";
 const IMAGEX_SERVICE_ID = "uo7y4d541q";
+const DOLA_BOT_ID = "7339470689562525703";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0";
 
@@ -78,6 +79,7 @@ function commonQuery(cookie: string): string {
   };
   const msToken = cookieValue(cookie, "msToken");
   if (msToken) params["msToken"] = msToken;
+  params["tz_name"] = "Asia/Jakarta";
   return new URLSearchParams(params).toString();
 }
 
@@ -191,42 +193,99 @@ async function fetchUploadCreds(cookie: string): Promise<StsCreds | null> {
     const creds = credsFromStsToken(captured);
     if (creds) return creds;
   }
-  // 2) Fallback: minta token upload lewat API Dola.
-  const paths = ["/alice/upload/auth_token", "/samantha/media/get_upload_token", "/alice/upload/upload_token"];
-  for (const p of paths) {
+  // 2) Fallback: minta STS upload lewat API Dola (stack Doubao/samantha).
+  //    Response memakai snake_case (`access_key_id`, `secret_access_key`,
+  //    `session_token`) atau CamelCase, tergantung endpoint.
+  const attempts: { path: string; method: "GET" | "POST"; body?: unknown }[] = [
+    { path: "/alice/upload/auth_token", method: "POST", body: { scene: "bot_chat" } },
+    { path: "/alice/upload/auth_token", method: "GET" },
+    { path: "/samantha/media/get_upload_token", method: "POST", body: { scene: 1 } },
+    { path: "/alice/upload/upload_token", method: "POST", body: { scene: "bot_chat" } },
+  ];
+  for (const a of attempts) {
     try {
-      const res = await fetch(`${DOLA}${p}?${commonQuery(cookie)}`, {
-        method: "POST",
+      const res = await fetch(`${DOLA}${a.path}?${commonQuery(cookie)}`, {
+        method: a.method,
         headers: dolaHeaders(cookie),
-        body: JSON.stringify({ scene: 1, service_id: IMAGEX_SERVICE_ID }),
+        ...(a.method === "POST" ? { body: JSON.stringify(a.body ?? {}) } : {}),
       });
       if (!res.ok) continue;
-      const data = (await res.json()) as unknown;
-      const found: StsCreds[] = [];
-      const walk = (n: unknown, d = 0) => {
-        if (d > 8 || !n || typeof n !== "object") return;
-        const o = n as Record<string, unknown>;
-        if (typeof o["AccessKeyId"] === "string" && typeof o["SecretAccessKey"] === "string") {
-          found.push({
-            AccessKeyId: String(o["AccessKeyId"]),
-            SecretAccessKey: String(o["SecretAccessKey"]),
-            SessionToken: String(o["SessionToken"] ?? o["session_token"] ?? ""),
-          });
-        }
-        for (const v of Object.values(o)) walk(v, d + 1);
-      };
-      walk(data);
-      if (found[0]) return found[0];
+      const text = await res.text();
+      let data: unknown = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        continue;
+      }
+      const creds = findCreds(data);
+      if (creds) return creds;
+      // Beberapa response hanya membawa string STS2… langsung.
+      const m = /STS2[A-Za-z0-9+/=]+/.exec(text);
+      if (m) {
+        const fromSts = credsFromStsToken(m[0]);
+        if (fromSts) return fromSts;
+      }
     } catch {
-      /* coba path berikutnya */
+      /* coba endpoint berikutnya */
     }
   }
   return null;
 }
 
+/** Cari pasangan kredensial AWS di dalam response apa pun (Camel/snake case). */
+function findCreds(node: unknown, depth = 0): StsCreds | null {
+  if (depth > 8 || !node || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findCreds(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  const o = node as Record<string, unknown>;
+  const pick = (...keys: string[]) => {
+    for (const k of keys) if (typeof o[k] === "string" && o[k]) return String(o[k]);
+    return "";
+  };
+  const id = pick("AccessKeyId", "access_key_id", "AccessKeyID");
+  const secret = pick("SecretAccessKey", "secret_access_key", "SignedSecretAccessKey");
+  const session = pick("SessionToken", "session_token", "CurrentTime");
+  if (id && secret) return { AccessKeyId: id, SecretAccessKey: secret, SessionToken: session };
+  for (const v of Object.values(o)) {
+    const found = findCreds(v, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+/* CRC32 — header wajib pada upload ImageX. */
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[i] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes: Uint8Array): string {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]!) & 0xff]! ^ (c >>> 8);
+  return ((c ^ 0xffffffff) >>> 0).toString(16).padStart(8, "0");
+}
+
 async function uploadImage(cookie: string, base64: string, ext: string) {
   const creds = await fetchUploadCreds(cookie);
-  if (!creds) return json({ ok: false, error: "upload_token_unavailable" }, 502);
+  if (!creds) {
+    return json(
+      {
+        ok: false,
+        error:
+          "upload_token_unavailable — token upload ImageX tidak ditemukan. Buka tab www.dola.com lalu kirim 1 gambar sekali agar extension menangkap header x-amz-security-token, kemudian Grab ulang tokennya.",
+      },
+      502,
+    );
+  }
 
   const bin = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
   const amzDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
@@ -267,7 +326,7 @@ async function uploadImage(cookie: string, base64: string, ext: string) {
     headers: {
       Authorization: store.Auth,
       "Content-Type": "application/octet-stream",
-      "Content-CRC32": "",
+      "Content-CRC32": crc32(bin),
     },
     body: bin as unknown as BodyInit,
   });
@@ -282,37 +341,143 @@ async function completion(cookie: string, body: Record<string, unknown>) {
   const prompt = String(body["prompt"] ?? "");
   const imageUri = body["imageUri"] ? String(body["imageUri"]) : "";
   const conversationId = body["conversationId"] ? String(body["conversationId"]) : "0";
+  const isNew = !conversationId || conversationId === "0";
+  const model = String(body["model"] ?? "seedance_v2.0");
+  const ratio = String(body["ratio"] ?? "9:16");
+  const duration = Number(body["duration"] ?? 5) || 5;
+  const imageWidth = Number(body["imageWidth"] ?? 0) || 0;
+  const imageHeight = Number(body["imageHeight"] ?? 0) || 0;
 
-  const content: Record<string, unknown> = { text: prompt };
-  if (imageUri) content["image_list"] = [{ image_uri: imageUri }];
-
-  const payload = {
-    messages: [
+  // Format persis seperti web Dola: message berisi content_block,
+  // skill video dipilih lewat chat_ability (ability_type 17).
+  const messages: unknown[] = [];
+  if (imageUri) {
+    messages.push({
+      local_message_id: uuid(),
+      content_block: [
+        {
+          block_type: 10052,
+          content: {
+            attachment_block: {
+              attachments: [
+                {
+                  type: 1,
+                  identifier: uuid(),
+                  image: {
+                    name: imageUri.split("/").pop() || "image.png",
+                    uri: imageUri,
+                    image_ori: { url: "", width: imageWidth, height: imageHeight, format: "", url_formats: {} },
+                  },
+                  parse_state: 0,
+                  review_state: 1,
+                  upload_status: 1,
+                  progress: 100,
+                  src: "",
+                },
+              ],
+            },
+            pc_event_block: "",
+          },
+          block_id: uuid(),
+          parent_id: "",
+          meta_info: [],
+          append_fields: [],
+        },
+      ],
+      message_status: 0,
+    });
+  }
+  messages.push({
+    local_message_id: uuid(),
+    content_block: [
       {
-        content: JSON.stringify(content),
-        content_type: imageUri ? 2009 : 2001,
-        attachments: [],
+        block_type: 10000,
+        content: {
+          text_block: { text: prompt, icon_url: "", icon_url_dark: "", summary: "" },
+          pc_event_block: "",
+        },
+        block_id: uuid(),
+        parent_id: "",
+        meta_info: [],
+        append_fields: [],
       },
     ],
-    completion_option: {
-      is_regen: false,
-      with_suggest: false,
-      need_create_conversation: conversationId === "0",
-      launch_stage: 1,
-      is_replace: false,
-      is_delete: false,
-      message_from: 0,
-      event_id: "0",
+    message_status: 0,
+  });
+
+  const collectId = uuid();
+  const localConversationId = `local_${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const payload = {
+    client_meta: {
+      local_conversation_id: localConversationId,
+      conversation_id: isNew ? "" : conversationId,
+      bot_id: DOLA_BOT_ID,
+      last_section_id: "",
+      last_message_index: null,
     },
-    conversation_id: conversationId,
-    section_id: conversationId,
-    local_conversation_id: `local_${Date.now()}`,
-    local_message_id: uuid(),
+    messages,
+    option: {
+      send_message_scene: "",
+      create_time_ms: Date.now(),
+      collect_id: collectId,
+      is_audio: false,
+      answer_with_suggest: false,
+      tts_switch: false,
+      need_deep_think: 0,
+      click_clear_context: false,
+      from_suggest: false,
+      is_regen: false,
+      is_replace: false,
+      is_from_click_option: false,
+      is_from_click_softlink: false,
+      disable_sse_cache: false,
+      select_text_action: "",
+      is_select_text: false,
+      resend_for_regen: false,
+      scene_type: 0,
+      unique_key: uuid(),
+      start_seq: 0,
+      need_create_conversation: isNew,
+      conversation_init_option: { need_ack_conversation: true },
+      regen_query_id: [],
+      edit_query_id: [],
+      regen_instruction: "",
+      no_replace_for_regen: false,
+      message_from: 0,
+      shared_app_name: "",
+      shared_app_id: "",
+      sse_recv_event_options: { support_chunk_delta: true },
+      is_ai_playground: false,
+      is_old_user: false,
+      recovery_option: {
+        is_recovery: false,
+        req_create_time_sec: Math.floor(Date.now() / 1000),
+        append_sse_event_scene: 0,
+      },
+      message_storage_type: 0,
+    },
+    chat_ability: {
+      ability_type: 17,
+      ability_param: JSON.stringify({ ratio, model, duration }),
+    },
+    user_context: [],
+    ext: {
+      answer_with_suggest: "0",
+      sub_conv_firstmet_type: "1",
+      collection_id: collectId,
+      conversation_init_option: '{"need_ack_conversation":true}',
+      commerce_credit_config_enable: "0",
+    },
   };
 
   const res = await fetch(`${DOLA}/chat/completion?${commonQuery(cookie)}`, {
     method: "POST",
-    headers: dolaHeaders(cookie, { accept: "text/event-stream" }),
+    headers: dolaHeaders(cookie, {
+      accept: "*/*",
+      "agw-js-conv": "str, str",
+      "last-event-id": "undefined",
+      referer: `${DOLA}/chat/${localConversationId}`,
+    }),
     body: JSON.stringify(payload),
   });
 

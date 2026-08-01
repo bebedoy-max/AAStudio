@@ -60,9 +60,9 @@ export const I2V_CATALOG: Record<string, ModelOpt[]> = {
     { value: "framia:kling-avatar", label: "Kling Avatar (Framia)", cr: 40 },
   ],
   dola: [
-    // Dola (www.dola.com) — skill "video_generation" pada sesi chat.
-    { value: "dola:omni", label: "Dola Video (Omni)", cr: 0 },
-    { value: "dola:pro", label: "Dola Video Pro", cr: 0 },
+    // Dola (www.dola.com) — skill video (ability_type 17) pada sesi chat.
+    { value: "dola:seedance_v2.0", label: "Dreamina Seedance 2 Fast (Dola)", cr: 0 },
+    { value: "dola:seedance_v1.0", label: "Dreamina Seedance 1 (Dola)", cr: 0 },
   ],
   leonardo: [
     // Featured (tab Video di app.leonardo.ai)

@@ -104,6 +104,8 @@ export async function uploadDolaImage(cookie: string, file: File | Blob): Promis
 
 export type DolaVideoOpts = {
   prompt: string;
+  /** Nilai katalog `dola:<model>` atau nama model langsung (mis. seedance_v2.0). */
+  modelKey?: string;
   ratio?: string;
   duration?: number;
   resolution?: string;
@@ -113,18 +115,15 @@ export type DolaVideoOpts = {
   onLog?: (msg: string) => void;
 };
 
-/** Dola adalah chat assistant: instruksi skill video dikirim sebagai teks
- *  terstruktur bersama prompt user. */
+/** Skill video Dola dipilih lewat chat_ability, jadi teksnya cukup singkat —
+ *  persis seperti web Dola: "Generated video: <prompt>, <ratio>". */
 function buildPrompt(o: DolaVideoOpts): string {
-  const bits = [
-    `Generate a video${o.imageUri ? " from the attached image" : ""}.`,
-    o.ratio ? `Aspect ratio: ${o.ratio}.` : "",
-    o.duration ? `Duration: ${o.duration}s.` : "",
-    o.resolution ? `Resolution: ${o.resolution}.` : "",
-    o.sound ? `Sound: ${o.sound}.` : "",
-    `Prompt: ${o.prompt}`,
-  ].filter(Boolean);
-  return bits.join(" ");
+  return `Generated video: ${o.prompt}, ${o.ratio ?? "9:16"}`;
+}
+
+function modelName(modelKey?: string): string {
+  const raw = (modelKey || "").replace(/^dola:/, "").trim();
+  return raw || "seedance_v2.0";
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -136,6 +135,9 @@ export async function runDolaVideo(cookie: string, opts: DolaVideoOpts): Promise
   const res = await call(cookie, {
     action: "completion",
     prompt: buildPrompt(opts),
+    model: modelName(opts.modelKey),
+    ratio: opts.ratio || "9:16",
+    duration: opts.duration || 5,
     imageUri: opts.imageUri || "",
   });
   if (!res.ok) throw new Error(res.error || "Dola menolak request (cookie mungkin sudah expired)");

@@ -268,6 +268,7 @@ async function runDolaI2V(opts: I2VOpts): Promise<string> {
       opts.onProgress?.("Submit ke Dola...", 30);
       return await runDolaVideo(cookie, {
         prompt: opts.prompt,
+        modelKey: opts.modelKey,
         ratio: opts.ratio,
         duration: opts.duration,
         resolution: opts.resolution,
