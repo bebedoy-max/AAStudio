@@ -5,13 +5,14 @@ import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import {
   PLUGIN_CATALOG,
-  DEFAULT_STUDIO_URL,
   pluginEnabled,
   pluginVersion,
+  pluginName,
+  pluginLogo,
   type PluginConfig,
   type PluginEntry,
 } from "@/lib/plugins/catalog";
-import { Download, Puzzle, ExternalLink, ShieldCheck, CheckCircle2, Loader2, Lock, Chrome } from "lucide-react";
+import { Download, Puzzle, ExternalLink, CheckCircle2, Loader2, Chrome } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/plugins")({
@@ -37,7 +38,6 @@ export const Route = createFileRoute("/plugins")({
 
 function PluginsPage() {
   const [cfg, setCfg] = useState<PluginConfig>({});
-  const [studioUrl, setStudioUrl] = useState(DEFAULT_STUDIO_URL);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,7 +48,6 @@ function PluginsPage() {
         .eq("id", 1)
         .maybeSingle();
       if (data?.plugin_config) setCfg(data.plugin_config as PluginConfig);
-      if (data?.plugin_app_url) setStudioUrl(data.plugin_app_url as string);
       setLoading(false);
     })();
   }, []);
@@ -63,27 +62,6 @@ function PluginsPage() {
         highlight="Plug-IN"
         desc="Companion app, browser extension, dan plugin resmi AA Creative Studio. Semua plug-in terikat ke akun kamu dan mengirim data langsung ke Token Manager."
       />
-
-      <Card>
-        <div className="p-4 flex flex-wrap items-center gap-3">
-          <div
-            className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0"
-            style={{ background: "var(--gradient-neon)" }}
-          >
-            <ShieldCheck className="h-4.5 w-4.5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-display text-base">Terikat ke akun kamu</div>
-            <div className="text-xs text-muted-foreground">
-              Plug-in mengunci URL studio ke <span className="text-foreground">{studioUrl}</span> dan mengunci akun pada
-              login pertama. Username dan URL hanya bisa diubah admin.
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1 text-[11px] text-muted-foreground">
-            <Lock className="h-3 w-3" /> Dikunci admin
-          </span>
-        </div>
-      </Card>
 
       {loading ? (
         <Card>
@@ -112,6 +90,8 @@ function PluginsPage() {
 function PluginCard({ entry, cfg }: { entry: PluginEntry; cfg: PluginConfig }) {
   const [busy, setBusy] = useState(false);
   const note = cfg?.[entry.id]?.note?.trim();
+  const name = pluginName(entry, cfg);
+  const logo = pluginLogo(entry, cfg);
 
   async function download() {
     setBusy(true);
@@ -141,10 +121,14 @@ function PluginCard({ entry, cfg }: { entry: PluginEntry; cfg: PluginConfig }) {
             className="h-11 w-11 rounded-2xl grid place-items-center text-white shrink-0 transition-transform duration-300 group-hover:scale-105"
             style={{ background: entry.accent }}
           >
-            <Puzzle className="h-5 w-5" />
+            {logo ? (
+              <img src={logo} alt={name} className="h-full w-full rounded-2xl object-cover" loading="lazy" />
+            ) : (
+              <Puzzle className="h-5 w-5" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-display text-base leading-tight truncate">{entry.name}</div>
+            <div className="font-display text-base leading-tight truncate">{name}</div>
             <div className="text-[11px] text-muted-foreground truncate">{entry.tagline}</div>
           </div>
           <span className="rounded-full border border-border bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground shrink-0">

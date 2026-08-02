@@ -63,6 +63,10 @@ export type PluginConfigEntry = {
   enabled?: boolean;
   version?: string;
   note?: string;
+  /** Override nama extension yang tampil di katalog & popup extension. */
+  name?: string;
+  /** URL logo (https) yang dipakai extension sebagai ikon & di katalog. */
+  logoUrl?: string;
 };
 
 export type PluginConfig = Record<string, PluginConfigEntry>;
@@ -75,4 +79,12 @@ export function pluginVersion(entry: PluginEntry, cfg: PluginConfig | null | und
 
 export function pluginEnabled(entry: PluginEntry, cfg: PluginConfig | null | undefined) {
   return cfg?.[entry.id]?.enabled !== false;
+}
+
+export function pluginName(entry: PluginEntry, cfg: PluginConfig | null | undefined) {
+  return cfg?.[entry.id]?.name?.trim() || entry.name;
+}
+
+export function pluginLogo(entry: PluginEntry, cfg: PluginConfig | null | undefined) {
+  return cfg?.[entry.id]?.logoUrl?.trim() || "";
 }

@@ -26,6 +26,19 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
   const [range, setRange] = useState<Range>(30);
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [boxW, setBoxW] = useState(640);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) setBoxW(Math.round(w));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const sliced = useMemo(() => data.slice(Math.max(0, data.length - range)), [data, range]);
 
@@ -48,7 +61,7 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
     return { total, avg, peak, growth, active };
   }, [sliced]);
 
-  const W = 640, H = 200, PADX = 30, PADT = 18, PADB = 28;
+  const W = Math.max(320, boxW), H = 200, PADX = 30, PADT = 18, PADB = 28;
   const max = Math.max(1, ...shown.map((d) => d.count));
   const innerW = W - PADX * 2;
   const innerH = H - PADT - PADB;
@@ -142,7 +155,7 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
       </div>
 
       {/* Chart */}
-      <div className="relative">
+      <div className="relative w-full" ref={wrapRef}>
         <svg
           ref={svgRef}
           key={animKey}

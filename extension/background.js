@@ -4,6 +4,24 @@
 // extension). This is what makes "auto grab & sync on refresh" work.
 
 importScripts("providers.js");
+try {
+  importScripts("remote-config.js");
+} catch (e) {
+  console.warn("[aa] remote-config unavailable", e);
+}
+
+// --- Auto-sync konfigurasi admin (URL studio, nama, logo) ------------------
+async function syncRemoteConfig() {
+  try {
+    await self.AA_REMOTE?.sync?.();
+  } catch (e) {
+    console.debug("[aa] config sync", e?.message || e);
+  }
+}
+syncRemoteConfig();
+chrome.runtime.onStartup?.addListener?.(syncRemoteConfig);
+chrome.runtime.onInstalled?.addListener?.(syncRemoteConfig);
+chrome.alarms.create("aa-config", { periodInMinutes: 30 });
 
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
 
@@ -236,6 +254,7 @@ async function refreshSession(appUrl, refreshToken) {
 // don't get 401 on the auto-push path.
 chrome.alarms.create("aa-refresh", { periodInMinutes: 30 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === "aa-config") return void syncRemoteConfig();
   if (alarm.name !== "aa-refresh") return;
   const cfg = await chrome.storage.local.get(["appUrl", "session"]);
   if (!cfg.appUrl || !cfg.session?.refresh_token) return;
@@ -428,3 +447,10 @@ async function relayViaFireflyTab({ url, method, headers, bodyText, bodyBase64 }
     return null;
   }
 }
+
+// Popup meminta sinkronisasi config on-demand.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.kind !== "AA_SYNC_CONFIG") return;
+  syncRemoteConfig().then(() => sendResponse({ ok: true }));
+  return true;
+});

@@ -97,6 +97,7 @@ import { Route as ApiPublicGoogleDriveCallbackRouteImport } from './routes/api/p
 import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
 import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
 import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
+import { Route as ApiPublicExtensionConfigRouteImport } from './routes/api/public/extension/config'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
 import { Route as ApiPublicCompanionHealthRouteImport } from './routes/api/public/companion/health'
 import { Route as ApiPublicCloudUploadRouteImport } from './routes/api/public/cloud/upload'
@@ -555,6 +556,12 @@ const ApiPublicExtensionLoginRoute = ApiPublicExtensionLoginRouteImport.update({
   path: '/api/public/extension/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicExtensionConfigRoute =
+  ApiPublicExtensionConfigRouteImport.update({
+    id: '/api/public/extension/config',
+    path: '/api/public/extension/config',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicDokuNotificationRoute =
   ApiPublicDokuNotificationRouteImport.update({
     id: '/api/public/doku/notification',
@@ -681,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
   '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/config': typeof ApiPublicExtensionConfigRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
@@ -776,6 +784,7 @@ export interface FileRoutesByTo {
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
   '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/config': typeof ApiPublicExtensionConfigRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
@@ -874,6 +883,7 @@ export interface FileRoutesById {
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
   '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/config': typeof ApiPublicExtensionConfigRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
@@ -973,6 +983,7 @@ export interface FileRouteTypes {
     | '/api/public/cloud/upload'
     | '/api/public/companion/health'
     | '/api/public/doku/notification'
+    | '/api/public/extension/config'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
@@ -1068,6 +1079,7 @@ export interface FileRouteTypes {
     | '/api/public/cloud/upload'
     | '/api/public/companion/health'
     | '/api/public/doku/notification'
+    | '/api/public/extension/config'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
@@ -1165,6 +1177,7 @@ export interface FileRouteTypes {
     | '/api/public/cloud/upload'
     | '/api/public/companion/health'
     | '/api/public/doku/notification'
+    | '/api/public/extension/config'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
@@ -1242,6 +1255,7 @@ export interface RootRouteChildren {
   ApiPublicCloudUploadRoute: typeof ApiPublicCloudUploadRoute
   ApiPublicCompanionHealthRoute: typeof ApiPublicCompanionHealthRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
+  ApiPublicExtensionConfigRoute: typeof ApiPublicExtensionConfigRoute
   ApiPublicExtensionLoginRoute: typeof ApiPublicExtensionLoginRoute
   ApiPublicExtensionPushTokenRoute: typeof ApiPublicExtensionPushTokenRoute
   ApiPublicExtensionRefreshRoute: typeof ApiPublicExtensionRefreshRoute
@@ -1873,6 +1887,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExtensionLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/extension/config': {
+      id: '/api/public/extension/config'
+      path: '/api/public/extension/config'
+      fullPath: '/api/public/extension/config'
+      preLoaderRoute: typeof ApiPublicExtensionConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/doku/notification': {
       id: '/api/public/doku/notification'
       path: '/api/public/doku/notification'
@@ -2068,6 +2089,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCloudUploadRoute: ApiPublicCloudUploadRoute,
   ApiPublicCompanionHealthRoute: ApiPublicCompanionHealthRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
+  ApiPublicExtensionConfigRoute: ApiPublicExtensionConfigRoute,
   ApiPublicExtensionLoginRoute: ApiPublicExtensionLoginRoute,
   ApiPublicExtensionPushTokenRoute: ApiPublicExtensionPushTokenRoute,
   ApiPublicExtensionRefreshRoute: ApiPublicExtensionRefreshRoute,

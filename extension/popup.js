@@ -316,7 +316,8 @@ const DEFAULT_APP_URL = AA_CONFIG.appUrl || "https://aacreative.vercel.app/";
 
 async function renderAccount() {
   const { appUrl, session, savedAccounts } = await chrome.storage.local.get(["appUrl", "session", "savedAccounts"]);
-  const effectiveUrl = AA_CONFIG.appUrl || appUrl || DEFAULT_APP_URL;
+  // URL hasil auto-sync dari Plug-IN Config menang atas nilai bawaan build.
+  const effectiveUrl = appUrl || AA_CONFIG.appUrl || DEFAULT_APP_URL;
   if ($("appUrl")) $("appUrl").value = effectiveUrl;
   const pill = $("account-pill");
   if (session?.user?.email) {
@@ -393,7 +394,8 @@ $("appUrl")?.addEventListener("change", () => {
 });
 
 $("login").addEventListener("click", async () => {
-  const appUrl = AA_CONFIG.appUrl || ($("appUrl")?.value.trim() || DEFAULT_APP_URL);
+  const stored = (await chrome.storage.local.get("appUrl")).appUrl;
+  const appUrl = stored || AA_CONFIG.appUrl || ($("appUrl")?.value.trim() || DEFAULT_APP_URL);
   const email = $("email").value.trim();
   const password = $("password").value;
   const remember = $("remember")?.checked;
@@ -529,4 +531,25 @@ document.getElementById("relay-open-ff")?.addEventListener("click", async () => 
   const tabs = await chrome.tabs.query({ url: ["https://firefly.adobe.com/*"] });
   if (tabs?.[0]?.id) chrome.tabs.update(tabs[0].id, { active: true });
   else chrome.tabs.create({ url: "https://firefly.adobe.com/" });
+});
+
+/* ------------------- branding auto-sync (dikelola admin) ------------------ */
+async function applyRemoteBranding() {
+  try {
+    const { remoteConfig } = await chrome.storage.local.get("remoteConfig");
+    if (!remoteConfig) return;
+    const h1 = document.querySelector("header h1");
+    if (h1 && remoteConfig.name) h1.textContent = remoteConfig.name;
+    const img = document.querySelector("header img");
+    if (img && remoteConfig.logoUrl) img.src = remoteConfig.logoUrl;
+  } catch {}
+}
+applyRemoteBranding();
+// Minta background menarik config terbaru tiap popup dibuka.
+chrome.runtime.sendMessage({ kind: "AA_SYNC_CONFIG" }, () => {
+  void chrome.runtime.lastError;
+  setTimeout(() => {
+    applyRemoteBranding();
+    renderAccount();
+  }, 800);
 });

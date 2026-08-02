@@ -102,7 +102,7 @@ for (const v of VARIANTS) {
 
   writeFileSync(path.join(dir, "providers.js"), providersFor(v.id));
   writeFileSync(path.join(dir, "popup.html"), popupHtmlFor(v));
-  for (const f of ["background.js", "popup.js", "icon.png"]) {
+  for (const f of ["background.js", "popup.js", "remote-config.js", "icon.png"]) {
     copyFileSync(path.join(SRC, f), path.join(dir, f));
   }
   // background.js pulls the registry; make sure config loads first too.

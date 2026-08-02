@@ -165,6 +165,9 @@ function AccessBody() {
     return byGroup;
   }, []);
 
+  const groupNames = useMemo(() => Object.keys(groups), [groups]);
+  const [activeGroup, setActiveGroup] = useState<string>(() => Object.keys(groups)[0] ?? "");
+
   function setMode(key: string, mode: FeatureAccessMode) {
     setDrafts((d) => ({ ...d, [key]: { ...d[key], mode } }));
   }
@@ -223,7 +226,33 @@ function AccessBody() {
 
   return (
     <div className="flex flex-col gap-4">
-      {Object.entries(groups).map(([groupName, features]) => (
+      <Card>
+        <div className="p-4 flex flex-wrap items-center gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Pilih Grup Menu
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Tampilkan pengaturan akses untuk satu grup sidebar saja.
+            </div>
+          </div>
+          <select
+            value={activeGroup}
+            onChange={(e) => setActiveGroup(e.target.value)}
+            className="ml-auto rounded-lg border border-border bg-card/60 px-3 py-2 text-sm outline-none focus:border-primary/60"
+          >
+            {groupNames.map((g) => (
+              <option key={g} value={g}>
+                {g} ({groups[g].length})
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
+
+      {Object.entries(groups)
+        .filter(([groupName]) => groupName === activeGroup)
+        .map(([groupName, features]) => (
         <Card key={groupName}>
           <div className="p-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
             <div>

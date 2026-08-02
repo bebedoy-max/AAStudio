@@ -135,14 +135,6 @@ const DEFAULT_NAV: NavEntry[] = [
     ],
   },
   {
-    kind: "link",
-    key: "plugins",
-    label: "AA Plug-IN",
-    url: "/plugins",
-    icon: Puzzle,
-    permKey: "plugins.hub",
-  },
-  {
     kind: "group",
     key: "manage",
     label: "Manage",
@@ -165,6 +157,14 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Help", url: "/system/help", icon: HelpCircle, permKey: "system.help" },
     ],
   },
+  {
+    kind: "link",
+    key: "plugins",
+    label: "AA Plug-IN",
+    url: "/plugins",
+    icon: Puzzle,
+    permKey: "plugins.hub",
+  },
 ];
 
 const ADMIN_GROUP: NavEntry = {
@@ -176,7 +176,7 @@ const ADMIN_GROUP: NavEntry = {
   requireAdmin: true,
 };
 
-const NAV_ORDER_KEY = "aatools.sidebar.order.v3";
+const NAV_ORDER_KEY = "aatools.sidebar.order.v4";
 const HOVER_CLOSE_DELAY = 320;
 
 function loadOrder(defaults: string[]): string[] {

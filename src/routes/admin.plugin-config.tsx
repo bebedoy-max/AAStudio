@@ -134,7 +134,8 @@ function PluginConfigForm() {
             placeholder={DEFAULT_STUDIO_URL}
           />
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Setelah mengubah URL, jalankan ulang build paket extension agar nilainya ikut ter-bake:{" "}
+            Extension yang sudah ter-install ikut ter-update otomatis (auto-sync tiap ±30 menit atau saat browser dibuka).
+            Untuk paket unduhan baru, build ulang:{" "}
             <span className="text-foreground">bun scripts/build-plugin-extensions.mjs {studioUrl || DEFAULT_STUDIO_URL}</span>
           </p>
         </div>
@@ -166,6 +167,24 @@ function PluginConfigForm() {
               </label>
             </div>
             <div className="p-4 grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="text-[11px] text-muted-foreground">Nama extension</label>
+                <input
+                  className={inputCls}
+                  value={c.name ?? ""}
+                  onChange={(e) => patch(p.id, { name: e.target.value })}
+                  placeholder={p.name}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground">URL logo extension (https / png)</label>
+                <input
+                  className={inputCls}
+                  value={c.logoUrl ?? ""}
+                  onChange={(e) => patch(p.id, { logoUrl: e.target.value })}
+                  placeholder="https://.../logo.png"
+                />
+              </div>
               <div>
                 <label className="text-[11px] text-muted-foreground">Versi tampil</label>
                 <input
