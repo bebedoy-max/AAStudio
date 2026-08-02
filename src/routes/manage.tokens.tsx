@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { flushSync } from "react-dom";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart, ChevronDown } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
@@ -158,6 +158,40 @@ const readJSON = <T,>(k: string, fallback: T): T => {
 };
 const SYNCED_KEYS: ReadonlySet<string> = new Set(ALLOWED_TOKEN_KEYS);
 const TOKEN_SYNC_EVENTS = ["aatools:tokens-synced", "aatools:keys-changed", "storage"] as const;
+
+/** Ambil semua nilai key/token dari sebuah entry localStorage token manager. */
+function extractKeyValues(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const arr: unknown[] = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { keys?: unknown[] })?.keys)
+        ? ((parsed as { keys: unknown[] }).keys)
+        : [];
+    return arr
+      .map((x) =>
+        typeof x === "string"
+          ? x
+          : ((x as { key?: string; token?: string })?.key ??
+             (x as { key?: string; token?: string })?.token ??
+             ""),
+      )
+      .filter((v): v is string => typeof v === "string" && v.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function snapshotStoredKeys(): Set<string> {
+  const out = new Set<string>();
+  if (typeof window === "undefined") return out;
+  for (const k of ALLOWED_TOKEN_KEYS) {
+    for (const v of extractKeyValues(localStorage.getItem(k))) out.add(v);
+  }
+  return out;
+}
+
 const writeJSON = (k: string, v: unknown) => {
   if (typeof window === "undefined") return;
   const serialized = JSON.stringify(v);
@@ -204,6 +238,32 @@ function TokensPage() {
       for (const ev of TOKEN_SYNC_EVENTS) window.removeEventListener(ev, onSynced);
     };
   }, []);
+
+  // Deteksi key BARU yang masuk dari cloud (mis. hasil pembelian Token Bank).
+  // Saat itu terjadi, pane aktif di-remount supaya key langsung muncul di
+  // "Key tersimpan" dan info credit-nya otomatis dicek — tanpa pindah tab.
+  const [keyEpoch, setKeyEpoch] = useState(0);
+  const knownKeysRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const check = () => {
+      const now = snapshotStoredKeys();
+      const prev = knownKeysRef.current;
+      knownKeysRef.current = now;
+      if (!prev) return;
+      for (const v of now) {
+        if (!prev.has(v)) {
+          setKeyEpoch((n) => n + 1);
+          break;
+        }
+      }
+    };
+    check();
+    for (const ev of TOKEN_SYNC_EVENTS) window.addEventListener(ev, check);
+    return () => {
+      for (const ev of TOKEN_SYNC_EVENTS) window.removeEventListener(ev, check);
+    };
+  }, []);
+
 
   // On tab change: collapse only when the current tab has more than 10 keys.
   useEffect(() => {
@@ -260,9 +320,10 @@ function TokensPage() {
 
   // Do NOT include syncTick in the pane key — remounting the pane every time
   // remote sync fires (every 20s) wipes local input state, causing the user's
-  // freshly pasted keys to "disappear". Panes already listen to storage/sync
-  // events themselves to refresh the saved list.
-  const paneKey = tab;
+  // freshly pasted keys to "disappear". `keyEpoch` hanya berubah ketika ada
+  // key BARU dari cloud (mis. pembelian token), jadi remount-nya aman.
+  const paneKey = `${tab}:${keyEpoch}`;
+
 
   return (
     <SummaryCtx.Provider value={setSummary}>

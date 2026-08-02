@@ -40,6 +40,9 @@ export const MENU_CATALOG: MenuCatalogEntry[] = [
   { key: "reff-edit.library", label: "Reference Library", group: "Reff EDIT", url: "/reff-edit/library" },
   { key: "reff-edit.history", label: "Edit History", group: "Reff EDIT", url: "/reff-edit/history" },
 
+  // Plug-IN
+  { key: "plugins.hub", label: "AA Plug-IN", group: "Plug-IN", url: "/plugins" },
+
   // Manage
   { key: "manage.tokens", label: "Token / API Manager", group: "Manage", url: "/manage/tokens" },
   { key: "manage.routing", label: "Routing Provider", group: "Manage", url: "/manage/routing" },

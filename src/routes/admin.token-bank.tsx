@@ -15,6 +15,8 @@ import {
   transferBankKeysByIds,
   searchUsersForTransfer,
   addBankKeys,
+  saveBankKeyChecks,
+
 } from "@/lib/token-bank/bank.functions";
 import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
@@ -46,7 +48,11 @@ type Row = {
   assigned_email: string | null;
   assigned_display_name: string | null;
   created_at: string;
+  credit_status: string | null;
+  credit_detail: string | null;
+  credit_checked_at: string | null;
 };
+
 
 function AdminTokenBankPage() {
   return (
@@ -109,12 +115,32 @@ function Body() {
       const r = (await listBankInventory({})) as unknown as Row[];
       setRows(r);
       setSelected(new Set());
+      // Info credit dari pengecekan terakhir tetap ditampilkan sampai admin
+      // melakukan pengecekan berikutnya.
+      setCheckStates((prev) => {
+        const next: Record<string, CheckState> = {};
+        for (const row of r) {
+          const live = prev[row.id];
+          if (live && live.status !== "pending") {
+            next[row.id] = live;
+          } else if (row.credit_detail) {
+            const s = row.credit_status;
+            next[row.id] = {
+              status: s === "ok" || s === "warn" || s === "fail" ? s : "warn",
+              detail: row.credit_detail,
+              checkedAt: row.credit_checked_at,
+            };
+          }
+        }
+        return next;
+      });
     } catch (e) {
       toast.error("Gagal memuat: " + (e instanceof Error ? e.message : ""));
     } finally {
       setLoading(false);
     }
   }
+
   useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
@@ -170,12 +196,37 @@ function Body() {
       return n;
     });
     // Sequential to avoid provider rate-limits/bans.
+    const done: { id: string; status: string; detail: string }[] = [];
     for (const r of selectedRows) {
       const res = await checkOne(r.provider, r.key_value);
-      setCheckStates((s) => ({ ...s, [r.id]: res }));
+      const checkedAt = new Date().toISOString();
+      setCheckStates((s) => ({ ...s, [r.id]: { ...res, checkedAt } as CheckState }));
+      if (res.status !== "pending" && res.status !== "checking") {
+        done.push({ id: r.id, status: res.status, detail: res.detail });
+      }
+    }
+    // Simpan hasil supaya info credit tetap tampil setelah reload, sampai
+    // admin melakukan pengecekan berikutnya.
+    if (done.length > 0) {
+      try {
+        await saveBankKeyChecks({ data: { items: done } });
+        setRows((prev) => {
+          const byId = new Map(done.map((d) => [d.id, d]));
+          const now = new Date().toISOString();
+          return prev.map((row) => {
+            const d = byId.get(row.id);
+            return d
+              ? { ...row, credit_status: d.status, credit_detail: d.detail, credit_checked_at: now }
+              : row;
+          });
+        });
+      } catch (e) {
+        toast.error("Info credit tidak tersimpan: " + (e instanceof Error ? e.message : ""));
+      }
     }
     setChecking(false);
   }
+
 
   async function bulkDelete() {
     if (selected.size === 0) return;
@@ -448,12 +499,20 @@ function CreditCell({ state }: { state: CheckState | undefined }) {
     state.status === "ok" ? "text-emerald-300"
     : state.status === "warn" ? "text-amber-300"
     : "text-rose-300";
+  const when = state.checkedAt ? new Date(state.checkedAt).toLocaleString("id-ID") : null;
   return (
-    <span className={`inline-flex items-center gap-1.5 ${color}`} title={state.detail}>
-      <StatusIcon state={state.status} />
-      <span className="truncate max-w-[220px]">{state.detail}</span>
+    <span
+      className={`inline-flex flex-col ${color}`}
+      title={when ? `${state.detail} · dicek ${when}` : state.detail}
+    >
+      <span className="inline-flex items-center gap-1.5">
+        <StatusIcon state={state.status} />
+        <span className="truncate max-w-[220px]">{state.detail}</span>
+      </span>
+      {when && <span className="text-[10px] text-muted-foreground">dicek {when}</span>}
     </span>
   );
+
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -573,9 +632,10 @@ function TransferDialog({
 type CheckState =
   | { status: "pending" }
   | { status: "checking" }
-  | { status: "ok"; detail: string }
-  | { status: "warn"; detail: string }
-  | { status: "fail"; detail: string };
+  | { status: "ok"; detail: string; checkedAt?: string | null }
+  | { status: "warn"; detail: string; checkedAt?: string | null }
+  | { status: "fail"; detail: string; checkedAt?: string | null };
+
 
 async function checkOne(provider: BankProvider, key: string): Promise<CheckState> {
   try {
@@ -772,8 +832,22 @@ function AddKeysDialog({
     setBusy(true);
     try {
       const r = (await addBankKeys({
-        data: { provider, keys: list, label: label.trim() || undefined },
+        data: {
+          provider,
+          keys: list,
+          label: label.trim() || undefined,
+          // Simpan hasil cek saat menambah supaya info credit langsung
+          // terlihat di tabel dan tidak hilang setelah reload.
+          checks: accepted
+            .filter((a) => a.state.status === "ok" || a.state.status === "skip")
+            .map((a) => ({
+              key: a.key,
+              status: a.state.status === "ok" ? "ok" : "warn",
+              detail: "detail" in a.state ? a.state.detail : "",
+            })),
+        },
       })) as unknown as { added: number };
+
       toast.success(`${r.added} key valid ditambahkan ke ${PROVIDER_LABELS[provider]}`);
       onDone();
     } catch (e) {

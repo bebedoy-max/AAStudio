@@ -197,15 +197,6 @@ async function deliverKeysForItem(
   if (upErr) throw new Error(upErr.message);
 
   const ids = picked.map((k) => k.id);
-  const { error: mkErr } = await admin
-    .from("token_bank_keys")
-    .update({
-      status: "assigned",
-      assigned_to: params.targetUserId,
-      assigned_at: new Date().toISOString(),
-    })
-    .in("id", ids);
-  if (mkErr) throw new Error(mkErr.message);
 
   const perKeyPrice = params.qty > 0 ? Math.round(params.priceIdr / params.qty) : 0;
   const txRows = picked.map((k) => ({
@@ -220,7 +211,12 @@ async function deliverKeysForItem(
   const { error: txErr } = await admin.from("token_bank_transactions").insert(txRows);
   if (txErr) throw new Error(txErr.message);
 
+  // Key terjual langsung dihapus dari bank agar tidak terjual dua kali.
+  const { error: delErr } = await admin.from("token_bank_keys").delete().in("id", ids);
+  if (delErr) throw new Error(delErr.message);
+
   return { requested: params.qty, delivered: picked.length };
+
 }
 
 

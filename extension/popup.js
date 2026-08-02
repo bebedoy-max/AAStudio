@@ -1,4 +1,7 @@
 const $ = (id) => document.getElementById(id);
+// Config baked-in saat build per-provider (config.js). URL AA Creative Studio
+// dikunci oleh admin — user tidak bisa mengubahnya dari popup.
+const AA_CONFIG = self.AA_CONFIG || {};
 const PROVIDERS = self.AA_PROVIDERS;
 
 /* ------------------------------ tab switcher ------------------------------ */
@@ -309,11 +312,11 @@ async function refreshSession(appUrl, refreshToken) {
 }
 
 /* --------------------------------- account -------------------------------- */
-const DEFAULT_APP_URL = "https://aacreative.vercel.app/";
+const DEFAULT_APP_URL = AA_CONFIG.appUrl || "https://aacreative.vercel.app/";
 
 async function renderAccount() {
   const { appUrl, session, savedAccounts } = await chrome.storage.local.get(["appUrl", "session", "savedAccounts"]);
-  const effectiveUrl = appUrl || DEFAULT_APP_URL;
+  const effectiveUrl = AA_CONFIG.appUrl || appUrl || DEFAULT_APP_URL;
   if ($("appUrl")) $("appUrl").value = effectiveUrl;
   const pill = $("account-pill");
   if (session?.user?.email) {
@@ -339,6 +342,12 @@ async function renderAccount() {
     $("account-signed-in").style.display = "none";
     pill.textContent = "Belum login";
     pill.className = "muted";
+    const { boundEmail } = await chrome.storage.local.get("boundEmail");
+    if (boundEmail && $("email")) {
+      $("email").value = boundEmail;
+      $("email").readOnly = true;
+      $("email").title = "Extension terikat ke akun ini";
+    }
     renderSavedAccounts(savedAccounts || []);
   }
 }
@@ -368,7 +377,7 @@ function renderSavedAccounts(accounts) {
         renderSavedAccounts(savedAccounts);
         return;
       }
-      $("appUrl").value = acc.appUrl;
+      if ($("appUrl")) $("appUrl").value = acc.appUrl;
       $("email").value = acc.email;
       $("password").value = acc.password || "";
       await chrome.storage.local.set({ appUrl: acc.appUrl });
@@ -384,11 +393,16 @@ $("appUrl")?.addEventListener("change", () => {
 });
 
 $("login").addEventListener("click", async () => {
-  const appUrl = ($("appUrl").value.trim() || DEFAULT_APP_URL);
+  const appUrl = AA_CONFIG.appUrl || ($("appUrl")?.value.trim() || DEFAULT_APP_URL);
   const email = $("email").value.trim();
   const password = $("password").value;
   const remember = $("remember")?.checked;
-  if (!appUrl || !email || !password) { setStatus("Isi URL app, email, password.", "err", "auth-status"); return; }
+  if (!appUrl || !email || !password) { setStatus("Isi email dan password.", "err", "auth-status"); return; }
+  const { boundEmail } = await chrome.storage.local.get("boundEmail");
+  if (boundEmail && boundEmail.toLowerCase() !== email.toLowerCase()) {
+    setStatus(`Extension ini terikat ke akun ${boundEmail}. Tidak bisa dipakai akun lain.`, "err", "auth-status");
+    return;
+  }
   await chrome.storage.local.set({ appUrl });
   setStatus("Login...", "muted", "auth-status");
   try {
@@ -402,7 +416,7 @@ $("login").addEventListener("click", async () => {
       setStatus("Gagal: " + (data?.error || res.status), "err", "auth-status");
       return;
     }
-    await chrome.storage.local.set({ session: data });
+    await chrome.storage.local.set({ session: data, boundEmail: data.user?.email || email });
     if (remember) {
       const { savedAccounts = [] } = await chrome.storage.local.get("savedAccounts");
       const filtered = savedAccounts.filter((a) => !(a.email === email && a.appUrl === appUrl));

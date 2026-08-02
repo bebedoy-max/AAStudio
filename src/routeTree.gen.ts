@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReffEditRouteImport } from './routes/reff-edit'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as MixingRouteImport } from './routes/mixing'
 import { Route as AiInfluencerRouteImport } from './routes/ai-influencer'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -52,6 +53,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
+import { Route as AdminPluginConfigRouteImport } from './routes/admin.plugin-config'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
@@ -111,6 +113,11 @@ const ReffEditRoute = ReffEditRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MixingRoute = MixingRouteImport.update({
@@ -316,6 +323,11 @@ const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
 const AdminRequestsRoute = AdminRequestsRouteImport.update({
   id: '/requests',
   path: '/requests',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPluginConfigRoute = AdminPluginConfigRouteImport.update({
+  id: '/plugin-config',
+  path: '/plugin-config',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
@@ -589,11 +601,13 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
+  '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -682,11 +696,13 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mixing': typeof MixingRouteWithChildren
+  '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -778,11 +794,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
+  '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -875,11 +893,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-influencer'
     | '/mixing'
+    | '/plugins'
     | '/profile'
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
+    | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
@@ -968,11 +988,13 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/mixing'
+    | '/plugins'
     | '/profile'
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
+    | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
@@ -1063,11 +1085,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-influencer'
     | '/mixing'
+    | '/plugins'
     | '/profile'
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
+    | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
@@ -1159,6 +1183,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AiInfluencerRoute: typeof AiInfluencerRouteWithChildren
   MixingRoute: typeof MixingRouteWithChildren
+  PluginsRoute: typeof PluginsRoute
   ProfileRoute: typeof ProfileRoute
   ReffEditRoute: typeof ReffEditRouteWithChildren
   ApiProxyImageRoute: typeof ApiProxyImageRoute
@@ -1244,6 +1269,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mixing': {
@@ -1531,6 +1563,13 @@ declare module '@tanstack/react-router' {
       path: '/requests'
       fullPath: '/admin/requests'
       preLoaderRoute: typeof AdminRequestsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/plugin-config': {
+      id: '/admin/plugin-config'
+      path: '/plugin-config'
+      fullPath: '/admin/plugin-config'
+      preLoaderRoute: typeof AdminPluginConfigRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/payments': {
@@ -1890,6 +1929,7 @@ interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
+  AdminPluginConfigRoute: typeof AdminPluginConfigRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminTokenBankRoute: typeof AdminTokenBankRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
@@ -1901,6 +1941,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
+  AdminPluginConfigRoute: AdminPluginConfigRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminTokenBankRoute: AdminTokenBankRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
@@ -1968,6 +2009,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AiInfluencerRoute: AiInfluencerRouteWithChildren,
   MixingRoute: MixingRouteWithChildren,
+  PluginsRoute: PluginsRoute,
   ProfileRoute: ProfileRoute,
   ReffEditRoute: ReffEditRouteWithChildren,
   ApiProxyImageRoute: ApiProxyImageRoute,

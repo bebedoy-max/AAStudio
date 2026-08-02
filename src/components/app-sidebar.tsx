@@ -38,6 +38,7 @@ import {
   Library,
   ImageIcon,
   Clapperboard,
+  Puzzle,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -105,9 +106,9 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Motion Control", url: "/generate/motion", icon: Move3d, permKey: "generate.motion" },
       { title: "Bulk Fashion Generator", url: "/generate/bulk-fashion", icon: Shirt, permKey: "generate.bulk-fashion" },
       { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
-      { title: "Upscaler / Enhance", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
-      { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
       { title: "Text to Video", url: "/generate/text-to-video", icon: ImagePlay, permKey: "generate.text-to-video" },
+      { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
+      { title: "Image Upscaler", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
     ],
   },
   {
@@ -132,6 +133,14 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Reference Library", url: "/reff-edit/library", icon: Library, permKey: "reff-edit.library" },
       { title: "Edit History", url: "/reff-edit/history", icon: History, permKey: "reff-edit.history" },
     ],
+  },
+  {
+    kind: "link",
+    key: "plugins",
+    label: "AA Plug-IN",
+    url: "/plugins",
+    icon: Puzzle,
+    permKey: "plugins.hub",
   },
   {
     kind: "group",

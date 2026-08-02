@@ -108,12 +108,20 @@ export const listBankInventory = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const db = context.supabase as unknown as LooseClient;
-    const { data, error } = await db
+    const BASE = "id, provider, key_value, label, status, assigned_to, assigned_at, created_at";
+    // Credit columns are optional (added by a later manual migration).
+    let res = await db
       .from("token_bank_keys")
-      .select("id, provider, key_value, label, status, assigned_to, assigned_at, created_at")
+      .select(`${BASE}, credit_status, credit_detail, credit_checked_at`)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as {
+    if (res.error) {
+      res = await db
+        .from("token_bank_keys")
+        .select(BASE)
+        .order("created_at", { ascending: false });
+    }
+    if (res.error) throw new Error(res.error.message);
+    const rows = (res.data ?? []) as {
       id: string;
       provider: BankProvider;
       key_value: string;
@@ -122,6 +130,9 @@ export const listBankInventory = createServerFn({ method: "GET" })
       assigned_to: string | null;
       assigned_at: string | null;
       created_at: string;
+      credit_status?: string | null;
+      credit_detail?: string | null;
+      credit_checked_at?: string | null;
     }[];
     // Attach assigned user info (email + display name) via a batched profiles lookup.
     const assignedIds = Array.from(
@@ -141,40 +152,97 @@ export const listBankInventory = createServerFn({ method: "GET" })
     }
     return rows.map((r) => ({
       ...r,
+      credit_status: r.credit_status ?? null,
+      credit_detail: r.credit_detail ?? null,
+      credit_checked_at: r.credit_checked_at ?? null,
       assigned_email: r.assigned_to ? byId[r.assigned_to]?.email ?? null : null,
       assigned_display_name: r.assigned_to ? byId[r.assigned_to]?.display_name ?? null : null,
     }));
   });
 
-export const addBankKeys = createServerFn({ method: "POST" })
+/** Persist the result of a credit/validity check so it survives reloads. */
+export const saveBankKeyChecks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { provider: string; keys: string[]; label?: string }) => {
-    assertProvider(data.provider);
-    if (!Array.isArray(data.keys) || data.keys.length === 0) throw new Error("keys required");
-    const cleaned = Array.from(new Set(data.keys.map((k) => k.trim()).filter(Boolean)));
-    if (cleaned.length === 0) throw new Error("keys empty");
-    return { provider: data.provider as BankProvider, keys: cleaned, label: data.label ?? null };
+  .inputValidator((data: { items: { id: string; status: string; detail: string }[] }) => {
+    const items = (data.items ?? [])
+      .map((i) => ({
+        id: String(i.id ?? "").trim(),
+        status: String(i.status ?? "").slice(0, 20),
+        detail: String(i.detail ?? "").slice(0, 300),
+      }))
+      .filter((i) => i.id);
+    if (items.length === 0) throw new Error("items required");
+    return { items };
   })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const db = context.supabase as unknown as LooseClient;
-    const rows = data.keys.map((k) => ({
+    const now = new Date().toISOString();
+    for (const it of data.items) {
+      const { error } = await db
+        .from("token_bank_keys")
+        .update({ credit_status: it.status, credit_detail: it.detail, credit_checked_at: now })
+        .eq("id", it.id);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true, saved: data.items.length, checkedAt: now };
+  });
+
+export const addBankKeys = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      provider: string;
+      keys: string[];
+      label?: string;
+      checks?: { key: string; status: string; detail: string }[];
+    }) => {
+      assertProvider(data.provider);
+      if (!Array.isArray(data.keys) || data.keys.length === 0) throw new Error("keys required");
+      const cleaned = Array.from(new Set(data.keys.map((k) => k.trim()).filter(Boolean)));
+      if (cleaned.length === 0) throw new Error("keys empty");
+      return {
+        provider: data.provider as BankProvider,
+        keys: cleaned,
+        label: data.label ?? null,
+        checks: (data.checks ?? []).map((c) => ({
+          key: String(c.key ?? ""),
+          status: String(c.status ?? "").slice(0, 20),
+          detail: String(c.detail ?? "").slice(0, 300),
+        })),
+      };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    const checkByKey = new Map(data.checks.map((c) => [c.key, c]));
+    const now = new Date().toISOString();
+    const base = data.keys.map((k) => ({
       provider: data.provider,
       key_value: k,
       label: data.label,
       created_by: context.userId,
     }));
-    const { data: inserted, error } = await db
-      .from("token_bank_keys")
-      .insert(rows)
-      .select("id, key_value");
-    if (error) throw new Error(error.message);
+    const withChecks = base.map((r) => {
+      const c = checkByKey.get(r.key_value);
+      return c
+        ? { ...r, credit_status: c.status, credit_detail: c.detail, credit_checked_at: now }
+        : r;
+    });
+    let res = await db.from("token_bank_keys").insert(withChecks).select("id, key_value");
+    if (res.error) {
+      // Credit columns not migrated yet — fall back to the plain insert.
+      res = await db.from("token_bank_keys").insert(base).select("id, key_value");
+    }
+    if (res.error) throw new Error(res.error.message);
     return {
       ok: true,
-      added: rows.length,
-      inserted: (inserted ?? []) as { id: string; key_value: string }[],
+      added: base.length,
+      inserted: (res.data ?? []) as { id: string; key_value: string }[],
     };
   });
+
 
 export const deleteBankKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -419,15 +487,6 @@ async function deliverKeysToUser(params: {
   if (upErr) throw new Error(upErr.message);
 
   const ids = picked.map((k) => k.id);
-  const { error: mkErr } = await adminDb
-    .from("token_bank_keys")
-    .update({
-      status: "assigned",
-      assigned_to: params.targetUserId,
-      assigned_at: new Date().toISOString(),
-    })
-    .in("id", ids);
-  if (mkErr) throw new Error(mkErr.message);
 
   const denom = params.ids && params.ids.length > 0 ? params.ids.length : params.qty;
   const perKeyPrice = denom > 0 ? Math.round(params.priceIdr / denom) : 0;
@@ -443,7 +502,13 @@ async function deliverKeysToUser(params: {
   const { error: txErr } = await adminDb.from("token_bank_transactions").insert(txRows);
   if (txErr) throw new Error(txErr.message);
 
+  // Key yang sudah dikirim langsung dihapus dari bank supaya tidak bisa
+  // dikirim / dibeli dua kali (transaksi tetap tercatat, key_id -> NULL).
+  const { error: delErr } = await adminDb.from("token_bank_keys").delete().in("id", ids);
+  if (delErr) throw new Error(delErr.message);
+
   return { delivered: picked.length };
+
 }
 
 export const transferBankKeys = createServerFn({ method: "POST" })
