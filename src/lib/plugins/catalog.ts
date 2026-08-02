@@ -86,5 +86,32 @@ export function pluginName(entry: PluginEntry, cfg: PluginConfig | null | undefi
 }
 
 export function pluginLogo(entry: PluginEntry, cfg: PluginConfig | null | undefined) {
-  return cfg?.[entry.id]?.logoUrl?.trim() || "";
+  return normalizePluginLogoUrl(cfg?.[entry.id]?.logoUrl || "");
+}
+
+/**
+ * Link Google Drive hasil "Share" (drive.google.com/file/d/<id>/view) bukan URL
+ * gambar — kalau dipakai di <img> hasilnya broken image. Ubah otomatis ke URL
+ * gambar langsung (thumbnail endpoint) supaya admin bisa paste link apa pun.
+ */
+export function normalizePluginLogoUrl(raw: string) {
+  const url = (raw || "").trim();
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (host === "drive.google.com" || host === "drive.usercontent.google.com") {
+      const byPath = u.pathname.match(/\/file\/d\/([^/]+)/);
+      const id = byPath?.[1] || u.searchParams.get("id") || "";
+      if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w512`;
+    }
+    if (host === "dropbox.com" || host.endsWith(".dropbox.com")) {
+      u.searchParams.set("raw", "1");
+      u.searchParams.delete("dl");
+      return u.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
 }

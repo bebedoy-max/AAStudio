@@ -147,6 +147,46 @@ function extractUid(accessToken: string): string {
 const ROBONEO_PARAM_TOKEN = "45C30555F10E49629098A75F95828DA6";
 const ROBONEO_TASK_CONTEXT = new Map<string, { roomId: string; nodeId: string }>();
 
+/* ------------------------- motion-control credit cost -----------------------
+ * Roboneo tidak mengekspos harga per tool. Nilai 72 yang dipakai sebelumnya
+ * ternyata terlalu rendah: token dengan 150 Cyber Carrots tetap ditolak
+ * gateway dengan `CHARGE_FAILED / 账户余额不足` (charge dilakukan setelah task
+ * dibuat, jadi preflight sebelumnya lolos dan credit tetap terbuang waktunya).
+ * Karena itu kita simpan ambang yang "belajar": setiap kali charge gagal pada
+ * token dengan saldo B, ambang minimum dinaikkan ke B + 1 sehingga preflight
+ * berikutnya tidak lagi mengorbankan upload untuk token yang pasti gagal.
+ */
+const RN_MIN_CREDITS_KEY = "aatools.roboneo.motionMinCredits";
+/** Batas bawah yang sudah terbukti gagal (150) → default minimal 151. */
+export const ROBONEO_MOTION_MIN_CREDITS_DEFAULT = 151;
+
+export function getRoboneoMotionMinCredits(): number {
+  if (typeof window === "undefined") return ROBONEO_MOTION_MIN_CREDITS_DEFAULT;
+  try {
+    const raw = localStorage.getItem(RN_MIN_CREDITS_KEY);
+    const n = raw ? Number(raw) : NaN;
+    if (Number.isFinite(n) && n > 0) return Math.max(n, ROBONEO_MOTION_MIN_CREDITS_DEFAULT);
+  } catch {
+    /* ignore */
+  }
+  return ROBONEO_MOTION_MIN_CREDITS_DEFAULT;
+}
+
+/** Naikkan ambang setelah charge gagal pada token dengan saldo `balance`. */
+export function noteRoboneoMotionChargeFailure(balance: number | null): number {
+  const current = getRoboneoMotionMinCredits();
+  if (balance === null || !Number.isFinite(balance)) return current;
+  const next = Math.max(current, Math.floor(balance) + 1);
+  if (next !== current && typeof window !== "undefined") {
+    try {
+      localStorage.setItem(RN_MIN_CREDITS_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+  }
+  return next;
+}
+
 /** Common parameter block yang diminta gateway roboneo di setiap request. */
 function baseParameter(accessToken: string, pathScene: string, roomId?: string) {
   return {

@@ -3,6 +3,7 @@
 // Studio / nama / logo di Plug-IN Config, extension yang sudah ter-install ikut
 // ter-update otomatis tanpa perlu install ulang.
 import { createFileRoute } from "@tanstack/react-router";
+import { normalizePluginLogoUrl } from "@/lib/plugins/catalog";
 
 function cors(res: Response) {
   const h = new Headers(res.headers);
@@ -57,7 +58,7 @@ export const Route = createFileRoute("/api/public/extension/config")({
           provider: providerId,
           enabled: entry.enabled !== false,
           name: typeof entry.name === "string" ? entry.name.trim() : "",
-          logoUrl: typeof entry.logoUrl === "string" ? entry.logoUrl.trim() : "",
+          logoUrl: typeof entry.logoUrl === "string" ? normalizePluginLogoUrl(entry.logoUrl) : "",
           version: typeof entry.version === "string" ? entry.version.trim() : "",
           note: typeof entry.note === "string" ? entry.note.trim() : "",
           at: Date.now(),

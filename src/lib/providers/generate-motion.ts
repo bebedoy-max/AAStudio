@@ -27,6 +27,7 @@ import {
   fetchRoboneoBalance,
   updateRoboneoKeyBalance,
 } from "./roboneo";
+import { getRoboneoMotionMinCredits, noteRoboneoMotionChargeFailure } from "./roboneo";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 function getFirstMagnificKey(): string | null {
@@ -190,11 +191,14 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const storedTokens = getAllRoboneoKeys();
   if (!storedTokens.length) throw new Error("Belum ada Roboneo access-token.");
 
-  // Motion Control Roboneo consumes 72 Cyber Carrots per generation. Verify
-  // every token before any media is uploaded, then only submit with tokens
-  // whose current balance can pay for the job.
-  const REQUIRED_CREDITS = 72;
-  const tokens: string[] = [];
+  // Roboneo memotong credit SETELAH task dibuat (fail_code=CHARGE_FAILED),
+  // jadi kita saring token dulu berdasarkan ambang yang diketahui. Ambang ini
+  // adaptif: kalau charge tetap gagal, ambang dinaikkan di atas saldo token
+  // tersebut supaya percobaan berikutnya tidak membuang waktu/upload.
+  const REQUIRED_CREDITS = getRoboneoMotionMinCredits();
+  const tokens: Array<{ token: string; label: number; balance: number | null }> = [];
+  const belowThreshold: Array<{ token: string; label: number; balance: number }> = [];
+  let bestBalance = 0;
   log(`Preflight ${storedTokens.length} token (minimum ${REQUIRED_CREDITS} credit)...`);
   opts.onStatus?.({ index, status: "checking token balance" });
   for (let ti = 0; ti < storedTokens.length; ti++) {
@@ -216,16 +220,34 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
       continue;
     }
     updateRoboneoKeyBalance(token, result.balance);
+    if (result.balance > bestBalance) bestBalance = result.balance;
     if (result.balance < REQUIRED_CREDITS) {
       log(`Token ${ti + 1} credit ${result.balance} < ${REQUIRED_CREDITS} — dilewati.`, "warn");
+      belowThreshold.push({ token, label: ti + 1, balance: result.balance });
       continue;
     }
     log(`Token ${ti + 1} tersedia (${result.balance} credit).`, "success");
-    tokens.push(token);
+    tokens.push({ token, label: ti + 1, balance: result.balance });
+  }
+  // Prioritaskan saldo terbesar — charge gateway menolak seluruh job kalau
+  // saldo kurang, jadi token paling "gemuk" punya peluang terbaik.
+  tokens.sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+  if (!tokens.length) {
+    // Ambang hanyalah tebakan (Roboneo tidak mengekspos harga tool). Charge
+    // yang gagal tidak memotong credit dan hanya butuh <1 detik, jadi tetap
+    // coba token dengan saldo terbesar daripada memblokir user total.
+    const fallback = belowThreshold.sort((a, b) => b.balance - a.balance)[0];
+    if (fallback) {
+      log(
+        `Tidak ada token ≥ ${REQUIRED_CREDITS} credit — tetap mencoba token #${fallback.label} (${fallback.balance} credit).`,
+        "warn",
+      );
+      tokens.push(fallback);
+    }
   }
   if (!tokens.length) {
     throw new Error(
-      `Tidak ada token Roboneo dengan minimal ${REQUIRED_CREDITS} credit. Media belum di-upload.`,
+      `Motion Control butuh minimal ${REQUIRED_CREDITS} Cyber Carrots. Saldo tertinggi dari ${storedTokens.length} token hanya ${bestBalance} credit — top up token Roboneo dulu. Media belum di-upload.`,
     );
   }
 
@@ -480,15 +502,19 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
 
   const MAX_BUSY_RETRIES = 3;
   for (let ti = 0; ti < tokens.length; ti++) {
-    const at = tokens[ti]!;
+    const entry = tokens[ti]!;
+    const at = entry.token;
+    const label = entry.label;
     let busyRetry = 0;
     // Retry loop for the same token to absorb transient upstream congestion
     // ("system is busy") before rotating or giving up.
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
-        opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
-        log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
+        opts.onStatus?.({ index, status: `submitting (token #${label}, ${ti + 1}/${tokens.length})` });
+        log(
+          `Submit motion-control quality=${quality} (token #${label} — ${entry.balance ?? "?"} credit, ${ti + 1}/${tokens.length})...`,
+        );
         const taskId = await submitRoboneoMotion({
           accessToken: at,
           imageUrl,
@@ -517,10 +543,18 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
           await new Promise((r) => setTimeout(r, waitMs));
           continue;
         }
-        log(`Token ${ti + 1} failed: ${msg}`, "warn");
+        log(`Token #${label} failed: ${msg}`, "warn");
         if (!isRoboneoRotatableError(msg)) throw e;
+        const chargeFailure = /CHARGE_FAILED|charge.?failed|no charge|余额不足/i.test(msg);
+        if (chargeFailure) {
+          const raised = noteRoboneoMotionChargeFailure(entry.balance);
+          log(
+            `Charge ditolak walau saldo ${entry.balance ?? "?"} credit — ambang Motion Control dinaikkan ke ${raised} credit.`,
+            "warn",
+          );
+        }
         const credentialFailure = isRoboneoCredentialError(msg);
-        const removed = credentialFailure
+        const removed = credentialFailure && !chargeFailure
           ? removeRoboneoKeyFromManager(at, msg)
           : { removed: false, remaining: tokens.length - ti - 1 };
         log(
@@ -535,7 +569,9 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
       }
     }
   }
-  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+  throw new Error(
+    `Roboneo Motion Control: semua token ditolak saat charge (saldo tertinggi ${bestBalance} credit, ambang sekarang ${getRoboneoMotionMinCredits()}). Top up Cyber Carrots atau tambahkan token dengan saldo lebih besar di Token Manager.`,
+  );
 }
 
 async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {

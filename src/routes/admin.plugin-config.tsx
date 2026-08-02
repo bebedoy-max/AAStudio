@@ -7,6 +7,7 @@ import { Card } from "@/components/dashboard/ui";
 import {
   PLUGIN_CATALOG,
   DEFAULT_STUDIO_URL,
+  normalizePluginLogoUrl,
   type PluginConfig,
 } from "@/lib/plugins/catalog";
 import { Loader2, ShieldCheck, Save, Puzzle, Link2 } from "lucide-react";
@@ -65,6 +66,39 @@ function Gate() {
 }
 
 function PluginConfigForm() {
+  return <PluginConfigFormInner />;
+}
+
+function LogoPreview({ raw }: { raw: string }) {
+  const url = normalizePluginLogoUrl(raw);
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [url]);
+  if (!url) return null;
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <div className="h-9 w-9 rounded-xl overflow-hidden border border-border bg-card/50 grid place-items-center">
+        {broken ? (
+          <Puzzle className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <img
+            src={url}
+            alt="Preview logo"
+            className="h-full w-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setBroken(true)}
+          />
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        {broken
+          ? "Gambar tidak bisa dimuat. Pastikan file Google Drive di-share ke \"Anyone with the link\", atau pakai URL gambar langsung (.png/.jpg)."
+          : "Preview logo OK."}
+      </p>
+    </div>
+  );
+}
+
+function PluginConfigFormInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [studioUrl, setStudioUrl] = useState(DEFAULT_STUDIO_URL);
@@ -184,6 +218,7 @@ function PluginConfigForm() {
                   onChange={(e) => patch(p.id, { logoUrl: e.target.value })}
                   placeholder="https://.../logo.png"
                 />
+                <LogoPreview raw={c.logoUrl ?? ""} />
               </div>
               <div>
                 <label className="text-[11px] text-muted-foreground">Versi tampil</label>

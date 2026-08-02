@@ -89,6 +89,7 @@ function PluginsPage() {
 
 function PluginCard({ entry, cfg }: { entry: PluginEntry; cfg: PluginConfig }) {
   const [busy, setBusy] = useState(false);
+  const [logoBroken, setLogoBroken] = useState(false);
   const note = cfg?.[entry.id]?.note?.trim();
   const name = pluginName(entry, cfg);
   const logo = pluginLogo(entry, cfg);
@@ -121,8 +122,15 @@ function PluginCard({ entry, cfg }: { entry: PluginEntry; cfg: PluginConfig }) {
             className="h-11 w-11 rounded-2xl grid place-items-center text-white shrink-0 transition-transform duration-300 group-hover:scale-105"
             style={{ background: entry.accent }}
           >
-            {logo ? (
-              <img src={logo} alt={name} className="h-full w-full rounded-2xl object-cover" loading="lazy" />
+            {logo && !logoBroken ? (
+              <img
+                src={logo}
+                alt={name}
+                className="h-full w-full rounded-2xl object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={() => setLogoBroken(true)}
+              />
             ) : (
               <Puzzle className="h-5 w-5" />
             )}
