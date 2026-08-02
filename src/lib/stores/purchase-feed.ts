@@ -31,7 +31,7 @@ export type PurchaseRow = {
 
 export type PurchaseView = PurchaseRow & {
   cart: CartItem[] | null;
-  kind: "token_bank" | "subscription" | "other";
+  kind: "token_bank" | "subscription" | "premium" | "other";
   title: string;
 };
 
@@ -42,12 +42,12 @@ function classify(row: PurchaseRow): PurchaseView {
     ? "token_bank"
     : row.route_key === "subscription"
       ? "subscription"
-      : "other";
+      : "premium";
   const title = isTokenBank
     ? "Pembelian Token/API Key"
     : kind === "subscription"
       ? "Aktivasi Langganan"
-      : row.route_key;
+      : "Pembelian Fitur Premium";
   return { ...row, cart, kind, title };
 }
 

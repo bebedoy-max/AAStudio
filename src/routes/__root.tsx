@@ -12,7 +12,7 @@ import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth/auth-gate";
 
-import appCss from "../styles.css?url";
+import "../styles.css";
 
 function NotFoundComponent() {
   return (
@@ -88,7 +88,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard." },
     ],
     links: [
-      { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256" },
       { rel: "shortcut icon", type: "image/png", href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256" },
       { rel: "apple-touch-icon", href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256" },

@@ -28,17 +28,37 @@ function formatRupiah(n: number) {
 }
 
 export function UpgradeCard() {
-  const { isAdmin, isFeatureEnabled } = useAuth();
+  const { isAdmin, routePermissions, featureAccess } = useAuth();
   const [open, setOpen] = useState(false);
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
 
-  const hasFullAccess = useMemo(() => {
-    if (isAdmin) return true;
-    // If every premium feature is already enabled (via permission, public mode,
-    // or active trial), there is nothing left to upgrade to.
-    return ALL_ROUTE_KEYS.every((r) => isFeatureEnabled(r.key));
-  }, [isAdmin, isFeatureEnabled]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("feature_prices")
+        .select("route_key, price_idr")
+        .eq("is_active", true);
+      const map: Record<string, number> = {};
+      ((data ?? []) as { route_key: string; price_idr: number }[]).forEach((r) => {
+        map[r.route_key] = r.price_idr;
+      });
+      setPriceMap(map);
+    })();
+  }, []);
 
-  if (hasFullAccess) return null;
+  // Kartu upgrade hanya relevan bila masih ada fitur premium yang bisa dibeli.
+  const purchasable = useMemo(
+    () =>
+      ALL_ROUTE_KEYS.filter((f) => {
+        if (routePermissions.includes(f.key)) return false;
+        const mode = featureAccess[f.key]?.mode ?? "premium";
+        if (mode !== "premium") return false;
+        return (priceMap[f.key] ?? 0) > 0;
+      }),
+    [routePermissions, featureAccess, priceMap],
+  );
+
+  if (isAdmin || purchasable.length === 0) return null;
 
   return (
     <>
@@ -156,32 +176,19 @@ export function UpgradeDialog({
     ) ?? null;
 
   const bundlePrice = prices[FULL_ACCESS_KEY];
-  const bundleAvailable = !!bundlePrice && availableFeatures.length > 1;
-
-  // Full price of every paid premium feature (owned + not owned).
-  const fullFeaturesTotal = useMemo(
-    () =>
-      ALL_ROUTE_KEYS.reduce((s, f) => {
-        const mode = featureAccess[f.key]?.mode ?? "premium";
-        if (mode !== "premium") return s;
-        return s + (prices[f.key]?.price_idr ?? 0);
-      }, 0),
-    [prices, featureAccess],
-  );
+  const bundleAvailable = availableFeatures.length > 1;
 
   const individualTotal = useMemo(
     () => availableFeatures.reduce((s, f) => s + (prices[f.key]?.price_idr ?? 0), 0),
     [availableFeatures, prices],
   );
 
-  // If the user already owns some premium features, discount the bundle
-  // proportionally so they only pay for the remaining ones.
-  const effectiveBundlePrice = useMemo(() => {
-    if (!bundlePrice) return 0;
-    if (fullFeaturesTotal <= 0) return bundlePrice.price_idr;
-    const ratio = individualTotal / fullFeaturesTotal;
-    return Math.max(0, Math.round(bundlePrice.price_idr * ratio));
-  }, [bundlePrice, fullFeaturesTotal, individualTotal]);
+  // Harga full akses selalu 70% dari total harga fitur premium yang masih
+  // bisa dibeli — tidak pernah nol.
+  const effectiveBundlePrice = useMemo(
+    () => Math.round(individualTotal * 0.7),
+    [individualTotal],
+  );
 
   const toggle = (key: string) => {
     if (isPending(key)) {
@@ -219,7 +226,7 @@ export function UpgradeDialog({
     return (
       <CheckoutDialog
         featureKeys={selected}
-        bundleLabel={bundle ? bundlePrice?.label ?? null : null}
+        bundleLabel={bundle ? bundlePrice?.label ?? "Full Akses (Semua Fitur)" : null}
         bundlePrice={bundle ? effectiveBundlePrice : null}
         onClose={() => {
           // Menutup dialog pembayaran menutup seluruh alur upgrade.
@@ -303,7 +310,9 @@ export function UpgradeDialog({
               </span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="font-display text-base">{bundlePrice?.label}</div>
+                  <div className="font-display text-base">
+                    {bundlePrice?.label ?? "Full Akses (Semua Fitur)"}
+                  </div>
                   {savings > 0 && (
                     <span className="text-[10px] font-mono uppercase tracking-widest rounded-full border border-emerald-400/40 bg-emerald-400/10 text-emerald-300 px-2 py-0.5">
                       Hemat {formatRupiah(savings)}
@@ -317,11 +326,6 @@ export function UpgradeDialog({
                   <span className="font-display text-xl text-gradient">
                     {formatRupiah(effectiveBundlePrice)}
                   </span>
-                  {effectiveBundlePrice < (bundlePrice?.price_idr ?? 0) && (
-                    <span className="text-xs text-muted-foreground line-through">
-                      {formatRupiah(bundlePrice?.price_idr ?? 0)}
-                    </span>
-                  )}
                   {individualTotal > effectiveBundlePrice && (
                     <span className="text-[10px] text-muted-foreground">
                       (satuan {formatRupiah(individualTotal)})

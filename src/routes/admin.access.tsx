@@ -247,10 +247,10 @@ function AccessBody() {
             aria-label="Pilih grup menu"
             value={activeGroup}
             onChange={(e) => setActiveGroup(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 bg-popover text-popover-foreground"
           >
             {groupNames.map((g) => (
-              <option key={g} value={g}>
+              <option key={g} value={g} className="bg-popover text-popover-foreground">
                 {g} ({groups[g].length})
               </option>
             ))}
@@ -275,6 +275,17 @@ function AccessBody() {
                     <span className="font-display text-2xl sm:text-3xl italic text-foreground">
                       {f.label}
                     </span>
+                    {draft.mode === "trial" && (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">Trial berlaku sampai</span>
+                        <input
+                          type="datetime-local"
+                          value={toLocalInput(draft.trialUntil)}
+                          onChange={(e) => setTrial(f.key, e.target.value)}
+                          className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs outline-none focus:border-primary/60"
+                        />
+                      </span>
+                    )}
                     {draft.mode === "premium" && (
                       <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                         {price != null ? `${formatRupiah(price)} / 30 hari` : "harga belum diatur"}
@@ -316,18 +327,6 @@ function AccessBody() {
                       );
                     })}
                   </div>
-
-                  {draft.mode === "trial" && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">Trial berlaku sampai</span>
-                      <input
-                        type="datetime-local"
-                        value={toLocalInput(draft.trialUntil)}
-                        onChange={(e) => setTrial(f.key, e.target.value)}
-                        className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs outline-none focus:border-primary/60"
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })}

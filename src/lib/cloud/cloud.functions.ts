@@ -214,3 +214,66 @@ export const disconnectDrive = createServerFn({ method: "POST" })
     await setStorageMode(context.userId, "global");
     return { ok: true };
   });
+
+/**
+ * DIRECT UPLOAD — server hanya membuat sesi upload; byte file dikirim browser
+ * langsung ke Google Drive sehingga tidak memakai bandwidth server aplikasi.
+ */
+export const createCloudUploadTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { name: string; mimeType: string; size: number; source?: string | null; origin?: string | null }) => {
+    const size = Number(data?.size ?? 0);
+    if (!data?.name) throw new Error("name wajib diisi");
+    if (!Number.isFinite(size) || size <= 0 || size > 250 * 1024 * 1024) throw new Error("Ukuran file tidak valid");
+    return {
+      name: String(data.name).slice(0, 200),
+      mimeType: data.mimeType || "application/octet-stream",
+      size,
+      source: data.source ?? null,
+      origin: data.origin ?? "upload",
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const { UploadService } = await import("./storage/service.server");
+    const ticket = await UploadService.createTicket({ userId: context.userId, ...data });
+    return {
+      uploadUrl: ticket.uploadUrl,
+      method: ticket.method,
+      headers: ticket.headers ?? {},
+      name: ticket.name,
+      storage: ticket.mode,
+    };
+  });
+
+/** Setelah browser selesai PUT ke storage, simpan metadata-nya saja. */
+export const finalizeCloudUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      driveFileId: string;
+      name: string;
+      mimeType: string;
+      size: number;
+      source?: string | null;
+      origin?: string | null;
+    }) => {
+      if (!data?.driveFileId) throw new Error("driveFileId wajib diisi");
+      return data;
+    },
+  )
+  .handler(async ({ data, context }) => {
+    const { registerUploadedFile } = await import("./registry.server");
+    const { ctxForUser } = await import("./storage/service.server");
+    const { mode } = await ctxForUser(context.userId);
+    const row = await registerUploadedFile({
+      userId: context.userId,
+      storageMode: mode,
+      driveFileId: data.driveFileId,
+      name: data.name,
+      mimeType: data.mimeType || "application/octet-stream",
+      size: Number(data.size || 0),
+      origin: data.origin ?? "upload",
+      source: data.source ?? null,
+    });
+    return { id: row.id, url: `/api/public/cloud/file/${row.id}`, storage: row.storage_mode };
+  });

@@ -124,7 +124,7 @@ function NotifPanel({
             {purchases.length > 0 && (
               <div>
                 <div className="px-4 pt-3 pb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Pembelian token
+                  Pembelian
                 </div>
                 <ul className="divide-y divide-border/50">
                   {purchases.map((p) => {

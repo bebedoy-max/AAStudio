@@ -12,6 +12,7 @@ import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
 import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 
 
 const statusMeta = {
@@ -57,6 +58,7 @@ export function PurchaseDetailDialog({
   const reviewedAt = purchase.reviewed_at ? new Date(purchase.reviewed_at) : null;
   const assignGopay = useServerFn(ensureGopayAmount);
   const [gopayAmount, setGopayAmount] = useState<number | null>(null);
+  const { refresh: refreshAuth } = useAuth();
 
   // Companion payment: nominal unik yang sama dengan yang tampil di pop-up
   // pembelian token, supaya kedua popup sinkron.
@@ -80,6 +82,8 @@ export function PurchaseDetailDialog({
   // sama seperti popup pembelian token.
   useEffect(() => {
     if (liveStatus !== "approved") return;
+    // Segarkan permission agar menu premium yang baru dibeli langsung terbuka.
+    void refreshAuth();
     const t = setTimeout(() => onClose(), 2200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
