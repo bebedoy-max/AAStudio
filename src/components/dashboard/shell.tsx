@@ -410,7 +410,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
-    <div className="min-h-screen flex w-full">
+    <div className="h-screen overflow-hidden flex w-full">
       <AppSidebar />
 
       {/* Mobile drawer */}
@@ -435,8 +435,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col">
-        <header className="fixed top-0 left-0 right-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl lg:static lg:z-20 lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
+      <main className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto">
+        <header className="fixed top-0 left-0 right-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl lg:sticky lg:top-0 lg:z-20 lg:border-b lg:border-border/40 lg:bg-background/80 lg:backdrop-blur-xl">
           <div className="flex items-center gap-2 px-3 sm:px-6 py-3">
             {/* Mobile hamburger — top-left */}
             <button
