@@ -162,26 +162,43 @@ function Body() {
   }
 
   const totals = useMemo(() => {
-    const t = { count: rows.length, income: 0, transfer: 0, keys: rows.length };
+    const t = { count: rows.length, income: 0, transfer: 0, keys: 0, unique: 0 };
     for (const r of rows) {
-      if (r.kind === "purchase") t.income += r.price_idr || 0;
-      else if (r.kind === "transfer") t.transfer += 1;
+      t.keys += r.qty;
+      if (r.kind === "purchase") {
+        t.income += r.total_idr || 0;
+        t.unique += r.unique_code || 0;
+      } else if (r.kind === "transfer") t.transfer += 1;
     }
     return t;
   }, [rows]);
 
   const byProvider = useMemo(() => {
-    const m: Record<string, { qty: number; income: number }> = {};
+    const m: Record<string, { qty: number; income: number; unique: number }> = {};
     for (const r of rows) {
-      const b = (m[r.provider] ||= { qty: 0, income: 0 });
-      b.qty += 1;
-      if (r.kind === "purchase") b.income += r.price_idr || 0;
+      const b = (m[r.provider] ||= { qty: 0, income: 0, unique: 0 });
+      b.qty += r.qty;
+      if (r.kind === "purchase") {
+        b.income += r.total_idr || 0;
+        b.unique += r.unique_code || 0;
+      }
     }
     return m;
   }, [rows]);
 
   function exportCSV() {
-    const header = ["Tanggal", "Provider", "Jenis", "User", "Email", "Harga (IDR)", "Key ID", "Purchase Request"];
+    const header = [
+      "Tanggal",
+      "Provider",
+      "Jenis",
+      "User",
+      "Email",
+      "Jumlah Key",
+      "Harga Key (IDR)",
+      "Kode Unik (IDR)",
+      "Total Dibayar (IDR)",
+      "Order ID",
+    ];
     const lines = [header.join(",")];
     for (const r of rows) {
       const row = [
@@ -190,9 +207,11 @@ function Body() {
         r.kind,
         (r.user_display_name || "").replace(/,/g, " "),
         (r.user_email || "").replace(/,/g, " "),
+        String(r.qty),
         String(r.price_idr || 0),
-        r.key_id ?? "",
-        r.purchase_request_id ?? "",
+        String(r.unique_code || 0),
+        String(r.total_idr || 0),
+        r.order_id ?? "",
       ];
       lines.push(row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
     }
@@ -204,6 +223,7 @@ function Body() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -400,11 +420,15 @@ function Body() {
                 </div>
                 <div className="mt-1 font-display text-lg">{v.qty} key</div>
                 <div className="text-xs text-emerald-300 font-mono">{rupiah(v.income)}</div>
+                <div className="text-[10px] text-muted-foreground font-mono">
+                  incl. kode unik {rupiah(v.unique)}
+                </div>
               </div>
             ))}
           </div>
         </Card>
       )}
+
 
       {/* Table */}
       <Card>
@@ -429,7 +453,8 @@ function Body() {
                   <th className="px-4 py-2">Provider</th>
                   <th className="px-4 py-2">Jenis</th>
                   <th className="px-4 py-2">User</th>
-                  <th className="px-4 py-2 text-right">Harga</th>
+                  <th className="px-4 py-2 text-right">Key</th>
+                  <th className="px-4 py-2 text-right">Total Dibayar</th>
                 </tr>
               </thead>
               <tbody>
@@ -437,6 +462,11 @@ function Body() {
                   <tr key={r.id} className="border-b border-border/40 hover:bg-sidebar-accent/20 align-top">
                     <td className="px-4 py-2 text-xs text-muted-foreground font-mono">
                       {new Date(r.created_at).toLocaleString("id-ID")}
+                      {r.order_id && (
+                        <div className="text-[10px] opacity-70 truncate max-w-[160px]">
+                          #{r.order_id.slice(0, 8)}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2">{PROVIDER_LABELS[r.provider]}</td>
                     <td className="px-4 py-2">
@@ -457,7 +487,16 @@ function Body() {
                         {r.user_email || r.user_id.slice(0, 8) + "…"}
                       </div>
                     </td>
-                    <td className="px-4 py-2 text-right font-mono">{rupiah(r.price_idr)}</td>
+                    <td className="px-4 py-2 text-right font-mono">{r.qty}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {rupiah(r.total_idr)}
+                      {r.unique_code > 0 && (
+                        <div className="text-[10px] text-muted-foreground">
+                          {rupiah(r.price_idr)} + kode {r.unique_code}
+                        </div>
+                      )}
+                    </td>
+
                   </tr>
                 ))}
               </tbody>

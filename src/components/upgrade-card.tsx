@@ -221,15 +221,18 @@ export function UpgradeDialog({
         featureKeys={selected}
         bundleLabel={bundle ? bundlePrice?.label ?? null : null}
         bundlePrice={bundle ? effectiveBundlePrice : null}
-        onClose={() => setCheckout(false)}
+        onClose={() => {
+          // Menutup dialog pembayaran menutup seluruh alur upgrade.
+          setCheckout(false);
+          onClose();
+        }}
         onSubmitted={() => {
-          // Refresh pending list but DO NOT close the upgrade dialog — the
-          // CheckoutDialog now shows the QRIS panel and closing would kill it.
           loadPending();
         }}
       />
     );
   }
+
 
   if (resume) {
     return (

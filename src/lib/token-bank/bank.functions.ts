@@ -623,14 +623,22 @@ export const searchUsersForTransfer = createServerFn({ method: "POST" })
     return (rows ?? []) as { id: string; email: string | null; display_name: string | null }[];
   });
 
+/** Satu baris = satu transaksi (pembelian/transfer), bukan per key. */
 export type BankTxRow = {
   id: string;
   provider: BankProvider;
   kind: string;
+  /** Jumlah key dalam transaksi ini. */
+  qty: number;
+  /** Total harga key (tanpa kode unik). */
   price_idr: number;
+  /** Kode unik yang ditambahkan sistem pada nominal pembayaran. */
+  unique_code: number;
+  /** Yang benar-benar dibayar pembeli = price_idr + unique_code. */
+  total_idr: number;
   created_at: string;
   user_id: string;
-  key_id: string | null;
+  order_id: string | null;
   purchase_request_id: string | null;
   user_email: string | null;
   user_display_name: string | null;
@@ -660,7 +668,7 @@ export const listBankTransactions = createServerFn({ method: "POST" })
       .from("token_bank_transactions")
       .select("id, provider, kind, price_idr, created_at, user_id, key_id, purchase_request_id")
       .order("created_at", { ascending: false })
-      .limit(2000);
+      .limit(5000);
     if (data.provider) q = q.eq("provider", data.provider);
     if (data.kind) q = q.eq("kind", data.kind);
     if (data.userId) q = q.eq("user_id", data.userId);
@@ -668,7 +676,18 @@ export const listBankTransactions = createServerFn({ method: "POST" })
     if (data.dateTo) q = q.lte("created_at", data.dateTo);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const list = (rows ?? []) as Omit<BankTxRow, "user_email" | "user_display_name">[];
+    const list = (rows ?? []) as {
+      id: string;
+      provider: BankProvider;
+      kind: string;
+      price_idr: number;
+      created_at: string;
+      user_id: string;
+      key_id: string | null;
+      purchase_request_id: string | null;
+    }[];
+
+    // Profil pembeli
     const uids = Array.from(new Set(list.map((r) => r.user_id).filter(Boolean)));
     let byId: Record<string, { email: string | null; display_name: string | null }> = {};
     if (uids.length) {
@@ -682,12 +701,75 @@ export const listBankTransactions = createServerFn({ method: "POST" })
         ),
       );
     }
-    return list.map((r) => ({
-      ...r,
-      user_email: byId[r.user_id]?.email ?? null,
-      user_display_name: byId[r.user_id]?.display_name ?? null,
-    })) as BankTxRow[];
+
+    // Kode unik + order id dari purchase_requests
+    const prIds = Array.from(
+      new Set(list.map((r) => r.purchase_request_id).filter((v): v is string => !!v)),
+    );
+    let prById: Record<string, { code: number; orderId: string | null }> = {};
+    if (prIds.length) {
+      const { data: prs } = await db
+        .from("purchase_requests")
+        .select("id, price_idr, gopay_expected_amount, temanqris_order_id")
+        .in("id", prIds);
+      prById = Object.fromEntries(
+        (
+          (prs ?? []) as {
+            id: string;
+            price_idr: number | null;
+            gopay_expected_amount: number | null;
+            temanqris_order_id: string | null;
+          }[]
+        ).map((p) => {
+          const raw = Math.round((p.gopay_expected_amount ?? 0) - (p.price_idr ?? 0));
+          return [p.id, { code: raw > 0 ? raw : 0, orderId: p.temanqris_order_id ?? p.id }];
+        }),
+      );
+    }
+
+    // Gabungkan per transaksi: satu purchase_request (atau satu batch transfer).
+    const groups = new Map<string, BankTxRow>();
+    const codeCounted = new Set<string>();
+    for (const r of list) {
+      const batchKey = r.purchase_request_id
+        ? `pr:${r.purchase_request_id}:${r.provider}`
+        : `tr:${r.kind}:${r.provider}:${r.user_id}:${r.created_at.slice(0, 19)}`;
+      let g = groups.get(batchKey);
+      if (!g) {
+        const pr = r.purchase_request_id ? prById[r.purchase_request_id] : undefined;
+        let code = 0;
+        if (r.purchase_request_id && pr && !codeCounted.has(r.purchase_request_id)) {
+          code = pr.code;
+          codeCounted.add(r.purchase_request_id);
+        }
+        g = {
+          id: batchKey,
+          provider: r.provider,
+          kind: r.kind,
+          qty: 0,
+          price_idr: 0,
+          unique_code: code,
+          total_idr: 0,
+          created_at: r.created_at,
+          user_id: r.user_id,
+          order_id: pr?.orderId ?? null,
+          purchase_request_id: r.purchase_request_id,
+          user_email: byId[r.user_id]?.email ?? null,
+          user_display_name: byId[r.user_id]?.display_name ?? null,
+        };
+        groups.set(batchKey, g);
+      }
+      g.qty += 1;
+      g.price_idr += r.price_idr || 0;
+    }
+    const out = Array.from(groups.values()).map((g) => ({
+      ...g,
+      total_idr: g.price_idr + g.unique_code,
+    }));
+    out.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    return out as BankTxRow[];
   });
+
 
 export const resetBankTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

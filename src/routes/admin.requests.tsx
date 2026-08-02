@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX, Trash2 } from "lucide-react";
+import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX } from "lucide-react";
 import { toast } from "sonner";
 import { fulfillTokenPurchase } from "@/lib/token-bank/bank.functions";
 import { promptDialog } from "@/components/ui-prompt";
@@ -200,26 +200,6 @@ function Body() {
     load();
   }
 
-  async function bulkDelete() {
-    const ids = Array.from(selected);
-    if (ids.length === 0) return toast.error("Pilih minimal 1 request");
-    const ok = await confirmDialog({
-      title: `Hapus ${ids.length} request?`,
-      description: "Data request akan dihapus permanen dari database. Tidak bisa dibatalkan.",
-      confirmLabel: "Hapus permanen",
-      tone: "danger",
-    });
-    if (!ok) return;
-    setBulkBusy(true);
-    const { error } = await supabase.from("purchase_requests").delete().in("id", ids);
-    setBulkBusy(false);
-    if (error) return toast.error(error.message);
-    setSelected(new Set());
-    toast.success(`${ids.length} request dihapus`);
-    load();
-  }
-
-
   async function openProof(path: string | null) {
     if (!path) return;
     const { data } = await supabase.storage.from("payment-proofs").createSignedUrl(path, 300);
@@ -339,13 +319,6 @@ function Body() {
                 className="inline-flex items-center gap-1 rounded-full border border-rose-400/40 text-rose-300 px-3 py-1.5 text-xs hover:bg-rose-500/10 disabled:opacity-60"
               >
                 <X className="h-3 w-3" /> Reject
-              </button>
-              <button
-                disabled={bulkBusy}
-                onClick={bulkDelete}
-                className="inline-flex items-center gap-1 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-rose-400/40 px-3 py-1.5 text-xs disabled:opacity-60"
-              >
-                <Trash2 className="h-3 w-3" /> Hapus
               </button>
               <button
                 onClick={() => setSelected(new Set())}

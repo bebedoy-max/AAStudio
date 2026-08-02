@@ -8,7 +8,7 @@ import type { PurchaseView } from "@/lib/stores/purchase-feed";
 import { rupiah } from "@/lib/stores/purchase-feed";
 import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
-import { PaymentPicker } from "@/components/payments/payment-picker";
+
 import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -215,18 +215,16 @@ export function PurchaseDetailDialog({
             />
           </div>
         )}
-        {liveStatus === "pending" && !purchase.payment_provider && (
-          <div className="mt-4 flex flex-col gap-3">
-            <PaymentPicker purchaseRequestId={purchase.id} amount={purchase.price_idr} />
-            {gopayAmount !== null && (
-              <GopayQrisPanel
-                purchaseRequestId={purchase.id}
-                amount={gopayAmount}
-                onApproved={() => setLiveStatus("approved")}
-              />
-            )}
+        {liveStatus === "pending" && !purchase.payment_provider && gopayAmount !== null && (
+          <div className="mt-4">
+            <GopayQrisPanel
+              purchaseRequestId={purchase.id}
+              amount={gopayAmount}
+              onApproved={() => setLiveStatus("approved")}
+            />
           </div>
         )}
+
 
         {liveStatus === "approved" && purchase.kind === "token_bank" && (
           <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-xs text-emerald-200/90">

@@ -174,8 +174,9 @@ function Body() {
 
       {/* Main content: chart + top kind */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex">
           <Card
+            className="flex-1 flex flex-col"
             title="Generate 30 Hari Terakhir"
             sub={`Total ${total30} aset · Pertumbuhan 15 hari terakhir vs 15 hari sebelumnya: ${growth > 0 ? "+" : ""}${growth}%`}
           >
@@ -186,7 +187,7 @@ function Body() {
           </Card>
         </div>
 
-        <Card title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
+        <Card className="h-full" title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
           {byKind.length === 0 ? (
             <div className="text-xs text-muted-foreground py-4">Belum ada data.</div>
           ) : (
