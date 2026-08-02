@@ -59,8 +59,14 @@ export const PLUGIN_CATALOG: PluginEntry[] = [
   },
 ];
 
+export type PluginAccessMode = "open" | "premium" | "hide";
+
 export type PluginConfigEntry = {
   enabled?: boolean;
+  /** Status plug-in: open (gratis), premium (berbayar), hide (disembunyikan). */
+  access?: PluginAccessMode;
+  /** Harga jual (IDR) bila access = premium. */
+  priceIdr?: number;
   version?: string;
   note?: string;
   /** Override nama extension yang tampil di katalog & popup extension. */
@@ -77,8 +83,23 @@ export function pluginVersion(entry: PluginEntry, cfg: PluginConfig | null | und
   return cfg?.[entry.id]?.version?.trim() || entry.version;
 }
 
+export function pluginAccess(
+  entry: PluginEntry,
+  cfg: PluginConfig | null | undefined,
+): PluginAccessMode {
+  const c = cfg?.[entry.id];
+  if (c?.enabled === false) return "hide";
+  const a = c?.access;
+  return a === "premium" || a === "hide" || a === "open" ? a : "open";
+}
+
+export function pluginPrice(entry: PluginEntry, cfg: PluginConfig | null | undefined) {
+  const v = Number(cfg?.[entry.id]?.priceIdr ?? 0);
+  return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
+}
+
 export function pluginEnabled(entry: PluginEntry, cfg: PluginConfig | null | undefined) {
-  return cfg?.[entry.id]?.enabled !== false;
+  return pluginAccess(entry, cfg) !== "hide";
 }
 
 export function pluginName(entry: PluginEntry, cfg: PluginConfig | null | undefined) {

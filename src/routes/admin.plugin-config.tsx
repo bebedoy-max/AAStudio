@@ -8,6 +8,8 @@ import {
   PLUGIN_CATALOG,
   DEFAULT_STUDIO_URL,
   normalizePluginLogoUrl,
+  pluginAccess,
+  type PluginAccessMode,
   type PluginConfig,
 } from "@/lib/plugins/catalog";
 import { Loader2, ShieldCheck, Save, Puzzle, Link2 } from "lucide-react";
@@ -177,7 +179,7 @@ function PluginConfigFormInner() {
 
       {PLUGIN_CATALOG.map((p) => {
         const c = cfg[p.id] ?? {};
-        const enabled = c.enabled !== false;
+        const access = pluginAccess(p, cfg);
         return (
           <Card key={p.id}>
             <div className="p-4 flex flex-wrap items-center gap-3 border-b border-border/60">
@@ -192,12 +194,18 @@ function PluginConfigFormInner() {
                 <div className="text-[11px] text-muted-foreground truncate">{p.provider}</div>
               </div>
               <label className="inline-flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={enabled}
-                  onChange={(e) => patch(p.id, { enabled: e.target.checked })}
-                />
-                {enabled ? "Aktif" : "Nonaktif"}
+                <span className="text-muted-foreground">Status</span>
+                <select
+                  className="rounded-2xl border border-border bg-card/50 px-3 py-2 text-xs outline-none focus:border-primary/60"
+                  value={access}
+                  onChange={(e) =>
+                    patch(p.id, { access: e.target.value as PluginAccessMode, enabled: true })
+                  }
+                >
+                  <option value="open">Open — gratis untuk semua user</option>
+                  <option value="premium">Premium — berbayar</option>
+                  <option value="hide">Hide — disembunyikan</option>
+                </select>
               </label>
             </div>
             <div className="p-4 grid gap-3 md:grid-cols-2">
@@ -229,6 +237,21 @@ function PluginConfigFormInner() {
                   placeholder={p.version}
                 />
               </div>
+              {access === "premium" && (
+                <div>
+                  <label className="text-[11px] text-muted-foreground">
+                    Harga premium (IDR) — atur juga di Pembayaran &amp; Harga → Plug-IN
+                  </label>
+                  <input
+                    className={inputCls}
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={c.priceIdr ?? 0}
+                    onChange={(e) => patch(p.id, { priceIdr: Number(e.target.value) })}
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-[11px] text-muted-foreground">Catatan untuk user</label>
                 <input

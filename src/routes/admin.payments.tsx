@@ -20,11 +20,13 @@ import {
   Tag,
   Coins,
   Smartphone,
+  Puzzle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
 import { TokenBankPricesSection } from "@/components/admin/token-bank-prices-section";
 import { CompanionSection } from "@/components/admin/companion-section";
+import { PluginPricesSection } from "@/components/admin/plugin-prices-section";
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 
 import { confirmDialog } from "@/components/ui-confirm";
@@ -78,6 +80,7 @@ function Gate() {
 const TABS = [
   { key: "prices", label: "Harga Fitur", icon: Tag },
   { key: "tokens", label: "Harga Token", icon: Coins },
+  { key: "plugins", label: "Plug-IN", icon: Puzzle },
   { key: "gateways", label: "Payment Gateway", icon: WalletIcon },
   { key: "companion", label: "Companion Payment", icon: Smartphone },
 ] as const;
@@ -110,6 +113,7 @@ function PaymentsTabs() {
       </div>
       {tab === "prices" && <PricesSection />}
       {tab === "tokens" && <TokenBankPricesSection />}
+      {tab === "plugins" && <PluginPricesSection />}
       {tab === "gateways" && <PaymentGatewaysSection />}
       {tab === "companion" && <CompanionSection />}
     </div>
