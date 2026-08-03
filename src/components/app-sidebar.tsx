@@ -311,9 +311,6 @@ function HoverFlyout({
                   </span>
                 )}
               </span>
-              {mode === "premium" && (
-                <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-              )}
             </Link>
           );
         })}
@@ -415,9 +412,6 @@ function InlineSubmenu({
                 </span>
               )}
             </span>
-            {mode === "premium" && (
-              <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-            )}
           </Link>
         );
       })}
