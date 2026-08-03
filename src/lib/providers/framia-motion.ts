@@ -17,10 +17,7 @@ import {
   fetchFramiaProfile,
   findFramiaWorkspaceId,
   getResourceInfo,
-<<<<<<< HEAD
   getRunDetail,
-=======
->>>>>>> 085c2beabd52e9efb1255f384cd5cea439846693
   listFramiaProjects,
   uploadFramiaAsset,
   waitForRunCompletion,
@@ -311,16 +308,10 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
     resources: [{ resource_id: uploadedVideo.resource_id, media_type: "video" }],
   };
 
-<<<<<<< HEAD
   // Framia kadang gagal transient (biz_code 5000/5002 = downstream service
   // error). Retry beberapa kali dengan backoff; asset sudah ter-upload jadi
   // submit ulang murah.
   const MAX_ATTEMPTS = 4;
-=======
-  // Framia kadang gagal transient (biz_code 5000). Coba ulang sekali sebelum
-  // menyerah, karena semua asset sudah ter-upload dan submit ulang murah.
-  const MAX_ATTEMPTS = 2;
->>>>>>> 085c2beabd52e9efb1255f384cd5cea439846693
   let lastFailure = "";
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     opts.onProgress?.(
@@ -424,7 +415,6 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
     const failed = finalNodes.find((n) => String(n.status ?? "").toLowerCase() === "failed");
     if (failed) {
       lastFailure = formatFramiaFailure(failed);
-<<<<<<< HEAD
       const runDetail = await getRunDetail(token, runId).catch(() => null);
       const runReason = runDetail ? formatRunFailure(runDetail) : "";
       if (runReason && !lastFailure.includes(runReason)) lastFailure = `${lastFailure} | run: ${runReason}`;
@@ -445,16 +435,6 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
           (transient
             ? " — ini error di sisi server Framia (bukan input kamu). Sudah dicoba ulang otomatis. Tunggu beberapa menit lalu jalankan lagi, atau turunkan resolusi ke 480p."
             : " — generate ditolak Framia. Coba video motion yang lebih pendek/kecil, ganti gambar referensi, atau ulangi beberapa saat lagi."),
-=======
-      if (attempt < MAX_ATTEMPTS) {
-        opts.onProgress?.("Framia: gagal, mencoba ulang...", 50);
-        await new Promise((r) => setTimeout(r, 4_000));
-        continue;
-      }
-      throw new Error(
-        `Framia node failed: ${lastFailure}` +
-          " — generate ditolak Framia. Coba video motion yang lebih pendek/kecil, ganti gambar referensi, atau ulangi beberapa saat lagi.",
->>>>>>> 085c2beabd52e9efb1255f384cd5cea439846693
       );
     }
 
@@ -486,7 +466,6 @@ function formatFramiaFailure(node: FramiaRunNode): string {
     return "unknown Framia node error";
   }
 }
-<<<<<<< HEAD
 
 function formatRunFailure(run: Record<string, unknown>): string {
   for (const key of ["error", "error_message", "failure_reason", "reason", "message", "detail", "status_message"]) {
@@ -503,5 +482,3 @@ function formatRunFailure(run: Record<string, unknown>): string {
   }
   return "";
 }
-=======
->>>>>>> 085c2beabd52e9efb1255f384cd5cea439846693

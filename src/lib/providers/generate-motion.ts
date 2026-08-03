@@ -603,7 +603,6 @@ async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promi
   );
 }
 
-
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
 export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOpts): Promise<void> {
   const runSlot = async (slot: MotionSlotInput) => {
