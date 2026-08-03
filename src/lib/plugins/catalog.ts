@@ -43,9 +43,15 @@ export const PLUGIN_CATALOG: PluginEntry[] = [
     id: "grabber-framia",
     name: "AA Grabber — Framia",
     kind: "extension",
+<<<<<<< HEAD
     provider: "Framia",
     tagline: "Auto-sync token Framia ke Token Manager",
     desc: "Browser extension khusus Framia. Menangkap bearer token Auth0 dari sesi kamu dan menyinkronkannya ke Token Manager tanpa copy-paste manual.",
+=======
+    provider: "Framia (Converge AI)",
+    tagline: "Auto-sync token Framia ke Token Manager",
+    desc: "Browser extension khusus Framia / Converge AI. Menangkap bearer token Auth0 dari sesi kamu dan menyinkronkannya ke Token Manager tanpa copy-paste manual.",
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
     version: "3.0.0",
     file: "/plugins/aa-token-grabber-framia.zip",
     site: "https://framia.converge.ai/",

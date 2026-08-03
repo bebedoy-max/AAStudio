@@ -3,7 +3,11 @@
 // payload EMVCo, memvalidasi CRC, lalu membuat QR baru bernominal unik tiap
 // transaksi. Auto-verify pembayarannya dikerjakan Companion Android.
 import { useEffect, useRef, useState } from "react";
+<<<<<<< HEAD
 import { Loader2, QrCode, Upload, Save, TriangleAlert, Eye } from "lucide-react";
+=======
+import { Loader2, QrCode, Upload, Save, ShieldCheck, TriangleAlert, Eye } from "lucide-react";
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
 import { toast } from "sonner";
 import { validateQris, toDynamicQris } from "@/lib/payments/qris";
 import { decodeQrFromFile, renderQrDataUrl } from "@/lib/payments/qr-image";
@@ -155,13 +159,43 @@ export function CompanionQrisCard() {
               </label>
             </div>
 
+<<<<<<< HEAD
+=======
+            <div>
+              <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Payload QRIS statis (EMVCo)
+              </div>
+              <textarea
+                value={payload}
+                onChange={(e) => setPayload(e.target.value)}
+                rows={5}
+                spellCheck={false}
+                placeholder="00020101021126..."
+                className="w-full resize-y rounded-2xl border border-border bg-background/60 p-3 font-mono text-[11px] outline-none focus:border-primary/50"
+              />
+            </div>
+
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
             {check && !check.ok && (
               <div className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/5 p-3 text-[11px] text-destructive">
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 {check.error}
               </div>
             )}
+<<<<<<< HEAD
 
+=======
+            {check?.ok && (
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-[11px] text-emerald-200">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                <span>
+                  Valid · <b>{check.merchantName ?? "Merchant"}</b>
+                  {check.city ? ` · ${check.city}` : ""} ·{" "}
+                  {check.isStatic ? "QR statis (siap dijadikan dinamis)" : "QR sudah dinamis"}
+                </span>
+              </div>
+            )}
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
 
             <div className="flex justify-end">
               <button

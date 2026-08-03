@@ -199,6 +199,7 @@ export async function archiveRemoteUrlForUser(params: {
 
   const res = await fetch(params.url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Gagal mengunduh hasil (${res.status})`);
+<<<<<<< HEAD
   const headerMime = res.headers.get("content-type")?.split(";")[0] || "";
   const pathname = (() => {
     try {
@@ -219,6 +220,9 @@ export async function archiveRemoteUrlForUser(params: {
         : "";
   const isGeneric = !headerMime || /octet-stream|binary/i.test(headerMime);
   const mimeType = isGeneric ? pathMime || headerMime || "application/octet-stream" : headerMime;
+=======
+  const mimeType = res.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
   const fallbackName =
     params.name ||
     decodeURIComponent(pathname.split("/").pop() || "") ||
@@ -232,7 +236,10 @@ export async function archiveRemoteUrlForUser(params: {
         : "bin";
   const name = /\.[a-z0-9]{2,5}$/i.test(fallbackName) ? fallbackName : `${fallbackName}.${ext}`;
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
   // Utama: alirkan (stream) byte langsung ke storage tanpa buffering penuh di server.
   const declared = Number(res.headers.get("content-length") || 0);
   if (res.body) {

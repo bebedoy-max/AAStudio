@@ -410,7 +410,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
+<<<<<<< HEAD
     <div className="h-screen overflow-hidden flex w-full max-w-full">
+=======
+    <div className="h-screen overflow-hidden flex w-full">
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
       <AppSidebar />
 
       {/* Mobile drawer */}
@@ -435,7 +439,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
+<<<<<<< HEAD
       <main className="flex-1 min-w-0 max-w-full flex flex-col h-screen overflow-y-auto overflow-x-hidden">
+=======
+      <main className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto">
+>>>>>>> 409eb24b21ce412f88d578894fd59d62736c1a9b
         <header
           className="fixed top-0 left-0 right-0 z-40 lg:sticky lg:top-0 lg:z-20"
           style={{ background: "var(--gradient-canvas)", backgroundAttachment: "fixed" }}
