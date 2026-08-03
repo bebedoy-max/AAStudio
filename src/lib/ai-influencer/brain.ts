@@ -56,7 +56,7 @@ export async function generateScenario(
     "You craft SCENE-SPECIFIC prompt + caption for a virtual persona.",
     "Rules:",
     "- Never clone real people from reference URLs; treat references only as style guidance.",
-    "- Return STRICT JSON: {\"prompt\": string, \"caption\": string}. No markdown, no prose.",
+    '- Return STRICT JSON: {"prompt": string, "caption": string}. No markdown, no prose.',
     "- Prompt is for an image/video generator: describe subject, wardrobe, setting, lighting, camera, mood.",
     "- Caption is social-ready, uses the persona's language, matches personality sliders, includes 3-5 hashtags at the end.",
   ].join("\n");

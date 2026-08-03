@@ -93,7 +93,9 @@ async function resolveWorkspaceId(token: string): Promise<string | null> {
   const creator = await fetchFramiaCreatorProfile(token).catch(() => null);
   const direct = findFramiaWorkspaceId(profile, creator);
   if (direct) return direct;
-  const projects = (await listFramiaProjects(token).catch(() => [])) as Array<Record<string, unknown>>;
+  const projects = (await listFramiaProjects(token).catch(() => [])) as Array<
+    Record<string, unknown>
+  >;
   for (const p of projects) {
     const id = findFramiaWorkspaceId(p);
     if (id) return id;
@@ -110,7 +112,10 @@ function normalizeAspect(ratio: string): string {
 }
 
 function modelSlug(modelKey: string): string {
-  return modelKey.replace(/^framia:/, "").replace(/^fr:/, "").replace(/-edit$/, "");
+  return modelKey
+    .replace(/^framia:/, "")
+    .replace(/^fr:/, "")
+    .replace(/-edit$/, "");
 }
 
 function compactObject(value: unknown, depth = 0): string {
@@ -137,7 +142,10 @@ function compactObject(value: unknown, depth = 0): string {
 function normalizeFramiaResolution(value: string, modelKey: string): string {
   const v = (value || "").trim();
   const slug = modelSlug(modelKey);
-  if (/^gpt-image/.test(slug) && (!v || /^1K$/i.test(v) || /^default$/i.test(v) || /^standard$/i.test(v))) {
+  if (
+    /^gpt-image/.test(slug) &&
+    (!v || /^1K$/i.test(v) || /^default$/i.test(v) || /^standard$/i.test(v))
+  ) {
     return "2K";
   }
   if (/^low$/i.test(v)) return "1K";
@@ -277,9 +285,7 @@ export async function runFramiaImage(opts: FramiaImageOpts): Promise<string> {
               node_type: "task",
               node_interface: "media.generate.image",
               input_refs: imageParams,
-              ...(readSources.length
-                ? { reads: { resources: { sources: readSources } } }
-                : {}),
+              ...(readSources.length ? { reads: { resources: { sources: readSources } } } : {}),
             },
           },
         ],
@@ -299,7 +305,9 @@ export async function runFramiaImage(opts: FramiaImageOpts): Promise<string> {
       const n = nodes.find((x) => String(x.node_id || "").startsWith("image-"));
       if (n) {
         const p =
-          typeof n.progress === "number" ? Math.min(95, 55 + Math.round(n.progress * 0.4)) : undefined;
+          typeof n.progress === "number"
+            ? Math.min(95, 55 + Math.round(n.progress * 0.4))
+            : undefined;
         opts.onProgress?.(`Framia: ${n.status ?? "processing"}`, p);
       }
     },

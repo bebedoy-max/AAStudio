@@ -28,7 +28,10 @@ export const Route = createFileRoute("/api/public/doku/notification")({
 
         // Payload DOKU: { transaction: { status, ... }, order: { invoice_number, amount, ... }, ... }
         const order = (payload.order ?? {}) as { invoice_number?: string; amount?: number };
-        const transaction = (payload.transaction ?? {}) as { status?: string; original_request_id?: string };
+        const transaction = (payload.transaction ?? {}) as {
+          status?: string;
+          original_request_id?: string;
+        };
         const invoice = order.invoice_number;
         if (!invoice) {
           console.warn("[doku-webhook] missing invoice_number, likely test ping");
@@ -46,17 +49,18 @@ export const Route = createFileRoute("/api/public/doku/notification")({
             .select("id, status, payment_gateway_id")
             .eq("doku_invoice_number", invoice)
             .maybeSingle();
-          const pr = prRaw as
-            | { id: string; status: string; payment_gateway_id: string | null }
-            | null;
+          const pr = prRaw as {
+            id: string;
+            status: string;
+            payment_gateway_id: string | null;
+          } | null;
           if (!pr) {
             console.warn("[doku-webhook] unknown invoice", invoice);
             return OK({ ok: true, skipped: "unknown invoice" });
           }
 
-          const { loadDokuConfig, verifyDokuNotificationSignature } = await import(
-            "@/lib/payments/doku.server"
-          );
+          const { loadDokuConfig, verifyDokuNotificationSignature } =
+            await import("@/lib/payments/doku.server");
           const loaded = await loadDokuConfig(pr.payment_gateway_id ?? undefined);
           if (!loaded) {
             console.warn("[doku-webhook] no doku config to verify signature");
@@ -75,10 +79,7 @@ export const Route = createFileRoute("/api/public/doku/notification")({
 
           // Audit log raw payload.
           try {
-            await admin
-              .from("purchase_requests")
-              .update({ doku_raw: payload })
-              .eq("id", pr.id);
+            await admin.from("purchase_requests").update({ doku_raw: payload }).eq("id", pr.id);
           } catch {
             /* non-fatal */
           }
@@ -86,9 +87,7 @@ export const Route = createFileRoute("/api/public/doku/notification")({
           const status = String(transaction.status ?? "").toUpperCase();
           // DOKU status umum: SUCCESS, PENDING, FAILED, VOID, EXPIRED
           if (status === "SUCCESS" || status === "SETTLEMENT") {
-            const { fulfillPurchaseAfterPayment } = await import(
-              "@/lib/midtrans/fulfill.server"
-            );
+            const { fulfillPurchaseAfterPayment } = await import("@/lib/midtrans/fulfill.server");
             await fulfillPurchaseAfterPayment(pr.id);
             return OK({ ok: true, status: "approved" });
           }

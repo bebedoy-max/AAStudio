@@ -40,8 +40,7 @@ export const SLOT_PROMPTS: Record<string, string> = {
     "Detail TANGAN karakter yang sama (bentuk jari, kuku, tekstur kulit) — close-up macro kedua tangan.",
   outfit:
     "OUTFIT karakter yang sama ditampilkan pada mannequin studio (tanpa wajah), flat / 3/4 view.",
-  hair:
-    "Detail STYLE RAMBUT / HIJAB karakter yang sama — close-up dari belakang dan samping.",
+  hair: "Detail STYLE RAMBUT / HIJAB karakter yang sama — close-up dari belakang dan samping.",
   accessory:
     "Detail ACCESSORY (perhiasan / kacamata / tas) yang dipakai karakter — close-up macro.",
   pose_library:
@@ -226,7 +225,6 @@ export const CHAR_MODEL_CATALOG: Record<CharacterSlotProvider, ModelOpt[]> = {
       ],
     },
   ],
-
 };
 
 export function getActiveProvider(): CharacterSlotProvider {

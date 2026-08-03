@@ -64,9 +64,7 @@ export type CompanionDevice = {
 };
 
 /** Ambil perangkat dari header Authorization: Bearer <token>. */
-export async function authenticateDevice(
-  request: Request,
-): Promise<CompanionDevice | null> {
+export async function authenticateDevice(request: Request): Promise<CompanionDevice | null> {
   const header = request.headers.get("authorization") ?? request.headers.get("Authorization");
   if (!header?.toLowerCase().startsWith("bearer ")) return null;
   const token = header.slice(7).trim();
@@ -214,7 +212,6 @@ export async function assignUniqueGopayAmount(
   const code = candidates[random[0] % candidates.length] ?? 0;
   if (code === 0) return null; // semua kode terpakai — biarkan tanpa nominal unik
 
-
   const amount = base + code;
   const { error } = await db
     .from("purchase_requests")
@@ -259,7 +256,9 @@ export async function matchPurchaseByAmount(amount: number): Promise<MatchResult
 }
 
 /** Cari pesanan dari order_id yang dikirim perangkat (id internal atau order TemanQRIS). */
-export async function findPurchaseByOrderId(orderId: string): Promise<{ id: string; status: string } | null> {
+export async function findPurchaseByOrderId(
+  orderId: string,
+): Promise<{ id: string; status: string } | null> {
   const db = await admin();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
   const { data } = await db

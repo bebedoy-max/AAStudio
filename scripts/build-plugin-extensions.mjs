@@ -59,8 +59,8 @@ function popupHtmlFor(v) {
   html = html.replace(/<main id="tab-relay"[\s\S]*?<\/main>\n/, "");
   html = html.replace(/<h1>[^<]*<\/h1>/, `<h1>${v.name}</h1>`);
   html = html.replace(
-    "<script src=\"providers.js\"></script>",
-    "<script src=\"config.js\"></script>\n<script src=\"providers.js\"></script>",
+    '<script src="providers.js"></script>',
+    '<script src="config.js"></script>\n<script src="providers.js"></script>',
   );
   return html;
 }
@@ -80,7 +80,16 @@ for (const v of VARIANTS) {
         name: v.name,
         version: v.version,
         description: `Ambil token ${v.name.split("— ")[1]} otomatis dan sinkronkan ke Token Manager akun AA Creative Studio kamu.`,
-        permissions: ["activeTab", "scripting", "storage", "cookies", "webRequest", "tabs", "alarms", "notifications"],
+        permissions: [
+          "activeTab",
+          "scripting",
+          "storage",
+          "cookies",
+          "webRequest",
+          "tabs",
+          "alarms",
+          "notifications",
+        ],
         host_permissions: [...v.hosts, ...APP_HOSTS],
         background: { service_worker: "background.js" },
         action: { default_popup: "popup.html", default_icon: "icon.png", default_title: v.name },
@@ -114,7 +123,10 @@ for (const v of VARIANTS) {
 
   const zipPath = path.join(OUT, `aa-token-grabber-${v.id}.zip`);
   rmSync(zipPath, { force: true });
-  execFileSync("nix", ["run", "nixpkgs#zip", "--", "-r", "-q", zipPath, "."], { cwd: dir, stdio: "inherit" });
+  execFileSync("nix", ["run", "nixpkgs#zip", "--", "-r", "-q", zipPath, "."], {
+    cwd: dir,
+    stdio: "inherit",
+  });
   console.log("built", zipPath);
 }
 

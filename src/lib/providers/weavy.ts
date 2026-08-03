@@ -88,7 +88,9 @@ export async function fetchWeavyCredits(accessToken: string): Promise<number | n
     }
   }
   try {
-    const r = await fetch(`${WEAVY_API}/v1/workspaces`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const r = await fetch(`${WEAVY_API}/v1/workspaces`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (r.ok) {
       const d = await r.json();
       const ws = d.workspaces?.[0] || d[0] || d;
@@ -171,7 +173,10 @@ function isUsable(t: StoredWeavyTok): boolean {
 }
 
 /** Get the currently active token or the first non-exhausted one. */
-export async function getActiveWeavyAccessToken(): Promise<{ id: string; accessToken: string } | null> {
+export async function getActiveWeavyAccessToken(): Promise<{
+  id: string;
+  accessToken: string;
+} | null> {
   if (typeof window === "undefined") return null;
   const list = readTokens();
   if (list.length === 0) return null;
@@ -219,7 +224,9 @@ export async function selectWeavyTokenForCredits(
     ...list.filter((t) => t.id === activeId && t.status !== "failed"),
     ...list.filter((t) => t.id !== activeId && isUsable(t)),
     ...list.filter((t) => t.id !== activeId && t.status === "empty"),
-  ].filter((t, index, all) => !excludedIds.has(t.id) && all.findIndex((x) => x.id === t.id) === index);
+  ].filter(
+    (t, index, all) => !excludedIds.has(t.id) && all.findIndex((x) => x.id === t.id) === index,
+  );
 
   const skipped: WeavyCreditSkip[] = [];
   let unknownFallback: { id: string; accessToken: string; credits: null } | null = null;
@@ -263,7 +270,9 @@ export async function selectWeavyTokenForCredits(
  * rotation never returns the same exhausted token and always lands on a token
  * with usable credits (or null when every token is empty).
  */
-export async function rotateWeavyToken(exhaustedId: string): Promise<{ id: string; accessToken: string } | null> {
+export async function rotateWeavyToken(
+  exhaustedId: string,
+): Promise<{ id: string; accessToken: string } | null> {
   {
     const list = readTokens();
     const t = list.find((x) => x.id === exhaustedId);
@@ -304,7 +313,6 @@ export async function rotateWeavyToken(exhaustedId: string): Promise<{ id: strin
   return null;
 }
 
-
 // ==================== Upload ====================
 
 export async function compressImage(file: File, maxW = 1280, quality = 0.8): Promise<File> {
@@ -337,7 +345,11 @@ export async function compressImage(file: File, maxW = 1280, quality = 0.8): Pro
 
 export type UploadResult = { id?: string; url?: string; download?: string; raw?: { url?: string } };
 
-export async function uploadWeavyAsset(file: File, filename: string, accessToken: string): Promise<UploadResult> {
+export async function uploadWeavyAsset(
+  file: File,
+  filename: string,
+  accessToken: string,
+): Promise<UploadResult> {
   const fd = new FormData();
   fd.append("file", file, filename);
   if (file.type) fd.append("type", file.type);
@@ -370,11 +382,15 @@ export async function uploadWeavyAssetWithRetry(
   throw new Error("upload retries exhausted");
 }
 
-export function resolveWeavyAssetUrl(result: UploadResult | string, ext: "image" | "video"): string {
+export function resolveWeavyAssetUrl(
+  result: UploadResult | string,
+  ext: "image" | "video",
+): string {
   if (typeof result === "string") return result;
   if (result.url) return result.url;
   if (result.download) return result.download;
-  if (result.id) return `https://media.weavy.ai/${ext}/upload/uploads/${result.id}.${ext === "video" ? "mp4" : "jpg"}`;
+  if (result.id)
+    return `https://media.weavy.ai/${ext}/upload/uploads/${result.id}.${ext === "video" ? "mp4" : "jpg"}`;
   if (result.raw?.url) return result.raw.url;
   throw new Error("Weavy: cannot resolve asset URL");
 }
@@ -457,9 +473,12 @@ export async function pollWeavyBatchVideo(
     const delay = a < 30 ? 8000 : a < 60 ? 10000 : 15000;
     await new Promise((r) => setTimeout(r, delay));
     try {
-      const r = await fetch(`${WEAVY_API}/v1/batches/recipes/${recipeId}/batches/${batchId}/status`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const r = await fetch(
+        `${WEAVY_API}/v1/batches/recipes/${recipeId}/batches/${batchId}/status`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
       if (!r.ok) continue;
       const d = await r.json();
       const st = String(d.recipeRuns?.[0]?.status || d.status || d.state || "unknown");
@@ -482,7 +501,10 @@ export async function pollWeavyBatchVideo(
               ),
             ].filter(
               (u): u is string =>
-                !!u && u.includes(".mp4") && !u.includes("/video/upload/v1781970233/") && u !== opts.inputVideoUrl,
+                !!u &&
+                u.includes(".mp4") &&
+                !u.includes("/video/upload/v1781970233/") &&
+                u !== opts.inputVideoUrl,
             );
             if (candidates.length > 0) return candidates[0];
           }
@@ -491,10 +513,15 @@ export async function pollWeavyBatchVideo(
       }
       if (["failed", "FAILED", "error", "ERROR"].includes(st)) {
         const ne = (d.recipeRuns?.[0]?.nodeRuns || [])
-          .map((nr: { error?: string; errorMessage?: string; status?: string }) => nr.error || nr.errorMessage)
+          .map(
+            (nr: { error?: string; errorMessage?: string; status?: string }) =>
+              nr.error || nr.errorMessage,
+          )
           .filter(Boolean)
           .join(" | ");
-        throw new Error((d.error || d.message || "Weavy generation failed") + (ne ? " | " + ne : ""));
+        throw new Error(
+          (d.error || d.message || "Weavy generation failed") + (ne ? " | " + ne : ""),
+        );
       }
     } catch (e) {
       // Always surface real generation failures; only swallow transient network errors early
@@ -511,19 +538,27 @@ export type WeavyRecipeSummary = { id: string; name?: string; updatedAt?: string
 
 /** List recipes milik akun token aktif. Dipakai /dev/weavy-node-inspect. */
 export async function listWeavyRecipes(accessToken: string): Promise<WeavyRecipeSummary[]> {
-  const endpoints = [`${WEAVY_API}/v1/recipes`, `${WEAVY_API}/v1/recipes/list`, `${WEAVY_API}/v1/recipes?scope=PERSONAL`];
+  const endpoints = [
+    `${WEAVY_API}/v1/recipes`,
+    `${WEAVY_API}/v1/recipes/list`,
+    `${WEAVY_API}/v1/recipes?scope=PERSONAL`,
+  ];
   for (const url of endpoints) {
     try {
       const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (!r.ok) continue;
       const d = await r.json();
-      const arr = (Array.isArray(d) ? d : d.recipes || d.items || d.data || []) as Array<Record<string, unknown>>;
+      const arr = (Array.isArray(d) ? d : d.recipes || d.items || d.data || []) as Array<
+        Record<string, unknown>
+      >;
       if (!Array.isArray(arr) || arr.length === 0) continue;
-      return arr.map((x) => ({
-        id: String(x.id || x.recipeId || ""),
-        name: (x.name || x.title) as string | undefined,
-        updatedAt: (x.lastUpdatedAt || x.updatedAt) as string | undefined,
-      })).filter((x) => x.id);
+      return arr
+        .map((x) => ({
+          id: String(x.id || x.recipeId || ""),
+          name: (x.name || x.title) as string | undefined,
+          updatedAt: (x.lastUpdatedAt || x.updatedAt) as string | undefined,
+        }))
+        .filter((x) => x.id);
     } catch {
       /* try next */
     }
@@ -533,7 +568,10 @@ export async function listWeavyRecipes(accessToken: string): Promise<WeavyRecipe
 
 /** Ambil JSON mentah sebuah recipe (nodes + edges) untuk dibandingkan dengan builder kita. */
 export async function getWeavyRecipe(recipeId: string, accessToken: string): Promise<unknown> {
-  const endpoints = [`${WEAVY_API}/v1/recipes/${recipeId}`, `${WEAVY_API}/v1/recipes/${recipeId}/load`];
+  const endpoints = [
+    `${WEAVY_API}/v1/recipes/${recipeId}`,
+    `${WEAVY_API}/v1/recipes/${recipeId}/load`,
+  ];
   let lastStatus = 0;
   for (const url of endpoints) {
     const r = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });

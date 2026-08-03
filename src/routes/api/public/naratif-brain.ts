@@ -8,9 +8,9 @@ type Body = {
   title?: string;
   description?: string;
   body?: string;
-  aspectRatio?: string;   // "9:16" | "16:9" | "1:1"
-  language?: string;      // default "id"
-  maxScenes?: number;     // cap, default 8
+  aspectRatio?: string; // "9:16" | "16:9" | "1:1"
+  language?: string; // default "id"
+  maxScenes?: number; // cap, default 8
   extraPrompt?: string;
 };
 
@@ -18,7 +18,9 @@ type Body = {
 // x-user-openai-key dan x-user-gemini-key yang di-set user melalui Token/API Manager.
 // Tidak lagi membaca env vars di server.
 
-function isRotatable(s: number): boolean { return s === 401 || s === 403 || s === 429 || s === 402 || s >= 500; }
+function isRotatable(s: number): boolean {
+  return s === 401 || s === 403 || s === 429 || s === 402 || s >= 500;
+}
 
 function redact(text: string): string {
   return text
@@ -43,7 +45,12 @@ function json(data: unknown, status = 200): Response {
 }
 
 async function callGemini(key: string, system: string, user: string) {
-  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+  ];
   let last: { ok: false; status: number; body: string } | undefined;
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
@@ -57,12 +64,20 @@ async function callGemini(key: string, system: string, user: string) {
       }),
     });
     if (!res.ok) {
-      last = { ok: false as const, status: res.status, body: `${model}: ${await safeErrorBody(res)}` };
+      last = {
+        ok: false as const,
+        status: res.status,
+        body: `${model}: ${await safeErrorBody(res)}`,
+      };
       if (!isRotatable(res.status) && res.status !== 404) return last;
       continue;
     }
-    const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const text = (data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "").trim();
+    const data = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = (
+      data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || ""
+    ).trim();
     if (!text) {
       last = { ok: false as const, status: 502, body: `${model}: empty` };
       continue;
@@ -73,9 +88,19 @@ async function callGemini(key: string, system: string, user: string) {
 }
 
 function tryParseJson(text: string): unknown {
-  try { return JSON.parse(text); } catch { /* */ }
+  try {
+    return JSON.parse(text);
+  } catch {
+    /* */
+  }
   const m = text.match(/\{[\s\S]*\}/);
-  if (m) { try { return JSON.parse(m[0]); } catch { /* */ } }
+  if (m) {
+    try {
+      return JSON.parse(m[0]);
+    } catch {
+      /* */
+    }
+  }
   return null;
 }
 
@@ -85,11 +110,13 @@ export const Route = createFileRoute("/api/public/naratif-brain")({
       POST: async ({ request }) => {
         const bulk = (request.headers.get("x-user-gemini-keys") || "").trim();
         const single = (request.headers.get("x-user-gemini-key") || "").trim();
-        const userKeys = Array.from(new Set(
-          (bulk ? bulk.split(/[\s,;]+/) : [single])
-            .map((s) => s.trim())
-            .filter((s) => s.length >= 10)
-        ));
+        const userKeys = Array.from(
+          new Set(
+            (bulk ? bulk.split(/[\s,;]+/) : [single])
+              .map((s) => s.trim())
+              .filter((s) => s.length >= 10),
+          ),
+        );
         // Fallback Global Brain (key platform) saat user belum punya key sendiri.
         const { loadGlobalBrainKeys } = await import("../router/chat");
         const gemini = [
@@ -98,7 +125,11 @@ export const Route = createFileRoute("/api/public/naratif-brain")({
         ];
 
         let body: Body = {};
-        try { body = await request.json(); } catch { /* */ }
+        try {
+          body = await request.json();
+        } catch {
+          /* */
+        }
         const title = (body.title || "").slice(0, 400);
         const description = (body.description || "").slice(0, 800);
         const material = (body.body || "").slice(0, 6000);
@@ -154,8 +185,15 @@ Jumlah scene: tentukan sendiri sesuai kebutuhan konten (jangan dipaksa jumlah te
 Tulis JSON sesuai schema sekarang.`;
 
         const errors: string[] = [];
-        const providers: Array<{ name: string; fn: () => Promise<{ ok: true; text: string } | { ok: false; status: number; body: string }> }> = [];
-        gemini.forEach((k, i) => providers.push({ name: `gemini#${i + 1}`, fn: () => callGemini(k, system, user) }));
+        const providers: Array<{
+          name: string;
+          fn: () => Promise<
+            { ok: true; text: string } | { ok: false; status: number; body: string }
+          >;
+        }> = [];
+        gemini.forEach((k, i) =>
+          providers.push({ name: `gemini#${i + 1}`, fn: () => callGemini(k, system, user) }),
+        );
 
         if (providers.length === 0) {
           return json({
@@ -171,12 +209,17 @@ Tulis JSON sesuai schema sekarang.`;
             const r = await p.fn();
             if (r.ok) {
               const parsed = tryParseJson(r.text);
-              if (!parsed) { errors.push(`${p.name}: not-json`); continue; }
+              if (!parsed) {
+                errors.push(`${p.name}: not-json`);
+                continue;
+              }
               return json({ result: parsed, provider: p.name });
             }
             errors.push(`${p.name}: ${r.status} ${r.body}`);
             if (!isRotatable(r.status)) continue;
-          } catch (e) { errors.push(`${p.name}: ${(e as Error).message}`); }
+          } catch (e) {
+            errors.push(`${p.name}: ${(e as Error).message}`);
+          }
         }
 
         return json({

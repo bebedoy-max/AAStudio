@@ -17,7 +17,10 @@ export async function getOAuthClient(): Promise<GoogleOAuthClient | null> {
   const row = await getGlobalCloudRow();
   if (row?.client_id && row.client_secret_cipher) {
     try {
-      return { clientId: row.client_id, clientSecret: decryptConnectionKey(row.client_secret_cipher) };
+      return {
+        clientId: row.client_id,
+        clientSecret: decryptConnectionKey(row.client_secret_cipher),
+      };
     } catch (e) {
       console.error("[cloud] failed to decrypt oauth client secret", e);
     }
@@ -105,7 +108,9 @@ export async function exchangeCodeForRefreshToken(params: {
   if (!res.ok) throw new Error(`Tukar kode OAuth gagal [${res.status}]: ${text.slice(0, 300)}`);
   const json = JSON.parse(text) as { refresh_token?: string; access_token?: string };
   if (!json.refresh_token) {
-    throw new Error("Google tidak mengirim refresh token. Cabut akses aplikasi di akun Google lalu coba lagi.");
+    throw new Error(
+      "Google tidak mengirim refresh token. Cabut akses aplikasi di akun Google lalu coba lagi.",
+    );
   }
   return { refreshToken: json.refresh_token, accessToken: json.access_token ?? "" };
 }
@@ -130,10 +135,14 @@ export async function accessTokenFromRefresh(refreshToken: string): Promise<stri
     }),
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`Refresh token Google ditolak [${res.status}]: ${text.slice(0, 300)}`);
+  if (!res.ok)
+    throw new Error(`Refresh token Google ditolak [${res.status}]: ${text.slice(0, 300)}`);
   const json = JSON.parse(text) as { access_token?: string; expires_in?: number };
   if (!json.access_token) throw new Error("Google tidak mengirim access token.");
-  tokenCache.set(cacheKey, { token: json.access_token, exp: Date.now() + (json.expires_in ?? 3600) * 1000 });
+  tokenCache.set(cacheKey, {
+    token: json.access_token,
+    exp: Date.now() + (json.expires_in ?? 3600) * 1000,
+  });
   return json.access_token;
 }
 

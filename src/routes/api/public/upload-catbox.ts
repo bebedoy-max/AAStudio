@@ -15,10 +15,12 @@ function json(data: unknown, init?: ResponseInit) {
 }
 
 function safeFilename(name: string) {
-  return (name || "upload.bin")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .replace(/_+/g, "_")
-    .slice(0, 120) || "upload.bin";
+  return (
+    (name || "upload.bin")
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 120) || "upload.bin"
+  );
 }
 
 function orderedAttempts(prefer: string | null) {
@@ -69,7 +71,10 @@ async function uploadToUguu(file: File) {
     headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(20_000),
   });
-  const data = await response.json().catch(() => null) as { files?: Array<{ url?: string }>; error?: string } | null;
+  const data = (await response.json().catch(() => null)) as {
+    files?: Array<{ url?: string }>;
+    error?: string;
+  } | null;
   const url = data?.files?.[0]?.url;
   if (response.ok && url && /^https?:\/\//i.test(url)) return url.replace(/\\\//g, "/");
   throw new Error(data?.error || `Uguu HTTP ${response.status}`);

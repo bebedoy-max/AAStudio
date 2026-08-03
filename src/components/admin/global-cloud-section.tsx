@@ -35,7 +35,8 @@ function waitForOAuth(popup: Window) {
       if (
         event.origin !== window.location.origin ||
         data?.connectorId !== "google_drive" ||
-        (data.type !== "appUserConnectorOAuthComplete" && data.type !== "appUserConnectorOAuthFailed")
+        (data.type !== "appUserConnectorOAuthComplete" &&
+          data.type !== "appUserConnectorOAuthFailed")
       )
         return;
       cleanup();
@@ -93,7 +94,9 @@ export function GlobalCloudSection() {
   const onSave = async () => {
     setBusy(true);
     try {
-      await _save({ data: { clientId, clientSecret: clientSecret || undefined, rootFolderName: folder } });
+      await _save({
+        data: { clientId, clientSecret: clientSecret || undefined, rootFolderName: folder },
+      });
       toast.success("Konfigurasi Google OAuth disimpan.");
       await reload();
     } catch (e) {
@@ -181,7 +184,11 @@ export function GlobalCloudSection() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-xs text-muted-foreground">
             Google OAuth Client ID
-            <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="xxxx.apps.googleusercontent.com" />
+            <Input
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="xxxx.apps.googleusercontent.com"
+            />
           </label>
           <label className="text-xs text-muted-foreground">
             Google OAuth Client Secret {s?.clientSecretSet && "(tersimpan — isi untuk mengganti)"}
@@ -198,12 +205,19 @@ export function GlobalCloudSection() {
           </label>
           <label className="text-xs text-muted-foreground">
             Authorized redirect URI (daftarkan di Google Cloud Console)
-            <Input value={s?.redirectUri ?? ""} readOnly onFocus={(e) => e.currentTarget.select()} />
+            <Input
+              value={s?.redirectUri ?? ""}
+              readOnly
+              onFocus={(e) => e.currentTarget.select()}
+            />
           </label>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <PrimaryButton onClick={() => void onSave()} disabled={busy || !clientId.trim() || !configDirty}>
+          <PrimaryButton
+            onClick={() => void onSave()}
+            disabled={busy || !clientId.trim() || !configDirty}
+          >
             <Save className="h-4 w-4" /> Simpan konfigurasi
           </PrimaryButton>
           {s?.connected ? (
@@ -211,7 +225,11 @@ export function GlobalCloudSection() {
               <GhostButton onClick={() => void onConnect()} disabled={busy}>
                 <Link2 className="h-4 w-4" /> Hubungkan ulang
               </GhostButton>
-              <GhostButton onClick={() => void onDisconnect()} disabled={busy} className="text-destructive hover:text-destructive">
+              <GhostButton
+                onClick={() => void onDisconnect()}
+                disabled={busy}
+                className="text-destructive hover:text-destructive"
+              >
                 <Unlink className="h-4 w-4" /> Putuskan
               </GhostButton>
             </>
@@ -226,9 +244,11 @@ export function GlobalCloudSection() {
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
-          Cara setup: buka Google Cloud Console → APIs &amp; Services → Credentials → buat <b>OAuth client ID</b> tipe
-          <b> Web application</b>, aktifkan <b>Google Drive API</b>, tambahkan redirect URI di atas, lalu tempel Client ID
-          &amp; Secret di sini dan klik Hubungkan memakai akun Google yang dipakai sebagai penyimpanan aplikasi.
+          Cara setup: buka Google Cloud Console → APIs &amp; Services → Credentials → buat{" "}
+          <b>OAuth client ID</b> tipe
+          <b> Web application</b>, aktifkan <b>Google Drive API</b>, tambahkan redirect URI di atas,
+          lalu tempel Client ID &amp; Secret di sini dan klik Hubungkan memakai akun Google yang
+          dipakai sebagai penyimpanan aplikasi.
         </p>
       </Card>
     </div>

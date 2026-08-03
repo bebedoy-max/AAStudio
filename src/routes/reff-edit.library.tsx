@@ -48,10 +48,7 @@ function LibraryPage() {
         highlight="Library"
         desc="Reuse referensi + DNA yang sudah pernah dianalisa AI."
       />
-      <Card
-        title={`Koleksi (${items.length})`}
-        sub="Tersimpan lokal per akun"
-      >
+      <Card title={`Koleksi (${items.length})`} sub="Tersimpan lokal per akun">
         {items.length === 0 ? (
           <div className="text-sm text-muted-foreground">
             Belum ada referensi tersimpan. Simpan dari workspace Image/Video.
@@ -72,11 +69,7 @@ function LibraryPage() {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <video
-                        src={it.thumbnailUrl}
-                        className="h-full w-full object-cover"
-                        muted
-                      />
+                      <video src={it.thumbnailUrl} className="h-full w-full object-cover" muted />
                     )
                   ) : (
                     <span className="text-xs text-muted-foreground">no preview</span>

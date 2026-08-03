@@ -11,7 +11,9 @@ function cors(res: Response) {
 }
 
 function json(data: unknown, status = 200) {
-  return cors(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+  return cors(
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }),
+  );
 }
 
 export const Route = createFileRoute("/api/public/extension/login")({
@@ -22,15 +24,26 @@ export const Route = createFileRoute("/api/public/extension/login")({
         const SUPABASE_URL = process.env.SUPABASE_URL;
         const ANON = process.env.SUPABASE_PUBLISHABLE_KEY;
         if (!SUPABASE_URL || !ANON) return json({ error: "server_misconfigured" }, 500);
-        const body = (await request.json().catch(() => null)) as { email?: string; password?: string } | null;
+        const body = (await request.json().catch(() => null)) as {
+          email?: string;
+          password?: string;
+        } | null;
         if (!body?.email || !body?.password) return json({ error: "email/password required" }, 400);
         const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${ANON}` },
+          headers: {
+            "Content-Type": "application/json",
+            apikey: ANON,
+            Authorization: `Bearer ${ANON}`,
+          },
           body: JSON.stringify({ email: body.email, password: body.password }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) return json({ error: data?.error_description || data?.msg || "login_failed" }, res.status);
+        if (!res.ok)
+          return json(
+            { error: data?.error_description || data?.msg || "login_failed" },
+            res.status,
+          );
         return json({
           access_token: data.access_token,
           refresh_token: data.refresh_token,

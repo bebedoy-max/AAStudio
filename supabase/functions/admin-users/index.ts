@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: { display_name: display_name ?? email.split("@")[0] },
       });
-      if (createErr || !created.user) return json({ error: createErr?.message ?? "create failed" }, 400);
+      if (createErr || !created.user)
+        return json({ error: createErr?.message ?? "create failed" }, 400);
 
       // trigger creates profile+default user role. Override role if requested.
       if (role && role !== "user") {

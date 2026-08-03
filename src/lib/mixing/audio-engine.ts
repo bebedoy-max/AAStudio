@@ -8,13 +8,25 @@ export function musicHint(preset: MusicPreset): { mood: string; bpm: number; des
     case "None":
       return { mood: "none", bpm: 0, description: "" };
     case "Cinematic":
-      return { mood: "cinematic", bpm: 90, description: "orchestral swell, epic strings, cinematic drums" };
+      return {
+        mood: "cinematic",
+        bpm: 90,
+        description: "orchestral swell, epic strings, cinematic drums",
+      };
     case "Vlog":
-      return { mood: "upbeat", bpm: 110, description: "lofi vlog beat, warm keys, chill percussion" };
+      return {
+        mood: "upbeat",
+        bpm: 110,
+        description: "lofi vlog beat, warm keys, chill percussion",
+      };
     case "Epic":
       return { mood: "epic", bpm: 128, description: "trailer hybrid, heavy hits, rising synth" };
     case "Documentary":
-      return { mood: "reflective", bpm: 85, description: "ambient piano, subtle strings, contemplative" };
+      return {
+        mood: "reflective",
+        bpm: 85,
+        description: "ambient piano, subtle strings, contemplative",
+      };
     case "Relax":
       return { mood: "calm", bpm: 70, description: "soft pad, lo-fi guitar, peaceful" };
     case "Corporate":

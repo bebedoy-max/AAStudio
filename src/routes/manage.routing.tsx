@@ -14,10 +14,17 @@ import {
 } from "@/lib/routing/catalog";
 
 export const Route = createFileRoute("/manage/routing")({
-  head: () => ({ meta: [{ title: "Routing Provider — AA Creative Studio" }, { name: "description", content: "Pilih provider per kapabilitas: Image, Video, Voice Over, Motion Control." }] }),
+  head: () => ({
+    meta: [
+      { title: "Routing Provider — AA Creative Studio" },
+      {
+        name: "description",
+        content: "Pilih provider per kapabilitas: Image, Video, Voice Over, Motion Control.",
+      },
+    ],
+  }),
   component: RoutingPage,
 });
-
 
 function RoutingPage() {
   const { flags } = useProviderFlags();
@@ -60,7 +67,8 @@ function RoutingPage() {
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
         <Info className="h-3.5 w-3.5" />
         <span>
-          Info model & biaya di bawah adalah harga acuan resmi provider per Juli 2026. Harga aktual mengikuti dashboard masing-masing.
+          Info model & biaya di bawah adalah harga acuan resmi provider per Juli 2026. Harga aktual
+          mengikuti dashboard masing-masing.
         </span>
         {savedAt && <span className="ml-auto text-emerald-400">Tersimpan {savedAt}</span>}
       </div>
@@ -144,7 +152,9 @@ function RoutingPage() {
                         </option>
                       ))}
                     </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary text-xs">▼</span>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-primary text-xs">
+                      ▼
+                    </span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {activeProv?.desc ?? cap.desc}
@@ -160,7 +170,9 @@ function RoutingPage() {
                     <div key={m.name} className="flex items-start gap-2 text-xs">
                       <span className="mt-1 h-2 w-2 rounded-full border border-primary/60 shrink-0" />
                       <span className="text-foreground/85 truncate flex-1">{m.name}</span>
-                      <span className="font-mono text-emerald-300 text-[10px] whitespace-nowrap">{m.cost}</span>
+                      <span className="font-mono text-emerald-300 text-[10px] whitespace-nowrap">
+                        {m.cost}
+                      </span>
                     </div>
                   ))}
                   {activeProv?.note === "coming-soon" && (
@@ -174,7 +186,6 @@ function RoutingPage() {
           );
         })}
       </div>
-
     </DashboardShell>
   );
 }

@@ -11,7 +11,12 @@ export type ElevenSubscription = {
 };
 
 export async function checkElevenKey(apiKey: string): Promise<ElevenSubscription> {
-  const empty: ElevenSubscription = { ok: false, characterCount: 0, characterLimit: 0, remaining: null };
+  const empty: ElevenSubscription = {
+    ok: false,
+    characterCount: 0,
+    characterLimit: 0,
+    remaining: null,
+  };
   try {
     const r = await fetch("/api/public/elevenlabs-validate", {
       method: "POST",
@@ -22,11 +27,12 @@ export async function checkElevenKey(apiKey: string): Promise<ElevenSubscription
     const d = (await r.json()) as Partial<ElevenSubscription>;
     const characterCount = Number(d.characterCount ?? 0);
     const characterLimit = Number(d.characterLimit ?? 0);
-    const remaining = typeof d.remaining === "number"
-      ? d.remaining
-      : characterLimit > 0
-        ? Math.max(0, characterLimit - characterCount)
-        : null;
+    const remaining =
+      typeof d.remaining === "number"
+        ? d.remaining
+        : characterLimit > 0
+          ? Math.max(0, characterLimit - characterCount)
+          : null;
     return {
       ok: !!d.ok,
       characterCount,
@@ -84,7 +90,11 @@ async function callElevenStt(
     return { ok: false, status: 0, body: `network: ${(e as Error).message}` };
   }
   if (!res.ok) {
-    return { ok: false, status: res.status, body: (await res.text().catch(() => "")).slice(0, 300) };
+    return {
+      ok: false,
+      status: res.status,
+      body: (await res.text().catch(() => "")).slice(0, 300),
+    };
   }
   const data = (await res.json()) as {
     text?: string;
@@ -124,7 +134,13 @@ export async function transcribeElevenClient(
 ): Promise<ElevenSttResult> {
   const attempts: string[] = [];
   if (keys.length === 0) {
-    return { ok: false, language: "en", fullText: "", segments: [], error: "No ElevenLabs keys configured." };
+    return {
+      ok: false,
+      language: "en",
+      fullText: "",
+      segments: [],
+      error: "No ElevenLabs keys configured.",
+    };
   }
   for (let i = 0; i < keys.length; i++) {
     onLog?.(`STT key #${i + 1}/${keys.length} → ElevenLabs (direct)…`);
@@ -141,14 +157,23 @@ export async function transcribeElevenClient(
       };
     }
     const reason =
-      r.status === 401 ? "invalid/expired key"
-      : r.status === 402 ? "quota habis / limit"
-      : r.status === 403 ? "forbidden / limit"
-      : r.status === 413 ? "file terlalu besar"
-      : r.status === 415 ? "format audio tidak didukung"
-      : r.status === 429 ? "rate-limited"
-      : r.status === 0 ? "network error"
-      : r.status >= 500 ? "server error" : "gagal";
+      r.status === 401
+        ? "invalid/expired key"
+        : r.status === 402
+          ? "quota habis / limit"
+          : r.status === 403
+            ? "forbidden / limit"
+            : r.status === 413
+              ? "file terlalu besar"
+              : r.status === 415
+                ? "format audio tidak didukung"
+                : r.status === 429
+                  ? "rate-limited"
+                  : r.status === 0
+                    ? "network error"
+                    : r.status >= 500
+                      ? "server error"
+                      : "gagal";
     attempts.push(`key#${i + 1}:${r.status} ${reason}`);
     onLog?.(`STT key #${i + 1} gagal (${r.status} ${reason}) — rotasi ke key berikutnya…`);
     if (!rotatable(r.status)) {

@@ -49,7 +49,7 @@ export const listCompanionDevices = createServerFn({ method: "GET" })
       .select("id, device_id, device_name, android_version, active, last_seen_at, created_at")
       .order("created_at", { ascending: false })
       .limit(100);
-    return ((data as CompanionDeviceRow[] | null) ?? []);
+    return (data as CompanionDeviceRow[] | null) ?? [];
   });
 
 export const listCompanionEvents = createServerFn({ method: "GET" })
@@ -65,10 +65,9 @@ export const listCompanionEvents = createServerFn({ method: "GET" })
     // Kolom arsip belum dibuat (migrasi manual belum dijalankan) → fallback.
     if (error) {
       const { data: all } = await base();
-      return ((all as CompanionEventRow[] | null) ?? []);
+      return (all as CompanionEventRow[] | null) ?? [];
     }
-    return ((data as CompanionEventRow[] | null) ?? []);
-
+    return (data as CompanionEventRow[] | null) ?? [];
   });
 
 export const setCompanionDeviceActive = createServerFn({ method: "POST" })
@@ -128,7 +127,9 @@ export const searchCompanionEvents = createServerFn({ method: "POST" })
       dateTo?: string | null;
       scope?: "all" | "archived" | "active";
     }) => ({
-      q: String(input?.q ?? "").trim().slice(0, 120),
+      q: String(input?.q ?? "")
+        .trim()
+        .slice(0, 120),
       status: input?.status ? String(input.status) : null,
       dateFrom: input?.dateFrom ?? null,
       dateTo: input?.dateTo ?? null,
@@ -163,5 +164,5 @@ export const searchCompanionEvents = createServerFn({ method: "POST" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return ((rows as CompanionEventRow[] | null) ?? []);
+    return (rows as CompanionEventRow[] | null) ?? [];
   });

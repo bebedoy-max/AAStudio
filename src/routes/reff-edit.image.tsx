@@ -14,8 +14,7 @@ export const Route = createFileRoute("/reff-edit/image")({
       { property: "og:title", content: "Image Reference Edit — Reff EDIT" },
       {
         property: "og:description",
-        content:
-          "AI Creative Director untuk image editing berbasis referensi visual.",
+        content: "AI Creative Director untuk image editing berbasis referensi visual.",
       },
     ],
   }),

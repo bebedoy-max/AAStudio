@@ -4,7 +4,8 @@ export const Route = createFileRoute("/api/public/cloud/file/$id")({
   server: {
     handlers: {
       GET: async ({ params, request }) => {
-        const { getCloudFile, streamCloudFile, ctxForRow } = await import("@/lib/cloud/registry.server");
+        const { getCloudFile, streamCloudFile, ctxForRow } =
+          await import("@/lib/cloud/registry.server");
         const row = await getCloudFile(params.id);
         if (!row) return new Response("Not found", { status: 404 });
 
@@ -18,9 +19,16 @@ export const Route = createFileRoute("/api/public/cloud/file/$id")({
             const { DownloadService } = await import("@/lib/cloud/storage/service.server");
             const { logTransfer } = await import("@/lib/cloud/storage/log.server");
             const ctx = await ctxForRow(row);
-            const links = await DownloadService.directLinks(ctx, row.drive_file_id, row.mime_type || "");
+            const links = await DownloadService.directLinks(
+              ctx,
+              row.drive_file_id,
+              row.mime_type || "",
+            );
             if (links.directUrl) {
-              logTransfer(download ? "download.redirect" : "preview.redirect", { id: row.id, kind: row.kind });
+              logTransfer(download ? "download.redirect" : "preview.redirect", {
+                id: row.id,
+                kind: row.kind,
+              });
               return new Response(null, {
                 status: 302,
                 headers: {

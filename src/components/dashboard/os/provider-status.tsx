@@ -11,18 +11,16 @@ const CATS: { id: Provider["category"]; label: string }[] = [
 
 export function ProviderStatus() {
   const providers = useProviders();
-  const noKey = providers.some((p) => p.status === "no-key" && (p.id === "openai" || p.id === "gemini"));
+  const noKey = providers.some(
+    (p) => p.status === "no-key" && (p.id === "openai" || p.id === "gemini"),
+  );
 
   return (
     <div className="neumorph p-5 h-full">
       <div className="flex items-center gap-2">
         <Cpu className="h-4 w-4 text-primary" />
         <div className="font-display text-base">Provider Status</div>
-        {noKey ? (
-          <Chip tone="warn">Butuh Key</Chip>
-        ) : (
-          <Chip tone="success">Auto Switch On</Chip>
-        )}
+        {noKey ? <Chip tone="warn">Butuh Key</Chip> : <Chip tone="success">Auto Switch On</Chip>}
       </div>
       <div className="text-[11px] text-muted-foreground mt-0.5">
         Multi-provider dengan fallback otomatis — kamu tidak perlu memilih manual

@@ -17,7 +17,6 @@ type Body = {
   ctaCustom?: string;
 };
 
-
 function isRotatable(s: number): boolean {
   return s === 401 || s === 403 || s === 429 || s === 402 || s >= 500;
 }
@@ -45,7 +44,12 @@ function json(data: unknown, status = 200): Response {
 }
 
 async function callGemini(key: string, system: string, user: string) {
-  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+  ];
   let last: { ok: false; status: number; body: string } | undefined;
   for (const model of models) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
@@ -58,12 +62,20 @@ async function callGemini(key: string, system: string, user: string) {
       }),
     });
     if (!res.ok) {
-      last = { ok: false as const, status: res.status, body: `${model}: ${await safeErrorBody(res)}` };
+      last = {
+        ok: false as const,
+        status: res.status,
+        body: `${model}: ${await safeErrorBody(res)}`,
+      };
       if (!isRotatable(res.status) && res.status !== 404) return last;
       continue;
     }
-    const data = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const text = (data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "").trim();
+    const data = (await res.json()) as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = (
+      data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || ""
+    ).trim();
     if (!text) {
       last = { ok: false as const, status: 502, body: `${model}: empty` };
       continue;
@@ -79,14 +91,18 @@ export const Route = createFileRoute("/api/public/storyboard-brain")({
       POST: async ({ request }) => {
         const bulk = (request.headers.get("x-user-gemini-keys") || "").trim();
         const single = (request.headers.get("x-user-gemini-key") || "").trim();
-        const userKeys = Array.from(new Set(
-          (bulk ? bulk.split(/[\s,;]+/) : [single])
-            .map((s) => s.trim())
-            .filter((s) => s.length >= 10)
-        ));
+        const userKeys = Array.from(
+          new Set(
+            (bulk ? bulk.split(/[\s,;]+/) : [single])
+              .map((s) => s.trim())
+              .filter((s) => s.length >= 10),
+          ),
+        );
         // Fallback Global Brain (key platform) saat user belum punya key sendiri.
         const { loadGlobalBrainKeys } = await import("../router/chat");
-        const globalKeys = (await loadGlobalBrainKeys()).gemini.filter((k) => !userKeys.includes(k));
+        const globalKeys = (await loadGlobalBrainKeys()).gemini.filter(
+          (k) => !userKeys.includes(k),
+        );
         const geminiKeys = [...userKeys, ...globalKeys];
 
         let body: Body = {};
@@ -134,13 +150,16 @@ Catatan user: ${extra || "(tidak ada)"}
 
 Tulis kalimat promptnya sekarang.`;
 
-
         const errors: string[] = [];
         const providers: Array<{
           name: string;
-          fn: () => Promise<{ ok: true; text: string } | { ok: false; status: number; body: string }>;
+          fn: () => Promise<
+            { ok: true; text: string } | { ok: false; status: number; body: string }
+          >;
         }> = [];
-        geminiKeys.forEach((k, i) => providers.push({ name: `gemini#${i + 1}`, fn: () => callGemini(k, system, user) }));
+        geminiKeys.forEach((k, i) =>
+          providers.push({ name: `gemini#${i + 1}`, fn: () => callGemini(k, system, user) }),
+        );
         if (providers.length === 0) {
           return json({
             error: "Tidak ada Gemini key ter-konfigurasi",

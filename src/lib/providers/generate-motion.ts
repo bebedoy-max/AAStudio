@@ -89,7 +89,8 @@ async function maybeCompress(file: File): Promise<File> {
 
 async function generateOneWeavy(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
   const { index } = slot;
-  const log = (m: string, l?: "info" | "warn" | "error" | "success") => opts.onLog?.(`#${index + 1} ${m}`, l);
+  const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
+    opts.onLog?.(`#${index + 1} ${m}`, l);
 
   let tokenInfo = await getActiveWeavyAccessToken();
   if (!tokenInfo) throw new Error("Belum ada Weavy token / semua token gagal refresh.");
@@ -104,7 +105,11 @@ async function generateOneWeavy(slot: MotionSlotInput, opts: MotionOpts): Promis
 
   opts.onStatus?.({ index, status: "uploading vid..." });
   log("Upload video...");
-  const vidUp = await uploadWeavyAssetWithRetry(slot.video, `ref_vid_${index}_${Date.now()}.mp4`, at);
+  const vidUp = await uploadWeavyAssetWithRetry(
+    slot.video,
+    `ref_vid_${index}_${Date.now()}.mp4`,
+    at,
+  );
   const videoUrl = resolveWeavyAssetUrl(vidUp, "video");
   log(`Video uploaded: ${videoUrl.substring(0, 60)}...`);
 
@@ -131,7 +136,8 @@ async function generateOneWeavy(slot: MotionSlotInput, opts: MotionOpts): Promis
       log(`Recipe: ${recipe.id} Batch: ${batchId}`);
       const url = await pollWeavyBatchVideo(recipe.id, batchId, at, {
         inputVideoUrl: videoUrl,
-        onProgress: ({ attempt: pa, status }) => opts.onStatus?.({ index, status: `poll ${pa} · ${status}` }),
+        onProgress: ({ attempt: pa, status }) =>
+          opts.onStatus?.({ index, status: `poll ${pa} · ${status}` }),
       });
       if (!url) throw new Error("Weavy: no output URL after polling");
       return url;
@@ -153,7 +159,8 @@ async function generateOneWeavy(slot: MotionSlotInput, opts: MotionOpts): Promis
 
 async function generateOneWavespeed(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
   const { index } = slot;
-  const log = (m: string, l?: "info" | "warn" | "error" | "success") => opts.onLog?.(`#${index + 1} [WS] ${m}`, l);
+  const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
+    opts.onLog?.(`#${index + 1} [WS] ${m}`, l);
   const key = getFirstWavespeedKey();
   if (!key) throw new Error("Belum ada Wavespeed API key.");
 
@@ -299,7 +306,9 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
         cleanup();
         stallTimer = setTimeout(() => {
           xhr.abort();
-          fail(`${host}: upload tidak bergerak > ${Math.round(DIRECT_UPLOAD_STALL_MS / 1000)} detik`);
+          fail(
+            `${host}: upload tidak bergerak > ${Math.round(DIRECT_UPLOAD_STALL_MS / 1000)} detik`,
+          );
         }, DIRECT_UPLOAD_STALL_MS);
       };
 
@@ -317,7 +326,10 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
           }
           return;
         }
-        opts.onStatus?.({ index, status: `uploading ${kind} ${host} ${formatBytes(event.loaded)}` });
+        opts.onStatus?.({
+          index,
+          status: `uploading ${kind} ${host} ${formatBytes(event.loaded)}`,
+        });
       };
       xhr.upload.onload = () => {
         resetStallTimer();
@@ -347,9 +359,13 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     const fd = new FormData();
     fd.append("files[]", file, file.name || "upload.bin");
     return postFormWithProgress("Uguu", "https://uguu.se/upload.php", fd, kind, (text, status) => {
-      const j = JSON.parse(text || "null") as { files?: Array<{ url?: string }>; error?: string } | null;
+      const j = JSON.parse(text || "null") as {
+        files?: Array<{ url?: string }>;
+        error?: string;
+      } | null;
       const url = j?.files?.[0]?.url;
-      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) return url.replace(/\\\//g, "/");
+      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url))
+        return url.replace(/\\\//g, "/");
       throw new Error(j?.error || `Uguu HTTP ${status}`);
     });
   };
@@ -357,23 +373,35 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     const fd = new FormData();
     fd.append("reqtype", "fileupload");
     fd.append("fileToUpload", file, file.name || "upload.bin");
-    return postFormWithProgress("Catbox", "https://catbox.moe/user/api.php", fd, kind, (text, status) => {
-      if (status >= 200 && status < 300 && /^https?:\/\//i.test(text)) return text;
-      throw new Error(text || `Catbox HTTP ${status}`);
-    });
+    return postFormWithProgress(
+      "Catbox",
+      "https://catbox.moe/user/api.php",
+      fd,
+      kind,
+      (text, status) => {
+        if (status >= 200 && status < 300 && /^https?:\/\//i.test(text)) return text;
+        throw new Error(text || `Catbox HTTP ${status}`);
+      },
+    );
   };
   const uploadDirectTmpfiles = async (file: File, kind: "image" | "video"): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name || "upload.bin");
-    return postFormWithProgress("Tmpfiles", "https://tmpfiles.org/api/v1/upload", fd, kind, (text, status) => {
-      const j = JSON.parse(text || "null") as { status?: string; data?: { url?: string } } | null;
-      const url = j?.data?.url;
-      if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) {
-        // Convert viewer URL → direct download URL (insert /dl/ after host)
-        return url.replace(/^(https?:\/\/tmpfiles\.org)\/(?!dl\/)/i, "$1/dl/");
-      }
-      throw new Error(`Tmpfiles HTTP ${status}`);
-    });
+    return postFormWithProgress(
+      "Tmpfiles",
+      "https://tmpfiles.org/api/v1/upload",
+      fd,
+      kind,
+      (text, status) => {
+        const j = JSON.parse(text || "null") as { status?: string; data?: { url?: string } } | null;
+        const url = j?.data?.url;
+        if (status >= 200 && status < 300 && url && /^https?:\/\//i.test(url)) {
+          // Convert viewer URL → direct download URL (insert /dl/ after host)
+          return url.replace(/^(https?:\/\/tmpfiles\.org)\/(?!dl\/)/i, "$1/dl/");
+        }
+        throw new Error(`Tmpfiles HTTP ${status}`);
+      },
+    );
   };
   const uploadDirect0x0 = async (file: File, kind: "image" | "video"): Promise<string> => {
     const fd = new FormData();
@@ -387,11 +415,18 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const uploadDirectPixeldrain = async (file: File, kind: "image" | "video"): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file, file.name || "upload.bin");
-    return postFormWithProgress("Pixeldrain", "https://pixeldrain.com/api/file", fd, kind, (text, status) => {
-      const j = JSON.parse(text || "null") as { id?: string; message?: string } | null;
-      if (status >= 200 && status < 300 && j?.id) return `https://pixeldrain.com/api/file/${j.id}`;
-      throw new Error(j?.message || `Pixeldrain HTTP ${status}`);
-    });
+    return postFormWithProgress(
+      "Pixeldrain",
+      "https://pixeldrain.com/api/file",
+      fd,
+      kind,
+      (text, status) => {
+        const j = JSON.parse(text || "null") as { id?: string; message?: string } | null;
+        if (status >= 200 && status < 300 && j?.id)
+          return `https://pixeldrain.com/api/file/${j.id}`;
+        throw new Error(j?.message || `Pixeldrain HTTP ${status}`);
+      },
+    );
   };
   const uploadViaServer = async (file: File): Promise<string> => {
     const fd = new FormData();
@@ -404,7 +439,11 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     return j.url;
   };
 
-  const validateRoboneoMediaUrl = async (url: string, kind: "image" | "video", host: string): Promise<string> => {
+  const validateRoboneoMediaUrl = async (
+    url: string,
+    kind: "image" | "video",
+    host: string,
+  ): Promise<string> => {
     const r = await fetch("/api/public/validate-media", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -418,7 +457,11 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
       finalUrl?: string;
     };
     if (!r.ok || !j.ok) {
-      const detail = [j.error, j.contentType ? `content-type=${j.contentType}` : null, j.finalUrl ? `final=${j.finalUrl}` : null]
+      const detail = [
+        j.error,
+        j.contentType ? `content-type=${j.contentType}` : null,
+        j.finalUrl ? `final=${j.finalUrl}` : null,
+      ]
         .filter(Boolean)
         .join(" · ");
       throw new Error(`${host}: ${detail || `validasi media gagal (${r.status})`}`);
@@ -474,17 +517,20 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     }
 
     if (!canUseServer) {
-      errs.push(`skip server proxy (${formatBytes(file.size)} > ${formatBytes(SERVER_PROXY_HARD_LIMIT)})`);
+      errs.push(
+        `skip server proxy (${formatBytes(file.size)} > ${formatBytes(SERVER_PROXY_HARD_LIMIT)})`,
+      );
     }
     throw new Error(`Upload gagal: ${errs.join(" | ")}`);
   };
-
 
   opts.onStatus?.({ index, status: "uploading img..." });
   log("Upload image ke public host...");
   const imgBlob = await maybeCompress(slot.image);
   const imageUrl = await uploadPublic(
-    new File([imgBlob], `rn_img_${index}_${Date.now()}.jpg`, { type: imgBlob.type || "image/jpeg" }),
+    new File([imgBlob], `rn_img_${index}_${Date.now()}.jpg`, {
+      type: imgBlob.type || "image/jpeg",
+    }),
     "image",
   );
   log(`Image: ${imageUrl.substring(0, 60)}...`);
@@ -492,7 +538,9 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   opts.onStatus?.({ index, status: "uploading vid..." });
   log("Upload video ke public host...");
   const videoUrl = await uploadPublic(
-    new File([slot.video], `rn_vid_${index}_${Date.now()}.mp4`, { type: slot.video.type || "video/mp4" }),
+    new File([slot.video], `rn_vid_${index}_${Date.now()}.mp4`, {
+      type: slot.video.type || "video/mp4",
+    }),
     "video",
   );
   log(`Video: ${videoUrl.substring(0, 60)}...`);
@@ -509,10 +557,13 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
     let busyRetry = 0;
     // Retry loop for the same token to absorb transient upstream congestion
     // ("system is busy") before rotating or giving up.
-    // eslint-disable-next-line no-constant-condition
+
     while (true) {
       try {
-        opts.onStatus?.({ index, status: `submitting (token #${label}, ${ti + 1}/${tokens.length})` });
+        opts.onStatus?.({
+          index,
+          status: `submitting (token #${label}, ${ti + 1}/${tokens.length})`,
+        });
         log(
           `Submit motion-control quality=${quality} (token #${label} — ${entry.balance ?? "?"} credit, ${ti + 1}/${tokens.length})...`,
         );
@@ -535,11 +586,16 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
         return outUrl;
       } catch (e) {
         const msg = (e as Error).message || String(e);
-        const isBusy = /system is busy|try again later|busy.*try again|too many requests|429/i.test(msg);
+        const isBusy = /system is busy|try again later|busy.*try again|too many requests|429/i.test(
+          msg,
+        );
         if (isBusy && busyRetry < MAX_BUSY_RETRIES) {
           busyRetry++;
           const waitMs = 5000 * busyRetry;
-          log(`Upstream busy — retry ${busyRetry}/${MAX_BUSY_RETRIES} in ${waitMs / 1000}s...`, "warn");
+          log(
+            `Upstream busy — retry ${busyRetry}/${MAX_BUSY_RETRIES} in ${waitMs / 1000}s...`,
+            "warn",
+          );
           opts.onStatus?.({ index, status: `busy, retry ${busyRetry}/${MAX_BUSY_RETRIES}` });
           await new Promise((r) => setTimeout(r, waitMs));
           continue;
@@ -555,15 +611,16 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
           );
         }
         const credentialFailure = isRoboneoCredentialError(msg);
-        const removed = credentialFailure && !chargeFailure
-          ? removeRoboneoKeyFromManager(at, msg)
-          : { removed: false, remaining: tokens.length - ti - 1 };
+        const removed =
+          credentialFailure && !chargeFailure
+            ? removeRoboneoKeyFromManager(at, msg)
+            : { removed: false, remaining: tokens.length - ti - 1 };
         log(
           removed.removed && ti < tokens.length - 1
             ? "Token Roboneo habis/invalid — dihapus dari Token Manager, rotate ke token berikutnya..."
             : removed.removed
               ? "Token Roboneo habis/invalid — dihapus dari Token Manager."
-            : "Credit token tidak cukup — rotate ke token berikutnya tanpa menghapus token.",
+              : "Credit token tidak cukup — rotate ke token berikutnya tanpa menghapus token.",
           "info",
         );
         break;
@@ -602,7 +659,6 @@ async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promi
     { onRotate: (i, total, reason) => log(`rotate token ${i}/${total}: ${reason}`, "warn") },
   );
 }
-
 
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
 export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOpts): Promise<void> {

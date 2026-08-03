@@ -14,8 +14,7 @@ export const Route = createFileRoute("/reff-edit/video")({
       { property: "og:title", content: "Video Reference Edit — Reff EDIT" },
       {
         property: "og:description",
-        content:
-          "AI Creative Director untuk video editing berbasis referensi cinematic.",
+        content: "AI Creative Director untuk video editing berbasis referensi cinematic.",
       },
     ],
   }),

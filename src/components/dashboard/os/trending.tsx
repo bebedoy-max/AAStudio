@@ -40,7 +40,9 @@ export function Trending({ onPick }: { onPick: (keyword: string) => void }) {
               className="group w-full text-left rounded-lg border border-border bg-card/30 hover:border-primary/50 hover:bg-primary/[0.04] px-3 py-2 transition flex items-center gap-2"
             >
               <span className="text-[10px] font-mono text-muted-foreground w-6">#{i + 1}</span>
-              <span className="text-sm text-foreground/90 group-hover:text-primary truncate">{k}</span>
+              <span className="text-sm text-foreground/90 group-hover:text-primary truncate">
+                {k}
+              </span>
             </button>
           </li>
         ))}

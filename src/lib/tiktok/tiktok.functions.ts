@@ -47,7 +47,9 @@ export const listTikTokAccounts = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await (context.supabase as any)
       .from("tiktok_accounts")
-      .select("id, open_id, union_id, display_name, avatar_url, scope, access_expires_at, created_at, updated_at")
+      .select(
+        "id, open_id, union_id, display_name, avatar_url, scope, access_expires_at, created_at, updated_at",
+      )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];

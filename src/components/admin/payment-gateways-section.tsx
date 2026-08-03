@@ -24,13 +24,19 @@ import {
   type GatewayListItem,
 } from "@/lib/payments/gateways.functions";
 import { useDirty } from "@/lib/hooks/use-dirty";
-import { PAYMENT_PROVIDERS, getProviderDef, type ProviderDef } from "@/lib/payments/providers-catalog";
+import {
+  PAYMENT_PROVIDERS,
+  getProviderDef,
+  type ProviderDef,
+} from "@/lib/payments/providers-catalog";
 import { confirmDialog } from "@/components/ui-confirm";
 
 export function PaymentGatewaysSection() {
   const [items, setItems] = useState<GatewayListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<{ mode: "new" | "edit"; row?: GatewayListItem } | null>(null);
+  const [editing, setEditing] = useState<{ mode: "new" | "edit"; row?: GatewayListItem } | null>(
+    null,
+  );
   const [testingId, setTestingId] = useState<string | null>(null);
 
   const fetchList = useServerFn(listPaymentGateways);
@@ -260,7 +266,9 @@ function GatewayModal({
 }) {
   const [provider, setProvider] = useState<string>(initial?.provider ?? PAYMENT_PROVIDERS[0].id);
   const [label, setLabel] = useState(initial?.label ?? "");
-  const [environment, setEnvironment] = useState<"sandbox" | "production">(initial?.environment ?? "sandbox");
+  const [environment, setEnvironment] = useState<"sandbox" | "production">(
+    initial?.environment ?? "sandbox",
+  );
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -427,9 +435,7 @@ function GatewayModal({
                     className="w-full rounded-2xl border border-border bg-card/50 px-3 py-2.5 text-sm outline-none focus:border-primary/60 font-mono"
                   />
                 )}
-                {f.help && (
-                  <span className="text-[10px] text-muted-foreground">{f.help}</span>
-                )}
+                {f.help && <span className="text-[10px] text-muted-foreground">{f.help}</span>}
               </label>
             ))}
           </div>

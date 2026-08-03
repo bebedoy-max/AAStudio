@@ -35,13 +35,22 @@ function DashboardHome() {
     researchRef.current?.runKeyword(kw);
     // smooth scroll to research panel
     setTimeout(() => {
-      document.getElementById("research-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document
+        .getElementById("research-panel")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
   }, []);
 
   const name = user?.email?.split("@")[0] || "Creator";
   const hour = new Date().getHours();
-  const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 19 ? "Selamat sore" : "Selamat malam";
+  const greeting =
+    hour < 11
+      ? "Selamat pagi"
+      : hour < 15
+        ? "Selamat siang"
+        : hour < 19
+          ? "Selamat sore"
+          : "Selamat malam";
 
   return (
     <DashboardShell>
@@ -75,7 +84,11 @@ function DashboardHome() {
         <BrainInsight onKeyword={openResearch} />
 
         {/* 3. Quick Actions */}
-        <Section eyebrow="02 · Studio" title="Quick Actions" desc="Semua workflow AI dalam satu klik">
+        <Section
+          eyebrow="02 · Studio"
+          title="Quick Actions"
+          desc="Semua workflow AI dalam satu klik"
+        >
           <QuickActions />
         </Section>
 
@@ -83,10 +96,13 @@ function DashboardHome() {
         <RunningTasks />
 
         {/* 5. Project Workspace */}
-        <Section eyebrow="03 · Memory" title="Project Workspace" desc="Setiap generate hidup di sini — pin, favorit, lanjutkan">
+        <Section
+          eyebrow="03 · Memory"
+          title="Project Workspace"
+          desc="Setiap generate hidup di sini — pin, favorit, lanjutkan"
+        >
           <ProjectWorkspace />
         </Section>
-
 
         {/* 7. Playbook + Asset Hub */}
         <div className="grid gap-4 lg:grid-cols-2">

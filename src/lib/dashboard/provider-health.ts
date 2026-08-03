@@ -14,20 +14,88 @@ export type Provider = {
 };
 
 function compute(): Provider[] {
-  const { openai, gemini } = typeof window === "undefined" ? { openai: "", gemini: "" } : getCreativeKeys();
+  const { openai, gemini } =
+    typeof window === "undefined" ? { openai: "", gemini: "" } : getCreativeKeys();
   const openaiOk = !!openai;
   const geminiOk = !!gemini;
   return [
-    { id: "openai", name: "OpenAI GPT", category: "text", status: openaiOk ? "healthy" : "no-key", queue: openaiOk ? 2 : 0 },
-    { id: "gemini", name: "Gemini 2.5", category: "text", status: geminiOk ? "healthy" : "no-key", queue: geminiOk ? 1 : 0 },
-    { id: "claude", name: "Claude 4", category: "text", status: "degraded", queue: 0, note: "planned" },
-    { id: "gemini-image", name: "Gemini Image", category: "image", status: geminiOk ? "healthy" : "no-key", queue: geminiOk ? 3 : 0 },
-    { id: "openai-image", name: "GPT-Image", category: "image", status: openaiOk ? "fallback" : "no-key", queue: 0, note: openaiOk ? "backup" : undefined },
-    { id: "flux", name: "Flux Pro", category: "image", status: "degraded", queue: 0, note: "planned" },
-    { id: "kling", name: "Kling 2.5", category: "video", status: "degraded", queue: 0, note: "planned" },
-    { id: "runway", name: "Runway", category: "video", status: "degraded", queue: 0, note: "planned" },
-    { id: "wavespeed", name: "Wavespeed", category: "video", status: "degraded", queue: 0, note: "planned" },
-    { id: "eleven", name: "ElevenLabs", category: "voice", status: "degraded", queue: 0, note: "planned" },
+    {
+      id: "openai",
+      name: "OpenAI GPT",
+      category: "text",
+      status: openaiOk ? "healthy" : "no-key",
+      queue: openaiOk ? 2 : 0,
+    },
+    {
+      id: "gemini",
+      name: "Gemini 2.5",
+      category: "text",
+      status: geminiOk ? "healthy" : "no-key",
+      queue: geminiOk ? 1 : 0,
+    },
+    {
+      id: "claude",
+      name: "Claude 4",
+      category: "text",
+      status: "degraded",
+      queue: 0,
+      note: "planned",
+    },
+    {
+      id: "gemini-image",
+      name: "Gemini Image",
+      category: "image",
+      status: geminiOk ? "healthy" : "no-key",
+      queue: geminiOk ? 3 : 0,
+    },
+    {
+      id: "openai-image",
+      name: "GPT-Image",
+      category: "image",
+      status: openaiOk ? "fallback" : "no-key",
+      queue: 0,
+      note: openaiOk ? "backup" : undefined,
+    },
+    {
+      id: "flux",
+      name: "Flux Pro",
+      category: "image",
+      status: "degraded",
+      queue: 0,
+      note: "planned",
+    },
+    {
+      id: "kling",
+      name: "Kling 2.5",
+      category: "video",
+      status: "degraded",
+      queue: 0,
+      note: "planned",
+    },
+    {
+      id: "runway",
+      name: "Runway",
+      category: "video",
+      status: "degraded",
+      queue: 0,
+      note: "planned",
+    },
+    {
+      id: "wavespeed",
+      name: "Wavespeed",
+      category: "video",
+      status: "degraded",
+      queue: 0,
+      note: "planned",
+    },
+    {
+      id: "eleven",
+      name: "ElevenLabs",
+      category: "voice",
+      status: "degraded",
+      queue: 0,
+      note: "planned",
+    },
   ];
 }
 
@@ -54,13 +122,20 @@ if (typeof window !== "undefined") {
 }
 
 export function useProviders(): Provider[] {
-  return useSyncExternalStore(subscribe, () => state, () => state);
+  return useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => state,
+  );
 }
 
 export function providerBadge(s: ProviderStatus): { label: string; className: string } {
   switch (s) {
     case "healthy":
-      return { label: "Healthy", className: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30" };
+      return {
+        label: "Healthy",
+        className: "text-emerald-300 bg-emerald-500/10 border-emerald-500/30",
+      };
     case "fallback":
       return { label: "Fallback", className: "text-amber-300 bg-amber-500/10 border-amber-500/30" };
     case "no-key":

@@ -3,7 +3,13 @@
 // Mount <DialogsHost /> once (done in ai-influencer.tsx).
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { Sparkles } from "lucide-react";
 
@@ -71,7 +77,10 @@ export function DialogsHost() {
 
   const open = current !== null;
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && close(current?.kind === "confirm" ? false : null)}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => !v && close(current?.kind === "confirm" ? false : null)}
+    >
       <DialogContent className="border-border/60 bg-[oklch(0.17_0.05_275)]/95 backdrop-blur-xl neumorph !max-w-md p-0 overflow-hidden">
         {current && (
           <div className="p-6">
@@ -130,7 +139,8 @@ export function DialogsHost() {
                   close(current.kind === "prompt" ? (value.trim() ? value : null) : true)
                 }
               >
-                {current.opts.confirmLabel ?? (current.kind === "confirm" ? "Konfirmasi" : "Simpan")}
+                {current.opts.confirmLabel ??
+                  (current.kind === "confirm" ? "Konfirmasi" : "Simpan")}
               </PrimaryButton>
             </div>
           </div>

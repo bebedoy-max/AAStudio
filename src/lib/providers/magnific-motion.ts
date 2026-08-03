@@ -97,9 +97,9 @@ export async function runMagnificMotion(opts: MagnificMotionOpts): Promise<strin
       const url =
         (st.video_url as string | undefined) ||
         (st.output_url as string | undefined) ||
-        ((st.output as { url?: string } | undefined)?.url) ||
-        ((st.result as { url?: string; video_url?: string } | undefined)?.video_url) ||
-        ((st.result as { url?: string; video_url?: string } | undefined)?.url);
+        (st.output as { url?: string } | undefined)?.url ||
+        (st.result as { url?: string; video_url?: string } | undefined)?.video_url ||
+        (st.result as { url?: string; video_url?: string } | undefined)?.url;
       if (!url) throw new Error("Magnific: tidak ada URL output di response");
       return url;
     }

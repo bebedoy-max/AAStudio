@@ -18,19 +18,19 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { clipperStore, pushLog, setStage } from "@/lib/mixing/run-store";
-import type {
-  ClipperProject,
-  ClipperSettings,
-  HookScore,
-  VideoSource,
-} from "@/lib/mixing/types";
+import type { ClipperProject, ClipperSettings, HookScore, VideoSource } from "@/lib/mixing/types";
 import { autoBuildClips } from "@/lib/mixing/timeline-engine";
 import { toSrt, toVtt, stylePreview } from "@/lib/mixing/subtitle-engine";
 import { headersForBrain, listProviders, health } from "@/lib/mixing/providers";
 import { mixingQueue } from "@/lib/mixing/queue";
 import { loadMemory, saveMemory } from "@/lib/mixing/memory";
 import { listProjects, saveClipper, loadClipper, deleteProject } from "@/lib/mixing/projects";
-import { submitRender, checkSourceSize, fmtBytes, type RenderEngine } from "@/lib/mixing/render-engine";
+import {
+  submitRender,
+  checkSourceSize,
+  fmtBytes,
+  type RenderEngine,
+} from "@/lib/mixing/render-engine";
 import { cloudRenderStatus } from "@/lib/mixing/providers";
 import { NewProjectDialog } from "@/components/mixing/new-project-dialog";
 
@@ -95,7 +95,6 @@ function ClipperPage() {
     return openai.length ? { ...h, status: "ok" as const } : h;
   }, []);
 
-
   useEffect(() => {
     const mem = loadMemory().clipper;
     if (mem) {
@@ -120,7 +119,13 @@ function ClipperPage() {
         lastClipDuration: settings.clipDurationSec,
       },
     });
-  }, [settings.subtitleStyle, settings.transition, settings.aspectRatio, settings.zoomKind, settings.clipDurationSec]);
+  }, [
+    settings.subtitleStyle,
+    settings.transition,
+    settings.aspectRatio,
+    settings.zoomKind,
+    settings.clipDurationSec,
+  ]);
 
   const project = state.project;
 
@@ -152,7 +157,12 @@ function ClipperPage() {
   function removeSource(id: string) {
     if (!project) return;
     const src = project.sources.find((s) => s.id === id);
-    if (src?.url?.startsWith("blob:")) try { URL.revokeObjectURL(src.url); } catch { /* */ }
+    if (src?.url?.startsWith("blob:"))
+      try {
+        URL.revokeObjectURL(src.url);
+      } catch {
+        /* */
+      }
     const updated: ClipperProject = {
       ...project,
       sources: project.sources.filter((s) => s.id !== id),
@@ -189,7 +199,11 @@ function ClipperPage() {
       toast.error("File tidak didukung. Gunakan MP4/MOV/MKV/AVI/WEBM.");
       return;
     }
-    const updated: ClipperProject = { ...p, sources: [...p.sources, ...additions], updatedAt: Date.now() };
+    const updated: ClipperProject = {
+      ...p,
+      sources: [...p.sources, ...additions],
+      updatedAt: Date.now(),
+    };
     clipperStore.patch({ project: updated });
     setStage(clipperStore, "upload", 100, `Loaded ${additions.length} video`);
     pushLog(clipperStore, `Upload: ${additions.map((a) => a.name).join(", ")}`);
@@ -199,7 +213,9 @@ function ClipperPage() {
     // Web-audio decode into 16k mono WAV so /api/router/stt is happy on any browser.
     const res = await fetch(source.url);
     const buf = await res.arrayBuffer();
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ac = new AC();
     const decoded = await ac.decodeAudioData(buf.slice(0));
     const targetRate = 16000;
@@ -251,8 +267,12 @@ function ClipperPage() {
       const v = localStorage.getItem(key);
       if (!v) return [];
       const p = JSON.parse(v);
-      return Array.isArray(p) ? p.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : [];
-    } catch { return []; }
+      return Array.isArray(p)
+        ? p.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        : [];
+    } catch {
+      return [];
+    }
   }
 
   async function directStt(
@@ -279,17 +299,28 @@ function ClipperPage() {
           if (!r.ok) {
             const body = (await r.text()).slice(0, 160);
             errors.push(`openai#${idx}/${model} ${r.status}: ${body}`);
-            pushLog(clipperStore, `OpenAI key #${idx} (${mask(key)}) ${model} → ${r.status}, next…`);
+            pushLog(
+              clipperStore,
+              `OpenAI key #${idx} (${mask(key)}) ${model} → ${r.status}, next…`,
+            );
             continue;
           }
-          const d = await r.json() as { text?: string; language?: string; segments?: Array<{ start: number; end: number; text: string }> };
+          const d = (await r.json()) as {
+            text?: string;
+            language?: string;
+            segments?: Array<{ start: number; end: number; text: string }>;
+          };
           pushLog(clipperStore, `OpenAI key #${idx} OK (${model})`);
           return {
             language: d.language || "en",
             fullText: d.text || "",
-            segments: d.segments?.map((s) => ({ start: s.start, end: s.end, text: s.text })) ?? [{ start: 0, end: 0, text: d.text || "" }],
+            segments: d.segments?.map((s) => ({ start: s.start, end: s.end, text: s.text })) ?? [
+              { start: 0, end: 0, text: d.text || "" },
+            ],
           };
-        } catch (e) { errors.push(`openai#${idx}/${model}: ${(e as Error).message}`); }
+        } catch (e) {
+          errors.push(`openai#${idx}/${model}: ${(e as Error).message}`);
+        }
       }
     }
     idx = 0;
@@ -307,20 +338,35 @@ function ClipperPage() {
         if (!r.ok) {
           const body = (await r.text()).slice(0, 200);
           const reason =
-            r.status === 401 ? "invalid/expired key" :
-            r.status === 402 ? "quota habis" :
-            r.status === 429 ? "rate-limited" :
-            r.status >= 500 ? "server error" : "gagal";
+            r.status === 401
+              ? "invalid/expired key"
+              : r.status === 402
+                ? "quota habis"
+                : r.status === 429
+                  ? "rate-limited"
+                  : r.status >= 500
+                    ? "server error"
+                    : "gagal";
           errors.push(`eleven#${idx} ${r.status} (${reason}): ${body}`);
-          pushLog(clipperStore, `ElevenLabs key #${idx} (${mask(key)}) → ${r.status} ${reason}, coba key berikutnya…`);
+          pushLog(
+            clipperStore,
+            `ElevenLabs key #${idx} (${mask(key)}) → ${r.status} ${reason}, coba key berikutnya…`,
+          );
           continue;
         }
-        const d = await r.json() as { text?: string; language_code?: string; words?: Array<{ start: number; end: number; text: string }> };
+        const d = (await r.json()) as {
+          text?: string;
+          language_code?: string;
+          words?: Array<{ start: number; end: number; text: string }>;
+        };
         pushLog(clipperStore, `ElevenLabs key #${idx} OK`);
-        const segments = (d.words ?? []).reduce<Array<{ start: number; end: number; text: string }>>((acc, w) => {
+        const segments = (d.words ?? []).reduce<
+          Array<{ start: number; end: number; text: string }>
+        >((acc, w) => {
           const last = acc[acc.length - 1];
           if (last && w.start - last.end < 0.8 && last.text.length < 120) {
-            last.end = w.end; last.text = `${last.text} ${w.text}`.trim();
+            last.end = w.end;
+            last.text = `${last.text} ${w.text}`.trim();
           } else acc.push({ start: w.start, end: w.end, text: w.text });
           return acc;
         }, []);
@@ -329,11 +375,12 @@ function ClipperPage() {
           fullText: d.text || segments.map((s) => s.text).join(" "),
           segments: segments.length ? segments : [{ start: 0, end: 0, text: d.text || "" }],
         };
-      } catch (e) { errors.push(`eleven#${idx}: ${(e as Error).message}`); }
+      } catch (e) {
+        errors.push(`eleven#${idx}: ${(e as Error).message}`);
+      }
     }
     throw new Error(`Semua STT key gagal. ${errors.join(" | ") || "no keys"}`);
   }
-
 
   async function runAnalyze() {
     if (state.busy) return;
@@ -371,7 +418,9 @@ function ClipperPage() {
         : [];
       if (elevenKeys.length) headers["x-user-elevenlabs-keys"] = elevenKeys.join(",");
       if (!needsEleven && openaiKeys.length === 0) {
-        throw new Error("Butuh OpenAI STT key (Whisper) untuk transkrip. Tambahkan di Token Manager, atau enable Subtitle/Dub untuk pakai ElevenLabs.");
+        throw new Error(
+          "Butuh OpenAI STT key (Whisper) untuk transkrip. Tambahkan di Token Manager, atau enable Subtitle/Dub untuk pakai ElevenLabs.",
+        );
       }
 
       // Large audio (>8MB) bypasses worker proxy and goes browser→provider to avoid
@@ -383,18 +432,35 @@ function ClipperPage() {
         retries: 1,
         run: async () => {
           if (useDirect) {
-            pushLog(clipperStore, needsEleven
-              ? "Direct upload to STT provider (bypass worker)"
-              : "Direct upload to OpenAI Whisper (ElevenLabs dilewati, subtitle/dub off)");
+            pushLog(
+              clipperStore,
+              needsEleven
+                ? "Direct upload to STT provider (bypass worker)"
+                : "Direct upload to OpenAI Whisper (ElevenLabs dilewati, subtitle/dub off)",
+            );
             return await directStt(wav, openaiKeys, elevenKeys);
           }
           const r = await fetch("/api/router/stt", { method: "POST", headers, body: sttFd });
           const text = await r.text();
-          let j: { ok?: boolean; error?: string; transcript?: import("@/lib/mixing/types").Transcript } | null = null;
-          try { j = JSON.parse(text); } catch { /* non-json (HTML error page) */ }
+          let j: {
+            ok?: boolean;
+            error?: string;
+            transcript?: import("@/lib/mixing/types").Transcript;
+          } | null = null;
+          try {
+            j = JSON.parse(text);
+          } catch {
+            /* non-json (HTML error page) */
+          }
           if (!r.ok || !j?.ok) {
-            const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
-            throw new Error(j?.error || `stt ${r.status}: ${snippet || "non-JSON response (likely upload too large or gateway timeout)"}`);
+            const snippet = text
+              .replace(/<[^>]+>/g, " ")
+              .trim()
+              .slice(0, 200);
+            throw new Error(
+              j?.error ||
+                `stt ${r.status}: ${snippet || "non-JSON response (likely upload too large or gateway timeout)"}`,
+            );
           }
           return j.transcript!;
         },
@@ -402,7 +468,10 @@ function ClipperPage() {
       if (!sttRes.ok) throw new Error(sttRes.error);
       const transcript = sttRes.value;
 
-      pushLog(clipperStore, `Transcript: ${transcript.segments.length} segments (${transcript.language})`);
+      pushLog(
+        clipperStore,
+        `Transcript: ${transcript.segments.length} segments (${transcript.language})`,
+      );
 
       setStage(clipperStore, "brain", 55, "AI analysing hooks & scenes…");
       const brainRes = await mixingQueue.submit({
@@ -425,16 +494,22 @@ function ClipperPage() {
             error?: string;
             analysis?: Omit<import("@/lib/mixing/types").ClipperAnalysis, "transcript">;
           } | null = null;
-          try { j = JSON.parse(text); } catch { /* non-json */ }
+          try {
+            j = JSON.parse(text);
+          } catch {
+            /* non-json */
+          }
           if (!r.ok || !j?.ok) {
-            const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
+            const snippet = text
+              .replace(/<[^>]+>/g, " ")
+              .trim()
+              .slice(0, 200);
             throw new Error(j?.error || `brain ${r.status}: ${snippet || "non-JSON response"}`);
           }
           return j.analysis!;
         },
       });
       if (!brainRes.ok) throw new Error(brainRes.error);
-
 
       const analysis: import("@/lib/mixing/types").ClipperAnalysis = {
         scenes: brainRes.value.scenes ?? [],
@@ -506,7 +581,10 @@ function ClipperPage() {
       toast.error(
         `Video ${sizeInfo.humanBytes} melebihi limit FFmpeg (${sizeInfo.humanLimit}). Ganti Render engine ke Shotstack/Creatomate — ${availTxt}.`,
       );
-      pushLog(clipperStore, `ERROR: file terlalu besar untuk FFmpeg (${sizeInfo.humanBytes} > ${sizeInfo.humanLimit})`);
+      pushLog(
+        clipperStore,
+        `ERROR: file terlalu besar untuk FFmpeg (${sizeInfo.humanBytes} > ${sizeInfo.humanLimit})`,
+      );
       return;
     }
     setRenderOutUrl(null);
@@ -568,7 +646,6 @@ function ClipperPage() {
     }
   }
 
-
   function download(name: string, content: string, mime = "text/plain") {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -606,7 +683,11 @@ function ClipperPage() {
 
   function exportTimeline() {
     if (!project?.timeline) return;
-    download(`${project.name}.timeline.json`, JSON.stringify(project.timeline, null, 2), "application/json");
+    download(
+      `${project.name}.timeline.json`,
+      JSON.stringify(project.timeline, null, 2),
+      "application/json",
+    );
   }
 
   function newProject() {
@@ -655,479 +736,695 @@ function ClipperPage() {
   const stylePrev = stylePreview(settings.subtitleStyle);
   const aspect = settings.aspectRatio;
   const aspectRatioBox: React.CSSProperties = {
-    aspectRatio: aspect === "9:16" ? "9/16" : aspect === "1:1" ? "1/1" : aspect === "4:5" ? "4/5" : aspect === "21:9" ? "21/9" : "16/9",
+    aspectRatio:
+      aspect === "9:16"
+        ? "9/16"
+        : aspect === "1:1"
+          ? "1/1"
+          : aspect === "4:5"
+            ? "4/5"
+            : aspect === "21:9"
+              ? "21/9"
+              : "16/9",
   };
 
   return (
     <DashboardShell>
-    <div className="p-4 md:p-8">
-
-      <header className="mb-6 flex items-center gap-4 flex-wrap">
-        <div className="h-11 w-11 grid place-items-center rounded-2xl neumorph">
-          <Scissors className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground">Mixing · AI Post Production</div>
-          <h1 className="text-2xl font-display font-bold text-gradient">AI Clipper</h1>
-        </div>
-        <div className="ml-auto flex gap-2">
-          <button onClick={newProject} className="px-3 py-2 rounded-xl text-xs neumorph hover:text-primary">
-            + New Project
-          </button>
-          <button onClick={() => setDrawerOpen((x) => !x)} className="px-3 py-2 rounded-xl text-xs neumorph">
-            {drawerOpen ? "Hide" : "Show"} Projects
-          </button>
-        </div>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-4">
-        {/* PROJECT DRAWER */}
-        {drawerOpen && (
-          <aside className="neumorph p-4 space-y-4 h-fit sticky top-4">
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Providers</div>
-              <div className="space-y-1 text-xs">
-                <HealthRow label="Brain" status={brainHealth.status} />
-                <HealthRow label="Speech-to-Text" status={sttHealth.status} />
-                <HealthRow label="Voice (optional)" status={health("voice").status} />
-              </div>
+      <div className="p-4 md:p-8">
+        <header className="mb-6 flex items-center gap-4 flex-wrap">
+          <div className="h-11 w-11 grid place-items-center rounded-2xl neumorph">
+            <Scissors className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground">
+              Mixing · AI Post Production
             </div>
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Workspace</div>
-              {projects.length === 0 ? (
-                <div className="text-xs text-muted-foreground">No saved projects yet.</div>
-              ) : (
-                <ul className="space-y-1.5">
-                  {projects.map((pr) => (
-                    <QueueRow
-                      key={pr.id}
-                      summary={pr}
-                      active={project?.id === pr.id}
-                      live={project?.id === pr.id ? state.progress : undefined}
-                      onOpen={() => openProject(pr.id)}
-                      onDelete={() => removeProject(pr.id)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Signed in</div>
-              <div className="text-xs truncate">{user?.email ?? "—"}</div>
-            </div>
-          </aside>
-        )}
-
-        {/* MAIN */}
-        <main className="space-y-4">
-          {!project ? (
-            <section className="neumorph p-10 text-center">
-              <div className="mx-auto h-14 w-14 grid place-items-center rounded-2xl neumorph mb-4">
-                <Scissors className="h-6 w-6 text-primary" />
-              </div>
-              <h2 className="font-display text-xl font-bold text-gradient mb-1">Belum ada project aktif</h2>
-              <p className="text-sm text-muted-foreground mb-5">
-                Klik <b>+ New Project</b> untuk membuat project baru. Project yang sedang berjalan tetap berjalan di background dan muncul di list Workspace.
-              </p>
-              <button
-                onClick={newProject}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground"
-                style={{ background: "var(--gradient-neon)" }}
-              >
-                + New Project
-              </button>
-            </section>
-          ) : (
-          <>
-          {/* UPLOAD */}
-          <section className="neumorph p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Upload className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold truncate">{project.name}</h2>
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground ml-1">· Sources</span>
-            </div>
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                handleFiles(e.dataTransfer.files);
-              }}
-              onClick={() => fileRef.current?.click()}
-              className="cursor-pointer rounded-2xl border border-dashed border-border/60 bg-card/40 grid place-items-center py-10 hover:border-primary transition"
+            <h1 className="text-2xl font-display font-bold text-gradient">AI Clipper</h1>
+          </div>
+          <div className="ml-auto flex gap-2">
+            <button
+              onClick={newProject}
+              className="px-3 py-2 rounded-xl text-xs neumorph hover:text-primary"
             >
-              <div className="text-center">
-                <FileVideo className="h-8 w-8 mx-auto text-muted-foreground" />
-                <div className="mt-2 text-sm">Drag & drop atau klik untuk upload</div>
-                <div className="text-xs text-muted-foreground mt-1">Multiple upload didukung</div>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="video/*,.mkv,.avi"
-                multiple
-                hidden
-                onChange={(e) => handleFiles(e.target.files)}
-              />
-            </div>
-            {project?.sources && project.sources.length > 0 && (
-              <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
-                {project.sources.map((s) => (
-                  <div key={s.id} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
-                    <div className="relative">
-                      <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted />
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeSource(s.id); }}
-                        className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-red-500/80 text-white"
-                        title="Hapus video"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <div className="text-xs truncate">{s.name}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {(s.size / 1024 / 1024).toFixed(1)} MB · {s.durationSec?.toFixed(1)}s
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+              + New Project
+            </button>
+            <button
+              onClick={() => setDrawerOpen((x) => !x)}
+              className="px-3 py-2 rounded-xl text-xs neumorph"
+            >
+              {drawerOpen ? "Hide" : "Show"} Projects
+            </button>
+          </div>
+        </header>
 
-          {/* ANALYZE / PROGRESS */}
-          <section className="neumorph p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">AI Analyse & Build</h2>
-              <div className="ml-auto flex gap-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_320px] gap-4">
+          {/* PROJECT DRAWER */}
+          {drawerOpen && (
+            <aside className="neumorph p-4 space-y-4 h-fit sticky top-4">
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                  Providers
+                </div>
+                <div className="space-y-1 text-xs">
+                  <HealthRow label="Brain" status={brainHealth.status} />
+                  <HealthRow label="Speech-to-Text" status={sttHealth.status} />
+                  <HealthRow label="Voice (optional)" status={health("voice").status} />
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                  Workspace
+                </div>
+                {projects.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">No saved projects yet.</div>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {projects.map((pr) => (
+                      <QueueRow
+                        key={pr.id}
+                        summary={pr}
+                        active={project?.id === pr.id}
+                        live={project?.id === pr.id ? state.progress : undefined}
+                        onOpen={() => openProject(pr.id)}
+                        onDelete={() => removeProject(pr.id)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                  Signed in
+                </div>
+                <div className="text-xs truncate">{user?.email ?? "—"}</div>
+              </div>
+            </aside>
+          )}
+
+          {/* MAIN */}
+          <main className="space-y-4">
+            {!project ? (
+              <section className="neumorph p-10 text-center">
+                <div className="mx-auto h-14 w-14 grid place-items-center rounded-2xl neumorph mb-4">
+                  <Scissors className="h-6 w-6 text-primary" />
+                </div>
+                <h2 className="font-display text-xl font-bold text-gradient mb-1">
+                  Belum ada project aktif
+                </h2>
+                <p className="text-sm text-muted-foreground mb-5">
+                  Klik <b>+ New Project</b> untuk membuat project baru. Project yang sedang berjalan
+                  tetap berjalan di background dan muncul di list Workspace.
+                </p>
                 <button
-                  disabled={state.busy || !project?.sources?.length}
-                  onClick={runAnalyze}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground disabled:opacity-40"
+                  onClick={newProject}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground"
                   style={{ background: "var(--gradient-neon)" }}
                 >
-                  {state.busy ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Working…
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <Zap className="h-4 w-4" /> Analyze
-                    </span>
-                  )}
+                  + New Project
                 </button>
-                <button
-                  onClick={rebuildClips}
-                  disabled={!project?.analysis}
-                  className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40"
-                >
-                  <Wand2 className="h-3.5 w-3.5 inline mr-1" /> Rebuild
-                </button>
-              </div>
-            </div>
-
-            <ProgressStrip stage={state.progress.stage} pct={state.progress.pct} message={state.progress.message} />
-
-            {state.log.length > 0 && (
-              <details className="mt-3" open>
-                <summary className="cursor-pointer text-xs text-muted-foreground">Log</summary>
-                <pre className="mt-2 text-[11px] bg-black/40 rounded-lg p-2 max-h-40 overflow-auto whitespace-pre-wrap">
-                  {state.log.join("\n")}
-                </pre>
-              </details>
-            )}
-
-            {project?.analysis && (
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
-                <Stat label="Scenes" value={project.analysis.scenes.length} />
-                <Stat label="Speakers" value={project.analysis.speakers.length} />
-                <Stat label="Hooks" value={project.analysis.hooks.length} />
-                <Stat label="Dead-air" value={project.analysis.deadAir.length} />
-              </div>
-            )}
-          </section>
-
-          {/* CLIPS */}
-          {project?.clips && project.clips.length > 0 && (
-            <section className="neumorph p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Play className="h-4 w-4 text-primary" />
-                <h2 className="font-semibold">Auto-generated clips</h2>
-                <span className="text-xs text-muted-foreground">Diurutkan berdasarkan score AI</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                {project.clips.map((c) => {
-                  const preview = clipPreviewRange(c);
-                  return (
-                  <div key={c.id} className="rounded-2xl border border-border bg-card/60 p-3 flex flex-col gap-2">
-                    <div className="relative rounded-xl overflow-hidden bg-black" style={aspectRatioBox}>
-                      <video
-                        src={project.sources[0]?.url}
-                        className="w-full h-full object-cover"
-                        muted
-                        controls
-                        playsInline
-                        preload="metadata"
-                        onLoadedMetadata={(e) => {
-                          const v = e.currentTarget;
-                          try { v.currentTime = preview.start; } catch { /* */ }
-                        }}
-                        onPlay={(e) => {
-                          const v = e.currentTarget;
-                          if (v.currentTime < preview.start || v.currentTime >= preview.end) v.currentTime = preview.start;
-                        }}
-                        onTimeUpdate={(e) => {
-                          const v = e.currentTarget;
-                          if (v.currentTime >= preview.end) { v.pause(); v.currentTime = preview.start; }
-                        }}
-                      />
-                      {settings.subtitle && (
-                        <div className={`pointer-events-none absolute inset-x-0 bottom-10 text-center text-sm ${stylePrev.className}`} style={stylePrev.style}>
-                          {c.timeline.tracks.find((t) => t.kind === "subtitle" && (t as { text: string }).text)
-                            ? (c.timeline.tracks.find((t) => t.kind === "subtitle") as { text: string }).text
-                            : "Preview subtitle"}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium truncate">{c.title}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {preview.start.toFixed(1)}s → {preview.end.toFixed(1)}s · {c.timeline.totalSec.toFixed(1)}s output · {c.timeline.tracks.length} tracks
-                      </div>
-                    </div>
-                    <TimelineMini tracks={c.timeline.tracks} totalSec={c.timeline.totalSec} />
+              </section>
+            ) : (
+              <>
+                {/* UPLOAD */}
+                <section className="neumorph p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Upload className="h-4 w-4 text-primary" />
+                    <h2 className="font-semibold truncate">{project.name}</h2>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground ml-1">
+                      · Sources
+                    </span>
                   </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* EXPORT */}
-          <section className="neumorph p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Download className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Render & Export</h2>
-            </div>
-            <RenderEngineBar
-              engine={renderEngine}
-              onChange={setRenderEngine}
-              sourceBytes={project?.sources.reduce((a, s) => a + (s.size || 0), 0) ?? 0}
-            />
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button onClick={handleRender} disabled={!project?.timeline} className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground disabled:opacity-40" style={{ background: "var(--gradient-neon)" }}>
-                Render ({renderEngine === "ffmpeg" ? "FFmpeg · Browser" : renderEngine === "shotstack" ? "Shotstack · Cloud" : "Creatomate · Cloud"})
-              </button>
-              <button onClick={exportSrt} disabled={!project?.analysis} className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40">Export SRT</button>
-              <button onClick={exportVtt} disabled={!project?.analysis} className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40">Export VTT</button>
-              <button onClick={exportTimeline} disabled={!project?.timeline} className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40">Export Timeline JSON</button>
-              <button onClick={exportProject} disabled={!project} className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40">Export Project</button>
-              {settings.generateDub && (
-                <a href="/mixing/dubbing" className="px-3 py-2 rounded-xl text-xs neumorph inline-flex items-center gap-1">
-                  Go to AI Dubbing <ChevronRight className="h-3.5 w-3.5" />
-                </a>
-              )}
-            </div>
-            {renderProgress > 0 && renderProgress < 100 && (
-              <div className="mt-3">
-                <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
-                  <span>FFmpeg rendering…</span><span>{renderProgress}%</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-black/40 overflow-hidden">
-                  <div className="h-full" style={{ width: `${renderProgress}%`, background: "var(--gradient-neon)" }} />
-                </div>
-              </div>
-            )}
-            {project?.renderHistory && project.renderHistory.length > 0 && (
-              <div className="mt-4">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-                  Render Gallery ({project.renderHistory.length})
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {[...project.renderHistory].reverse().map((h, i) => (
-                    <div key={`${h.ts}-${i}`} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
-                      {h.url ? (
-                        <video src={h.url} controls className="rounded-lg w-full h-28 object-cover bg-black" />
-                      ) : (
-                        <div className="rounded-lg w-full h-28 grid place-items-center bg-black/50 text-[10px] text-muted-foreground">no preview</div>
-                      )}
-                      <div className="text-[10px] text-muted-foreground truncate">
-                        {new Date(h.ts).toLocaleString()} · {h.provider}
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleFiles(e.dataTransfer.files);
+                    }}
+                    onClick={() => fileRef.current?.click()}
+                    className="cursor-pointer rounded-2xl border border-dashed border-border/60 bg-card/40 grid place-items-center py-10 hover:border-primary transition"
+                  >
+                    <div className="text-center">
+                      <FileVideo className="h-8 w-8 mx-auto text-muted-foreground" />
+                      <div className="mt-2 text-sm">Drag & drop atau klik untuk upload</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Multiple upload didukung
                       </div>
-                      {h.url && (
-                        <a href={h.url} download={`clipper-${h.ts}.mp4`} className="text-[11px] text-primary underline truncate">
-                          Download
-                        </a>
-                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="video/*,.mkv,.avi"
+                      multiple
+                      hidden
+                      onChange={(e) => handleFiles(e.target.files)}
+                    />
+                  </div>
+                  {project?.sources && project.sources.length > 0 && (
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {project.sources.map((s) => (
+                        <div
+                          key={s.id}
+                          className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1"
+                        >
+                          <div className="relative">
+                            <video
+                              src={s.url}
+                              className="rounded-lg w-full h-24 object-cover bg-black"
+                              muted
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSource(s.id);
+                              }}
+                              className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-red-500/80 text-white"
+                              title="Hapus video"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="text-xs truncate">{s.name}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {(s.size / 1024 / 1024).toFixed(1)} MB · {s.durationSec?.toFixed(1)}s
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* ANALYZE / PROGRESS */}
+                <section className="neumorph p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <h2 className="font-semibold">AI Analyse & Build</h2>
+                    <div className="ml-auto flex gap-2">
+                      <button
+                        disabled={state.busy || !project?.sources?.length}
+                        onClick={runAnalyze}
+                        className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground disabled:opacity-40"
+                        style={{ background: "var(--gradient-neon)" }}
+                      >
+                        {state.busy ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Working…
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <Zap className="h-4 w-4" /> Analyze
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={rebuildClips}
+                        disabled={!project?.analysis}
+                        className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40"
+                      >
+                        <Wand2 className="h-3.5 w-3.5 inline mr-1" /> Rebuild
+                      </button>
+                    </div>
+                  </div>
+
+                  <ProgressStrip
+                    stage={state.progress.stage}
+                    pct={state.progress.pct}
+                    message={state.progress.message}
+                  />
+
+                  {state.log.length > 0 && (
+                    <details className="mt-3" open>
+                      <summary className="cursor-pointer text-xs text-muted-foreground">
+                        Log
+                      </summary>
+                      <pre className="mt-2 text-[11px] bg-black/40 rounded-lg p-2 max-h-40 overflow-auto whitespace-pre-wrap">
+                        {state.log.join("\n")}
+                      </pre>
+                    </details>
+                  )}
+
+                  {project?.analysis && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <Stat label="Scenes" value={project.analysis.scenes.length} />
+                      <Stat label="Speakers" value={project.analysis.speakers.length} />
+                      <Stat label="Hooks" value={project.analysis.hooks.length} />
+                      <Stat label="Dead-air" value={project.analysis.deadAir.length} />
+                    </div>
+                  )}
+                </section>
+
+                {/* CLIPS */}
+                {project?.clips && project.clips.length > 0 && (
+                  <section className="neumorph p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Play className="h-4 w-4 text-primary" />
+                      <h2 className="font-semibold">Auto-generated clips</h2>
+                      <span className="text-xs text-muted-foreground">
+                        Diurutkan berdasarkan score AI
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      {project.clips.map((c) => {
+                        const preview = clipPreviewRange(c);
+                        return (
+                          <div
+                            key={c.id}
+                            className="rounded-2xl border border-border bg-card/60 p-3 flex flex-col gap-2"
+                          >
+                            <div
+                              className="relative rounded-xl overflow-hidden bg-black"
+                              style={aspectRatioBox}
+                            >
+                              <video
+                                src={project.sources[0]?.url}
+                                className="w-full h-full object-cover"
+                                muted
+                                controls
+                                playsInline
+                                preload="metadata"
+                                onLoadedMetadata={(e) => {
+                                  const v = e.currentTarget;
+                                  try {
+                                    v.currentTime = preview.start;
+                                  } catch {
+                                    /* */
+                                  }
+                                }}
+                                onPlay={(e) => {
+                                  const v = e.currentTarget;
+                                  if (v.currentTime < preview.start || v.currentTime >= preview.end)
+                                    v.currentTime = preview.start;
+                                }}
+                                onTimeUpdate={(e) => {
+                                  const v = e.currentTarget;
+                                  if (v.currentTime >= preview.end) {
+                                    v.pause();
+                                    v.currentTime = preview.start;
+                                  }
+                                }}
+                              />
+                              {settings.subtitle && (
+                                <div
+                                  className={`pointer-events-none absolute inset-x-0 bottom-10 text-center text-sm ${stylePrev.className}`}
+                                  style={stylePrev.style}
+                                >
+                                  {c.timeline.tracks.find(
+                                    (t) => t.kind === "subtitle" && (t as { text: string }).text,
+                                  )
+                                    ? (
+                                        c.timeline.tracks.find((t) => t.kind === "subtitle") as {
+                                          text: string;
+                                        }
+                                      ).text
+                                    : "Preview subtitle"}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium truncate">{c.title}</div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {preview.start.toFixed(1)}s → {preview.end.toFixed(1)}s ·{" "}
+                                {c.timeline.totalSec.toFixed(1)}s output ·{" "}
+                                {c.timeline.tracks.length} tracks
+                              </div>
+                            </div>
+                            <TimelineMini
+                              tracks={c.timeline.tracks}
+                              totalSec={c.timeline.totalSec}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {/* EXPORT */}
+                <section className="neumorph p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Download className="h-4 w-4 text-primary" />
+                    <h2 className="font-semibold">Render & Export</h2>
+                  </div>
+                  <RenderEngineBar
+                    engine={renderEngine}
+                    onChange={setRenderEngine}
+                    sourceBytes={project?.sources.reduce((a, s) => a + (s.size || 0), 0) ?? 0}
+                  />
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button
+                      onClick={handleRender}
+                      disabled={!project?.timeline}
+                      className="px-4 py-2 rounded-xl text-sm font-medium text-primary-foreground disabled:opacity-40"
+                      style={{ background: "var(--gradient-neon)" }}
+                    >
+                      Render (
+                      {renderEngine === "ffmpeg"
+                        ? "FFmpeg · Browser"
+                        : renderEngine === "shotstack"
+                          ? "Shotstack · Cloud"
+                          : "Creatomate · Cloud"}
+                      )
+                    </button>
+                    <button
+                      onClick={exportSrt}
+                      disabled={!project?.analysis}
+                      className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40"
+                    >
+                      Export SRT
+                    </button>
+                    <button
+                      onClick={exportVtt}
+                      disabled={!project?.analysis}
+                      className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40"
+                    >
+                      Export VTT
+                    </button>
+                    <button
+                      onClick={exportTimeline}
+                      disabled={!project?.timeline}
+                      className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40"
+                    >
+                      Export Timeline JSON
+                    </button>
+                    <button
+                      onClick={exportProject}
+                      disabled={!project}
+                      className="px-3 py-2 rounded-xl text-xs neumorph disabled:opacity-40"
+                    >
+                      Export Project
+                    </button>
+                    {settings.generateDub && (
+                      <a
+                        href="/mixing/dubbing"
+                        className="px-3 py-2 rounded-xl text-xs neumorph inline-flex items-center gap-1"
+                      >
+                        Go to AI Dubbing <ChevronRight className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                  {renderProgress > 0 && renderProgress < 100 && (
+                    <div className="mt-3">
+                      <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+                        <span>FFmpeg rendering…</span>
+                        <span>{renderProgress}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-black/40 overflow-hidden">
+                        <div
+                          className="h-full"
+                          style={{
+                            width: `${renderProgress}%`,
+                            background: "var(--gradient-neon)",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {project?.renderHistory && project.renderHistory.length > 0 && (
+                    <div className="mt-4">
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                        Render Gallery ({project.renderHistory.length})
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {[...project.renderHistory].reverse().map((h, i) => (
+                          <div
+                            key={`${h.ts}-${i}`}
+                            className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1"
+                          >
+                            {h.url ? (
+                              <video
+                                src={h.url}
+                                controls
+                                className="rounded-lg w-full h-28 object-cover bg-black"
+                              />
+                            ) : (
+                              <div className="rounded-lg w-full h-28 grid place-items-center bg-black/50 text-[10px] text-muted-foreground">
+                                no preview
+                              </div>
+                            )}
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {new Date(h.ts).toLocaleString()} · {h.provider}
+                            </div>
+                            {h.url && (
+                              <a
+                                href={h.url}
+                                download={`clipper-${h.ts}.mp4`}
+                                className="text-[11px] text-primary underline truncate"
+                              >
+                                Download
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </>
             )}
-          </section>
-          </>
-          )}
-        </main>
+          </main>
 
-        {/* SETTINGS PANEL */}
-        <aside className="neumorph p-4 space-y-4 h-fit lg:sticky lg:top-4">
-          <div>
-            <SectionLabel>Clip length</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {[15, 30, 45, 60, 90].map((d) => (
-                <button key={d} onClick={() => setSettings((s) => ({ ...s, clipDurationSec: d }))} className={pill(settings.clipDurationSec === d)}>
-                  {d}s
-                </button>
-              ))}
-              <input
-                type="number"
-                min={5}
-                max={300}
-                value={settings.clipDurationSec}
-                onChange={(e) => setSettings((s) => ({ ...s, clipDurationSec: Number(e.target.value) || 30 }))}
-                className="w-16 px-2 py-1 text-xs rounded-lg bg-card/60 border border-border"
-              />
+          {/* SETTINGS PANEL */}
+          <aside className="neumorph p-4 space-y-4 h-fit lg:sticky lg:top-4">
+            <div>
+              <SectionLabel>Clip length</SectionLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {[15, 30, 45, 60, 90].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setSettings((s) => ({ ...s, clipDurationSec: d }))}
+                    className={pill(settings.clipDurationSec === d)}
+                  >
+                    {d}s
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min={5}
+                  max={300}
+                  value={settings.clipDurationSec}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, clipDurationSec: Number(e.target.value) || 30 }))
+                  }
+                  className="w-16 px-2 py-1 text-xs rounded-lg bg-card/60 border border-border"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <SectionLabel>Aspect ratio · Auto reframe</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {(["9:16", "16:9", "1:1", "4:5", "21:9"] as const).map((r) => (
-                <button key={r} onClick={() => setSettings((s) => ({ ...s, aspectRatio: r }))} className={pill(settings.aspectRatio === r)}>
-                  {r}
-                </button>
-              ))}
-            </div>
-            <Toggle label="Auto reframe (face + object tracking)" checked={settings.autoReframe} onChange={(v) => setSettings((s) => ({ ...s, autoReframe: v }))} />
-          </div>
-
-          <div>
-            <SectionLabel>Auto cutting</SectionLabel>
-            <Toggle label="Remove dead-air, hmm, ehh, filler, noise" checked={settings.autoCutting} onChange={(v) => setSettings((s) => ({ ...s, autoCutting: v }))} />
-          </div>
-
-          <div>
-            <SectionLabel>Auto zoom</SectionLabel>
-            <Toggle label="Enable auto zoom" checked={settings.autoZoom} onChange={(v) => setSettings((s) => ({ ...s, autoZoom: v }))} />
-            {settings.autoZoom && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {(["punch", "face", "dynamic", "reaction"] as const).map((k) => (
-                  <button key={k} onClick={() => setSettings((s) => ({ ...s, zoomKind: k }))} className={pill(settings.zoomKind === k)}>
-                    {k}
+            <div>
+              <SectionLabel>Aspect ratio · Auto reframe</SectionLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {(["9:16", "16:9", "1:1", "4:5", "21:9"] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setSettings((s) => ({ ...s, aspectRatio: r }))}
+                    className={pill(settings.aspectRatio === r)}
+                  >
+                    {r}
                   </button>
                 ))}
               </div>
-            )}
-          </div>
-
-          <div>
-            <SectionLabel>Subtitle</SectionLabel>
-            <Toggle label="Enable subtitle" checked={settings.subtitle} onChange={(v) => setSettings((s) => ({ ...s, subtitle: v }))} />
-            {settings.subtitle && (
-              <div className="mt-2 space-y-2">
-                <div className="flex flex-wrap gap-1.5">
-                  {(["Minimal", "Modern", "TikTok", "CapCut", "Cinematic", "Anime"] as const).map((st) => (
-                    <button key={st} onClick={() => setSettings((s) => ({ ...s, subtitleStyle: st }))} className={pill(settings.subtitleStyle === st)}>
-                      {st}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {(["none", "typewriter", "pop", "bounce", "karaoke"] as const).map((a) => (
-                    <button key={a} onClick={() => setSettings((s) => ({ ...s, subtitleAnimation: a }))} className={pill(settings.subtitleAnimation === a)}>
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <SectionLabel>Transition</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {(["None", "Fade", "Cross Fade", "Smooth", "Slide", "Zoom", "Flash", "Blur", "Dip To Black", "Random"] as const).map((t) => (
-                <button key={t} onClick={() => setSettings((s) => ({ ...s, transition: t }))} className={pill(settings.transition === t)}>
-                  {t}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 flex gap-1.5">
-              {[0.2, 0.3, 0.5, 1.0].map((d) => (
-                <button key={d} onClick={() => setSettings((s) => ({ ...s, transitionDuration: d }))} className={pill(settings.transitionDuration === d)}>
-                  {d}s
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <SectionLabel>Background music</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {(["None", "Cinematic", "Vlog", "Epic", "Documentary", "Relax", "Corporate"] as const).map((m) => (
-                <button key={m} onClick={() => setSettings((s) => ({ ...s, music: m }))} className={pill(settings.music === m)}>
-                  {m}
-                </button>
-              ))}
-            </div>
-            <Toggle label="Duck voice under music" checked={settings.musicDuck} onChange={(v) => setSettings((s) => ({ ...s, musicDuck: v }))} />
-            <div className="mt-1 flex items-center gap-2 text-xs">
-              <span className="w-16 text-muted-foreground">Volume</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.musicVolume}
-                onChange={(e) => setSettings((s) => ({ ...s, musicVolume: Number(e.target.value) }))}
-                className="flex-1"
+              <Toggle
+                label="Auto reframe (face + object tracking)"
+                checked={settings.autoReframe}
+                onChange={(v) => setSettings((s) => ({ ...s, autoReframe: v }))}
               />
-              <span className="w-8 text-right">{Math.round(settings.musicVolume * 100)}%</span>
             </div>
-          </div>
 
-          <div>
-            <SectionLabel>SFX</SectionLabel>
-            <div className="flex flex-wrap gap-1.5">
-              {(["Whoosh", "Click", "Pop", "Impact", "Typing", "Notification"] as const).map((s) => {
-                const on = settings.sfx.includes(s);
-                return (
+            <div>
+              <SectionLabel>Auto cutting</SectionLabel>
+              <Toggle
+                label="Remove dead-air, hmm, ehh, filler, noise"
+                checked={settings.autoCutting}
+                onChange={(v) => setSettings((s) => ({ ...s, autoCutting: v }))}
+              />
+            </div>
+
+            <div>
+              <SectionLabel>Auto zoom</SectionLabel>
+              <Toggle
+                label="Enable auto zoom"
+                checked={settings.autoZoom}
+                onChange={(v) => setSettings((s) => ({ ...s, autoZoom: v }))}
+              />
+              {settings.autoZoom && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {(["punch", "face", "dynamic", "reaction"] as const).map((k) => (
+                    <button
+                      key={k}
+                      onClick={() => setSettings((s) => ({ ...s, zoomKind: k }))}
+                      className={pill(settings.zoomKind === k)}
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <SectionLabel>Subtitle</SectionLabel>
+              <Toggle
+                label="Enable subtitle"
+                checked={settings.subtitle}
+                onChange={(v) => setSettings((s) => ({ ...s, subtitle: v }))}
+              />
+              {settings.subtitle && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["Minimal", "Modern", "TikTok", "CapCut", "Cinematic", "Anime"] as const).map(
+                      (st) => (
+                        <button
+                          key={st}
+                          onClick={() => setSettings((s) => ({ ...s, subtitleStyle: st }))}
+                          className={pill(settings.subtitleStyle === st)}
+                        >
+                          {st}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["none", "typewriter", "pop", "bounce", "karaoke"] as const).map((a) => (
+                      <button
+                        key={a}
+                        onClick={() => setSettings((s) => ({ ...s, subtitleAnimation: a }))}
+                        className={pill(settings.subtitleAnimation === a)}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <SectionLabel>Transition</SectionLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    "None",
+                    "Fade",
+                    "Cross Fade",
+                    "Smooth",
+                    "Slide",
+                    "Zoom",
+                    "Flash",
+                    "Blur",
+                    "Dip To Black",
+                    "Random",
+                  ] as const
+                ).map((t) => (
                   <button
-                    key={s}
-                    onClick={() =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        sfx: on ? prev.sfx.filter((x) => x !== s) : [...prev.sfx, s],
-                      }))
-                    }
-                    className={pill(on)}
+                    key={t}
+                    onClick={() => setSettings((s) => ({ ...s, transition: t }))}
+                    className={pill(settings.transition === t)}
                   >
-                    {s}
+                    {t}
                   </button>
-                );
-              })}
+                ))}
+              </div>
+              <div className="mt-2 flex gap-1.5">
+                {[0.2, 0.3, 0.5, 1.0].map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setSettings((s) => ({ ...s, transitionDuration: d }))}
+                    className={pill(settings.transitionDuration === d)}
+                  >
+                    {d}s
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <SectionLabel>Hand-off to Dubbing</SectionLabel>
-            <Toggle
-              label="Generate dub after render"
-              checked={settings.generateDub}
-              onChange={(v) => setSettings((s) => ({ ...s, generateDub: v }))}
-            />
-          </div>
-        </aside>
+            <div>
+              <SectionLabel>Background music</SectionLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    "None",
+                    "Cinematic",
+                    "Vlog",
+                    "Epic",
+                    "Documentary",
+                    "Relax",
+                    "Corporate",
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setSettings((s) => ({ ...s, music: m }))}
+                    className={pill(settings.music === m)}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <Toggle
+                label="Duck voice under music"
+                checked={settings.musicDuck}
+                onChange={(v) => setSettings((s) => ({ ...s, musicDuck: v }))}
+              />
+              <div className="mt-1 flex items-center gap-2 text-xs">
+                <span className="w-16 text-muted-foreground">Volume</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={settings.musicVolume}
+                  onChange={(e) =>
+                    setSettings((s) => ({ ...s, musicVolume: Number(e.target.value) }))
+                  }
+                  className="flex-1"
+                />
+                <span className="w-8 text-right">{Math.round(settings.musicVolume * 100)}%</span>
+              </div>
+            </div>
+
+            <div>
+              <SectionLabel>SFX</SectionLabel>
+              <div className="flex flex-wrap gap-1.5">
+                {(["Whoosh", "Click", "Pop", "Impact", "Typing", "Notification"] as const).map(
+                  (s) => {
+                    const on = settings.sfx.includes(s);
+                    return (
+                      <button
+                        key={s}
+                        onClick={() =>
+                          setSettings((prev) => ({
+                            ...prev,
+                            sfx: on ? prev.sfx.filter((x) => x !== s) : [...prev.sfx, s],
+                          }))
+                        }
+                        className={pill(on)}
+                      >
+                        {s}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </div>
+
+            <div>
+              <SectionLabel>Hand-off to Dubbing</SectionLabel>
+              <Toggle
+                label="Generate dub after render"
+                checked={settings.generateDub}
+                onChange={(v) => setSettings((s) => ({ ...s, generateDub: v }))}
+              />
+            </div>
+          </aside>
+        </div>
       </div>
-    </div>
-    <NewProjectDialog
-      open={newProjectOpen}
-      title="Project Clipper Baru"
-      subtitle="Beri nama project agar mudah dikenali di Workspace queue."
-      defaultValue={`Clipper ${new Date().toLocaleString()}`}
-      onConfirm={createProjectWithName}
-      onClose={() => setNewProjectOpen(false)}
-    />
+      <NewProjectDialog
+        open={newProjectOpen}
+        title="Project Clipper Baru"
+        subtitle="Beri nama project agar mudah dikenali di Workspace queue."
+        defaultValue={`Clipper ${new Date().toLocaleString()}`}
+        onConfirm={createProjectWithName}
+        onClose={() => setNewProjectOpen(false)}
+      />
     </DashboardShell>
   );
 }
@@ -1135,7 +1432,11 @@ function ClipperPage() {
 // -------- tiny helpers (kept local, workspace-only) --------
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">{children}</div>;
+  return (
+    <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1.5">
+      {children}
+    </div>
+  );
 }
 
 function pill(active: boolean) {
@@ -1147,7 +1448,15 @@ function pill(active: boolean) {
   ].join(" ");
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="mt-1 flex items-center gap-2 text-xs cursor-pointer select-none">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -1159,14 +1468,17 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-xl bg-card/60 border border-border p-3">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
       <div className="text-lg font-semibold">{value}</div>
     </div>
   );
 }
 
 function HealthRow({ label, status }: { label: string; status: "ok" | "no-key" | "unknown" }) {
-  const color = status === "ok" ? "bg-green-500" : status === "no-key" ? "bg-red-500" : "bg-yellow-500";
+  const color =
+    status === "ok" ? "bg-green-500" : status === "no-key" ? "bg-red-500" : "bg-yellow-500";
   return (
     <div className="flex items-center gap-2">
       <span className={`h-2 w-2 rounded-full ${color}`} />
@@ -1189,8 +1501,8 @@ function ProgressStrip({ stage, pct, message }: { stage: string; pct: number; me
                 stage === "error"
                   ? "bg-red-500"
                   : i <= idx || stage === "done"
-                  ? "bg-primary"
-                  : "bg-border"
+                    ? "bg-primary"
+                    : "bg-border"
               }`}
             />
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{s}</span>
@@ -1227,7 +1539,15 @@ function TimelineMini({
     music: "bg-green-400/50",
     sfx: "bg-orange-400/80",
   };
-  const order: Array<keyof typeof rows> = ["clip", "subtitle", "zoom", "reframe", "transition", "music", "sfx"];
+  const order: Array<keyof typeof rows> = [
+    "clip",
+    "subtitle",
+    "zoom",
+    "reframe",
+    "transition",
+    "music",
+    "sfx",
+  ];
   return (
     <div className="mt-1 space-y-1">
       {order.map((row) => {
@@ -1256,20 +1576,55 @@ function TimelineMini({
   );
 }
 
-function RenderEngineBar({ engine, onChange, sourceBytes }: { engine: RenderEngine; onChange: (e: RenderEngine) => void; sourceBytes: number }) {
+function RenderEngineBar({
+  engine,
+  onChange,
+  sourceBytes,
+}: {
+  engine: RenderEngine;
+  onChange: (e: RenderEngine) => void;
+  sourceBytes: number;
+}) {
   const info = checkSourceSize(sourceBytes);
-  const cloud = typeof window !== "undefined" ? cloudRenderStatus() : { shotstack: { available: false, count: 0 }, creatomate: { available: false, count: 0 } };
+  const cloud =
+    typeof window !== "undefined"
+      ? cloudRenderStatus()
+      : { shotstack: { available: false, count: 0 }, creatomate: { available: false, count: 0 } };
   const options: { key: RenderEngine; label: string; ok: boolean; hint: string }[] = [
-    { key: "ffmpeg", label: "FFmpeg (Browser · gratis)", ok: !info.overLimit, hint: info.overLimit ? `File ${info.humanBytes} > limit ${info.humanLimit}` : "Default · di device kamu" },
-    { key: "shotstack", label: "Shotstack (Cloud)", ok: cloud.shotstack.available, hint: cloud.shotstack.available ? `${cloud.shotstack.count} key aktif` : "Belum ada key di Token Manager → Render" },
-    { key: "creatomate", label: "Creatomate (Cloud)", ok: cloud.creatomate.available, hint: cloud.creatomate.available ? `${cloud.creatomate.count} key aktif` : "Belum ada key di Token Manager → Render" },
+    {
+      key: "ffmpeg",
+      label: "FFmpeg (Browser · gratis)",
+      ok: !info.overLimit,
+      hint: info.overLimit
+        ? `File ${info.humanBytes} > limit ${info.humanLimit}`
+        : "Default · di device kamu",
+    },
+    {
+      key: "shotstack",
+      label: "Shotstack (Cloud)",
+      ok: cloud.shotstack.available,
+      hint: cloud.shotstack.available
+        ? `${cloud.shotstack.count} key aktif`
+        : "Belum ada key di Token Manager → Render",
+    },
+    {
+      key: "creatomate",
+      label: "Creatomate (Cloud)",
+      ok: cloud.creatomate.available,
+      hint: cloud.creatomate.available
+        ? `${cloud.creatomate.count} key aktif`
+        : "Belum ada key di Token Manager → Render",
+    },
   ];
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">Render Engine</div>
+        <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
+          Render Engine
+        </div>
         <div className="text-[11px] text-muted-foreground">
-          Source: <b className="text-foreground">{info.humanBytes}</b> · Limit FFmpeg: {info.humanLimit}
+          Source: <b className="text-foreground">{info.humanBytes}</b> · Limit FFmpeg:{" "}
+          {info.humanLimit}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1283,12 +1638,19 @@ function RenderEngineBar({ engine, onChange, sourceBytes }: { engine: RenderEngi
               disabled={disabled}
               className={[
                 "text-left rounded-xl px-3 py-2 border transition",
-                active ? "border-primary bg-primary/10" : "border-border bg-card/60 hover:border-primary/40",
+                active
+                  ? "border-primary bg-primary/10"
+                  : "border-border bg-card/60 hover:border-primary/40",
                 disabled ? "opacity-50 cursor-not-allowed" : "",
               ].join(" ")}
             >
               <div className="flex items-center gap-2">
-                <span className={["h-2 w-2 rounded-full", o.ok ? "bg-emerald-400" : "bg-amber-400"].join(" ")} />
+                <span
+                  className={[
+                    "h-2 w-2 rounded-full",
+                    o.ok ? "bg-emerald-400" : "bg-amber-400",
+                  ].join(" ")}
+                />
                 <div className="text-xs font-medium">{o.label}</div>
               </div>
               <div className="text-[10.5px] text-muted-foreground mt-1 leading-snug">{o.hint}</div>
@@ -1298,8 +1660,12 @@ function RenderEngineBar({ engine, onChange, sourceBytes }: { engine: RenderEngi
       </div>
       {info.overLimit && engine === "ffmpeg" && (
         <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200 leading-relaxed">
-          ⚠️ Video {info.humanBytes} melebihi limit FFmpeg browser ({info.humanLimit}). Ganti ke <b>Shotstack</b> atau <b>Creatomate</b> di atas — kalau belum ada key, tambah dulu di{" "}
-          <a href="/manage/tokens" className="underline text-primary">Token Manager → Render</a>.
+          ⚠️ Video {info.humanBytes} melebihi limit FFmpeg browser ({info.humanLimit}). Ganti ke{" "}
+          <b>Shotstack</b> atau <b>Creatomate</b> di atas — kalau belum ada key, tambah dulu di{" "}
+          <a href="/manage/tokens" className="underline text-primary">
+            Token Manager → Render
+          </a>
+          .
         </div>
       )}
     </div>
@@ -1332,13 +1698,19 @@ function QueueRow({
           ? "bg-primary animate-pulse"
           : "bg-border";
   return (
-    <li className={`rounded-lg border px-2 py-1.5 ${active ? "border-primary/60 bg-primary/5" : "border-border/60 bg-card/30"}`}>
+    <li
+      className={`rounded-lg border px-2 py-1.5 ${active ? "border-primary/60 bg-primary/5" : "border-border/60 bg-card/30"}`}
+    >
       <div className="flex items-center gap-1.5">
         <span className={`h-2 w-2 rounded-full ${tone}`} />
         <button onClick={onOpen} className="flex-1 text-left text-xs truncate hover:text-primary">
           {summary.name}
         </button>
-        <button onClick={onDelete} className="p-1 opacity-60 hover:opacity-100 hover:text-red-400" title="Hapus project">
+        <button
+          onClick={onDelete}
+          className="p-1 opacity-60 hover:opacity-100 hover:text-red-400"
+          title="Hapus project"
+        >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -1347,14 +1719,19 @@ function QueueRow({
           <div className="mt-1 h-1 rounded-full bg-black/40 overflow-hidden">
             <div
               className="h-full transition-all"
-              style={{ width: `${Math.max(4, pct)}%`, background: stage === "error" ? "#ef4444" : "var(--gradient-neon)" }}
+              style={{
+                width: `${Math.max(4, pct)}%`,
+                background: stage === "error" ? "#ef4444" : "var(--gradient-neon)",
+              }}
             />
           </div>
           <div className="mt-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="uppercase tracking-widest">{stage}</span>
             <span>{pct}%</span>
           </div>
-          {prog.message && <div className="text-[10px] text-muted-foreground truncate">{prog.message}</div>}
+          {prog.message && (
+            <div className="text-[10px] text-muted-foreground truncate">{prog.message}</div>
+          )}
         </>
       )}
     </li>

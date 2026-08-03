@@ -18,7 +18,9 @@ export const getGlobalCloudSettings = createServerFn({ method: "GET" })
     const { OAUTH_CALLBACK_PATH } = await import("./google-oauth.server");
     const row = await getGlobalCloudRow();
     const request = getRequest();
-    const redirectUri = request ? new URL(OAUTH_CALLBACK_PATH, request.url).toString() : OAUTH_CALLBACK_PATH;
+    const redirectUri = request
+      ? new URL(OAUTH_CALLBACK_PATH, request.url).toString()
+      : OAUTH_CALLBACK_PATH;
     return {
       enabled: Boolean(row?.enabled),
       clientId: row?.client_id ?? "",
@@ -41,7 +43,8 @@ export const saveGlobalCloudClient = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { saveGlobalCloudRow, encryptSecret } = await import("./global-cloud.server");
     const patch: Record<string, unknown> = { client_id: data.clientId.trim() };
-    if (data.clientSecret?.trim()) patch.client_secret_cipher = encryptSecret(data.clientSecret.trim());
+    if (data.clientSecret?.trim())
+      patch.client_secret_cipher = encryptSecret(data.clientSecret.trim());
     if (data.rootFolderName?.trim()) patch.root_folder_name = data.rootFolderName.trim();
     await saveGlobalCloudRow(patch);
     return { ok: true };
@@ -63,7 +66,8 @@ export const startGlobalCloudConnect = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const request = getRequest();
     if (!request) throw new Error("OAuth harus dimulai dari request aplikasi.");
-    const { getOAuthClient, buildAuthUrl, signState, callbackUrl } = await import("./google-oauth.server");
+    const { getOAuthClient, buildAuthUrl, signState, callbackUrl } =
+      await import("./google-oauth.server");
     const client = await getOAuthClient();
     if (!client) throw new Error("Isi Client ID & Client Secret Google dulu, lalu simpan.");
     return {

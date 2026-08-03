@@ -37,9 +37,7 @@ export const Route = createFileRoute("/api/public/roboneo")({
         }),
       POST: async ({ request }) => {
         const token =
-          request.headers.get("X-Roboneo-Token") ||
-          request.headers.get("x-roboneo-token") ||
-          "";
+          request.headers.get("X-Roboneo-Token") || request.headers.get("x-roboneo-token") || "";
         if (!token) return json({ ok: false, error: "X-Roboneo-Token required" }, 400);
         const body = (await request.json().catch(() => null)) as Body | null;
         const allowed = ["nodeexecute", "nodeexecutequery", "vipshow"];
@@ -71,7 +69,12 @@ export const Route = createFileRoute("/api/public/roboneo")({
           /* ignore */
         }
         return new Response(
-          JSON.stringify({ ok: upstream.ok, status: upstream.status, data: parsed, raw: parsed ? undefined : text.slice(0, 500) }),
+          JSON.stringify({
+            ok: upstream.ok,
+            status: upstream.status,
+            data: parsed,
+            raw: parsed ? undefined : text.slice(0, 500),
+          }),
           {
             status: 200,
             headers: {

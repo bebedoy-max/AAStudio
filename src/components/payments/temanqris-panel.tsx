@@ -213,8 +213,8 @@ export function TemanQrisPanel({
             Saya sudah bayar
           </button>
           <div className="text-[11px] text-muted-foreground text-center max-w-xs">
-            Scan QR di atas dengan aplikasi bank / e-wallet, lalu tekan tombol ini supaya
-            pembayaran diverifikasi otomatis.
+            Scan QR di atas dengan aplikasi bank / e-wallet, lalu tekan tombol ini supaya pembayaran
+            diverifikasi otomatis.
           </div>
           {paymentUrl && (
             <a

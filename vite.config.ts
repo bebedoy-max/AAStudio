@@ -36,9 +36,7 @@ export default defineConfig({
     "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
       projectEnv.VITE_SUPABASE_PUBLISHABLE_KEY,
     ),
-    "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(
-      projectEnv.VITE_SUPABASE_PROJECT_ID,
-    ),
+    "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(projectEnv.VITE_SUPABASE_PROJECT_ID),
   },
   plugins: [
     tanstackStart({

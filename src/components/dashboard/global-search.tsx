@@ -89,10 +89,14 @@ export function GlobalSearch() {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm text-foreground truncate">{r.label}</div>
                       {r.description && (
-                        <div className="text-[11px] text-muted-foreground truncate">{r.description}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {r.description}
+                        </div>
                       )}
                     </div>
-                    {i === active && <CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" />}
+                    {i === active && (
+                      <CornerDownLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" />
+                    )}
                   </button>
                 </li>
               ))}

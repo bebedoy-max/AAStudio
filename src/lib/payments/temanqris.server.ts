@@ -50,9 +50,7 @@ async function tq<T>(params: {
 }
 
 function errMessage(r: { json: any; raw: string; status: number }) {
-  return (
-    r.json?.message ?? r.json?.error ?? r.raw?.slice(0, 200) ?? `HTTP ${r.status}`
-  );
+  return r.json?.message ?? r.json?.error ?? r.raw?.slice(0, 200) ?? `HTTP ${r.status}`;
 }
 
 export type TemanQrisCharge = {
@@ -120,11 +118,7 @@ export async function createTemanQrisCharge(params: {
 }
 
 export type TemanQrisOrderStatus =
-  | "pending"
-  | "awaiting_confirmation"
-  | "paid"
-  | "expired"
-  | "cancelled";
+  "pending" | "awaiting_confirmation" | "paid" | "expired" | "cancelled";
 
 export type TemanQrisOrder = {
   status: TemanQrisOrderStatus;
@@ -273,7 +267,10 @@ export async function loadTemanQrisConfig(gatewayId?: string): Promise<{
       cfg: {
         apiKey: cfg.api_key,
         webhookSecret: cfg.webhook_secret || undefined,
-        autoVerify: String(cfg.auto_verify ?? "").trim().toLowerCase() === "on",
+        autoVerify:
+          String(cfg.auto_verify ?? "")
+            .trim()
+            .toLowerCase() === "on",
         qrisId: cfg.qris_id ? Number(cfg.qris_id) || undefined : undefined,
       },
     };

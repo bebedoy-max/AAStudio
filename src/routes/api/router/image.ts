@@ -24,13 +24,18 @@ function isRotatable(s: number): boolean {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\n,]/g).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\n,]/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 // Gemini API keys can start with legacy "AIza" or new auth-key "AQ" prefixes.
 // Both are sent as x-goog-api-key; AQ keys are not OAuth bearer tokens.
 function validGeminiKeys(keys: string[]): string[] {
-  return keys.filter((k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k));
+  return keys.filter(
+    (k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k),
+  );
 }
 function validOpenAIKeys(keys: string[]): string[] {
   return keys.filter((k) => k.startsWith("sk-"));
@@ -44,7 +49,11 @@ async function safeErr(res: Response): Promise<string> {
   }
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 35000): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = 35000,
+): Promise<Response> {
   const ac = new AbortController();
   const timeout = setTimeout(() => ac.abort(), timeoutMs);
   try {
@@ -76,16 +85,25 @@ function extractGeminiImage(data: unknown): { b64: string; mime: string } | null
 
     const inlineData = obj.inlineData as Record<string, unknown> | undefined;
     if (inlineData && typeof inlineData.data === "string") {
-      return { b64: inlineData.data, mime: typeof inlineData.mimeType === "string" ? inlineData.mimeType : "image/png" };
+      return {
+        b64: inlineData.data,
+        mime: typeof inlineData.mimeType === "string" ? inlineData.mimeType : "image/png",
+      };
     }
 
     const outputImage = obj.output_image as Record<string, unknown> | undefined;
     if (outputImage && typeof outputImage.data === "string") {
-      return { b64: outputImage.data, mime: typeof outputImage.mime_type === "string" ? outputImage.mime_type : "image/png" };
+      return {
+        b64: outputImage.data,
+        mime: typeof outputImage.mime_type === "string" ? outputImage.mime_type : "image/png",
+      };
     }
 
     if (obj.type === "image" && typeof obj.data === "string") {
-      return { b64: obj.data, mime: typeof obj.mime_type === "string" ? obj.mime_type : "image/png" };
+      return {
+        b64: obj.data,
+        mime: typeof obj.mime_type === "string" ? obj.mime_type : "image/png",
+      };
     }
 
     for (const child of Object.values(obj)) {
@@ -127,15 +145,19 @@ async function callGeminiInteraction(
       input.push({ type: "image", mime_type: img.mime, data: img.b64 });
     }
   }
-  const res = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/interactions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...geminiAuthHeaders(key),
+  const res = await fetchWithTimeout(
+    "https://generativelanguage.googleapis.com/v1beta/interactions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...geminiAuthHeaders(key),
+      },
+      body: JSON.stringify({ model, input, store: false }),
     },
-    body: JSON.stringify({ model, input, store: false }),
-  });
-  if (!res.ok) return { ok: false, status: res.status, body: `${model}/interactions: ${await safeErr(res)}` };
+  );
+  if (!res.ok)
+    return { ok: false, status: res.status, body: `${model}/interactions: ${await safeErr(res)}` };
   const data = (await res.json().catch(() => ({}))) as unknown;
   const image = extractGeminiImage(data);
   if (image) return { ok: true, b64: image.b64, mime: image.mime };
@@ -163,7 +185,12 @@ async function callGeminiGenerateContent(
       generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
     }),
   });
-  if (!res.ok) return { ok: false, status: res.status, body: `${model}/generateContent: ${await safeErr(res)}` };
+  if (!res.ok)
+    return {
+      ok: false,
+      status: res.status,
+      body: `${model}/generateContent: ${await safeErr(res)}`,
+    };
   const data = (await res.json().catch(() => ({}))) as unknown;
   const image = extractGeminiImage(data);
   if (image) return { ok: true, b64: image.b64, mime: image.mime };
@@ -182,7 +209,11 @@ async function callGeminiImage(
   try {
     return await callGeminiInteraction(key, model, prompt, images);
   } catch (e) {
-    return { ok: false, status: 599, body: `${model}/interactions: fetch fail ${(e as Error).message}` };
+    return {
+      ok: false,
+      status: 599,
+      body: `${model}/interactions: fetch fail ${(e as Error).message}`,
+    };
   }
 }
 
@@ -252,7 +283,11 @@ export async function routeImage(opts: {
     return { ok: false, status: 400, error: "No image AI keys configured." };
   }
   const lastStatus = errors.some((e) => e.includes(":429:")) ? 429 : 502;
-  return { ok: false, status: lastStatus, error: errors.join(" || ") || "all image providers failed" };
+  return {
+    ok: false,
+    status: lastStatus,
+    error: errors.join(" || ") || "all image providers failed",
+  };
 }
 
 export const Route = createFileRoute("/api/router/image")({
@@ -274,13 +309,22 @@ export const Route = createFileRoute("/api/router/image")({
           const openaiKeys = validOpenAIKeys(parseKeys(request.headers.get("x-user-openai-keys")));
 
           if (geminiKeys.length === 0 && openaiKeys.length === 0) {
-            return json({
-              error: "No valid image AI keys. Gemini credentials must start with 'AIza' or 'AQ.', OpenAI with 'sk-'. Add real credentials in Token Manager.",
-            }, 400);
+            return json(
+              {
+                error:
+                  "No valid image AI keys. Gemini credentials must start with 'AIza' or 'AQ.', OpenAI with 'sk-'. Add real credentials in Token Manager.",
+              },
+              400,
+            );
           }
 
           const images = Array.isArray(body.images)
-            ? body.images.filter((i): i is ImgPart => !!i && typeof i.b64 === "string" && typeof i.mime === "string").slice(0, 8)
+            ? body.images
+                .filter(
+                  (i): i is ImgPart =>
+                    !!i && typeof i.b64 === "string" && typeof i.mime === "string",
+                )
+                .slice(0, 8)
             : [];
           const r = await routeImage({ geminiKeys, openaiKeys, prompt, images });
           if (!r.ok) return json({ error: r.error }, r.status);

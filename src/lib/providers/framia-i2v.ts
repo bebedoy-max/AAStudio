@@ -266,7 +266,10 @@ export async function runFramiaI2V(opts: FramiaI2VOpts): Promise<string> {
     onTick: (nodes) => {
       const v = nodes.find((n) => String(n.node_id || "").startsWith("video-"));
       if (v) {
-        const p = typeof v.progress === "number" ? Math.min(95, 55 + Math.round(v.progress * 0.4)) : undefined;
+        const p =
+          typeof v.progress === "number"
+            ? Math.min(95, 55 + Math.round(v.progress * 0.4))
+            : undefined;
         opts.onProgress?.(`Framia: ${v.status ?? "processing"}`, p);
       }
     },

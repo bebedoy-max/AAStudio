@@ -1,7 +1,13 @@
 // Grafik "Generate 30 Hari Terakhir" — interaktif, animatif, dengan beberapa
 // mode tampilan (area, bar, kumulatif) dan rentang waktu (7 / 14 / 30 hari).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AreaChart as AreaIcon, BarChart3, TrendingUp, Activity, CalendarRange } from "lucide-react";
+import {
+  AreaChart as AreaIcon,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  CalendarRange,
+} from "lucide-react";
 
 export type DayPoint = { day: string; count: number };
 type Mode = "area" | "bar" | "cumulative";
@@ -61,7 +67,11 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
     return { total, avg, peak, growth, active };
   }, [sliced]);
 
-  const W = Math.max(320, boxW), H = 200, PADX = 30, PADT = 18, PADB = 28;
+  const W = Math.max(320, boxW),
+    H = 200,
+    PADX = 30,
+    PADT = 18,
+    PADB = 28;
   const max = Math.max(1, ...shown.map((d) => d.count));
   const innerW = W - PADX * 2;
   const innerH = H - PADT - PADB;
@@ -82,18 +92,24 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
       const p1 = pts[i];
       const p2 = pts[i + 1];
       const p3 = pts[i + 2] ?? p2;
-      const c1x = p1.x + (p2.x - p0.x) / 6, c1y = p1.y + (p2.y - p0.y) / 6;
-      const c2x = p2.x - (p3.x - p1.x) / 6, c2y = p2.y - (p3.y - p1.y) / 6;
+      const c1x = p1.x + (p2.x - p0.x) / 6,
+        c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6,
+        c2y = p2.y - (p3.y - p1.y) / 6;
       d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
     }
     return d;
   }, [pts]);
 
-  const area = pts.length ? `${line} L ${pts[pts.length - 1].x} ${PADT + innerH} L ${pts[0].x} ${PADT + innerH} Z` : "";
+  const area = pts.length
+    ? `${line} L ${pts[pts.length - 1].x} ${PADT + innerH} L ${pts[0].x} ${PADT + innerH} Z`
+    : "";
 
   // re-trigger draw animation on mode/range change
   const [animKey, setAnimKey] = useState(0);
-  useEffect(() => { setAnimKey((k) => k + 1); }, [mode, range, data]);
+  useEffect(() => {
+    setAnimKey((k) => k + 1);
+  }, [mode, range, data]);
 
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -118,7 +134,9 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
               type="button"
               onClick={() => setMode(m.key)}
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-                mode === m.key ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+                mode === m.key
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <m.icon className="h-3.5 w-3.5" /> {m.label}
@@ -133,7 +151,9 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
               type="button"
               onClick={() => setRange(r)}
               className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-                range === r ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
+                range === r
+                  ? "bg-primary/20 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {r}h
@@ -146,7 +166,11 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <MiniStat label="Total" value={stats.total.toLocaleString("id-ID")} />
         <MiniStat label="Rata-rata / hari" value={stats.avg.toFixed(1)} />
-        <MiniStat label="Puncak" value={`${stats.peak?.count ?? 0}`} sub={stats.peak ? fmtDay(stats.peak.day) : ""} />
+        <MiniStat
+          label="Puncak"
+          value={`${stats.peak?.count ?? 0}`}
+          sub={stats.peak ? fmtDay(stats.peak.day) : ""}
+        />
         <MiniStat
           label="Pertumbuhan"
           value={`${stats.growth > 0 ? "+" : ""}${stats.growth}%`}
@@ -188,7 +212,14 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
             const y = PADT + innerH * r;
             return (
               <g key={r}>
-                <line x1={PADX} x2={W - PADX} y1={y} y2={y} stroke="oklch(0.35 0.06 275 / 0.25)" strokeDasharray="3 5" />
+                <line
+                  x1={PADX}
+                  x2={W - PADX}
+                  y1={y}
+                  y2={y}
+                  stroke="oklch(0.35 0.06 275 / 0.25)"
+                  strokeDasharray="3 5"
+                />
                 <text x={4} y={y + 3} fontSize="8" fill="oklch(0.6 0.04 265)">
                   {Math.round(max * (1 - r))}
                 </text>
@@ -229,8 +260,22 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
           {/* hover marker */}
           {hp && (
             <g>
-              <line x1={hp.x} x2={hp.x} y1={PADT} y2={PADT + innerH} stroke="var(--neon-pink)" strokeOpacity="0.4" strokeDasharray="2 4" />
-              <circle cx={hp.x} cy={hp.y} r="4.5" fill="var(--neon-pink)" style={{ filter: "drop-shadow(0 0 6px var(--neon-pink))" }} />
+              <line
+                x1={hp.x}
+                x2={hp.x}
+                y1={PADT}
+                y2={PADT + innerH}
+                stroke="var(--neon-pink)"
+                strokeOpacity="0.4"
+                strokeDasharray="2 4"
+              />
+              <circle
+                cx={hp.x}
+                cy={hp.y}
+                r="4.5"
+                fill="var(--neon-pink)"
+                style={{ filter: "drop-shadow(0 0 6px var(--neon-pink))" }}
+              />
               <circle cx={hp.x} cy={hp.y} r="9" fill="var(--neon-pink)" fillOpacity="0.15" />
             </g>
           )}
@@ -239,7 +284,14 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
           {pts
             .filter((_, i) => i % Math.max(1, Math.ceil(n / 6)) === 0 || i === n - 1)
             .map((p, i) => (
-              <text key={i} x={p.x} y={H - 8} textAnchor="middle" fontSize="9" fill="oklch(0.65 0.05 265)">
+              <text
+                key={i}
+                x={p.x}
+                y={H - 8}
+                textAnchor="middle"
+                fontSize="9"
+                fill="oklch(0.65 0.05 265)"
+              >
                 {p.day.slice(5)}
               </text>
             ))}
@@ -249,11 +301,18 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
         {hp && (
           <div
             className="pointer-events-none absolute -translate-x-1/2 rounded-lg border border-primary/30 bg-background/95 px-2.5 py-1.5 shadow-lg backdrop-blur"
-            style={{ left: `${(hp.x / W) * 100}%`, top: `${(hp.y / H) * 100}%`, transform: "translate(-50%, -120%)" }}
+            style={{
+              left: `${(hp.x / W) * 100}%`,
+              top: `${(hp.y / H) * 100}%`,
+              transform: "translate(-50%, -120%)",
+            }}
           >
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{fmtDay(hp.day)}</div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              {fmtDay(hp.day)}
+            </div>
             <div className="font-display text-base text-foreground leading-tight">
-              {hp.count.toLocaleString("id-ID")} <span className="text-[10px] text-muted-foreground">aset</span>
+              {hp.count.toLocaleString("id-ID")}{" "}
+              <span className="text-[10px] text-muted-foreground">aset</span>
             </div>
           </div>
         )}
@@ -267,10 +326,22 @@ export function GenerateChart({ data }: { data: DayPoint[] }) {
   );
 }
 
-function MiniStat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
+function MiniStat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "up" | "down";
+}) {
   return (
     <div className="rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2">
-      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground truncate">{label}</div>
+      <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground truncate">
+        {label}
+      </div>
       <div
         className={`font-display text-lg leading-tight ${
           tone === "up" ? "text-primary" : tone === "down" ? "text-destructive" : "text-foreground"

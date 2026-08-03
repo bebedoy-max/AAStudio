@@ -114,8 +114,7 @@ export const Route = createFileRoute("/api/public/leonardo-cognito")({
               method: "POST",
               headers: {
                 "Content-Type": "application/x-amz-json-1.1",
-                "X-Amz-Target":
-                  "AWSCognitoIdentityProviderService.InitiateAuth",
+                "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth",
                 "X-Amz-User-Agent": "aws-amplify/5.0.4 js",
                 "User-Agent":
                   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/150.0.0.0",
@@ -123,10 +122,7 @@ export const Route = createFileRoute("/api/public/leonardo-cognito")({
               body: JSON.stringify(buildPayload(clientId)),
             });
           } catch (e) {
-            return json(
-              { ok: false, error: `network: ${(e as Error).message}` },
-              200,
-            );
+            return json({ ok: false, error: `network: ${(e as Error).message}` }, 200);
           }
 
           text = await upstream.text();
@@ -161,10 +157,14 @@ export const Route = createFileRoute("/api/public/leonardo-cognito")({
           } else if (lastCode === "UserNotFoundException") {
             hint = "Akun dengan email ini tidak ditemukan di Leonardo.";
           } else if (lastCode === "UserNotConfirmedException") {
-            hint = "Akun belum diverifikasi. Selesaikan verifikasi email di app.leonardo.ai lebih dulu.";
+            hint =
+              "Akun belum diverifikasi. Selesaikan verifikasi email di app.leonardo.ai lebih dulu.";
           } else if (lastCode === "PasswordResetRequiredException") {
             hint = "Leonardo meminta reset password. Reset lewat app.leonardo.ai lalu coba lagi.";
-          } else if (lastCode === "InvalidParameterException" && /USER_PASSWORD_AUTH/i.test(lastMsg)) {
+          } else if (
+            lastCode === "InvalidParameterException" &&
+            /USER_PASSWORD_AUTH/i.test(lastMsg)
+          ) {
             hint =
               "USER_PASSWORD_AUTH tidak diizinkan oleh Leonardo untuk client ini. Login web pakai flow yang berbeda (SRP). Gunakan opsi paste JWT dari Token Manager.";
           }

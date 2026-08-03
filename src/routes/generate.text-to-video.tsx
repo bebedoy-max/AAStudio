@@ -12,8 +12,16 @@ import {
   qualityOptsFor,
   readRoutedVideoProvider,
 } from "@/lib/providers/video-catalog";
-import { runLeonardoVideo, type LeonardoVideoAspect, type LeonardoVideoSizeTier } from "@/lib/providers/leonardo-video";
-import { FIREFLY_VIDEO_MODELS, generateFireflyVideo, runFireflyWithRotation } from "@/lib/providers/firefly";
+import {
+  runLeonardoVideo,
+  type LeonardoVideoAspect,
+  type LeonardoVideoSizeTier,
+} from "@/lib/providers/leonardo-video";
+import {
+  FIREFLY_VIDEO_MODELS,
+  generateFireflyVideo,
+  runFireflyWithRotation,
+} from "@/lib/providers/firefly";
 import { useCloudGallery } from "@/lib/cloud/gallery";
 
 // Provider yang punya jalur text-to-video (tanpa gambar input).
@@ -28,7 +36,8 @@ export const Route = createFileRoute("/generate/text-to-video")({
       { title: "Text to Video — Creative Studio" },
       {
         name: "description",
-        content: "Generate video dari teks memakai model & parameter provider video yang sedang aktif.",
+        content:
+          "Generate video dari teks memakai model & parameter provider video yang sedang aktif.",
       },
       { property: "og:title", content: "Text to Video — Creative Studio" },
       {
@@ -51,10 +60,19 @@ function TextToVideoPage() {
   const [prompt, setPrompt] = useSticky("t2v.prompt", "");
   const [busy, setBusy] = useSticky("t2v.busy", false);
   const [logs, setLogs] = useSticky<string[]>("t2v.logs", []);
-  const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>("t2v.status", {
-    show: false, text: "", pct: 0, time: "0:00",
-  });
-  const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">("t2v.runState", "idle");
+  const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>(
+    "t2v.status",
+    {
+      show: false,
+      text: "",
+      pct: 0,
+      time: "0:00",
+    },
+  );
+  const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">(
+    "t2v.runState",
+    "idle",
+  );
   const [error, setError] = useSticky<string | null>("t2v.error", null);
   const gallery = useCloudGallery<{ prompt?: string }>("text-to-video", "video");
   const videos = gallery.items;
@@ -95,10 +113,17 @@ function TextToVideoPage() {
 
   const models = I2V_CATALOG[provider] || [];
   const activeModel = models.find((m) => m.value === model) || models[0];
-  const ratios = isFirefly ? FIREFLY_RATIOS : isRoboneo ? ROBONEO_RATIOS : isDola ? DOLA_RATIOS : RATIOS;
+  const ratios = isFirefly
+    ? FIREFLY_RATIOS
+    : isRoboneo
+      ? ROBONEO_RATIOS
+      : isDola
+        ? DOLA_RATIOS
+        : RATIOS;
   const qualityOpts = qualityOptsFor(activeModel?.value || "", ratio);
   const activeQuality = qualityOpts.find((q) => q.value === quality) || qualityOpts[0];
-  const totalCost = activeQuality?.cr ?? Math.round((activeModel?.cr ?? 0) * (activeQuality?.mult ?? 1));
+  const totalCost =
+    activeQuality?.cr ?? Math.round((activeModel?.cr ?? 0) * (activeQuality?.mult ?? 1));
 
   useEffect(() => {
     if (!bootstrapped) return;
@@ -117,7 +142,10 @@ function TextToVideoPage() {
     setStatus({ show: true, text, pct: 5, time: "0:00" });
     const tick = setInterval(() => {
       const el = Math.floor((Date.now() - start) / 1000);
-      setStatus((s) => ({ ...s, time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}` }));
+      setStatus((s) => ({
+        ...s,
+        time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}`,
+      }));
     }, 1000);
     return () => clearInterval(tick);
   };
@@ -173,7 +201,6 @@ function TextToVideoPage() {
           onProgress: (m, pct) => log(m, pct),
         });
       } else {
-
         log(`Submit ${activeModel.label} (${activeQuality?.label ?? ""} · ${ratio})`);
         url = await runLeonardoVideo({
           modelKey: activeModel.value,
@@ -269,7 +296,10 @@ function TextToVideoPage() {
           )}
 
           <div className="flex gap-2 items-center flex-wrap">
-            <PrimaryButton onClick={generateVideo} disabled={busy || !prompt.trim() || !supported || tokens === 0}>
+            <PrimaryButton
+              onClick={generateVideo}
+              disabled={busy || !prompt.trim() || !supported || tokens === 0}
+            >
               {busy ? "Generating…" : "Generate Video"}
             </PrimaryButton>
             <GhostButton
@@ -311,7 +341,10 @@ function TextToVideoPage() {
               <div className="h-1 rounded-full bg-border overflow-hidden">
                 <div
                   className="h-full transition-all"
-                  style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }}
+                  style={{
+                    width: `${status.pct}%`,
+                    background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))",
+                  }}
                 />
               </div>
             </div>
@@ -355,13 +388,25 @@ function TextToVideoPage() {
                   className="w-full aspect-video object-contain bg-black"
                 />
                 <div className="p-2 flex justify-between text-[11px]">
-                  <a href={url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
                     <ExternalLink className="h-3 w-3" /> Buka
                   </a>
-                  <a href={url} download className="text-primary hover:underline inline-flex items-center gap-1">
+                  <a
+                    href={url}
+                    download
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
                     <Download className="h-3 w-3" /> Unduh
                   </a>
-                  <button className="text-destructive hover:underline" onClick={() => void gallery.remove(id)}>
+                  <button
+                    className="text-destructive hover:underline"
+                    onClick={() => void gallery.remove(id)}
+                  >
                     Hapus
                   </button>
                 </div>

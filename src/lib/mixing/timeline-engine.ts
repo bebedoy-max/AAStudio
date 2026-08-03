@@ -46,7 +46,9 @@ export function buildTimelineForClip(
   const skip = settings.autoCutting ? [...analysis.deadAir, ...analysis.fillers] : [];
   const kept: Array<[number, number]> = [];
   let cursor = rawStart;
-  const sorted = [...skip].filter(([s, e]) => e > rawStart && s < rawEnd).sort((a, b) => a[0] - b[0]);
+  const sorted = [...skip]
+    .filter(([s, e]) => e > rawStart && s < rawEnd)
+    .sort((a, b) => a[0] - b[0]);
   for (const [s, e] of sorted) {
     const cs = Math.max(s, rawStart);
     const ce = Math.min(e, rawEnd);
@@ -114,7 +116,13 @@ export function buildTimelineForClip(
   // Auto zoom every ~6s within kept ranges (skip dead-air points)
   if (settings.autoZoom) {
     for (let t = 0; t < totalSec; t += 6) {
-      if (withinDeadAir(t, kept.map(([s, e]) => [s, e]))) continue;
+      if (
+        withinDeadAir(
+          t,
+          kept.map(([s, e]) => [s, e]),
+        )
+      )
+        continue;
       tracks.push({
         kind: "zoom",
         start: t,
@@ -148,7 +156,14 @@ export function autoBuildClips(
   sources: VideoSource[],
   analysis: ClipperAnalysis,
   settings: ClipperSettings,
-): Array<{ id: string; title: string; start: number; end: number; timeline: Timeline; hook: HookScore }> {
+): Array<{
+  id: string;
+  title: string;
+  start: number;
+  end: number;
+  timeline: Timeline;
+  hook: HookScore;
+}> {
   if (sources.length === 0) return [];
   const primary = sources[0];
   let picks = pickTopHooks(analysis, settings.hookKinds).slice(0, 6);

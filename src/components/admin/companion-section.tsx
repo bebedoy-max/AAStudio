@@ -1,6 +1,16 @@
 // Admin: status perangkat Companion (Android GoPay listener) + log event terakhir.
 import { useEffect, useState } from "react";
-import { Loader2, Smartphone, RefreshCw, Power, Trash2, Download, Save, Search, X } from "lucide-react";
+import {
+  Loader2,
+  Smartphone,
+  RefreshCw,
+  Power,
+  Trash2,
+  Download,
+  Save,
+  Search,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/dashboard/ui";
 import { confirmDialog } from "@/components/ui-confirm";
@@ -71,9 +81,7 @@ export function CompanionSection() {
     setBusy(row.id);
     try {
       await setCompanionDeviceActive({ data: { id: row.id, active: !row.active } });
-      setDevices((list) =>
-        list.map((d) => (d.id === row.id ? { ...d, active: !row.active } : d)),
-      );
+      setDevices((list) => list.map((d) => (d.id === row.id ? { ...d, active: !row.active } : d)));
       toast.success(!row.active ? "Perangkat diaktifkan" : "Perangkat dinonaktifkan");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Gagal mengubah status");
@@ -162,7 +170,11 @@ export function CompanionSection() {
           disabled={saving || events.length === 0}
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-40"
         >
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          {saving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
           Simpan
         </button>
         <button
@@ -203,7 +215,9 @@ export function CompanionSection() {
                 >
                   <Smartphone className="h-4 w-4 text-muted-foreground" />
                   <div className="min-w-[200px]">
-                    <div className="text-sm font-medium">{d.device_name ?? "Perangkat Android"}</div>
+                    <div className="text-sm font-medium">
+                      {d.device_name ?? "Perangkat Android"}
+                    </div>
                     <div className="font-mono text-[10px] text-muted-foreground break-all">
                       {d.device_id}
                     </div>
@@ -278,7 +292,9 @@ export function CompanionSection() {
                         <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                           {new Date(e.received_at ?? e.created_at).toLocaleString("id-ID")}
                         </td>
-                        <td className="px-3 py-2 font-mono whitespace-nowrap">{rupiah(e.amount)}</td>
+                        <td className="px-3 py-2 font-mono whitespace-nowrap">
+                          {rupiah(e.amount)}
+                        </td>
                         <td className="px-3 py-2">
                           <span
                             className={`rounded-full border px-2 py-0.5 text-[10px] font-mono ${
@@ -336,17 +352,19 @@ function downloadEventsCsv(list: CompanionEventRow[]) {
 }
 
 async function downloadEventsPdf(list: CompanionEventRow[]) {
-  const [{ jsPDF }, autoTableMod] = await Promise.all([
-    import("jspdf"),
-    import("jspdf-autotable"),
-  ]);
+  const [{ jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const autoTable = (autoTableMod as unknown as { default: any }).default;
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFontSize(13);
   doc.text("Histori Transaksi Companion Payment", 14, 14);
   doc.setFontSize(9);
   doc.text(`Dicetak: ${new Date().toLocaleString("id-ID")} · ${list.length} baris`, 14, 20);
-  autoTable(doc, { head: [EVENT_HEAD], body: eventRows(list), startY: 25, styles: { fontSize: 8 } });
+  autoTable(doc, {
+    head: [EVENT_HEAD],
+    body: eventRows(list),
+    startY: 25,
+    styles: { fontSize: 8 },
+  });
   doc.save(`companion-transaksi-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
@@ -411,7 +429,11 @@ function EventSearchDialog({ onClose }: { onClose: () => void }) {
             className="inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
             style={{ background: "var(--gradient-neon)" }}
           >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
             Cari
           </button>
           <input
@@ -449,7 +471,9 @@ function EventSearchDialog({ onClose }: { onClose: () => void }) {
               Masukkan kata kunci lalu klik Cari.
             </div>
           ) : rows.length === 0 ? (
-            <div className="p-6 text-center text-xs text-muted-foreground">Tidak ada data cocok.</div>
+            <div className="p-6 text-center text-xs text-muted-foreground">
+              Tidak ada data cocok.
+            </div>
           ) : (
             <table className="w-full text-left text-xs">
               <thead className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">

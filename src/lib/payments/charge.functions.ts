@@ -67,34 +67,35 @@ export const createPayment = createServerFn({ method: "POST" })
       .eq("id", data.purchaseRequestId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const pr = prRaw as
-      | {
-          id: string;
-          user_id: string;
-          price_idr: number;
-          status: string;
-          note: string | null;
-          route_key: string;
-          midtrans_order_id: string | null;
-          midtrans_qr_url: string | null;
-          midtrans_expires_at: string | null;
-          doku_invoice_number: string | null;
-          doku_payment_url: string | null;
-          doku_expires_at: string | null;
-          payment_provider: string | null;
-          temanqris_order_id: string | null;
-          temanqris_link_code: string | null;
-          temanqris_qr_image: string | null;
-          temanqris_payment_url: string | null;
-          temanqris_expires_at: string | null;
-        }
-      | null;
+    const pr = prRaw as {
+      id: string;
+      user_id: string;
+      price_idr: number;
+      status: string;
+      note: string | null;
+      route_key: string;
+      midtrans_order_id: string | null;
+      midtrans_qr_url: string | null;
+      midtrans_expires_at: string | null;
+      doku_invoice_number: string | null;
+      doku_payment_url: string | null;
+      doku_expires_at: string | null;
+      payment_provider: string | null;
+      temanqris_order_id: string | null;
+      temanqris_link_code: string | null;
+      temanqris_qr_image: string | null;
+      temanqris_payment_url: string | null;
+      temanqris_expires_at: string | null;
+    } | null;
     if (!pr) throw new Error("Purchase request tidak ditemukan");
     if (pr.user_id !== context.userId) throw new Error("Forbidden");
     if (pr.status !== "pending") throw new Error(`Purchase sudah ${pr.status}`);
     if (pr.price_idr < 1) throw new Error("Amount harus >= Rp 1");
 
-    const itemName = (pr.note ?? pr.route_key ?? "Payment").replace(/\s+/g, " ").trim().slice(0, 60);
+    const itemName = (pr.note ?? pr.route_key ?? "Payment")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 60);
 
     // Origin untuk callback / notification URL
     function currentOrigin() {

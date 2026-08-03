@@ -7,8 +7,18 @@ export function ToggleCard() {
   return (
     <div className="neumorph p-5 flex flex-col gap-4">
       {[
-        { label: "Auto Enhance", desc: "Tingkatkan output otomatis via Topaz", value: a, set: setA },
-        { label: "Cinematic Mode", desc: "Camera motion sinematik pada video gen", value: b, set: setB },
+        {
+          label: "Auto Enhance",
+          desc: "Tingkatkan output otomatis via Topaz",
+          value: a,
+          set: setA,
+        },
+        {
+          label: "Cinematic Mode",
+          desc: "Camera motion sinematik pada video gen",
+          value: b,
+          set: setB,
+        },
       ].map((row, i) => (
         <div key={i} className="flex items-center gap-4">
           <button
@@ -20,7 +30,14 @@ export function ToggleCard() {
             ].join(" ")}
             style={row.value ? { background: "var(--gradient-neon)" } : undefined}
           >
-            <span className={["absolute top-1/2 -translate-y-1/2", row.value ? "left-3 text-primary-foreground" : "right-3 text-muted-foreground"].join(" ")}>{row.value ? "ON" : "OFF"}</span>
+            <span
+              className={[
+                "absolute top-1/2 -translate-y-1/2",
+                row.value ? "left-3 text-primary-foreground" : "right-3 text-muted-foreground",
+              ].join(" ")}
+            >
+              {row.value ? "ON" : "OFF"}
+            </span>
             <span
               className={[
                 "absolute top-1 h-6 w-6 rounded-full bg-white transition-all shadow",
@@ -50,24 +67,46 @@ export function RatingCard() {
           {[1, 2, 3, 4, 5].map((i) => (
             <Star
               key={i}
-              className={["h-4 w-4", i <= 4 ? "fill-[var(--neon-pink)] text-[var(--neon-pink)]" : "text-muted-foreground"].join(" ")}
+              className={[
+                "h-4 w-4",
+                i <= 4
+                  ? "fill-[var(--neon-pink)] text-[var(--neon-pink)]"
+                  : "text-muted-foreground",
+              ].join(" ")}
             />
           ))}
         </div>
       </div>
       <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-        Video generation berhasil dengan skor kualitas tinggi. Klik untuk melihat detail render, prompt & versi.
+        Video generation berhasil dengan skor kualitas tinggi. Klik untuk melihat detail render,
+        prompt & versi.
       </p>
       <div className="mt-4 flex items-center gap-2">
-        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Model</span>
-        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground">Kling 2.1</span>
-        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground">Sora</span>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          Model
+        </span>
+        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground">
+          Kling 2.1
+        </span>
+        <span className="rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground">
+          Sora
+        </span>
       </div>
     </div>
   );
 }
 
-function Gauge({ value, label, sub, color }: { value: number; label: string; sub: string; color: string }) {
+function Gauge({
+  value,
+  label,
+  sub,
+  color,
+}: {
+  value: number;
+  label: string;
+  sub: string;
+  color: string;
+}) {
   const r = 42;
   const c = 2 * Math.PI * r;
   const dash = c * (value / 100);
@@ -80,15 +119,34 @@ function Gauge({ value, label, sub, color }: { value: number; label: string; sub
             <stop offset="100%" stopColor="var(--neon-cyan)" />
           </linearGradient>
         </defs>
-        <circle cx="55" cy="55" r={r} fill="none" stroke="oklch(0.3 0.06 275 / 0.7)" strokeWidth="8" />
         <circle
-          cx="55" cy="55" r={r} fill="none"
+          cx="55"
+          cy="55"
+          r={r}
+          fill="none"
+          stroke="oklch(0.3 0.06 275 / 0.7)"
+          strokeWidth="8"
+        />
+        <circle
+          cx="55"
+          cy="55"
+          r={r}
+          fill="none"
           stroke={`url(#g-${label})`}
-          strokeWidth="8" strokeLinecap="round"
+          strokeWidth="8"
+          strokeLinecap="round"
           strokeDasharray={`${dash} ${c}`}
           transform="rotate(-90 55 55)"
         />
-        <text x="55" y="52" textAnchor="middle" className="font-mono" fill={color} fontSize="16" fontWeight="700">
+        <text
+          x="55"
+          y="52"
+          textAnchor="middle"
+          className="font-mono"
+          fill={color}
+          fontSize="16"
+          fontWeight="700"
+        >
           {value.toLocaleString()}
         </text>
         <text x="55" y="68" textAnchor="middle" fill="oklch(0.72 0.05 265)" fontSize="8">
@@ -97,7 +155,9 @@ function Gauge({ value, label, sub, color }: { value: number; label: string; sub
       </svg>
       <div>
         <div className="font-display text-base text-foreground">{label}</div>
-        <div className="text-xs text-muted-foreground max-w-[10rem]">Lorem ipsum dolor sit amet consectetur</div>
+        <div className="text-xs text-muted-foreground max-w-[10rem]">
+          Lorem ipsum dolor sit amet consectetur
+        </div>
       </div>
     </div>
   );
@@ -217,12 +277,22 @@ export function AreaChartCard() {
         {[100, 200, 300, 400].map((y) => (
           <line
             key={y}
-            x1="0" x2={w} y1={h - (y / max) * h} y2={h - (y / max) * h}
-            stroke="oklch(0.35 0.06 275 / 0.35)" strokeDasharray="4 6"
+            x1="0"
+            x2={w}
+            y1={h - (y / max) * h}
+            y2={h - (y / max) * h}
+            stroke="oklch(0.35 0.06 275 / 0.35)"
+            strokeDasharray="4 6"
           />
         ))}
         <path d={area} fill="url(#area-fill)" />
-        <path d={path} fill="none" stroke="var(--neon-pink)" strokeWidth="2.5" style={{ filter: "drop-shadow(0 0 6px var(--neon-pink))" }} />
+        <path
+          d={path}
+          fill="none"
+          stroke="var(--neon-pink)"
+          strokeWidth="2.5"
+          style={{ filter: "drop-shadow(0 0 6px var(--neon-pink))" }}
+        />
       </svg>
     </div>
   );

@@ -4,13 +4,31 @@ import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { LEONARDO_VIDEO_MODELS, leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
-import { Rocket, Play, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
+import {
+  Rocket,
+  Play,
+  ClipboardPaste,
+  Sparkles,
+  Film,
+  Mic,
+  Image as ImageIcon,
+  Merge,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
-import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
+import {
+  Field,
+  Select,
+  Textarea,
+  Input,
+  Card,
+  PrimaryButton,
+  GhostButton,
+} from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
-
 
 function ratioClass(r: string): string {
   if (r.startsWith("9:16")) return "aspect-[9/16]";
@@ -23,7 +41,8 @@ function extractFirstUrl(text: string): string {
   return (match?.[0] ?? text).trim();
 }
 
-const NO_TEXT_GUARD = "no text, no words, no captions, no typography, no logos, no watermarks, no subtitles anywhere in the image or during motion";
+const NO_TEXT_GUARD =
+  "no text, no words, no captions, no typography, no logos, no watermarks, no subtitles anywhere in the image or during motion";
 function withNoTextGuard(prompt: string): string {
   const p = (prompt || "").trim();
   if (/no\s+text/i.test(p)) return p;
@@ -34,7 +53,11 @@ export const Route = createFileRoute("/generate/naratif")({
   head: () => ({
     meta: [
       { title: "Naratif Video Maker — AA Creative Studio" },
-      { name: "description", content: "Link artikel → scrape → Brain → gambar per scene → voice-over → gabung jadi video naratif." },
+      {
+        name: "description",
+        content:
+          "Link artikel → scrape → Brain → gambar per scene → voice-over → gabung jadi video naratif.",
+      },
     ],
   }),
   component: withKeyGuard(NaratifPage, ["brain", "eleven"]),
@@ -48,91 +71,157 @@ type ModelDef = { key: string; label: string; qualities: Quality[] };
 // Image models: match storyboard/bulk-fashion legacy pricing.
 const IMG_CATALOG: Record<Provider, ModelDef[]> = {
   weavy: [
-    { key: "nanobanana2", label: "Gemini Nano Banana 2 (Weavy)", qualities: [
-      { v: "0.5K", label: "0.5K (4.5 cr)", cr: 4.5 },
-      { v: "1K", label: "1K (6 cr)", cr: 6, default: true },
-      { v: "2K", label: "2K (9 cr)", cr: 9 },
-      { v: "4K", label: "4K (12 cr)", cr: 12 },
-    ] },
-    { key: "gptimage2", label: "Image GPT 2 (Weavy)", qualities: [
-      { v: "low", label: "Low (~15 cr)", cr: 15 },
-      { v: "medium", label: "Medium (~36 cr)", cr: 36, default: true },
-      { v: "high", label: "High (~60 cr)", cr: 60 },
-    ] },
+    {
+      key: "nanobanana2",
+      label: "Gemini Nano Banana 2 (Weavy)",
+      qualities: [
+        { v: "0.5K", label: "0.5K (4.5 cr)", cr: 4.5 },
+        { v: "1K", label: "1K (6 cr)", cr: 6, default: true },
+        { v: "2K", label: "2K (9 cr)", cr: 9 },
+        { v: "4K", label: "4K (12 cr)", cr: 12 },
+      ],
+    },
+    {
+      key: "gptimage2",
+      label: "Image GPT 2 (Weavy)",
+      qualities: [
+        { v: "low", label: "Low (~15 cr)", cr: 15 },
+        { v: "medium", label: "Medium (~36 cr)", cr: 36, default: true },
+        { v: "high", label: "High (~60 cr)", cr: 60 },
+      ],
+    },
   ],
   wavespeed: [
-    { key: "ws:google/nano-banana-2/text-to-image", label: "Nano Banana 2", qualities: [
-      { v: "1K", label: "1K (7 cr)", cr: 7, default: true },
-      { v: "2K", label: "2K (7 cr)", cr: 7 },
-    ] },
-    { key: "ws:openai/gpt-image-2/text-to-image", label: "GPT-Image-2", qualities: [
-      { v: "low", label: "Low (6 cr)", cr: 6 },
-      { v: "medium", label: "Medium (6 cr)", cr: 6, default: true },
-      { v: "high", label: "High (6 cr)", cr: 6 },
-    ] },
-    { key: "ws:google/nano-banana-pro/text-to-image", label: "Nano Banana Pro", qualities: [
-      { v: "default", label: "Standard (14 cr)", cr: 14, default: true },
-    ] },
-    { key: "ws:bytedance/seedream-v4", label: "Seedream V4", qualities: [
-      { v: "default", label: "Standard (2.7 cr)", cr: 2.7, default: true },
-    ] },
-    { key: "ws:alibaba/wan-2.7/text-to-image", label: "Wan 2.7", qualities: [
-      { v: "default", label: "Standard (3 cr)", cr: 3, default: true },
-    ] },
+    {
+      key: "ws:google/nano-banana-2/text-to-image",
+      label: "Nano Banana 2",
+      qualities: [
+        { v: "1K", label: "1K (7 cr)", cr: 7, default: true },
+        { v: "2K", label: "2K (7 cr)", cr: 7 },
+      ],
+    },
+    {
+      key: "ws:openai/gpt-image-2/text-to-image",
+      label: "GPT-Image-2",
+      qualities: [
+        { v: "low", label: "Low (6 cr)", cr: 6 },
+        { v: "medium", label: "Medium (6 cr)", cr: 6, default: true },
+        { v: "high", label: "High (6 cr)", cr: 6 },
+      ],
+    },
+    {
+      key: "ws:google/nano-banana-pro/text-to-image",
+      label: "Nano Banana Pro",
+      qualities: [{ v: "default", label: "Standard (14 cr)", cr: 14, default: true }],
+    },
+    {
+      key: "ws:bytedance/seedream-v4",
+      label: "Seedream V4",
+      qualities: [{ v: "default", label: "Standard (2.7 cr)", cr: 2.7, default: true }],
+    },
+    {
+      key: "ws:alibaba/wan-2.7/text-to-image",
+      label: "Wan 2.7",
+      qualities: [{ v: "default", label: "Standard (3 cr)", cr: 3, default: true }],
+    },
   ],
   magnific: [
-    { key: "magnific-img", label: "Magnific Image", qualities: [
-      { v: "2K", label: "2K (12 cr)", cr: 12 },
-      { v: "4K", label: "4K (22 cr)", cr: 22, default: true },
-    ] },
+    {
+      key: "magnific-img",
+      label: "Magnific Image",
+      qualities: [
+        { v: "2K", label: "2K (12 cr)", cr: 12 },
+        { v: "4K", label: "4K (22 cr)", cr: 22, default: true },
+      ],
+    },
   ],
   roboneo: [
-    { key: "nanobanana2", label: "Gemini Nano Banana 2 (via Weavy fallback)", qualities: [
-      { v: "1K", label: "1K (6 cr)", cr: 6, default: true },
-    ] },
+    {
+      key: "nanobanana2",
+      label: "Gemini Nano Banana 2 (via Weavy fallback)",
+      qualities: [{ v: "1K", label: "1K (6 cr)", cr: 6, default: true }],
+    },
   ],
   framia: [
-    { key: "framia:nano-banana-lite", label: "Nano Banana Lite (Framia)", qualities: [
-      { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
-      { v: "2K", label: "2K (~2 cr)", cr: 2 },
-    ] },
-    { key: "framia:nano-banana", label: "Nano Banana (Framia)", qualities: [
-      { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
-      { v: "2K", label: "2K (~3 cr)", cr: 3 },
-    ] },
-    { key: "framia:nano-banana-2", label: "Nano Banana 2 (Framia)", qualities: [
-      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
-      { v: "2K", label: "2K (~4 cr)", cr: 4 },
-    ] },
-    { key: "framia:nano-banana-pro", label: "Nano Banana Pro (Framia)", qualities: [
-      { v: "default", label: "Standard (~5 cr)", cr: 5, default: true },
-    ] },
-    { key: "framia:gpt-image-2", label: "GPT Image 2 (Framia)", qualities: [
-      { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
-      { v: "4K", label: "4K (~8 cr)", cr: 8 },
-    ] },
-    { key: "framia:seedream-4", label: "Seedream 4.0 (Framia)", qualities: [
-      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
-      { v: "2K", label: "2K (~4 cr)", cr: 4 },
-    ] },
-    { key: "framia:seedream-4-5", label: "Seedream 4.5 (Framia)", qualities: [
-      { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
-      { v: "2K", label: "2K (~4 cr)", cr: 4 },
-    ] },
-    { key: "framia:seedream-5", label: "Seedream 5 (Framia)", qualities: [
-      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
-      { v: "2K", label: "2K (~5 cr)", cr: 5 },
-    ] },
-    { key: "framia:seedream-5-pro", label: "Seedream 5 Pro (Framia)", qualities: [
-      { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
-      { v: "2K", label: "2K (~5 cr)", cr: 5 },
-    ] },
-    { key: "framia:flux-1.1-pro", label: "Flux 1.1 Pro (Framia)", qualities: [
-      { v: "default", label: "Standard (~3 cr)", cr: 3, default: true },
-    ] },
-    { key: "framia:flux-max", label: "Flux Max (Framia)", qualities: [
-      { v: "default", label: "Standard (~6 cr)", cr: 6, default: true },
-    ] },
+    {
+      key: "framia:nano-banana-lite",
+      label: "Nano Banana Lite (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~1 cr)", cr: 1, default: true },
+        { v: "2K", label: "2K (~2 cr)", cr: 2 },
+      ],
+    },
+    {
+      key: "framia:nano-banana",
+      label: "Nano Banana (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~2 cr)", cr: 2, default: true },
+        { v: "2K", label: "2K (~3 cr)", cr: 3 },
+      ],
+    },
+    {
+      key: "framia:nano-banana-2",
+      label: "Nano Banana 2 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:nano-banana-pro",
+      label: "Nano Banana Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)", cr: 5, default: true }],
+    },
+    {
+      key: "framia:gpt-image-2",
+      label: "GPT Image 2 (Framia)",
+      qualities: [
+        { v: "2K", label: "2K (~5 cr)", cr: 5, default: true },
+        { v: "4K", label: "4K (~8 cr)", cr: 8 },
+      ],
+    },
+    {
+      key: "framia:seedream-4",
+      label: "Seedream 4.0 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:seedream-4-5",
+      label: "Seedream 4.5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)", cr: 3, default: true },
+        { v: "2K", label: "2K (~4 cr)", cr: 4 },
+      ],
+    },
+    {
+      key: "framia:seedream-5",
+      label: "Seedream 5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+        { v: "2K", label: "2K (~5 cr)", cr: 5 },
+      ],
+    },
+    {
+      key: "framia:seedream-5-pro",
+      label: "Seedream 5 Pro (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)", cr: 4, default: true },
+        { v: "2K", label: "2K (~5 cr)", cr: 5 },
+      ],
+    },
+    {
+      key: "framia:flux-1.1-pro",
+      label: "Flux 1.1 Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~3 cr)", cr: 3, default: true }],
+    },
+    {
+      key: "framia:flux-max",
+      label: "Flux Max (Framia)",
+      qualities: [{ v: "default", label: "Standard (~6 cr)", cr: 6, default: true }],
+    },
   ],
   leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
@@ -140,101 +229,173 @@ const IMG_CATALOG: Record<Provider, ModelDef[]> = {
 // Video models — pilihan kualitas = resolusi (durasi fix per model)
 const VID_CATALOG: Record<Provider, ModelDef[]> = {
   weavy: [
-    { key: "veo-3.1", label: "Veo 3.1 (durasi 8s)", qualities: [
-      { v: "720p", label: "720p (60 cr)", cr: 60, default: true },
-      { v: "1080p", label: "1080p (80 cr)", cr: 80 },
-    ] },
-    { key: "sora-2", label: "Sora 2 (durasi 10s)", qualities: [
-      { v: "720p", label: "720p (40 cr)", cr: 40, default: true },
-      { v: "1080p", label: "1080p (55 cr)", cr: 55 },
-    ] },
-    { key: "kling-2.1", label: "Kling V2.1 (durasi 5s)", qualities: [
-      { v: "720p", label: "720p (26 cr)", cr: 26, default: true },
-      { v: "1080p", label: "1080p (40 cr)", cr: 40 },
-    ] },
-    { key: "seedance", label: "Seedance (durasi 5s)", qualities: [
-      { v: "480p", label: "480p (20 cr)", cr: 20 },
-      { v: "720p", label: "720p (30 cr)", cr: 30, default: true },
-      { v: "1080p", label: "1080p (45 cr)", cr: 45 },
-    ] },
+    {
+      key: "veo-3.1",
+      label: "Veo 3.1 (durasi 8s)",
+      qualities: [
+        { v: "720p", label: "720p (60 cr)", cr: 60, default: true },
+        { v: "1080p", label: "1080p (80 cr)", cr: 80 },
+      ],
+    },
+    {
+      key: "sora-2",
+      label: "Sora 2 (durasi 10s)",
+      qualities: [
+        { v: "720p", label: "720p (40 cr)", cr: 40, default: true },
+        { v: "1080p", label: "1080p (55 cr)", cr: 55 },
+      ],
+    },
+    {
+      key: "kling-2.1",
+      label: "Kling V2.1 (durasi 5s)",
+      qualities: [
+        { v: "720p", label: "720p (26 cr)", cr: 26, default: true },
+        { v: "1080p", label: "1080p (40 cr)", cr: 40 },
+      ],
+    },
+    {
+      key: "seedance",
+      label: "Seedance (durasi 5s)",
+      qualities: [
+        { v: "480p", label: "480p (20 cr)", cr: 20 },
+        { v: "720p", label: "720p (30 cr)", cr: 30, default: true },
+        { v: "1080p", label: "1080p (45 cr)", cr: 45 },
+      ],
+    },
   ],
   wavespeed: [
-    { key: "kling-2.1", label: "Kling V2.1 (durasi 5s)", qualities: [
-      { v: "720p", label: "720p (26 cr)", cr: 26, default: true },
-      { v: "1080p", label: "1080p (40 cr)", cr: 40 },
-    ] },
-    { key: "seedance", label: "Seedance (durasi 5s)", qualities: [
-      { v: "480p", label: "480p (20 cr)", cr: 20 },
-      { v: "720p", label: "720p (30 cr)", cr: 30, default: true },
-      { v: "1080p", label: "1080p (45 cr)", cr: 45 },
-    ] },
-    { key: "wan-i2v", label: "Wan 2.1 I2V (durasi 5s)", qualities: [
-      { v: "720p", label: "720p (24 cr)", cr: 24, default: true },
-    ] },
+    {
+      key: "kling-2.1",
+      label: "Kling V2.1 (durasi 5s)",
+      qualities: [
+        { v: "720p", label: "720p (26 cr)", cr: 26, default: true },
+        { v: "1080p", label: "1080p (40 cr)", cr: 40 },
+      ],
+    },
+    {
+      key: "seedance",
+      label: "Seedance (durasi 5s)",
+      qualities: [
+        { v: "480p", label: "480p (20 cr)", cr: 20 },
+        { v: "720p", label: "720p (30 cr)", cr: 30, default: true },
+        { v: "1080p", label: "1080p (45 cr)", cr: 45 },
+      ],
+    },
+    {
+      key: "wan-i2v",
+      label: "Wan 2.1 I2V (durasi 5s)",
+      qualities: [{ v: "720p", label: "720p (24 cr)", cr: 24, default: true }],
+    },
   ],
   magnific: [
-    { key: "kling-motion", label: "Kling Motion (durasi 5s)", qualities: [
-      { v: "720p", label: "720p (45 cr)", cr: 45, default: true },
-      { v: "1080p", label: "1080p (65 cr)", cr: 65 },
-    ] },
+    {
+      key: "kling-motion",
+      label: "Kling Motion (durasi 5s)",
+      qualities: [
+        { v: "720p", label: "720p (45 cr)", cr: 45, default: true },
+        { v: "1080p", label: "1080p (65 cr)", cr: 65 },
+      ],
+    },
   ],
   roboneo: [
-    { key: "rn:seedance-pro", label: "Seedance Pro (Roboneo)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (kuota)",  cr: 0, default: true },
-      { v: "720p-10s", label: "720p · 10s (kuota)", cr: 0 },
-      { v: "720p-12s", label: "720p · 12s (kuota)", cr: 0 },
-      { v: "480p-5s",  label: "480p · 5s (kuota)",  cr: 0 },
-      { v: "1080p-5s", label: "1080p · 5s (kuota)", cr: 0 },
-    ] },
-    { key: "rn:google-omni", label: "Google Omni (Roboneo)", qualities: [
-      { v: "5s",  label: "Durasi 5s (kuota)",  cr: 0, default: true },
-      { v: "10s", label: "Durasi 10s (kuota)", cr: 0 },
-    ] },
-    { key: "rn:kling-v26:std", label: "Kling 2.6 (Roboneo)", qualities: [
-      { v: "5s-off",  label: "5s · No Sound (kuota)",  cr: 0, default: true },
-      { v: "5s-on",   label: "5s · Sound (kuota)",     cr: 0 },
-      { v: "10s-off", label: "10s · No Sound (kuota)", cr: 0 },
-      { v: "10s-on",  label: "10s · Sound (kuota)",    cr: 0 },
-    ] },
+    {
+      key: "rn:seedance-pro",
+      label: "Seedance Pro (Roboneo)",
+      qualities: [
+        { v: "720p-5s", label: "720p · 5s (kuota)", cr: 0, default: true },
+        { v: "720p-10s", label: "720p · 10s (kuota)", cr: 0 },
+        { v: "720p-12s", label: "720p · 12s (kuota)", cr: 0 },
+        { v: "480p-5s", label: "480p · 5s (kuota)", cr: 0 },
+        { v: "1080p-5s", label: "1080p · 5s (kuota)", cr: 0 },
+      ],
+    },
+    {
+      key: "rn:google-omni",
+      label: "Google Omni (Roboneo)",
+      qualities: [
+        { v: "5s", label: "Durasi 5s (kuota)", cr: 0, default: true },
+        { v: "10s", label: "Durasi 10s (kuota)", cr: 0 },
+      ],
+    },
+    {
+      key: "rn:kling-v26:std",
+      label: "Kling 2.6 (Roboneo)",
+      qualities: [
+        { v: "5s-off", label: "5s · No Sound (kuota)", cr: 0, default: true },
+        { v: "5s-on", label: "5s · Sound (kuota)", cr: 0 },
+        { v: "10s-off", label: "10s · No Sound (kuota)", cr: 0 },
+        { v: "10s-on", label: "10s · Sound (kuota)", cr: 0 },
+      ],
+    },
   ],
   framia: [
     // Model list from Framia video node (share recipe 8b83c48b70).
-    { key: "framia:seedance-2.0", label: "Seedance 2.0 (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~45 cr)",  cr: 45, default: true },
-      { v: "1080p-5s", label: "1080p · 5s (~65 cr)", cr: 65 },
-      { v: "720p-10s", label: "720p · 10s (~90 cr)", cr: 90 },
-    ] },
-    { key: "framia:seedance-2.0-fast", label: "Seedance 2.0 Fast (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~30 cr)",  cr: 30, default: true },
-      { v: "720p-10s", label: "720p · 10s (~60 cr)", cr: 60 },
-    ] },
-    { key: "framia:kling-3.0-omni", label: "Kling 3.0 Omni (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~60 cr)",  cr: 60, default: true },
-      { v: "1080p-5s", label: "1080p · 5s (~90 cr)", cr: 90 },
-    ] },
-    { key: "framia:kling-3.0", label: "Kling 3.0 (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~50 cr)",  cr: 50, default: true },
-      { v: "1080p-5s", label: "1080p · 5s (~75 cr)", cr: 75 },
-    ] },
-    { key: "framia:veo-3.1", label: "Veo 3.1 (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~90 cr)",  cr: 90, default: true },
-    ] },
-    { key: "framia:veo-3.1-fast", label: "Veo 3.1 Fast (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~65 cr)",  cr: 65, default: true },
-    ] },
-    { key: "framia:wan-2.7", label: "Wan 2.7 (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~25 cr)",  cr: 25, default: true },
-    ] },
-    { key: "framia:gemini-omni-flash", label: "Gemini Omni Flash (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~20 cr)",  cr: 20, default: true },
-      { v: "720p-10s", label: "720p · 10s (~40 cr)", cr: 40 },
-    ] },
-    { key: "framia:happyhorse-1.1", label: "HappyHorse 1.1 (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~28 cr)",  cr: 28, default: true },
-    ] },
-    { key: "framia:kling-avatar", label: "Kling Avatar (Framia)", qualities: [
-      { v: "720p-5s",  label: "720p · 5s (~40 cr)",  cr: 40, default: true },
-    ] },
+    {
+      key: "framia:seedance-2.0",
+      label: "Seedance 2.0 (Framia)",
+      qualities: [
+        { v: "720p-5s", label: "720p · 5s (~45 cr)", cr: 45, default: true },
+        { v: "1080p-5s", label: "1080p · 5s (~65 cr)", cr: 65 },
+        { v: "720p-10s", label: "720p · 10s (~90 cr)", cr: 90 },
+      ],
+    },
+    {
+      key: "framia:seedance-2.0-fast",
+      label: "Seedance 2.0 Fast (Framia)",
+      qualities: [
+        { v: "720p-5s", label: "720p · 5s (~30 cr)", cr: 30, default: true },
+        { v: "720p-10s", label: "720p · 10s (~60 cr)", cr: 60 },
+      ],
+    },
+    {
+      key: "framia:kling-3.0-omni",
+      label: "Kling 3.0 Omni (Framia)",
+      qualities: [
+        { v: "720p-5s", label: "720p · 5s (~60 cr)", cr: 60, default: true },
+        { v: "1080p-5s", label: "1080p · 5s (~90 cr)", cr: 90 },
+      ],
+    },
+    {
+      key: "framia:kling-3.0",
+      label: "Kling 3.0 (Framia)",
+      qualities: [
+        { v: "720p-5s", label: "720p · 5s (~50 cr)", cr: 50, default: true },
+        { v: "1080p-5s", label: "1080p · 5s (~75 cr)", cr: 75 },
+      ],
+    },
+    {
+      key: "framia:veo-3.1",
+      label: "Veo 3.1 (Framia)",
+      qualities: [{ v: "720p-5s", label: "720p · 5s (~90 cr)", cr: 90, default: true }],
+    },
+    {
+      key: "framia:veo-3.1-fast",
+      label: "Veo 3.1 Fast (Framia)",
+      qualities: [{ v: "720p-5s", label: "720p · 5s (~65 cr)", cr: 65, default: true }],
+    },
+    {
+      key: "framia:wan-2.7",
+      label: "Wan 2.7 (Framia)",
+      qualities: [{ v: "720p-5s", label: "720p · 5s (~25 cr)", cr: 25, default: true }],
+    },
+    {
+      key: "framia:gemini-omni-flash",
+      label: "Gemini Omni Flash (Framia)",
+      qualities: [
+        { v: "720p-5s", label: "720p · 5s (~20 cr)", cr: 20, default: true },
+        { v: "720p-10s", label: "720p · 10s (~40 cr)", cr: 40 },
+      ],
+    },
+    {
+      key: "framia:happyhorse-1.1",
+      label: "HappyHorse 1.1 (Framia)",
+      qualities: [{ v: "720p-5s", label: "720p · 5s (~28 cr)", cr: 28, default: true }],
+    },
+    {
+      key: "framia:kling-avatar",
+      label: "Kling Avatar (Framia)",
+      qualities: [{ v: "720p-5s", label: "720p · 5s (~40 cr)", cr: 40, default: true }],
+    },
   ],
   leonardo: LEONARDO_VIDEO_MODELS.map((m) => {
     const opts = leonardoVideoQualityOptions(m.id, "9:16");
@@ -300,7 +461,16 @@ function mapImgToWsEndpoint(modelKey: string): string {
 }
 
 type Material = { title: string; desc: string; body: string; hero?: string; images?: string[] };
-type Scene = { idx: number; prompt: string; videoPrompt: string; narration: string; imgUrl?: string; audioUrl?: string; videoUrl?: string; busy?: "img" | "vo" | "vid" | null };
+type Scene = {
+  idx: number;
+  prompt: string;
+  videoPrompt: string;
+  narration: string;
+  imgUrl?: string;
+  audioUrl?: string;
+  videoUrl?: string;
+  busy?: "img" | "vo" | "vid" | null;
+};
 type BulkKind = "img" | "vo" | "vid" | "merge";
 type BulkBusy = Record<BulkKind, boolean>;
 const EMPTY_BUSY: BulkBusy = { img: false, vo: false, vid: false, merge: false };
@@ -325,7 +495,8 @@ const SUB_STYLES: SubStyleDef[] = [
       borderRadius: 6,
       fontWeight: 600,
     },
-    force: "FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H80000000&,BorderStyle=3,Outline=1,Shadow=0,Bold=1,MarginV=60",
+    force:
+      "FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H80000000&,BorderStyle=3,Outline=1,Shadow=0,Bold=1,MarginV=60",
   },
   {
     key: "minimal",
@@ -335,7 +506,8 @@ const SUB_STYLES: SubStyleDef[] = [
       textShadow: "0 1px 3px rgba(0,0,0,0.85)",
       fontWeight: 500,
     },
-    force: "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=2,Shadow=1,MarginV=60",
+    force:
+      "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=2,Shadow=1,MarginV=60",
   },
   {
     key: "tiktok",
@@ -349,7 +521,8 @@ const SUB_STYLES: SubStyleDef[] = [
       textTransform: "uppercase",
       letterSpacing: "0.02em",
     },
-    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H00000000&,BorderStyle=3,Outline=2,Shadow=0,Bold=1,MarginV=80",
+    force:
+      "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H00000000&,BorderStyle=3,Outline=2,Shadow=0,Bold=1,MarginV=80",
   },
   {
     key: "capcut",
@@ -360,7 +533,8 @@ const SUB_STYLES: SubStyleDef[] = [
       textShadow: "0 0 6px rgba(0,0,0,.8)",
       fontWeight: 800,
     },
-    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H0000E6FF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
+    force:
+      "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H0000E6FF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
   },
   {
     key: "cinematic",
@@ -372,7 +546,8 @@ const SUB_STYLES: SubStyleDef[] = [
       letterSpacing: "0.05em",
       textShadow: "0 1px 4px rgba(0,0,0,0.9)",
     },
-    force: "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=1,Shadow=1,Italic=1,MarginV=50",
+    force:
+      "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=1,Shadow=1,Italic=1,MarginV=50",
   },
   {
     key: "anime",
@@ -383,7 +558,8 @@ const SUB_STYLES: SubStyleDef[] = [
       textShadow: "0 0 12px rgba(217,70,239,.7)",
       fontWeight: 900,
     },
-    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00EE46D9&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
+    force:
+      "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00EE46D9&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
   },
 ];
 function findSubStyle(k: string): SubStyleDef {
@@ -399,7 +575,10 @@ function srtTs(sec: number): string {
   return `${p(h)}:${p(m)}:${p(s)},${p(ms, 3)}`;
 }
 // Split narration into short cues (~40 chars/word groups) for readable subs.
-function narrationToCues(text: string, totalDur: number): Array<{ start: number; end: number; text: string }> {
+function narrationToCues(
+  text: string,
+  totalDur: number,
+): Array<{ start: number; end: number; text: string }> {
   const clean = (text || "").replace(/\s+/g, " ").trim();
   if (!clean || totalDur <= 0.3) return [];
   const words = clean.split(" ");
@@ -424,7 +603,6 @@ function narrationToCues(text: string, totalDur: number): Array<{ start: number;
   }));
 }
 
-
 function NaratifPage() {
   const [url, setUrl] = useSticky<string>("naratif.url", "");
   const [scraping, setScraping] = useSticky<boolean>("naratif.scraping", false);
@@ -434,7 +612,6 @@ function NaratifPage() {
   const [provider, setProvider] = useSticky<Provider>("naratif.provider", "weavy");
   const [imgProvider, setImgProvider] = useSticky<Provider>("naratif.imgProvider", "weavy");
   const [ratio, setRatio] = useSticky<string>("naratif.ratio", "9:16");
-  
 
   const [imgModel, setImgModel] = useSticky<string>("naratif.imgModel", "");
   const [imgQuality, setImgQuality] = useSticky<string>("naratif.imgQuality", "");
@@ -460,7 +637,10 @@ function NaratifPage() {
   const [bgUploadName, setBgUploadName] = useSticky<string>("naratif.bgUploadName", "");
   const bgAudioRef = useRef<HTMLAudioElement | null>(null);
   const [bgPlaying, setBgPlaying] = useState(false);
-  const [bgSource, setBgSource] = useSticky<"none" | "library" | "upload">("naratif.bgSource", "none");
+  const [bgSource, setBgSource] = useSticky<"none" | "library" | "upload">(
+    "naratif.bgSource",
+    "none",
+  );
 
   const BG_MOODS: Array<{ key: string; label: string }> = [
     { key: "cinematic", label: "🎬 Cinematic" },
@@ -496,15 +676,24 @@ function NaratifPage() {
     setBgTrack(t);
     setBgSource("library");
     setBgUploadName("");
-    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      setBgPlaying(false);
+    }
   };
 
   const toggleBgPlay = () => {
     if (!bgTrack?.url) return;
     const el = bgAudioRef.current;
     if (!el) return;
-    if (bgPlaying) { el.pause(); setBgPlaying(false); }
-    else { el.play().then(() => setBgPlaying(true)).catch(() => setBgPlaying(false)); }
+    if (bgPlaying) {
+      el.pause();
+      setBgPlaying(false);
+    } else {
+      el.play()
+        .then(() => setBgPlaying(true))
+        .catch(() => setBgPlaying(false));
+    }
   };
 
   const onBgUpload = async (file: File | null) => {
@@ -515,11 +704,17 @@ function NaratifPage() {
     setBgTrack({ title: file.name, url, duration: 0 });
     setBgSource("upload");
     setBgUploadName(file.name);
-    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      setBgPlaying(false);
+    }
   };
 
   const clearBg = () => {
-    if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+    if (bgAudioRef.current) {
+      bgAudioRef.current.pause();
+      setBgPlaying(false);
+    }
     setBgTrack(null);
     setBgSource("none");
     setBgUploadName("");
@@ -541,11 +736,38 @@ function NaratifPage() {
   const [testingVoice, setTestingVoice] = useSticky<boolean>("naratif.testingVoice", false);
 
   // Voice intonation preset → ElevenLabs voice_settings
-  const VOICE_PRESETS: Record<string, { label: string; stability: number; similarityBoost: number; style: number; speed: number }> = {
-    story:     { label: "Bercerita (Natural)",   stability: 0.45, similarityBoost: 0.80, style: 0.55, speed: 0.95 },
-    news:      { label: "Berita (Formal)",        stability: 0.65, similarityBoost: 0.80, style: 0.25, speed: 1.00 },
-    casual:    { label: "Santai (Casual)",        stability: 0.40, similarityBoost: 0.75, style: 0.65, speed: 1.02 },
-    cinematic: { label: "Dramatis (Sinematik)",   stability: 0.35, similarityBoost: 0.85, style: 0.80, speed: 0.92 },
+  const VOICE_PRESETS: Record<
+    string,
+    { label: string; stability: number; similarityBoost: number; style: number; speed: number }
+  > = {
+    story: {
+      label: "Bercerita (Natural)",
+      stability: 0.45,
+      similarityBoost: 0.8,
+      style: 0.55,
+      speed: 0.95,
+    },
+    news: {
+      label: "Berita (Formal)",
+      stability: 0.65,
+      similarityBoost: 0.8,
+      style: 0.25,
+      speed: 1.0,
+    },
+    casual: {
+      label: "Santai (Casual)",
+      stability: 0.4,
+      similarityBoost: 0.75,
+      style: 0.65,
+      speed: 1.02,
+    },
+    cinematic: {
+      label: "Dramatis (Sinematik)",
+      stability: 0.35,
+      similarityBoost: 0.85,
+      style: 0.8,
+      speed: 0.92,
+    },
   };
   const activeVoiceSettings = VOICE_PRESETS[voicePreset] || VOICE_PRESETS.story;
   // Enrich narration → tambahkan koma/titik ringan agar TTS punya jeda natural
@@ -554,7 +776,10 @@ function NaratifPage() {
     if (!t) return t;
     if (!/[.!?…]$/.test(t)) t += ".";
     // sisipkan koma setelah konjungsi umum agar ada micro-pause
-    t = t.replace(/\s+(namun|tetapi|karena|sehingga|meskipun|walaupun|kemudian|lalu|selain itu|padahal)\s+/gi, ", $1 ");
+    t = t.replace(
+      /\s+(namun|tetapi|karena|sehingga|meskipun|walaupun|kemudian|lalu|selain itu|padahal)\s+/gi,
+      ", $1 ",
+    );
     return t;
   };
   const [bulkBusy, setBulkBusy] = useState<BulkBusy>(EMPTY_BUSY);
@@ -565,8 +790,14 @@ function NaratifPage() {
 
   const imgModels = IMG_CATALOG[imgProvider] || IMG_CATALOG.weavy;
   const vidModels = VID_CATALOG[provider] || VID_CATALOG.weavy;
-  const activeImgModel = useMemo(() => imgModels.find((m) => m.key === imgModel) || imgModels[0], [imgModels, imgModel]);
-  const activeVidModel = useMemo(() => vidModels.find((m) => m.key === vidModel) || vidModels[0], [vidModels, vidModel]);
+  const activeImgModel = useMemo(
+    () => imgModels.find((m) => m.key === imgModel) || imgModels[0],
+    [imgModels, imgModel],
+  );
+  const activeVidModel = useMemo(
+    () => vidModels.find((m) => m.key === vidModel) || vidModels[0],
+    [vidModels, vidModel],
+  );
 
   // init provider & defaults — hanya sekali dan hanya jika belum diset
   useEffect(() => {
@@ -576,7 +807,10 @@ function NaratifPage() {
     if (routed) {
       setProvider(routed);
     } else if (!provider || !IMG_CATALOG[provider]) {
-      const p = ((typeof window !== "undefined" && (localStorage.getItem("aatools.activeProvider") || localStorage.getItem("arkx_activeProvider"))) || "weavy") as Provider;
+      const p = ((typeof window !== "undefined" &&
+        (localStorage.getItem("aatools.activeProvider") ||
+          localStorage.getItem("arkx_activeProvider"))) ||
+        "weavy") as Provider;
       setProvider(IMG_CATALOG[p] ? p : "weavy");
     }
     const routedImg = readRoutedImageProvider();
@@ -607,7 +841,9 @@ function NaratifPage() {
         const src = h.sourceUrl;
         setUrl(src);
         if (h.autoScrape) {
-          setTimeout(() => { void scrapeRef.current?.(src); }, 0);
+          setTimeout(() => {
+            void scrapeRef.current?.(src);
+          }, 0);
         }
       } else {
         const body = [h.hook, h.description].filter(Boolean).join("\n\n");
@@ -688,7 +924,11 @@ function NaratifPage() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": key },
-        body: JSON.stringify({ text: "Halo, ini contoh suara narator untuk video naratif kamu.", voiceId: voice, ...activeVoiceSettings }),
+        body: JSON.stringify({
+          text: "Halo, ini contoh suara narator untuk video naratif kamu.",
+          voiceId: voice,
+          ...activeVoiceSettings,
+        }),
       });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
@@ -740,7 +980,9 @@ function NaratifPage() {
       // Seed extra prompt dari materi baru — bukan sisa research lama.
       const seed = [j.title, j.description].filter(Boolean).join(" — ");
       if (seed) setExtra(seed);
-      setScrapeStatus(`✅ Materi terambil${images.length ? ` (${images.length} gambar)` : " (0 gambar — cek URL)"}`);
+      setScrapeStatus(
+        `✅ Materi terambil${images.length ? ` (${images.length} gambar)` : " (0 gambar — cek URL)"}`,
+      );
     } catch (e) {
       setScrapeStatus("❌ " + ((e as Error).message || String(e)));
     } finally {
@@ -763,7 +1005,6 @@ function NaratifPage() {
     }
   };
 
-
   const runBrain = async () => {
     if (!material) return;
     setBrainStatus(`Brain menganalisa & menyusun scene…`);
@@ -779,16 +1020,27 @@ function NaratifPage() {
       const r = await fetch("/api/public/naratif-brain", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-gemini-keys": geminiKeys },
-        body: JSON.stringify({ title: material.title, description: material.desc, body: material.body, aspectRatio: ratio, extraPrompt: extra }),
+        body: JSON.stringify({
+          title: material.title,
+          description: material.desc,
+          body: material.body,
+          aspectRatio: ratio,
+          extraPrompt: extra,
+        }),
       });
       const j = await r.json();
       if (j.fallback || !j.result) throw new Error(j.error || "Brain gagal");
-      const s: Scene[] = (j.result.scenes || []).map((sc: { n?: number; image_prompt?: string; motion_prompt?: string; narration?: string }, i: number) => ({
-        idx: sc.n || i + 1,
-        prompt: sc.image_prompt || "",
-        videoPrompt: sc.motion_prompt || "",
-        narration: sc.narration || "",
-      }));
+      const s: Scene[] = (j.result.scenes || []).map(
+        (
+          sc: { n?: number; image_prompt?: string; motion_prompt?: string; narration?: string },
+          i: number,
+        ) => ({
+          idx: sc.n || i + 1,
+          prompt: sc.image_prompt || "",
+          videoPrompt: sc.motion_prompt || "",
+          narration: sc.narration || "",
+        }),
+      );
       setScenes(s);
       setBrainStatus(`✅ ${s.length} scene siap. Edit prompt & narasi bila perlu.`);
     } catch (e) {
@@ -808,7 +1060,12 @@ function NaratifPage() {
       let imgUrl: string;
       if (imgProvider === "weavy") {
         const { generateWeavyImage } = await import("@/lib/providers/weavy-image");
-        imgUrl = await generateWeavyImage({ modelKey: imgModel, prompt: withNoTextGuard(scene.prompt), quality: imgQuality, ratio });
+        imgUrl = await generateWeavyImage({
+          modelKey: imgModel,
+          prompt: withNoTextGuard(scene.prompt),
+          quality: imgQuality,
+          ratio,
+        });
       } else if (imgProvider === "framia") {
         const { generateFramiaImage } = await import("@/lib/providers/framia-image");
         imgUrl = await generateFramiaImage({
@@ -826,11 +1083,18 @@ function NaratifPage() {
           quality: imgQuality,
         });
       } else {
-        const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import("@/lib/providers/wavespeed");
+        const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } =
+          await import("@/lib/providers/wavespeed");
         const key = getFirstWavespeedKey();
-        if (!key) throw new Error(`Belum ada Wavespeed API key di Kelola Token (provider aktif: ${imgProvider})`);
+        if (!key)
+          throw new Error(
+            `Belum ada Wavespeed API key di Kelola Token (provider aktif: ${imgProvider})`,
+          );
         const modelId = mapImgToWsEndpoint(imgModel);
-        const payload: Record<string, unknown> = { prompt: withNoTextGuard(scene.prompt), aspect_ratio: ratio };
+        const payload: Record<string, unknown> = {
+          prompt: withNoTextGuard(scene.prompt),
+          aspect_ratio: ratio,
+        };
         if (/gpt-image/.test(modelId)) payload.quality = imgQuality;
         else if (/nano-banana/.test(modelId)) payload.resolution = imgQuality;
         const data = await wsPost(modelId, payload, key);
@@ -855,11 +1119,16 @@ function NaratifPage() {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": key },
-        body: JSON.stringify({ text: enrichNarration(scene.narration), voiceId: voice, ...activeVoiceSettings }),
+        body: JSON.stringify({
+          text: enrichNarration(scene.narration),
+          voiceId: voice,
+          ...activeVoiceSettings,
+        }),
       });
       if (!r.ok) throw new Error(`VO gagal (${r.status})`);
       const buf = await r.arrayBuffer();
-      if (buf.byteLength < 500) throw new Error(`VO kosong (${buf.byteLength}B) — cek ElevenLabs key/quota`);
+      if (buf.byteLength < 500)
+        throw new Error(`VO kosong (${buf.byteLength}B) — cek ElevenLabs key/quota`);
       // Prefer blob URL (paling reliable untuk playback native <audio>).
       // Fallback ke data URL agar tetap survive reload (blob URL invalid setelah reload).
       const blob = new Blob([buf], { type: "audio/mpeg" });
@@ -872,10 +1141,15 @@ function NaratifPage() {
         let bin = "";
         const CHUNK = 0x8000;
         for (let off = 0; off < bytes.length; off += CHUNK) {
-          bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(off, off + CHUNK)) as number[]);
+          bin += String.fromCharCode.apply(
+            null,
+            Array.from(bytes.subarray(off, off + CHUNK)) as number[],
+          );
         }
         audioUrl = `data:audio/mpeg;base64,${btoa(bin)}`;
-      } catch { /* fall back to blob URL */ }
+      } catch {
+        /* fall back to blob URL */
+      }
       patchScene(i, { audioUrl, busy: null });
       // Refresh saldo ElevenLabs & auto-prune key yang credit-nya sudah di bawah minimum.
       const { notifyGenerationDone } = await import("@/lib/tokens/refresh");
@@ -931,34 +1205,60 @@ function NaratifPage() {
     }
   };
 
-
   const genAllImages = async () => {
     if (bulkBusy.img) return;
-    logGenerate("naratif_images", { provider, modelKey: imgModel, status: "started", scenes: scenes.length });
+    logGenerate("naratif_images", {
+      provider,
+      modelKey: imgModel,
+      status: "started",
+      scenes: scenes.length,
+    });
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       const title = (extra || url || "Naratif Video").slice(0, 60);
       trackGeneration({ kind: "narrative", title, counts: { images: scenes.length } });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setBusy("img", true);
     setBrainStatus(`🖼️ Generate ${scenes.length} gambar paralel…`);
     pushBulkLog(`🚀 Mulai generate ${scenes.length} gambar · ${imgProvider} · ${imgModel}`);
     setPct(5);
     let done = 0;
     try {
-      const results = await Promise.allSettled(scenes.map((_, i) =>
-        genImageAt(i).then((v) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`✅ Gambar scene #${i + 1} selesai (${done}/${scenes.length})`); return v; })
-                     .catch((e) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`❌ Gambar scene #${i + 1} gagal: ${(e as Error).message || e}`); throw e; })
-      ));
+      const results = await Promise.allSettled(
+        scenes.map((_, i) =>
+          genImageAt(i)
+            .then((v) => {
+              done++;
+              setPct(5 + Math.round((done / scenes.length) * 90));
+              pushBulkLog(`✅ Gambar scene #${i + 1} selesai (${done}/${scenes.length})`);
+              return v;
+            })
+            .catch((e) => {
+              done++;
+              setPct(5 + Math.round((done / scenes.length) * 90));
+              pushBulkLog(`❌ Gambar scene #${i + 1} gagal: ${(e as Error).message || e}`);
+              throw e;
+            }),
+        ),
+      );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length) {
         const first = (failed[0] as PromiseRejectedResult).reason;
-        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
+        throw new Error(
+          `${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`,
+        );
       }
       setBrainStatus("✅ Semua gambar selesai");
       setPct(100);
       pushBulkLog(`🏁 Semua gambar selesai`);
-      logGenerate("naratif_images", { provider, modelKey: imgModel, status: "success", scenes: scenes.length });
+      logGenerate("naratif_images", {
+        provider,
+        modelKey: imgModel,
+        status: "success",
+        scenes: scenes.length,
+      });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setBrainStatus("❌ " + msg);
@@ -971,26 +1271,49 @@ function NaratifPage() {
 
   const genAllVO = async () => {
     if (bulkBusy.vo) return;
-    logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "started", scenes: scenes.length });
+    logGenerate("naratif_voice_over", {
+      provider: "elevenlabs",
+      status: "started",
+      scenes: scenes.length,
+    });
     setBusy("vo", true);
     setBrainStatus(`🎙️ Generate ${scenes.length} voice-over paralel…`);
     pushBulkLog(`🚀 Mulai generate ${scenes.length} voice-over · ElevenLabs · ${voice}`);
     setPct(5);
     let done = 0;
     try {
-      const results = await Promise.allSettled(scenes.map((_, i) =>
-        genVOAt(i).then((v) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`✅ VO scene #${i + 1} selesai (${done}/${scenes.length})`); return v; })
-                  .catch((e) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`❌ VO scene #${i + 1} gagal: ${(e as Error).message || e}`); throw e; })
-      ));
+      const results = await Promise.allSettled(
+        scenes.map((_, i) =>
+          genVOAt(i)
+            .then((v) => {
+              done++;
+              setPct(5 + Math.round((done / scenes.length) * 90));
+              pushBulkLog(`✅ VO scene #${i + 1} selesai (${done}/${scenes.length})`);
+              return v;
+            })
+            .catch((e) => {
+              done++;
+              setPct(5 + Math.round((done / scenes.length) * 90));
+              pushBulkLog(`❌ VO scene #${i + 1} gagal: ${(e as Error).message || e}`);
+              throw e;
+            }),
+        ),
+      );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length) {
         const first = (failed[0] as PromiseRejectedResult).reason;
-        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
+        throw new Error(
+          `${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`,
+        );
       }
       setBrainStatus("✅ Semua VO selesai");
       setPct(100);
       pushBulkLog(`🏁 Semua voice-over selesai`);
-      logGenerate("naratif_voice_over", { provider: "elevenlabs", status: "success", scenes: scenes.length });
+      logGenerate("naratif_voice_over", {
+        provider: "elevenlabs",
+        status: "success",
+        scenes: scenes.length,
+      });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setBrainStatus("❌ " + msg);
@@ -1003,31 +1326,63 @@ function NaratifPage() {
 
   const genAllVideos = async () => {
     if (bulkBusy.vid) return;
-    logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "started", scenes: scenes.length });
+    logGenerate("naratif_videos", {
+      provider,
+      modelKey: vidModel,
+      status: "started",
+      scenes: scenes.length,
+    });
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       const title = (extra || url || "Naratif Video").slice(0, 60);
-      trackGeneration({ kind: "narrative", title, counts: { videos: scenes.length }, progress: 60 });
-    } catch { /* ignore */ }
+      trackGeneration({
+        kind: "narrative",
+        title,
+        counts: { videos: scenes.length },
+        progress: 60,
+      });
+    } catch {
+      /* ignore */
+    }
     setBusy("vid", true);
     setBrainStatus(`🎬 Generate ${scenes.length} image→video paralel…`);
     pushBulkLog(`🚀 Mulai generate ${scenes.length} video · ${provider} · ${vidModel}`);
     setPct(5);
     let done = 0;
     try {
-      const results = await Promise.allSettled(scenes.map((_, i) =>
-        genVideoAt(i).then((v) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`✅ Video scene #${i + 1} selesai (${done}/${scenes.length})`); return v; })
-                     .catch((e) => { done++; setPct(5 + Math.round((done / scenes.length) * 90)); pushBulkLog(`❌ Video scene #${i + 1} gagal: ${(e as Error).message || e}`); throw e; })
-      ));
+      const results = await Promise.allSettled(
+        scenes.map((_, i) =>
+          genVideoAt(i)
+            .then((v) => {
+              done++;
+              setPct(5 + Math.round((done / scenes.length) * 90));
+              pushBulkLog(`✅ Video scene #${i + 1} selesai (${done}/${scenes.length})`);
+              return v;
+            })
+            .catch((e) => {
+              done++;
+              setPct(5 + Math.round((done / scenes.length) * 90));
+              pushBulkLog(`❌ Video scene #${i + 1} gagal: ${(e as Error).message || e}`);
+              throw e;
+            }),
+        ),
+      );
       const failed = results.filter((r) => r.status === "rejected");
       if (failed.length) {
         const first = (failed[0] as PromiseRejectedResult).reason;
-        throw new Error(`${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`);
+        throw new Error(
+          `${failed.length}/${scenes.length} gagal · ${(first as Error)?.message || String(first)}`,
+        );
       }
       setBrainStatus("✅ Semua video selesai");
       setPct(100);
       pushBulkLog(`🏁 Semua video selesai`);
-      logGenerate("naratif_videos", { provider, modelKey: vidModel, status: "success", scenes: scenes.length });
+      logGenerate("naratif_videos", {
+        provider,
+        modelKey: vidModel,
+        status: "success",
+        scenes: scenes.length,
+      });
     } catch (e) {
       const msg = (e as Error).message || String(e);
       setBrainStatus("❌ " + msg);
@@ -1064,7 +1419,9 @@ function NaratifPage() {
     try {
       const { getFfmpeg } = await import("@/lib/mixing/ffmpeg-render");
       const { fetchFile } = await import("@ffmpeg/util");
-      const ff = await getFfmpeg((m) => { if (/error|failed/i.test(m)) console.warn("[ffmpeg]", m); });
+      const ff = await getFfmpeg((m) => {
+        if (/error|failed/i.test(m)) console.warn("[ffmpeg]", m);
+      });
 
       const targetW = ratio.startsWith("9:16") ? 720 : ratio.startsWith("1:1") ? 720 : 1280;
       const targetH = ratio.startsWith("9:16") ? 1280 : ratio.startsWith("1:1") ? 720 : 720;
@@ -1082,17 +1439,23 @@ function NaratifPage() {
         try {
           setMergeStatus("🔤 Memuat font untuk subtitle…");
           pushBulkLog("🔤 Memuat font DejaVu Sans untuk subtitle…");
-          const fontResp = await fetch("https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf");
+          const fontResp = await fetch(
+            "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+          );
           if (fontResp.ok) {
             const buf = new Uint8Array(await fontResp.arrayBuffer());
             await ff.writeFile("DejaVuSans.ttf", buf);
             fontsReady = true;
             pushBulkLog(`✅ Font subtitle siap (${(buf.byteLength / 1024).toFixed(0)} KB)`);
           } else {
-            pushBulkLog(`⚠️ Font gagal dimuat (HTTP ${fontResp.status}); subtitle mungkin tidak tampil`);
+            pushBulkLog(
+              `⚠️ Font gagal dimuat (HTTP ${fontResp.status}); subtitle mungkin tidak tampil`,
+            );
           }
         } catch (fe) {
-          pushBulkLog(`⚠️ Font gagal dimuat: ${(fe as Error).message}; subtitle mungkin tidak tampil`);
+          pushBulkLog(
+            `⚠️ Font gagal dimuat: ${(fe as Error).message}; subtitle mungkin tidak tampil`,
+          );
         }
       }
 
@@ -1142,7 +1505,9 @@ function NaratifPage() {
             const subName = `s${i}.srt`;
             await ff.writeFile(subName, new TextEncoder().encode(srt));
             subFilesToClean.push(subName);
-            const subOpts = fontsReady ? `fontsdir=.:force_style='${activeSubStyle.force}'` : `force_style='${activeSubStyle.force}'`;
+            const subOpts = fontsReady
+              ? `fontsdir=.:force_style='${activeSubStyle.force}'`
+              : `force_style='${activeSubStyle.force}'`;
             vFilter += `,subtitles=${subName}:${subOpts}`;
           }
         }
@@ -1153,33 +1518,62 @@ function NaratifPage() {
             : `atrim=0:${partDur.toFixed(3)},asetpts=N/SR/TB`;
 
         const ret = await ff.exec([
-          "-i", vName,
-          "-i", aName,
-          "-vf", vFilter,
-          "-af", aFilter,
-          "-map", "0:v:0",
-          "-map", "1:a:0",
-          "-t", vClipDur.toFixed(3),
-          "-c:v", "libx264",
-          "-preset", "ultrafast",
-          "-crf", "26",
-          "-pix_fmt", "yuv420p",
-          "-c:a", "aac",
-          "-b:a", "128k",
-          "-ar", "44100",
-          "-movflags", "+faststart",
-          "-y", outName,
+          "-i",
+          vName,
+          "-i",
+          aName,
+          "-vf",
+          vFilter,
+          "-af",
+          aFilter,
+          "-map",
+          "0:v:0",
+          "-map",
+          "1:a:0",
+          "-t",
+          vClipDur.toFixed(3),
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-crf",
+          "26",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-ar",
+          "44100",
+          "-movflags",
+          "+faststart",
+          "-y",
+          outName,
         ]);
         if (ret !== 0) throw new Error(`FFmpeg mux gagal di scene ${i + 1}`);
-        try { await ff.deleteFile(vName); } catch { /* noop */ }
-        try { await ff.deleteFile(aName); } catch { /* noop */ }
+        try {
+          await ff.deleteFile(vName);
+        } catch {
+          /* noop */
+        }
+        try {
+          await ff.deleteFile(aName);
+        } catch {
+          /* noop */
+        }
         parts.push(outName);
         durs.push(vClipDur);
       }
 
       // Cleanup subtitle files after mux (safe to remove; already burned in).
-      for (const sf of subFilesToClean) { try { await ff.deleteFile(sf); } catch { /* noop */ } }
-
+      for (const sf of subFilesToClean) {
+        try {
+          await ff.deleteFile(sf);
+        } catch {
+          /* noop */
+        }
+      }
 
       setMergeStatus("🧵 Menggabung scene…");
 
@@ -1193,7 +1587,9 @@ function NaratifPage() {
           pushBulkLog(`🎵 Memuat backsound: ${bgTrack!.title}`);
           await ff.writeFile(BG_NAME, await fetchFile(bgTrack!.url));
         } catch (be) {
-          pushBulkLog(`⚠️ Backsound gagal dimuat: ${(be as Error).message}. Lanjut tanpa backsound.`);
+          pushBulkLog(
+            `⚠️ Backsound gagal dimuat: ${(be as Error).message}. Lanjut tanpa backsound.`,
+          );
         }
       }
       const hasBgFile = HAS_BG; // simplified
@@ -1206,7 +1602,11 @@ function NaratifPage() {
           const url = URL.createObjectURL(blob);
           setFinalUrl(url);
           setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
-          try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
+          try {
+            await ff.deleteFile(parts[0]);
+          } catch {
+            /* noop */
+          }
           logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
           return;
         }
@@ -1215,15 +1615,28 @@ function NaratifPage() {
           `[1:a]aloop=loop=-1:size=2147483647,atrim=0:${t.toFixed(3)},volume=${BG_VOL.toFixed(2)}[bg];` +
           `[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]`;
         const sret = await ff.exec([
-          "-i", parts[0],
-          "-i", BG_NAME,
-          "-filter_complex", filt,
-          "-map", "0:v", "-map", "[aout]",
-          "-t", t.toFixed(3),
-          "-c:v", "copy",
-          "-c:a", "aac", "-b:a", "160k",
-          "-movflags", "+faststart",
-          "-y", "final.mp4",
+          "-i",
+          parts[0],
+          "-i",
+          BG_NAME,
+          "-filter_complex",
+          filt,
+          "-map",
+          "0:v",
+          "-map",
+          "[aout]",
+          "-t",
+          t.toFixed(3),
+          "-c:v",
+          "copy",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "160k",
+          "-movflags",
+          "+faststart",
+          "-y",
+          "final.mp4",
         ]);
         if (sret !== 0) throw new Error("FFmpeg gagal mix backsound");
         const data = (await ff.readFile("final.mp4")) as Uint8Array;
@@ -1231,9 +1644,21 @@ function NaratifPage() {
         const url = URL.createObjectURL(blob);
         setFinalUrl(url);
         setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
-        try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
-        try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
-        try { await ff.deleteFile(BG_NAME); } catch { /* noop */ }
+        try {
+          await ff.deleteFile(parts[0]);
+        } catch {
+          /* noop */
+        }
+        try {
+          await ff.deleteFile("final.mp4");
+        } catch {
+          /* noop */
+        }
+        try {
+          await ff.deleteFile(BG_NAME);
+        } catch {
+          /* noop */
+        }
         logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
         return;
       }
@@ -1243,7 +1668,9 @@ function NaratifPage() {
       // Audio tiap part non-terakhir dipangkas XFADE agar total audio == total video.
       const totalDur = durs.reduce((a, b) => a + b, 0) - (parts.length - 1) * XFADE;
       const inputs: string[] = [];
-      parts.forEach((p) => { inputs.push("-i", p); });
+      parts.forEach((p) => {
+        inputs.push("-i", p);
+      });
       if (hasBgFile) inputs.push("-i", BG_NAME);
 
       const filters: string[] = [];
@@ -1276,23 +1703,36 @@ function NaratifPage() {
         filters.push(
           `[${bgIdx}:a]aloop=loop=-1:size=2147483647,atrim=0:${totalDur.toFixed(3)},volume=${BG_VOL.toFixed(2)}[bg]`,
         );
-        filters.push(`[bg][avo]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[amixed]`);
+        filters.push(
+          `[bg][avo]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[amixed]`,
+        );
         finalAudioLabel = "[amixed]";
       }
 
       const cret = await ff.exec([
         ...inputs,
-        "-filter_complex", filters.join(";"),
-        "-map", vPrev,
-        "-map", finalAudioLabel,
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "26",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "160k",
-        "-movflags", "+faststart",
-        "-y", "final.mp4",
+        "-filter_complex",
+        filters.join(";"),
+        "-map",
+        vPrev,
+        "-map",
+        finalAudioLabel,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "26",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "160k",
+        "-movflags",
+        "+faststart",
+        "-y",
+        "final.mp4",
       ]);
       if (cret !== 0) throw new Error("FFmpeg merge gagal");
 
@@ -1300,14 +1740,31 @@ function NaratifPage() {
       const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
       const url = URL.createObjectURL(blob);
       setFinalUrl(url);
-      setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB${hasBgFile ? " · + backsound" : ""}`);
+      setMergeStatus(
+        `✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB${hasBgFile ? " · + backsound" : ""}`,
+      );
       pushBulkLog(`🏁 Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
       setPct(100);
 
-      for (const p of parts) { try { await ff.deleteFile(p); } catch { /* noop */ } }
-      try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
-      if (hasBgFile) { try { await ff.deleteFile(BG_NAME); } catch { /* noop */ } }
-
+      for (const p of parts) {
+        try {
+          await ff.deleteFile(p);
+        } catch {
+          /* noop */
+        }
+      }
+      try {
+        await ff.deleteFile("final.mp4");
+      } catch {
+        /* noop */
+      }
+      if (hasBgFile) {
+        try {
+          await ff.deleteFile(BG_NAME);
+        } catch {
+          /* noop */
+        }
+      }
 
       logGenerate("naratif_merge", { status: "success", scenes: scenes.length, bytes: blob.size });
     } catch (e) {
@@ -1323,36 +1780,84 @@ function NaratifPage() {
   const allImagesReady = scenes.length > 0 && scenes.every((s) => !!s.imgUrl);
   const canMerge = scenes.length > 0 && scenes.every((s) => s.videoUrl && s.audioUrl);
 
-
   return (
     <DashboardShell>
-      <PageHero eyebrow="Generate" title="Naratif Video" highlight="Maker" desc="Link artikel/berita/blog → scrape → Brain → gambar per scene → voice-over → gabung jadi video naratif." />
+      <PageHero
+        eyebrow="Generate"
+        title="Naratif Video"
+        highlight="Maker"
+        desc="Link artikel/berita/blog → scrape → Brain → gambar per scene → voice-over → gabung jadi video naratif."
+      />
 
       <Card title="🔗 Sumber Artikel">
         <div className="flex gap-2">
-          <Input type="url" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
-          <PrimaryButton onClick={() => { void pasteAndScrape(); }} disabled={scraping} className="whitespace-nowrap shrink-0">
-            {scraping ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardPaste className="h-4 w-4" />} Paste
+          <Input
+            type="url"
+            placeholder="https://..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <PrimaryButton
+            onClick={() => {
+              void pasteAndScrape();
+            }}
+            disabled={scraping}
+            className="whitespace-nowrap shrink-0"
+          >
+            {scraping ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ClipboardPaste className="h-4 w-4" />
+            )}{" "}
+            Paste
           </PrimaryButton>
         </div>
-        {scrapeStatus && <div className="mt-2 text-[11px] text-muted-foreground">{scrapeStatus}</div>}
+        {scrapeStatus && (
+          <div className="mt-2 text-[11px] text-muted-foreground">{scrapeStatus}</div>
+        )}
       </Card>
 
       {material && (
         <Card title="📰 Materi">
           <div className="grid grid-cols-1 gap-4">
-            <Field label="Judul"><Input value={material.title} onChange={(e) => setMaterial({ ...material, title: e.target.value })} /></Field>
-            <Field label="Deskripsi Singkat"><Textarea rows={2} value={material.desc} onChange={(e) => setMaterial({ ...material, desc: e.target.value })} /></Field>
-            <Field label="Isi Artikel"><Textarea rows={6} value={material.body} onChange={(e) => setMaterial({ ...material, body: e.target.value })} className="text-xs" /></Field>
+            <Field label="Judul">
+              <Input
+                value={material.title}
+                onChange={(e) => setMaterial({ ...material, title: e.target.value })}
+              />
+            </Field>
+            <Field label="Deskripsi Singkat">
+              <Textarea
+                rows={2}
+                value={material.desc}
+                onChange={(e) => setMaterial({ ...material, desc: e.target.value })}
+              />
+            </Field>
+            <Field label="Isi Artikel">
+              <Textarea
+                rows={6}
+                value={material.body}
+                onChange={(e) => setMaterial({ ...material, body: e.target.value })}
+                className="text-xs"
+              />
+            </Field>
             {material.images && material.images.length > 0 && (
-              <Field label={`Gambar dari Artikel (${material.images.length}) — referensi untuk Brain`}>
+              <Field
+                label={`Gambar dari Artikel (${material.images.length}) — referensi untuk Brain`}
+              >
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                   {material.images.slice(0, 12).map((src, i) => {
                     const px = /^https?:\/\//i.test(src)
                       ? `/api/public/proxy-image?url=${encodeURIComponent(src)}`
                       : src;
                     return (
-                      <a key={i} href={src} target="_blank" rel="noreferrer" className="block aspect-square rounded-lg overflow-hidden border border-border bg-black/30">
+                      <a
+                        key={i}
+                        href={src}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block aspect-square rounded-lg overflow-hidden border border-border bg-black/30"
+                      >
                         <img
                           src={px}
                           alt={`ref-${i}`}
@@ -1377,11 +1882,15 @@ function NaratifPage() {
         <Card title="🧠 Brain — Naskah & Model">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Field label="Aspek Rasio">
-              <Select value={ratio} onChange={(e) => setRatio(e.target.value)} options={[
-                { value: "9:16", label: "9:16 Vertical" },
-                { value: "16:9", label: "16:9 Landscape" },
-                { value: "1:1", label: "1:1 Square" },
-              ]} />
+              <Select
+                value={ratio}
+                onChange={(e) => setRatio(e.target.value)}
+                options={[
+                  { value: "9:16", label: "9:16 Vertical" },
+                  { value: "16:9", label: "16:9 Landscape" },
+                  { value: "1:1", label: "1:1 Square" },
+                ]}
+              />
             </Field>
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
@@ -1390,10 +1899,21 @@ function NaratifPage() {
                 </label>
                 <ProviderActivePill cap="image" label="Image:" />
               </div>
-              <Select value={imgModel} onChange={(e) => setImgModel(e.target.value)} options={imgModels.map((m) => ({ value: m.key, label: m.label }))} />
+              <Select
+                value={imgModel}
+                onChange={(e) => setImgModel(e.target.value)}
+                options={imgModels.map((m) => ({ value: m.key, label: m.label }))}
+              />
             </div>
             <Field label="Kualitas Gambar">
-              <Select value={imgQuality} onChange={(e) => setImgQuality(e.target.value)} options={(activeImgModel?.qualities || []).map((q) => ({ value: q.v, label: q.label }))} />
+              <Select
+                value={imgQuality}
+                onChange={(e) => setImgQuality(e.target.value)}
+                options={(activeImgModel?.qualities || []).map((q) => ({
+                  value: q.v,
+                  label: q.label,
+                }))}
+              />
             </Field>
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
@@ -1402,10 +1922,21 @@ function NaratifPage() {
                 </label>
                 <ProviderActivePill cap="video" label="Video:" />
               </div>
-              <Select value={vidModel} onChange={(e) => setVidModel(e.target.value)} options={vidModels.map((m) => ({ value: m.key, label: m.label }))} />
+              <Select
+                value={vidModel}
+                onChange={(e) => setVidModel(e.target.value)}
+                options={vidModels.map((m) => ({ value: m.key, label: m.label }))}
+              />
             </div>
             <Field label="Kualitas Video">
-              <Select value={vidQuality} onChange={(e) => setVidQuality(e.target.value)} options={(activeVidModel?.qualities || []).map((q) => ({ value: q.v, label: q.label }))} />
+              <Select
+                value={vidQuality}
+                onChange={(e) => setVidQuality(e.target.value)}
+                options={(activeVidModel?.qualities || []).map((q) => ({
+                  value: q.v,
+                  label: q.label,
+                }))}
+              />
             </Field>
             <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
@@ -1415,8 +1946,18 @@ function NaratifPage() {
                 <ProviderActivePill cap="voice" label="Voice:" />
               </div>
               <div className="flex gap-2">
-                <Select value={voice} onChange={(e) => setVoice(e.target.value)} options={VOICES} className="flex-1" />
-                <PrimaryButton onClick={testVoice} disabled={testingVoice} title="Tes suara" className="!px-3 whitespace-nowrap">
+                <Select
+                  value={voice}
+                  onChange={(e) => setVoice(e.target.value)}
+                  options={VOICES}
+                  className="flex-1"
+                />
+                <PrimaryButton
+                  onClick={testVoice}
+                  disabled={testingVoice}
+                  title="Tes suara"
+                  className="!px-3 whitespace-nowrap"
+                >
                   <Play className="h-3.5 w-3.5" /> {testingVoice ? "..." : "Tes"}
                 </PrimaryButton>
               </div>
@@ -1426,15 +1967,25 @@ function NaratifPage() {
               <Select
                 value={voicePreset}
                 onChange={(e) => setVoicePreset(e.target.value)}
-                options={Object.entries(VOICE_PRESETS).map(([v, p]) => ({ value: v, label: p.label }))}
+                options={Object.entries(VOICE_PRESETS).map(([v, p]) => ({
+                  value: v,
+                  label: p.label,
+                }))}
               />
             </Field>
             <Field label="Extra Prompt (opsional)">
-              <Textarea rows={2} placeholder="Gaya visual, mood, angle bercerita tertentu…" value={extra} onChange={(e) => setExtra(e.target.value)} />
+              <Textarea
+                rows={2}
+                placeholder="Gaya visual, mood, angle bercerita tertentu…"
+                value={extra}
+                onChange={(e) => setExtra(e.target.value)}
+              />
             </Field>
           </div>
           <div className="mt-5 flex items-center gap-3 flex-wrap">
-            <PrimaryButton onClick={runBrain}><Sparkles className="h-4 w-4" /> Analisa & Bikin Naskah</PrimaryButton>
+            <PrimaryButton onClick={runBrain}>
+              <Sparkles className="h-4 w-4" /> Analisa & Bikin Naskah
+            </PrimaryButton>
             {brainStatus && <div className="text-[11px] text-muted-foreground">{brainStatus}</div>}
           </div>
         </Card>
@@ -1449,22 +2000,35 @@ function NaratifPage() {
                 <div className="flex flex-col lg:flex-row gap-4">
                   <div className="md:w-56 shrink-0 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-mono bg-primary/15 text-primary">Scene #{s.idx}</span>
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-mono bg-primary/15 text-primary">
+                        Scene #{s.idx}
+                      </span>
                       <span className="text-xs text-muted-foreground">
-                        {s.imgUrl ? "🖼️" : "◻️"} {s.audioUrl ? "🎙️" : "◻️"} {s.videoUrl ? "🎬" : "◻️"}
+                        {s.imgUrl ? "🖼️" : "◻️"} {s.audioUrl ? "🎙️" : "◻️"}{" "}
+                        {s.videoUrl ? "🎬" : "◻️"}
                       </span>
                     </div>
-                    <div className={`${ratioClass(ratio)} rounded-lg overflow-hidden bg-black/40 border border-border grid place-items-center relative`}>
+                    <div
+                      className={`${ratioClass(ratio)} rounded-lg overflow-hidden bg-black/40 border border-border grid place-items-center relative`}
+                    >
                       {s.videoUrl ? (
                         <video src={s.videoUrl} controls className="w-full h-full object-cover" />
                       ) : s.imgUrl ? (
-                        <img src={s.imgUrl} alt={`Scene ${s.idx}`} className="w-full h-full object-cover" />
+                        <img
+                          src={s.imgUrl}
+                          alt={`Scene ${s.idx}`}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <span className="text-[11px] text-muted-foreground">Belum ada gambar</span>
                       )}
                       {s.busy && (
                         <div className="absolute inset-0 grid place-items-center bg-black/60 text-[11px] text-primary-foreground">
-                          {s.busy === "img" ? "🖼️ generating…" : s.busy === "vo" ? "🎙️ generating…" : "🎬 generating…"}
+                          {s.busy === "img"
+                            ? "🖼️ generating…"
+                            : s.busy === "vo"
+                              ? "🎙️ generating…"
+                              : "🎬 generating…"}
                         </div>
                       )}
                     </div>
@@ -1474,7 +2038,9 @@ function NaratifPage() {
                         controls
                         preload="auto"
                         className="w-full h-8"
-                        onLoadedMetadata={(e) => { (e.currentTarget as HTMLAudioElement).volume = 1; }}
+                        onLoadedMetadata={(e) => {
+                          (e.currentTarget as HTMLAudioElement).volume = 1;
+                        }}
                         onPlay={(e) => {
                           const a = e.currentTarget as HTMLAudioElement;
                           if (a.muted) a.muted = false;
@@ -1484,40 +2050,82 @@ function NaratifPage() {
                     )}
                     <div className="flex flex-wrap gap-1.5">
                       <GhostButton
-                        onClick={() => genImageAt(i).catch((e) => setBrainStatus("❌ " + ((e as Error).message || String(e))))}
+                        onClick={() =>
+                          genImageAt(i).catch((e) =>
+                            setBrainStatus("❌ " + ((e as Error).message || String(e))),
+                          )
+                        }
                         disabled={!!s.busy || anyBusy}
                         className="!px-2 !py-1 text-[11px]"
                         title="Generate ulang gambar"
                       >
-                        {s.busy === "img" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Img
+                        {s.busy === "img" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}{" "}
+                        Img
                       </GhostButton>
                       <GhostButton
-                        onClick={() => genVOAt(i).catch((e) => setBrainStatus("❌ " + ((e as Error).message || String(e))))}
+                        onClick={() =>
+                          genVOAt(i).catch((e) =>
+                            setBrainStatus("❌ " + ((e as Error).message || String(e))),
+                          )
+                        }
                         disabled={!!s.busy || bulkBusy.vo}
                         className="!px-2 !py-1 text-[11px]"
                         title="Generate ulang voice-over"
                       >
-                        {s.busy === "vo" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} VO
+                        {s.busy === "vo" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}{" "}
+                        VO
                       </GhostButton>
                       <GhostButton
-                        onClick={() => genVideoAt(i).catch((e) => setBrainStatus("❌ " + ((e as Error).message || String(e))))}
-                        disabled={!!s.busy || bulkBusy.vid || bulkBusy.img || bulkBusy.merge || !s.imgUrl}
+                        onClick={() =>
+                          genVideoAt(i).catch((e) =>
+                            setBrainStatus("❌ " + ((e as Error).message || String(e))),
+                          )
+                        }
+                        disabled={
+                          !!s.busy || bulkBusy.vid || bulkBusy.img || bulkBusy.merge || !s.imgUrl
+                        }
                         className="!px-2 !py-1 text-[11px]"
                         title="Generate ulang video"
                       >
-                        {s.busy === "vid" ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Vid
+                        {s.busy === "vid" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}{" "}
+                        Vid
                       </GhostButton>
                     </div>
                   </div>
                   <div className="flex-1 flex flex-col gap-3 min-w-0">
                     <Field label="Prompt Gambar">
-                      <Textarea rows={3} value={s.prompt} onChange={(e) => patchScene(i, { prompt: e.target.value })} />
+                      <Textarea
+                        rows={3}
+                        value={s.prompt}
+                        onChange={(e) => patchScene(i, { prompt: e.target.value })}
+                      />
                     </Field>
                     <Field label="Prompt Video (motion / kamera)">
-                      <Textarea rows={2} placeholder="Slow zoom in, gentle parallax, cinematic push-forward…" value={s.videoPrompt} onChange={(e) => patchScene(i, { videoPrompt: e.target.value })} />
+                      <Textarea
+                        rows={2}
+                        placeholder="Slow zoom in, gentle parallax, cinematic push-forward…"
+                        value={s.videoPrompt}
+                        onChange={(e) => patchScene(i, { videoPrompt: e.target.value })}
+                      />
                     </Field>
                     <Field label="Narasi (VO)">
-                      <Textarea rows={3} value={s.narration} onChange={(e) => patchScene(i, { narration: e.target.value })} />
+                      <Textarea
+                        rows={3}
+                        value={s.narration}
+                        onChange={(e) => patchScene(i, { narration: e.target.value })}
+                      />
                     </Field>
                   </div>
                 </div>
@@ -1525,25 +2133,56 @@ function NaratifPage() {
             ))}
           </div>
           <div className="mt-4 rounded-xl border border-border bg-card/40 p-3">
-            <div className="text-[11px] font-medium text-muted-foreground mb-2">⚙️ Opsi Gabung Video (jeda & transisi antar scene)</div>
+            <div className="text-[11px] font-medium text-muted-foreground mb-2">
+              ⚙️ Opsi Gabung Video (jeda & transisi antar scene)
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <label className="text-[11px] flex flex-col gap-1">
-                <span>Jeda antar scene: <b>{sceneGap.toFixed(2)}s</b></span>
-                <input type="range" min={0} max={2.5} step={0.1} value={sceneGap} onChange={(e) => setSceneGap(Number(e.target.value))} />
+                <span>
+                  Jeda antar scene: <b>{sceneGap.toFixed(2)}s</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={2.5}
+                  step={0.1}
+                  value={sceneGap}
+                  onChange={(e) => setSceneGap(Number(e.target.value))}
+                />
               </label>
               <label className="text-[11px] flex flex-col gap-1">
-                <span>Durasi crossfade: <b>{xfadeDur.toFixed(2)}s</b></span>
-                <input type="range" min={0.2} max={1.5} step={0.05} value={xfadeDur} onChange={(e) => setXfadeDur(Number(e.target.value))} />
+                <span>
+                  Durasi crossfade: <b>{xfadeDur.toFixed(2)}s</b>
+                </span>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={1.5}
+                  step={0.05}
+                  value={xfadeDur}
+                  onChange={(e) => setXfadeDur(Number(e.target.value))}
+                />
               </label>
               <label className="text-[11px] flex flex-col gap-1">
-                <span>Jeda akhir video: <b>{leadOutDur.toFixed(2)}s</b></span>
-                <input type="range" min={0} max={3} step={0.1} value={leadOutDur} onChange={(e) => setLeadOutDur(Number(e.target.value))} />
+                <span>
+                  Jeda akhir video: <b>{leadOutDur.toFixed(2)}s</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={3}
+                  step={0.1}
+                  value={leadOutDur}
+                  onChange={(e) => setLeadOutDur(Number(e.target.value))}
+                />
               </label>
             </div>
           </div>
           <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
             <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
-              <div className="text-[11px] font-medium text-muted-foreground">💬 Subtitle (burn-in ke video)</div>
+              <div className="text-[11px] font-medium text-muted-foreground">
+                💬 Subtitle (burn-in ke video)
+              </div>
               <label className="inline-flex items-center gap-2 text-[11px] cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -1551,7 +2190,11 @@ function NaratifPage() {
                   onChange={(e) => setSubEnable(e.target.checked)}
                   className="h-3.5 w-3.5 accent-primary"
                 />
-                <span>{subEnable ? "Aktif — subtitle akan dibakar ke video" : "Nonaktif — video tanpa subtitle"}</span>
+                <span>
+                  {subEnable
+                    ? "Aktif — subtitle akan dibakar ke video"
+                    : "Nonaktif — video tanpa subtitle"}
+                </span>
               </label>
             </div>
             {subEnable && (
@@ -1569,8 +2212,7 @@ function NaratifPage() {
                       <div
                         className="w-full h-14 rounded-md relative overflow-hidden grid place-items-center"
                         style={{
-                          background:
-                            "linear-gradient(135deg,#2a2a3d 0%,#4a3a5e 50%,#2a3a4d 100%)",
+                          background: "linear-gradient(135deg,#2a2a3d 0%,#4a3a5e 50%,#2a3a4d 100%)",
                         }}
                       >
                         <span
@@ -1592,7 +2234,9 @@ function NaratifPage() {
           </div>
           <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
             <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
-              <div className="text-[11px] font-medium text-muted-foreground">🎵 Backsound (musik latar) — auto-loop menyesuaikan durasi video</div>
+              <div className="text-[11px] font-medium text-muted-foreground">
+                🎵 Backsound (musik latar) — auto-loop menyesuaikan durasi video
+              </div>
               {bgTrack && (
                 <button
                   type="button"
@@ -1608,11 +2252,16 @@ function NaratifPage() {
                 <span>Mood (dari internet, gratis)</span>
                 <select
                   value={bgMood}
-                  onChange={(e) => { setBgMood(e.target.value); setBgLibrary([]); }}
+                  onChange={(e) => {
+                    setBgMood(e.target.value);
+                    setBgLibrary([]);
+                  }}
                   className="h-8 rounded-md border border-border bg-black/30 px-2 text-[12px]"
                 >
                   {BG_MOODS.map((m) => (
-                    <option key={m.key} value={m.key}>{m.label}</option>
+                    <option key={m.key} value={m.key}>
+                      {m.label}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -1625,7 +2274,12 @@ function NaratifPage() {
                     className="!px-2 !py-1 text-[11px] flex-1"
                     title="Ambil track random dari mood ini"
                   >
-                    {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Shuffle
+                    {bgLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}{" "}
+                    Shuffle
                   </GhostButton>
                   <GhostButton
                     onClick={toggleBgPlay}
@@ -1638,8 +2292,17 @@ function NaratifPage() {
                 </div>
               </div>
               <label className="text-[11px] flex flex-col gap-1">
-                <span>Volume backsound: <b>{Math.round(bgVol * 100)}%</b></span>
-                <input type="range" min={0} max={0.6} step={0.02} value={bgVol} onChange={(e) => setBgVol(Number(e.target.value))} />
+                <span>
+                  Volume backsound: <b>{Math.round(bgVol * 100)}%</b>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={0.6}
+                  step={0.02}
+                  value={bgVol}
+                  onChange={(e) => setBgVol(Number(e.target.value))}
+                />
               </label>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
@@ -1649,7 +2312,11 @@ function NaratifPage() {
                   type="file"
                   accept="audio/*"
                   className="hidden"
-                  onChange={(e) => { const f = e.currentTarget.files?.[0] || null; onBgUpload(f); e.currentTarget.value = ""; }}
+                  onChange={(e) => {
+                    const f = e.currentTarget.files?.[0] || null;
+                    onBgUpload(f);
+                    e.currentTarget.value = "";
+                  }}
                 />
               </label>
               {bgTrack && (
@@ -1658,7 +2325,11 @@ function NaratifPage() {
                   {bgSource === "library" ? " (Kevin MacLeod · CC-BY)" : ""}
                 </span>
               )}
-              {!bgTrack && <span className="opacity-70">Tidak ada backsound dipilih — video akan hanya pakai voice-over.</span>}
+              {!bgTrack && (
+                <span className="opacity-70">
+                  Tidak ada backsound dipilih — video akan hanya pakai voice-over.
+                </span>
+              )}
             </div>
             {bgTrack?.url && (
               <audio
@@ -1672,22 +2343,44 @@ function NaratifPage() {
             )}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <PrimaryButton onClick={genAllImages} disabled={bulkBusy.img || bulkBusy.vid || bulkBusy.merge}>
-              {bulkBusy.img ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+            <PrimaryButton
+              onClick={genAllImages}
+              disabled={bulkBusy.img || bulkBusy.vid || bulkBusy.merge}
+            >
+              {bulkBusy.img ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ImageIcon className="h-4 w-4" />
+              )}
               {bulkBusy.img ? "Menggenerate Gambar…" : "Generate Semua Gambar"}
             </PrimaryButton>
             <PrimaryButton onClick={genAllVO} disabled={bulkBusy.vo}>
-              {bulkBusy.vo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+              {bulkBusy.vo ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
               {bulkBusy.vo ? "Menggenerate VO…" : "Generate Semua Voice-Over"}
             </PrimaryButton>
-            <PrimaryButton onClick={genAllVideos} disabled={!allImagesReady || bulkBusy.vid || bulkBusy.img || bulkBusy.merge}>
-              {bulkBusy.vid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+            <PrimaryButton
+              onClick={genAllVideos}
+              disabled={!allImagesReady || bulkBusy.vid || bulkBusy.img || bulkBusy.merge}
+            >
+              {bulkBusy.vid ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Film className="h-4 w-4" />
+              )}
               {bulkBusy.vid ? "Menggenerate Video…" : "Generate Semua Image→Video"}
             </PrimaryButton>
             <PrimaryButton
               onClick={merge}
               disabled={!canMerge || anyBusy}
-              className={canMerge && !anyBusy ? "relative overflow-hidden ring-2 ring-primary/70 animate-pulse" : ""}
+              className={
+                canMerge && !anyBusy
+                  ? "relative overflow-hidden ring-2 ring-primary/70 animate-pulse"
+                  : ""
+              }
             >
               {canMerge && !anyBusy && (
                 <span
@@ -1695,7 +2388,11 @@ function NaratifPage() {
                   className="pointer-events-none absolute inset-0 -translate-x-full animate-[shimmer_1.8s_linear_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent"
                 />
               )}
-              {bulkBusy.merge ? <Loader2 className="h-4 w-4 animate-spin" /> : <Merge className="h-4 w-4" />}
+              {bulkBusy.merge ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Merge className="h-4 w-4" />
+              )}
               {bulkBusy.merge ? "Menggabung…" : "Gabung jadi Video Naratif"}
             </PrimaryButton>
           </div>
@@ -1708,18 +2405,33 @@ function NaratifPage() {
                   <span className="font-mono text-muted-foreground">{bulkPct}%</span>
                 </div>
                 <div className="h-1 rounded-full bg-border overflow-hidden">
-                  <div className="h-full transition-all" style={{ width: `${bulkPct}%`, background: "var(--gradient-neon)" }} />
+                  <div
+                    className="h-full transition-all"
+                    style={{ width: `${bulkPct}%`, background: "var(--gradient-neon)" }}
+                  />
                 </div>
               </div>
               {bulkLogs.length > 0 && (
                 <div className="rounded-lg border border-border/60 bg-black/40 p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Log Proses</div>
-                    <button onClick={() => { setBulkLogs([]); setPct(0); }} className="text-[10px] text-muted-foreground hover:text-destructive">Clear</button>
+                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                      Log Proses
+                    </div>
+                    <button
+                      onClick={() => {
+                        setBulkLogs([]);
+                        setPct(0);
+                      }}
+                      className="text-[10px] text-muted-foreground hover:text-destructive"
+                    >
+                      Clear
+                    </button>
                   </div>
                   <div className="max-h-48 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
                     {bulkLogs.map((l, i) => (
-                      <div key={i} className="whitespace-pre-wrap break-all min-w-0">{l}</div>
+                      <div key={i} className="whitespace-pre-wrap break-all min-w-0">
+                        {l}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1727,10 +2439,16 @@ function NaratifPage() {
             </div>
           )}
 
-          {mergeStatus && <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>}
+          {mergeStatus && (
+            <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>
+          )}
           {finalUrl && finalUrl !== "#" && (
             <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 space-y-3">
-              <video src={finalUrl} controls className={`w-full rounded-lg ${ratioClass(ratio)} bg-black`} />
+              <video
+                src={finalUrl}
+                controls
+                className={`w-full rounded-lg ${ratioClass(ratio)} bg-black`}
+              />
               <div className="flex justify-center">
                 <a
                   href={finalUrl}

@@ -14,7 +14,6 @@ import {
 } from "@/lib/routing/catalog";
 import { useProviderFlags } from "@/lib/platform/provider-flags";
 
-
 export function useActiveProvider(cap: CapKey): string {
   const [id, setId] = useState<string>(() => readRouting()[cap]);
   useEffect(() => {
@@ -57,24 +56,15 @@ export function ProviderActivePill({
         <span className="normal-case tracking-normal text-foreground/90">
           {label ?? "Provider aktif:"}
         </span>
-        <b className="text-primary normal-case tracking-normal">
-          {active?.name ?? activeId}
-        </b>
+        <b className="text-primary normal-case tracking-normal">{active?.name ?? activeId}</b>
         <Repeat className="h-3 w-3 text-primary animate-switch-hint" aria-hidden />
-
       </button>
       {open && <RoutingDialog cap={cap} onClose={() => setOpen(false)} />}
     </>
   );
 }
 
-export function RoutingDialog({
-  cap,
-  onClose,
-}: {
-  cap: CapKey;
-  onClose: () => void;
-}) {
+export function RoutingDialog({ cap, onClose }: { cap: CapKey; onClose: () => void }) {
   const capDef = getCap(cap);
   const { flags } = useProviderFlags();
   const [activeId, setActiveId] = useState<string>(() => readRouting()[cap]);
@@ -94,14 +84,11 @@ export function RoutingDialog({
     writeRoutingCap(cap, id);
   };
 
-
-
   const content = (
     <div
       className="fixed inset-0 z-[9999] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
       onClick={onClose}
     >
-
       <div
         className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -117,12 +104,8 @@ export function RoutingDialog({
             <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               Routing Provider
             </div>
-            <div className="font-display text-lg text-foreground">
-              {capDef.label}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {capDef.desc}
-            </div>
+            <div className="font-display text-lg text-foreground">{capDef.label}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{capDef.desc}</div>
           </div>
           <button
             onClick={onClose}
@@ -167,17 +150,13 @@ export function RoutingDialog({
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  {p.desc}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{p.desc}</p>
                 {p.models.length > 0 && (
                   <div className="mt-2 flex flex-col gap-0.5">
                     {p.models.slice(0, 4).map((m) => (
                       <div key={m.name} className="flex items-start gap-2 text-[11px]">
                         <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
-                        <span className="text-foreground/80 flex-1 truncate">
-                          {m.name}
-                        </span>
+                        <span className="text-foreground/80 flex-1 truncate">{m.name}</span>
                         <span className="font-mono text-emerald-300/90 text-[10px] whitespace-nowrap">
                           {m.cost}
                         </span>
@@ -213,4 +192,3 @@ export function RoutingDialog({
   if (typeof document === "undefined") return content;
   return createPortal(content, document.body);
 }
-

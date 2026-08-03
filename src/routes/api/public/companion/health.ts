@@ -7,7 +7,11 @@ export const Route = createFileRoute("/api/public/companion/health")({
     handlers: {
       OPTIONS: async () => preflight(),
       GET: async () =>
-        jsonResponse({ ok: true, service: "creative-studio-companion", time: new Date().toISOString() }),
+        jsonResponse({
+          ok: true,
+          service: "creative-studio-companion",
+          time: new Date().toISOString(),
+        }),
     },
   },
 });

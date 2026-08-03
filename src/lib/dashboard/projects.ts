@@ -2,7 +2,8 @@
 // Tracks project cards created from generate/research flows.
 import { useSyncExternalStore } from "react";
 
-export type ProjectKind = "narrative" | "storyboard" | "motion" | "bulk-fashion" | "image-to-video" | "research";
+export type ProjectKind =
+  "narrative" | "storyboard" | "motion" | "bulk-fashion" | "image-to-video" | "research";
 
 export type Project = {
   id: string;
@@ -30,7 +31,11 @@ function load(): Project[] {
     // Clean out legacy demo rows shipped in earlier builds.
     const filtered = (arr as Project[]).filter((p) => !String(p.id).startsWith("seed-"));
     if (filtered.length !== arr.length) {
-      try { localStorage.setItem(KEY, JSON.stringify(filtered)); } catch { /* ignore */ }
+      try {
+        localStorage.setItem(KEY, JSON.stringify(filtered));
+      } catch {
+        /* ignore */
+      }
     }
     return filtered;
   } catch {
@@ -56,7 +61,11 @@ const subscribe = (l: () => void) => {
 };
 
 export function useProjects(): Project[] {
-  return useSyncExternalStore(subscribe, () => state, () => state);
+  return useSyncExternalStore(
+    subscribe,
+    () => state,
+    () => state,
+  );
 }
 
 export function pinProject(id: string, pinned: boolean): void {
@@ -69,7 +78,10 @@ export function favoriteProject(id: string, favorite: boolean): void {
   emit();
 }
 
-export function upsertProject(input: Omit<Project, "createdAt" | "updatedAt" | "progress" | "counts"> & Partial<Pick<Project, "progress" | "counts">>): Project {
+export function upsertProject(
+  input: Omit<Project, "createdAt" | "updatedAt" | "progress" | "counts"> &
+    Partial<Pick<Project, "progress" | "counts">>,
+): Project {
   const now = Date.now();
   const idx = state.findIndex((p) => p.id === input.id);
   if (idx >= 0) {
@@ -105,7 +117,11 @@ const KIND_ROUTE: Record<ProjectKind, string> = {
 };
 
 function slug(s: string): string {
-  return (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  return (s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
 }
 
 /**
@@ -135,7 +151,10 @@ export function trackGeneration(input: {
       title: input.title || prev.title,
       niche: input.niche || prev.niche,
       counts: mergedCounts,
-      progress: Math.max(prev.progress || 0, input.progress ?? Math.min(100, (prev.progress || 0) + 10)),
+      progress: Math.max(
+        prev.progress || 0,
+        input.progress ?? Math.min(100, (prev.progress || 0) + 10),
+      ),
       updatedAt: now,
     };
     state = state.map((p, i) => (i === idx ? merged : p));
@@ -157,4 +176,3 @@ export function trackGeneration(input: {
   emit();
   return created;
 }
-

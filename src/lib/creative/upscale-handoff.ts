@@ -33,7 +33,8 @@ export async function urlToFile(url: string, name?: string): Promise<File | null
     if (!res.ok) return null;
     const blob = await res.blob();
     const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
-    const fileName = name || `upscale-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const fileName =
+      name || `upscale-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
     return new File([blob], fileName, { type: blob.type || "image/jpeg" });
   } catch {
     return null;

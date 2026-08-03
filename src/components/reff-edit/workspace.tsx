@@ -36,11 +36,7 @@ import {
   saveRefs,
   uid8,
 } from "@/lib/reff-edit/store";
-import {
-  adjustBlueprint,
-  analyzeReferenceDNA,
-  generateBlueprint,
-} from "@/lib/reff-edit/brain";
+import { adjustBlueprint, analyzeReferenceDNA, generateBlueprint } from "@/lib/reff-edit/brain";
 import { useAuth } from "@/lib/auth-context";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 
@@ -224,7 +220,10 @@ export function ReffEditWorkspace({
     { ...newLocalRef(mode), name: mode === "image" ? "Target image" : "Target video 1" },
   ]);
   const target = targets[0]; // legacy accessor for image mode
-  const [aspect, setAspect] = useSticky<string>(`${K}.aspect`, aspectOptions[0]?.value ?? "original");
+  const [aspect, setAspect] = useSticky<string>(
+    `${K}.aspect`,
+    aspectOptions[0]?.value ?? "original",
+  );
   const [quality, setQuality] = useSticky<"draft" | "standard" | "high">(
     `${K}.quality`,
     "standard",
@@ -289,18 +288,13 @@ export function ReffEditWorkspace({
   const canRender = !!dna && blueprint.length > 0 && !rendering;
 
   const pushLog = (msg: string, level: LogLine["level"] = "info") =>
-    setLogs((prev) =>
-      [...prev, { time: new Date().toLocaleTimeString(), level, msg }].slice(
-        -200,
-      ),
-    );
+    setLogs((prev) => [...prev, { time: new Date().toLocaleTimeString(), level, msg }].slice(-200));
 
   const setRef = (key: string, patch: Partial<LocalRef>) =>
     setRefs((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const removeRef = (key: string) =>
     setRefs((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
-  const addRef = () =>
-    setRefs((prev) => (prev.length >= 6 ? prev : [...prev, newLocalRef(mode)]));
+  const addRef = () => setRefs((prev) => (prev.length >= 6 ? prev : [...prev, newLocalRef(mode)]));
 
   const onFile = (key: string, file: File | null) => {
     setRefs((prev) =>
@@ -328,10 +322,7 @@ export function ReffEditWorkspace({
   const addTarget = () =>
     setTargets((prev) => {
       if (mode === "image" || prev.length >= 10) return prev;
-      return [
-        ...prev,
-        { ...newLocalRef(mode), name: `Target video ${prev.length + 1}` },
-      ];
+      return [...prev, { ...newLocalRef(mode), name: `Target video ${prev.length + 1}` }];
     });
   const removeTarget = (key: string) =>
     setTargets((prev) => {
@@ -412,7 +403,9 @@ export function ReffEditWorkspace({
           applyLines.length ? `Editing directives:\n- ${applyLines.join("\n- ")}` : "",
           prompt ? `User note: ${prompt}` : "",
           "Preserve the subject/identity of the TARGET. Only restyle look, lighting, color, mood, composition per the DNA. Return a single edited image.",
-        ].filter(Boolean).join("\n\n");
+        ]
+          .filter(Boolean)
+          .join("\n\n");
 
         // Collect files: target first, then references. Convert to base64.
         const files: File[] = [];
@@ -466,9 +459,8 @@ export function ReffEditWorkspace({
         // Video mode. Collect all target files.
         const filled = targets.filter((t) => t.file && t.previewUrl);
         if (filled.length === 0) throw new Error("Upload minimal 1 target video.");
-        const { reffVideoRender, probeVideoDuration } = await import(
-          "@/lib/reff-edit/video-ffmpeg"
-        );
+        const { reffVideoRender, probeVideoDuration } =
+          await import("@/lib/reff-edit/video-ffmpeg");
         const sourceInfo = await Promise.all(
           filled.map(async (t) => ({
             url: t.previewUrl!,
@@ -478,9 +470,7 @@ export function ReffEditWorkspace({
           })),
         );
         if (renderEngine === "browser") {
-          pushLog(
-            `FFmpeg (browser) · ${sourceInfo.length} source · ${blueprint.length} scene`,
-          );
+          pushLog(`FFmpeg (browser) · ${sourceInfo.length} source · ${blueprint.length} scene`);
           const result = await reffVideoRender({
             sources: sourceInfo,
             aspect,
@@ -754,7 +744,6 @@ export function ReffEditWorkspace({
         )}
       </Card>
 
-
       {/* ROW 2 — Target Content | Output Settings */}
       <div className="grid gap-5 lg:grid-cols-2">
         <Card
@@ -790,7 +779,10 @@ export function ReffEditWorkspace({
           ) : (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
               {targets.map((t, i) => (
-                <div key={t.key} className="relative rounded-xl border border-border bg-card/30 p-2">
+                <div
+                  key={t.key}
+                  className="relative rounded-xl border border-border bg-card/30 p-2"
+                >
                   <FileDrop
                     accept="video/*"
                     file={t.file}
@@ -856,7 +848,10 @@ export function ReffEditWorkspace({
                   value={renderEngine}
                   onChange={(e) => setRenderEngine(e.target.value as typeof renderEngine)}
                   options={[
-                    { value: "browser", label: "Browser FFmpeg (cepat, ≤ ~8 menit / 350 MB per file)" },
+                    {
+                      value: "browser",
+                      label: "Browser FFmpeg (cepat, ≤ ~8 menit / 350 MB per file)",
+                    },
                     { value: "shotstack", label: "Cloud · Shotstack (video panjang, butuh key)" },
                     { value: "creatomate", label: "Cloud · Creatomate (video panjang, butuh key)" },
                   ]}
@@ -871,7 +866,11 @@ export function ReffEditWorkspace({
       <div className="grid gap-5 lg:grid-cols-2">
         <Card
           title="Output Preview"
-          sub={outputs.length > 0 ? `${outputs.length} render${outputs.length > 1 ? "s" : ""}` : undefined}
+          sub={
+            outputs.length > 0
+              ? `${outputs.length} render${outputs.length > 1 ? "s" : ""}`
+              : undefined
+          }
           right={
             outputs.length > 0 ? (
               <div className="flex items-center gap-2">
@@ -940,7 +939,11 @@ export function ReffEditWorkspace({
                     aria-label={`Buka render #${i + 1}`}
                   >
                     {mode === "image" ? (
-                      <img src={url} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={url}
+                        alt={`Render ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <video src={url} className="w-full h-full object-cover" muted />
                     )}
@@ -1023,9 +1026,7 @@ export function ReffEditWorkspace({
                       value={s.name}
                       onChange={(e) =>
                         setBlueprint((prev) =>
-                          prev.map((x, i) =>
-                            i === idx ? { ...x, name: e.target.value } : x,
-                          ),
+                          prev.map((x, i) => (i === idx ? { ...x, name: e.target.value } : x)),
                         )
                       }
                       className="!py-1.5 !text-sm"
@@ -1206,7 +1207,6 @@ function RefRow({
   );
 }
 
-
 function FileDrop({
   accept,
   file,
@@ -1231,14 +1231,7 @@ function FileDrop({
   const emptySize = compact ? "h-20 w-20" : large ? "h-56 w-full" : "h-40 w-full";
   return (
     <div className={compact ? "shrink-0" : ""}>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={onChange}
-      />
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={onChange} />
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -1246,9 +1239,18 @@ function FileDrop({
       >
         {previewUrl ? (
           kind === "image" ? (
-            <img src={previewUrl} alt="preview" className="w-full h-auto max-h-[70vh] object-contain" />
+            <img
+              src={previewUrl}
+              alt="preview"
+              className="w-full h-auto max-h-[70vh] object-contain"
+            />
           ) : (
-            <video src={previewUrl} className="w-full h-auto max-h-[70vh] object-contain" controls muted />
+            <video
+              src={previewUrl}
+              className="w-full h-auto max-h-[70vh] object-contain"
+              controls
+              muted
+            />
           )
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground text-xs">
@@ -1258,9 +1260,7 @@ function FileDrop({
         )}
       </button>
       {file && !compact && (
-        <div className="text-[11px] text-muted-foreground mt-1 truncate">
-          {file.name}
-        </div>
+        <div className="text-[11px] text-muted-foreground mt-1 truncate">{file.name}</div>
       )}
     </div>
   );
@@ -1279,11 +1279,7 @@ export function ReffEditListCard({
 }) {
   return (
     <Card title={title} sub={sub}>
-      {empty ? (
-        <div className="text-sm text-muted-foreground">{empty}</div>
-      ) : (
-        children
-      )}
+      {empty ? <div className="text-sm text-muted-foreground">{empty}</div> : children}
     </Card>
   );
 }

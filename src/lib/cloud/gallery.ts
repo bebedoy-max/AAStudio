@@ -23,7 +23,7 @@ function normalize<M>(r: any): CloudGalleryItem<M> {
     name: String(r.name ?? ""),
     kind: String(r.kind ?? "file"),
     createdAt: String(r.createdAt ?? new Date().toISOString()),
-    meta: ((r.meta ?? {}) as M),
+    meta: (r.meta ?? {}) as M,
   };
 }
 
@@ -62,7 +62,13 @@ export function useCloudGallery<M = Record<string, unknown>>(source: string, kin
       pending.current.add(url);
       try {
         const row = await archiveGeneratedUrl({
-          data: { url, source, origin: "generate", name, meta: (meta ?? {}) as Record<string, string | number | boolean | null> },
+          data: {
+            url,
+            source,
+            origin: "generate",
+            name,
+            meta: (meta ?? {}) as Record<string, string | number | boolean | null>,
+          },
         });
         const item = normalize<M>(row);
         setItems((prev) => (prev.some((p) => p.id === item.id) ? prev : [item, ...prev]));

@@ -57,9 +57,7 @@ export const Route = createFileRoute("/api/public/roboneo-membership")({
         }),
       POST: async ({ request }) => {
         const token =
-          request.headers.get("X-Roboneo-Token") ||
-          request.headers.get("x-roboneo-token") ||
-          "";
+          request.headers.get("X-Roboneo-Token") || request.headers.get("x-roboneo-token") || "";
         if (!token) return json({ ok: false, error: "X-Roboneo-Token required" }, 400);
 
         const body = {

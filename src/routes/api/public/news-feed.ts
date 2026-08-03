@@ -16,13 +16,20 @@ const DEFAULT_QUERIES = [
 function decode(s: string): string {
   return s
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)));
 }
 
 function stripTags(s: string): string {
-  return decode(s).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return decode(s)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseRss(xml: string, fallbackSource: string): Item[] {
@@ -33,9 +40,13 @@ function parseRss(xml: string, fallbackSource: string): Item[] {
     const chunk = m[0];
     const title = stripTags((chunk.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || "").trim());
     const url = decode((chunk.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || "").trim());
-    const description = stripTags((chunk.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || "").trim()).slice(0, 320);
+    const description = stripTags(
+      (chunk.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || "").trim(),
+    ).slice(0, 320);
     const pubDate = (chunk.match(/<pubDate>([\s\S]*?)<\/pubDate>/i)?.[1] || "").trim();
-    const source = stripTags((chunk.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || fallbackSource).trim());
+    const source = stripTags(
+      (chunk.match(/<source[^>]*>([\s\S]*?)<\/source>/i)?.[1] || fallbackSource).trim(),
+    );
     if (title && url) items.push({ title, url, description, source, pubDate });
   }
   return items;
@@ -72,7 +83,7 @@ export const Route = createFileRoute("/api/public/news-feed")({
             const r = await fetch(feed, {
               headers: {
                 "User-Agent": "Mozilla/5.0 (compatible; NewsBriefingBot/1.0)",
-                "Accept": "application/rss+xml,application/xml,text/xml",
+                Accept: "application/rss+xml,application/xml,text/xml",
               },
             });
             if (!r.ok) continue;
@@ -100,7 +111,9 @@ export const Route = createFileRoute("/api/public/news-feed")({
         // every Refresh click even within TTL.
         const pool = uniq.slice(0, Math.max(limit * 3, limit));
         CACHE.set(cacheKey, { at: Date.now(), items: pool });
-        const items = shuffle ? [...pool].sort(() => Math.random() - 0.5).slice(0, limit) : pool.slice(0, limit);
+        const items = shuffle
+          ? [...pool].sort(() => Math.random() - 0.5).slice(0, limit)
+          : pool.slice(0, limit);
         return new Response(JSON.stringify({ cached: false, items }), {
           headers: { "Content-Type": "application/json" },
         });

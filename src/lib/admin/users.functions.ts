@@ -46,7 +46,8 @@ export const listAdminUserStats = createServerFn({ method: "GET" })
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
       if (error) throw new Error(error.message);
       const list = (data?.users ?? []) as Array<{ id: string; last_sign_in_at: string | null }>;
-      for (const u of list) authUsers.push({ id: u.id, last_sign_in_at: u.last_sign_in_at ?? null });
+      for (const u of list)
+        authUsers.push({ id: u.id, last_sign_in_at: u.last_sign_in_at ?? null });
       if (list.length < 200) break;
       page += 1;
       if (page > 25) break;
@@ -55,7 +56,11 @@ export const listAdminUserStats = createServerFn({ method: "GET" })
     // 2. Token counts (RPC existing).
     const { data: countsRaw } = await admin.rpc("admin_user_token_counts");
     const counts = new Map<string, { t: number; b: number }>();
-    for (const row of (countsRaw ?? []) as Array<{ user_id: string; tokens_count: number; bank_keys_count: number }>) {
+    for (const row of (countsRaw ?? []) as Array<{
+      user_id: string;
+      tokens_count: number;
+      bank_keys_count: number;
+    }>) {
       counts.set(row.user_id, { t: row.tokens_count ?? 0, b: row.bank_keys_count ?? 0 });
     }
 

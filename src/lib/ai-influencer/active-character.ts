@@ -32,7 +32,8 @@ export function useActiveCharacterId(): [string | null, (id: string | null) => v
       setId(detail);
     };
     window.addEventListener("ai-influencer:active-changed", onChange as EventListener);
-    return () => window.removeEventListener("ai-influencer:active-changed", onChange as EventListener);
+    return () =>
+      window.removeEventListener("ai-influencer:active-changed", onChange as EventListener);
   }, []);
   return [id, setActiveCharacterId];
 }

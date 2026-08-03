@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useCallback, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
@@ -103,7 +111,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const map: Record<string, FeatureAccessEntry> = {};
       (data as { route_key: string; access_mode: string; trial_until: string | null }[]).forEach(
         (r) => {
-          map[r.route_key] = { mode: normalizeFeatureAccessMode(r.access_mode), trialUntil: r.trial_until };
+          map[r.route_key] = {
+            mode: normalizeFeatureAccessMode(r.access_mode),
+            trialUntil: r.trial_until,
+          };
         },
       );
       setFeatureAccess(map);
@@ -136,7 +147,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserData = useCallback(async (uid: string) => {
     const nowIso = new Date().toISOString();
-    const [{ data: p, error: profileError }, { data: r, error: rolesError }, { data: rp, error: permissionsError }] = await Promise.all([
+    const [
+      { data: p, error: profileError },
+      { data: r, error: rolesError },
+      { data: rp, error: permissionsError },
+    ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase
@@ -148,7 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (profileError) console.warn("[auth] profile load failed", profileError.message);
     if (rolesError) console.warn("[auth] roles load failed", rolesError.message);
-    if (permissionsError) console.warn("[auth] route permissions load failed", permissionsError.message);
+    if (permissionsError)
+      console.warn("[auth] route permissions load failed", permissionsError.message);
 
     setProfile((p as Profile) ?? null);
     setRoles(((r ?? []) as { role: Role }[]).map((x) => x.role));
@@ -163,7 +179,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     let loadId = 0;
 
-    async function readSessionFromUrlOrStorage(): Promise<{ session: Session | null; shouldClaim: boolean }> {
+    async function readSessionFromUrlOrStorage(): Promise<{
+      session: Session | null;
+      shouldClaim: boolean;
+    }> {
       if (typeof window === "undefined") {
         const { data } = await supabase.auth.getSession();
         return { session: data.session, shouldClaim: false };
@@ -184,7 +203,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-          console.warn("[auth] OAuth code exchange failed, falling back to stored session", error.message);
+          console.warn(
+            "[auth] OAuth code exchange failed, falling back to stored session",
+            error.message,
+          );
         }
 
         url.searchParams.delete("code");
@@ -205,7 +227,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { session: data.session, shouldClaim: false };
     }
 
-    async function applySession(nextSession: Session | null, source: string, event?: AuthChangeEvent, shouldClaim = false) {
+    async function applySession(
+      nextSession: Session | null,
+      source: string,
+      event?: AuthChangeEvent,
+      shouldClaim = false,
+    ) {
       const currentLoadId = ++loadId;
       logAuth(source, {
         event,
@@ -274,72 +301,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, s: Session | null) => {
-      if (
-        event !== "INITIAL_SESSION" &&
-        event !== "SIGNED_IN" &&
-        event !== "SIGNED_OUT" &&
-        event !== "TOKEN_REFRESHED" &&
-        event !== "USER_UPDATED"
-      ) {
-        return;
-      }
-
-      logAuth("Auth State Changed", {
-        event,
-        hasSession: Boolean(s),
-        userId: s?.user.id ?? null,
-        email: s?.user.email ?? null,
-      });
-
-      if (event === "SIGNED_OUT") {
-        const uid = session?.user.id;
-        if (uid) void logActivity({ category: "auth", action: "logout", userId: uid });
-        try {
-          if (typeof sessionStorage !== "undefined") {
-            for (let i = sessionStorage.length - 1; i >= 0; i--) {
-              const k = sessionStorage.key(i);
-              if (k?.startsWith("aatools.auth.loginLogged.")) sessionStorage.removeItem(k);
-            }
-          }
-        } catch {
-          // ignore
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, s: Session | null) => {
+        if (
+          event !== "INITIAL_SESSION" &&
+          event !== "SIGNED_IN" &&
+          event !== "SIGNED_OUT" &&
+          event !== "TOKEN_REFRESHED" &&
+          event !== "USER_UPDATED"
+        ) {
+          return;
         }
-        setSession(null);
-        clearUserData();
-        clearLocalTokenCache();
-        resetTokenSync();
-        clearLocalExclusiveSession();
-        setLoading(false);
-        return;
-      }
 
-      if (s?.user) {
-        if (event === "SIGNED_IN") {
-          // Supabase memicu SIGNED_IN pada setiap tab reload / restore sesi.
-          // Log "login" hanya sekali per browser session per user supaya
-          // tidak menumpuk puluhan entri palsu.
+        logAuth("Auth State Changed", {
+          event,
+          hasSession: Boolean(s),
+          userId: s?.user.id ?? null,
+          email: s?.user.email ?? null,
+        });
+
+        if (event === "SIGNED_OUT") {
+          const uid = session?.user.id;
+          if (uid) void logActivity({ category: "auth", action: "logout", userId: uid });
           try {
-            const key = `aatools.auth.loginLogged.${s.user.id}`;
-            if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(key)) {
-              sessionStorage.setItem(key, "1");
-              void logActivity({ category: "auth", action: "login", userId: s.user.id });
+            if (typeof sessionStorage !== "undefined") {
+              for (let i = sessionStorage.length - 1; i >= 0; i--) {
+                const k = sessionStorage.key(i);
+                if (k?.startsWith("aatools.auth.loginLogged.")) sessionStorage.removeItem(k);
+              }
             }
           } catch {
-            // sessionStorage tidak tersedia — abaikan, jangan log agar tidak spam.
+            // ignore
           }
+          setSession(null);
+          clearUserData();
+          clearLocalTokenCache();
+          resetTokenSync();
+          clearLocalExclusiveSession();
+          setLoading(false);
+          return;
         }
-        setTimeout(() => {
-          void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");
-        }, 0);
-      } else {
-        clearUserData();
-        clearLocalTokenCache();
-        resetTokenSync();
-        clearLocalExclusiveSession();
-      }
-      setLoading(false);
-    });
+
+        if (s?.user) {
+          if (event === "SIGNED_IN") {
+            // Supabase memicu SIGNED_IN pada setiap tab reload / restore sesi.
+            // Log "login" hanya sekali per browser session per user supaya
+            // tidak menumpuk puluhan entri palsu.
+            try {
+              const key = `aatools.auth.loginLogged.${s.user.id}`;
+              if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(key)) {
+                sessionStorage.setItem(key, "1");
+                void logActivity({ category: "auth", action: "login", userId: s.user.id });
+              }
+            } catch {
+              // sessionStorage tidak tersedia — abaikan, jangan log agar tidak spam.
+            }
+          }
+          setTimeout(() => {
+            void applySession(s, "Auth State Applied", event, event === "SIGNED_IN");
+          }, 0);
+        } else {
+          clearUserData();
+          clearLocalTokenCache();
+          resetTokenSync();
+          clearLocalExclusiveSession();
+        }
+        setLoading(false);
+      },
+    );
 
     void initializeAuth();
 
@@ -409,7 +438,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const activityEvents: (keyof WindowEventMap)[] = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    const activityEvents: (keyof WindowEventMap)[] = [
+      "mousemove",
+      "keydown",
+      "click",
+      "scroll",
+      "touchstart",
+    ];
     activityEvents.forEach((ev) => window.addEventListener(ev, markActive, { passive: true }));
 
     const idleInterval = window.setInterval(runIdleAndVerify, 15_000);
@@ -425,7 +460,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       activityEvents.forEach((ev) => window.removeEventListener(ev, markActive));
     };
   }, [forceLocalSignOut, session?.user?.id]);
-
 
   const value: AuthContextValue = {
     session,
@@ -503,4 +537,3 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
   { key: "generate.storyboard", label: "Produk Storyboard", group: "Produk Generator" },
   { key: "generate.naratif", label: "Naratif Video Maker", group: "Produk Generator" },
 ];
-

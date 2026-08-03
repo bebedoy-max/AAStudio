@@ -30,12 +30,18 @@ export async function listCharacters(): Promise<Character[]> {
 }
 
 export async function getCharacter(id: string): Promise<Character | null> {
-  const { data, error } = await supabase.from("ai_characters").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("ai_characters")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
 
-export async function createCharacter(input: Omit<CharacterInsert, "user_id" | "id">): Promise<Character> {
+export async function createCharacter(
+  input: Omit<CharacterInsert, "user_id" | "id">,
+): Promise<Character> {
   const user_id = await requireUserId();
   const { data, error } = await supabase
     .from("ai_characters")
@@ -67,11 +73,36 @@ export async function getPersonality(characterId: string): Promise<PersonalitySl
     .eq("character_id", characterId)
     .maybeSingle();
   if (!data) return { ...DEFAULT_PERSONALITY };
-  const { funny, elegant, luxury, cute, professional, energetic, luxury_lifestyle, minimalist, emotional, luxury_fashion } = data;
-  return { funny, elegant, luxury, cute, professional, energetic, luxury_lifestyle, minimalist, emotional, luxury_fashion };
+  const {
+    funny,
+    elegant,
+    luxury,
+    cute,
+    professional,
+    energetic,
+    luxury_lifestyle,
+    minimalist,
+    emotional,
+    luxury_fashion,
+  } = data;
+  return {
+    funny,
+    elegant,
+    luxury,
+    cute,
+    professional,
+    energetic,
+    luxury_lifestyle,
+    minimalist,
+    emotional,
+    luxury_fashion,
+  };
 }
 
-export async function savePersonality(characterId: string, values: PersonalitySliders): Promise<void> {
+export async function savePersonality(
+  characterId: string,
+  values: PersonalitySliders,
+): Promise<void> {
   const user_id = await requireUserId();
   const { error } = await supabase
     .from("ai_character_personality")
@@ -89,7 +120,11 @@ export async function listReferences(characterId: string): Promise<Reference[]> 
   return data ?? [];
 }
 
-export async function addReference(characterId: string, platform: string, url: string): Promise<void> {
+export async function addReference(
+  characterId: string,
+  platform: string,
+  url: string,
+): Promise<void> {
   const user_id = await requireUserId();
   const { error } = await supabase
     .from("ai_character_references")
@@ -134,7 +169,10 @@ export async function createScenario(
     .single();
   if (error) throw error;
   await bumpMemory(characterId, scene);
-  await supabase.from("ai_characters").update({ last_generated_at: new Date().toISOString() }).eq("id", characterId);
+  await supabase
+    .from("ai_characters")
+    .update({ last_generated_at: new Date().toISOString() })
+    .eq("id", characterId);
   return data;
 }
 
@@ -164,7 +202,12 @@ export async function countAssets(characterId: string): Promise<number> {
 export async function saveAsset(
   characterId: string,
   type: string,
-  payload: { url?: string; content?: string; scenario_id?: string; metadata?: Record<string, unknown> },
+  payload: {
+    url?: string;
+    content?: string;
+    scenario_id?: string;
+    metadata?: Record<string, unknown>;
+  },
 ): Promise<void> {
   const user_id = await requireUserId();
   const { error } = await supabase.from("ai_character_assets").insert({
@@ -203,8 +246,12 @@ export async function bumpMemory(characterId: string, sceneKey: string): Promise
       .update({ count: (existing.count ?? 0) + 1, last_used_at: new Date().toISOString() })
       .eq("id", existing.id);
   } else {
-    await supabase
-      .from("ai_influencer_memory")
-      .insert({ character_id: characterId, user_id, scene_key: sceneKey, count: 1, last_used_at: new Date().toISOString() });
+    await supabase.from("ai_influencer_memory").insert({
+      character_id: characterId,
+      user_id,
+      scene_key: sceneKey,
+      count: 1,
+      last_used_at: new Date().toISOString(),
+    });
   }
 }

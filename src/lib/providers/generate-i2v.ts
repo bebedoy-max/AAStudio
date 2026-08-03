@@ -53,7 +53,8 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
   throw new Error(`Upload gagal: ${lastErr}`);
 }
 
-export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola";
+export type I2VProvider =
+  "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola";
 
 export type I2VOpts = {
   provider: I2VProvider;
@@ -63,12 +64,11 @@ export type I2VOpts = {
   duration: number; // seconds, 5 / 10 / 12
   prompt: string;
   negativePrompt?: string;
-  resolution?: string;   // roboneo seedance-pro: "480p" | "720p" | "1080p"
-  sizeTier?: string;     // leonardo: "standard" | "quality" | "hd" | "highQuality" | "fullHd" | "4k"
-  sound?: "on" | "off";  // roboneo kling-v26: sound track on/off
+  resolution?: string; // roboneo seedance-pro: "480p" | "720p" | "1080p"
+  sizeTier?: string; // leonardo: "standard" | "quality" | "hd" | "highQuality" | "fullHd" | "4k"
+  sound?: "on" | "off"; // roboneo kling-v26: sound track on/off
   onProgress?: (msg: string, pct?: number) => void;
 };
-
 
 // Map friendly modelKey → real wavespeed endpoint
 const WS_I2V_ENDPOINTS: Record<string, string> = {
@@ -85,13 +85,17 @@ async function runWavespeedI2V(opts: I2VOpts): Promise<string> {
   opts.onProgress?.("Upload image ke Wavespeed...", 10);
   const imageUrl = await wsUploadMedia(opts.imageFile, `i2v_${Date.now()}.jpg`, key);
   opts.onProgress?.("Submit ke Wavespeed...", 25);
-  const data = await wsPost(modelId, {
-    image: imageUrl,
-    prompt: opts.prompt,
-        negativePrompt: opts.negativePrompt,
-    duration: opts.duration,
-    aspect_ratio: opts.ratio,
-  }, key);
+  const data = await wsPost(
+    modelId,
+    {
+      image: imageUrl,
+      prompt: opts.prompt,
+      negativePrompt: opts.negativePrompt,
+      duration: opts.duration,
+      aspect_ratio: opts.ratio,
+    },
+    key,
+  );
   const getUrl = data.urls?.get || `${WAVESPEED_API}/predictions/${data.id}/result`;
   return wsPoll(getUrl, key, {
     timeoutMs: 600000,
@@ -113,7 +117,9 @@ async function runWeavyI2V(opts: I2VOpts): Promise<string> {
 
 async function runMagnificI2V(opts: I2VOpts): Promise<string> {
   void opts;
-  throw new Error("Magnific hanya support Motion Control (butuh video referensi). Gunakan menu Motion Control.");
+  throw new Error(
+    "Magnific hanya support Motion Control (butuh video referensi). Gunakan menu Motion Control.",
+  );
 }
 
 async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
@@ -134,7 +140,10 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
   for (let ti = 0; ti < tokens.length; ti++) {
     const at = tokens[ti]!;
     try {
-      opts.onProgress?.(`Submit Roboneo ${opts.modelKey} (token ${ti + 1}/${tokens.length})...`, 15);
+      opts.onProgress?.(
+        `Submit Roboneo ${opts.modelKey} (token ${ti + 1}/${tokens.length})...`,
+        15,
+      );
       const taskId = await submitRoboneoI2V({
         accessToken: at,
         imageUrl,
@@ -165,12 +174,14 @@ async function runRoboneoI2V(opts: I2VOpts): Promise<string> {
           ? `Token Roboneo ${ti + 1} habis/invalid, dihapus. Rotate ke token berikutnya...`
           : removed.removed
             ? `Token Roboneo ${ti + 1} habis/invalid, dihapus.`
-          : `Token Roboneo ${ti + 1} gagal, rotate ke token berikutnya...`,
+            : `Token Roboneo ${ti + 1} gagal, rotate ke token berikutnya...`,
         15,
       );
     }
   }
-  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+  throw new Error(
+    "Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.",
+  );
 }
 
 async function runFramiaI2V(opts: I2VOpts): Promise<string> {
@@ -197,7 +208,10 @@ async function runFramiaI2V(opts: I2VOpts): Promise<string> {
       }),
     {
       onRotate: (next, total, reason) =>
-        opts.onProgress?.(`Framia token ${next - 1}/${total} gagal (${reason.slice(0, 60)}), rotate…`, 15),
+        opts.onProgress?.(
+          `Framia token ${next - 1}/${total} gagal (${reason.slice(0, 60)}), rotate…`,
+          15,
+        ),
     },
   );
 }
@@ -206,29 +220,19 @@ async function runLeonardoI2V(opts: I2VOpts): Promise<string> {
   const { runLeonardoVideo } = await import("./leonardo-video");
   // Normalize ratio ke enum yang didukung Leonardo (16:9 / 9:16 / 1:1).
   const r = opts.ratio || "9:16";
-  const ratio: "16:9" | "9:16" | "1:1" =
-    r === "16:9" || r === "1:1" ? r : "9:16";
+  const ratio: "16:9" | "9:16" | "1:1" = r === "16:9" || r === "1:1" ? r : "9:16";
   return runLeonardoVideo({
     modelKey: opts.modelKey,
     prompt: opts.prompt,
     aspectRatio: ratio,
     sizeTier: opts.sizeTier as
-      | "standard"
-      | "quality"
-      | "hd"
-      | "highQuality"
-      | "fullHd"
-      | "4k"
-      | undefined,
+      "standard" | "quality" | "hd" | "highQuality" | "fullHd" | "4k" | undefined,
     resolution: opts.resolution,
     duration: opts.duration,
     imageFile: opts.imageFile,
     onProgress: opts.onProgress,
     onRotate: (i, total, reason) =>
-      opts.onProgress?.(
-        `Leonardo token ${i}/${total} gagal (${reason.slice(0, 60)}), rotate…`,
-        20,
-      ),
+      opts.onProgress?.(`Leonardo token ${i}/${total} gagal (${reason.slice(0, 60)}), rotate…`, 20),
   });
 }
 
@@ -254,10 +258,13 @@ async function runFireflyI2V(opts: I2VOpts): Promise<string> {
 }
 
 async function runDolaI2V(opts: I2VOpts): Promise<string> {
-  const { getAllDolaCookies, uploadDolaImage, runDolaVideo, removeDolaKeyFromManager } = await import("./dola");
+  const { getAllDolaCookies, uploadDolaImage, runDolaVideo, removeDolaKeyFromManager } =
+    await import("./dola");
   const cookies = getAllDolaCookies();
   if (cookies.length === 0) {
-    throw new Error("Belum ada cookie Dola. Tambahkan di Token Manager → Dola atau ambil via extension.");
+    throw new Error(
+      "Belum ada cookie Dola. Tambahkan di Token Manager → Dola atau ambil via extension.",
+    );
   }
   // ImageX menerima file asli secara langsung; jangan re-encode atau membesarkan
   // payload lewat base64 sebelum melewati proxy.

@@ -41,7 +41,9 @@ export const Route = createFileRoute("/api/router/subtitle")({
           }
           const text =
             "WEBVTT\n\n" +
-            segs.map((s) => `${fmt(s.start, false)} --> ${fmt(s.end, false)}\n${s.text.trim()}\n`).join("\n");
+            segs
+              .map((s) => `${fmt(s.start, false)} --> ${fmt(s.end, false)}\n${s.text.trim()}\n`)
+              .join("\n");
           return json({ ok: true, format: "vtt", text });
         } catch (e) {
           return json({ error: `subtitle crash: ${(e as Error).message}` }, 500);

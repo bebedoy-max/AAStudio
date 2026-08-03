@@ -14,7 +14,10 @@ function json(data: unknown, status = 200): Response {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function isRotatable(s: number): boolean {
@@ -36,7 +39,11 @@ async function callOpenAI(key: string, file: Blob, filename: string, language: s
       body: fd,
     });
     if (!res.ok) {
-      last = { ok: false, status: res.status, body: `${model}: ${(await res.text()).slice(0, 400)}` };
+      last = {
+        ok: false,
+        status: res.status,
+        body: `${model}: ${(await res.text()).slice(0, 400)}`,
+      };
       if (!isRotatable(res.status) && res.status !== 404) return last;
       continue;
     }
@@ -50,9 +57,9 @@ async function callOpenAI(key: string, file: Blob, filename: string, language: s
       transcript: {
         language: data.language || language || "en",
         fullText: data.text || "",
-        segments:
-          data.segments?.map((s) => ({ start: s.start, end: s.end, text: s.text })) ??
-          [{ start: 0, end: 0, text: data.text || "" }],
+        segments: data.segments?.map((s) => ({ start: s.start, end: s.end, text: s.text })) ?? [
+          { start: 0, end: 0, text: data.text || "" },
+        ],
       },
       provider: "openai",
     };
@@ -71,7 +78,11 @@ async function callEleven(key: string, file: Blob, filename: string, language: s
     body: fd,
   });
   if (!res.ok) {
-    return { ok: false as const, status: res.status, body: `eleven: ${(await res.text()).slice(0, 400)}` };
+    return {
+      ok: false as const,
+      status: res.status,
+      body: `eleven: ${(await res.text()).slice(0, 400)}`,
+    };
   }
   const data = (await res.json()) as {
     text?: string;
@@ -107,7 +118,9 @@ export const Route = createFileRoute("/api/router/stt")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
+          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) =>
+            k.startsWith("sk-"),
+          );
           const eleven = parseKeys(request.headers.get("x-user-elevenlabs-keys"));
 
           const form = await request.formData();
@@ -135,6 +148,5 @@ export const Route = createFileRoute("/api/router/stt")({
         }
       },
     },
-
   },
 });

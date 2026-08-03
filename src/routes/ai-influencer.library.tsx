@@ -14,7 +14,18 @@ export const Route = createFileRoute("/ai-influencer/library")({
   component: LibraryPage,
 });
 
-const TYPE_FILTERS = ["all", "image", "motion", "video", "caption", "prompt", "voice", "subtitle", "thumbnail", "storyboard"] as const;
+const TYPE_FILTERS = [
+  "all",
+  "image",
+  "motion",
+  "video",
+  "caption",
+  "prompt",
+  "voice",
+  "subtitle",
+  "thumbnail",
+  "storyboard",
+] as const;
 
 type Asset = {
   id: string;
@@ -38,16 +49,25 @@ function LibraryPage() {
   const _deleteAsset = useServerFn(deleteAsset);
 
   const reload = async () => {
-    if (!activeId) { setAssets([]); return; }
+    if (!activeId) {
+      setAssets([]);
+      return;
+    }
     setLoading(true);
     try {
-      const rows = await _listAssets({ data: { characterId: activeId, kind: type === "all" ? null : type } });
+      const rows = await _listAssets({
+        data: { characterId: activeId, kind: type === "all" ? null : type },
+      });
       setAssets(rows as unknown as Asset[]);
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [activeId, type]);
+  useEffect(() => {
+    reload(); /* eslint-disable-next-line */
+  }, [activeId, type]);
 
   const filtered = useMemo(
     () =>
@@ -63,7 +83,8 @@ function LibraryPage() {
     if (!activeId) return;
     const url = await openPrompt({
       title: "Upload manual (URL)",
-      description: "Paste URL image / video / caption text URL. Nanti akan bisa direplace ke uploader storage.",
+      description:
+        "Paste URL image / video / caption text URL. Nanti akan bisa direplace ke uploader storage.",
       placeholder: "https://…",
       icon: <Upload className="h-5 w-5" />,
     });
@@ -75,21 +96,26 @@ function LibraryPage() {
       });
       toast.success("Asset ditambahkan.");
       reload();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const onDelete = async (a: Asset) => {
     const ok = await openConfirm({
       title: "Hapus asset?",
       description: "Asset ini akan dihapus dari library.",
-      confirmLabel: "Hapus", tone: "danger",
+      confirmLabel: "Hapus",
+      tone: "danger",
       icon: <Trash2 className="h-5 w-5" />,
     });
     if (!ok) return;
     try {
       await _deleteAsset({ data: { id: a.id } });
       setAssets((p) => p.filter((x) => x.id !== a.id));
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
@@ -139,7 +165,9 @@ function LibraryPage() {
                 onClick={() => setType(t)}
                 className={[
                   "px-3 py-1.5 rounded-full text-xs border transition",
-                  type === t ? "border-transparent text-primary-foreground glow-pink" : "border-border bg-card/50",
+                  type === t
+                    ? "border-transparent text-primary-foreground glow-pink"
+                    : "border-border bg-card/50",
                 ].join(" ")}
                 style={type === t ? { background: "var(--gradient-neon)" } : undefined}
               >
@@ -161,10 +189,17 @@ function LibraryPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((a) => (
-            <div key={a.id} className="rounded-2xl border border-border bg-card/40 overflow-hidden flex flex-col">
+            <div
+              key={a.id}
+              className="rounded-2xl border border-border bg-card/40 overflow-hidden flex flex-col"
+            >
               <div className="aspect-square relative bg-black/40 grid place-items-center text-xs text-muted-foreground">
                 {a.url && a.kind !== "caption" && a.kind !== "prompt" ? (
-                  <img src={a.url} alt={a.kind} className="absolute inset-0 h-full w-full object-cover" />
+                  <img
+                    src={a.url}
+                    alt={a.kind}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
                 ) : (
                   <span className="p-3 text-center">{a.content?.slice(0, 160) || a.kind}</span>
                 )}
@@ -189,7 +224,11 @@ function LibraryPage() {
                       </GhostButton>
                     </a>
                   )}
-                  <GhostButton className="!px-2 !py-1 text-xs" title="Delete" onClick={() => onDelete(a)}>
+                  <GhostButton
+                    className="!px-2 !py-1 text-xs"
+                    title="Delete"
+                    onClick={() => onDelete(a)}
+                  >
                     <Trash2 className="h-3 w-3" />
                   </GhostButton>
                 </div>

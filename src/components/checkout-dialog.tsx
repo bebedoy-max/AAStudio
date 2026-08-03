@@ -64,8 +64,6 @@ export function CheckoutDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, total, user?.id]);
 
-
-
   async function submit() {
     if (!user) return;
     if (total <= 0) return toast.error("Total pembayaran belum valid");
@@ -74,12 +72,9 @@ export function CheckoutDialog({
       // Encode EVERY selected feature key in the FEATURES marker so the
       // server fulfiller grants route_permissions for the whole set — the
       // primary route_key alone would only unlock one feature.
-      const allKeys = Array.from(
-        new Set([...(prices.map((p) => p.route_key)), ...featureKeys]),
-      );
+      const allKeys = Array.from(new Set([...prices.map((p) => p.route_key), ...featureKeys]));
       const primaryKey = allKeys[0];
-      const featuresMarker =
-        allKeys.length > 0 ? ` [FEATURES:${allKeys.join(",")}]` : "";
+      const featuresMarker = allKeys.length > 0 ? ` [FEATURES:${allKeys.join(",")}]` : "";
       const labelList = prices.map((p) => p.label).join(", ");
       const bundleTag = isBundle ? `[BUNDLE: ${bundleLabel}] ` : "";
       const note = `${bundleTag}${labelList}${featuresMarker}`.trim();
@@ -241,7 +236,6 @@ export function CheckoutDialog({
                 <div className="text-xs text-muted-foreground">Menyiapkan pembayaran…</div>
               </div>
             )}
-
 
             {order && (
               <div className="mt-5 flex justify-end">

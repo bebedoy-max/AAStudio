@@ -9,126 +9,112 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ReffEditRouteImport } from './routes/reff-edit'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as PluginsRouteImport } from './routes/plugins'
-import { Route as MixingRouteImport } from './routes/mixing'
-import { Route as AiInfluencerRouteImport } from './routes/ai-influencer'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AiInfluencerIndexRouteImport } from './routes/ai-influencer.index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AiInfluencerRouteImport } from './routes/ai-influencer'
+import { Route as MixingRouteImport } from './routes/mixing'
+import { Route as PluginsRouteImport } from './routes/plugins'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ReffEditRouteImport } from './routes/reff-edit'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as SystemSettingsRouteImport } from './routes/system.settings'
-import { Route as SystemHelpRouteImport } from './routes/system.help'
-import { Route as SystemCloudRouteImport } from './routes/system.cloud'
-import { Route as SystemAnalyticRouteImport } from './routes/system.analytic'
-import { Route as ReffEditVideoRouteImport } from './routes/reff-edit.video'
-import { Route as ReffEditImageRouteImport } from './routes/reff-edit.image'
-import { Route as ReffEditHistoryRouteImport } from './routes/reff-edit.history'
-import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
-import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
-import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
-import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
-import { Route as ManageAccountsRouteImport } from './routes/manage.accounts'
-import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
-import { Route as GenerateTextToVideoRouteImport } from './routes/generate.text-to-video'
-import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
-import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
-import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
-import { Route as GenerateLeonardoRouteImport } from './routes/generate.leonardo'
-import { Route as GenerateImageToVideoRouteImport } from './routes/generate.image-to-video'
-import { Route as GenerateFramiaRouteImport } from './routes/generate.framia'
-import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
-import { Route as DevWeavyTestRouteImport } from './routes/dev.weavy-test'
-import { Route as DevWeavyNodeInspectRouteImport } from './routes/dev.weavy-node-inspect'
-import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
-import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
-import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
-import { Route as AiInfluencerPlannerRouteImport } from './routes/ai-influencer.planner'
-import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.library'
-import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
-import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
-import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
-import { Route as AdminUsersRouteImport } from './routes/admin.users'
-import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
-import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
-import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
-import { Route as AdminPluginConfigRouteImport } from './routes/admin.plugin-config'
-import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
-import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
-import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth.google-drive.return'
-import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
-import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
-import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
-import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
-import { Route as ApiRouterRenderRouteImport } from './routes/api/router/render'
-import { Route as ApiRouterPlanWeeklyRouteImport } from './routes/api/router/plan-weekly'
-import { Route as ApiRouterImageRouteImport } from './routes/api/router/image'
-import { Route as ApiRouterChatRouteImport } from './routes/api/router/chat'
-import { Route as ApiRouterBrainAnalyzeRouteImport } from './routes/api/router/brain-analyze'
-import { Route as ApiPublicValidateMediaRouteImport } from './routes/api/public/validate-media'
-import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/upload-catbox'
-import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
-import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
-import { Route as ApiPublicScrapeArticleRouteImport } from './routes/api/public/scrape-article'
-import { Route as ApiPublicRoboneoMembershipRouteImport } from './routes/api/public/roboneo-membership'
-import { Route as ApiPublicRoboneoRouteImport } from './routes/api/public/roboneo'
-import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/proxy-image'
-import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
-import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
-import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
-import { Route as ApiPublicLeonardoCognitoRouteImport } from './routes/api/public/leonardo-cognito'
-import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
-import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
-import { Route as ApiPublicFireflyRouteImport } from './routes/api/public/firefly'
-import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
-import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
-import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
-import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
-import { Route as ApiPublicDolaRouteImport } from './routes/api/public/dola'
-import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
-import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
+import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
+import { Route as AdminContactRouteImport } from './routes/admin.contact'
+import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminPluginConfigRouteImport } from './routes/admin.plugin-config'
+import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
+import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
+import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AiInfluencerIndexRouteImport } from './routes/ai-influencer.index'
+import { Route as AiInfluencerIdRouteImport } from './routes/ai-influencer.$id'
+import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
+import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
+import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
+import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.library'
+import { Route as AiInfluencerNewRouteImport } from './routes/ai-influencer.new'
+import { Route as AiInfluencerPlannerRouteImport } from './routes/ai-influencer.planner'
+import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
+import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as DevWeavyNodeInspectRouteImport } from './routes/dev.weavy-node-inspect'
+import { Route as DevWeavyTestRouteImport } from './routes/dev.weavy-test'
+import { Route as GenerateBulkFashionRouteImport } from './routes/generate.bulk-fashion'
+import { Route as GenerateFramiaRouteImport } from './routes/generate.framia'
+import { Route as GenerateImageToVideoRouteImport } from './routes/generate.image-to-video'
+import { Route as GenerateLeonardoRouteImport } from './routes/generate.leonardo'
+import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
+import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
+import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
+import { Route as GenerateTextToVideoRouteImport } from './routes/generate.text-to-video'
+import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
+import { Route as ManageAccountsRouteImport } from './routes/manage.accounts'
+import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
+import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
+import { Route as MixingClipperRouteImport } from './routes/mixing.clipper'
+import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
+import { Route as ReffEditHistoryRouteImport } from './routes/reff-edit.history'
+import { Route as ReffEditImageRouteImport } from './routes/reff-edit.image'
+import { Route as ReffEditLibraryRouteImport } from './routes/reff-edit.library'
+import { Route as ReffEditVideoRouteImport } from './routes/reff-edit.video'
+import { Route as SystemAnalyticRouteImport } from './routes/system.analytic'
+import { Route as SystemCloudRouteImport } from './routes/system.cloud'
+import { Route as SystemHelpRouteImport } from './routes/system.help'
+import { Route as SystemSettingsRouteImport } from './routes/system.settings'
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
-import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
-import { Route as ApiPublicTemanqrisNotificationRouteImport } from './routes/api/public/temanqris/notification'
-import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
-import { Route as ApiPublicGoogleDriveCallbackRouteImport } from './routes/api/public/google-drive/callback'
-import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
-import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
-import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
-import { Route as ApiPublicExtensionConfigRouteImport } from './routes/api/public/extension/config'
-import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
-import { Route as ApiPublicCompanionHealthRouteImport } from './routes/api/public/companion/health'
+import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
+import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
+import { Route as ApiPublicDolaRouteImport } from './routes/api/public/dola'
+import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
+import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
+import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
+import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmpeg-cdn'
+import { Route as ApiPublicFireflyRouteImport } from './routes/api/public/firefly'
+import { Route as ApiPublicFramiaRouteImport } from './routes/api/public/framia'
+import { Route as ApiPublicLeonardoRouteImport } from './routes/api/public/leonardo'
+import { Route as ApiPublicLeonardoCognitoRouteImport } from './routes/api/public/leonardo-cognito'
+import { Route as ApiPublicLeonardoUploadRouteImport } from './routes/api/public/leonardo-upload'
+import { Route as ApiPublicMagnificRouteImport } from './routes/api/public/magnific'
+import { Route as ApiPublicNaratifBrainRouteImport } from './routes/api/public/naratif-brain'
+import { Route as ApiPublicNewsFeedRouteImport } from './routes/api/public/news-feed'
+import { Route as ApiPublicProxyImageRouteImport } from './routes/api/public/proxy-image'
+import { Route as ApiPublicRoboneoRouteImport } from './routes/api/public/roboneo'
+import { Route as ApiPublicRoboneoMembershipRouteImport } from './routes/api/public/roboneo-membership'
+import { Route as ApiPublicScrapeArticleRouteImport } from './routes/api/public/scrape-article'
+import { Route as ApiPublicScrapeProductRouteImport } from './routes/api/public/scrape-product'
+import { Route as ApiPublicStoryboardBrainRouteImport } from './routes/api/public/storyboard-brain'
+import { Route as ApiPublicUploadCatboxRouteImport } from './routes/api/public/upload-catbox'
+import { Route as ApiPublicValidateMediaRouteImport } from './routes/api/public/validate-media'
+import { Route as ApiRouterBrainAnalyzeRouteImport } from './routes/api/router/brain-analyze'
+import { Route as ApiRouterChatRouteImport } from './routes/api/router/chat'
+import { Route as ApiRouterImageRouteImport } from './routes/api/router/image'
+import { Route as ApiRouterPlanWeeklyRouteImport } from './routes/api/router/plan-weekly'
+import { Route as ApiRouterRenderRouteImport } from './routes/api/router/render'
+import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
+import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
+import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
+import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
+import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
+import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth.google-drive.return'
 import { Route as ApiPublicCloudUploadRouteImport } from './routes/api/public/cloud/upload'
-import { Route as ApiPublicCompanionPaymentVerifyRouteImport } from './routes/api/public/companion/payment/verify'
-import { Route as ApiPublicCompanionPaymentPaidRouteImport } from './routes/api/public/companion/payment/paid'
-import { Route as ApiPublicCompanionDeviceRegisterRouteImport } from './routes/api/public/companion/device/register'
+import { Route as ApiPublicCompanionHealthRouteImport } from './routes/api/public/companion/health'
+import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
+import { Route as ApiPublicExtensionConfigRouteImport } from './routes/api/public/extension/config'
+import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
+import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
+import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
+import { Route as ApiPublicGoogleDriveCallbackRouteImport } from './routes/api/public/google-drive/callback'
+import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
+import { Route as ApiPublicTemanqrisNotificationRouteImport } from './routes/api/public/temanqris/notification'
+import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
 import { Route as ApiPublicCloudFileIdRouteImport } from './routes/api/public/cloud/file.$id'
+import { Route as ApiPublicCompanionDeviceRegisterRouteImport } from './routes/api/public/companion/device/register'
+import { Route as ApiPublicCompanionPaymentPaidRouteImport } from './routes/api/public/companion/payment/paid'
+import { Route as ApiPublicCompanionPaymentVerifyRouteImport } from './routes/api/public/companion/payment/verify'
 
-const ReffEditRoute = ReffEditRouteImport.update({
-  id: '/reff-edit',
-  path: '/reff-edit',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PluginsRoute = PluginsRouteImport.update({
-  id: '/plugins',
-  path: '/plugins',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MixingRoute = MixingRouteImport.update({
-  id: '/mixing',
-  path: '/mixing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AiInfluencerRoute = AiInfluencerRouteImport.update({
-  id: '/ai-influencer',
-  path: '/ai-influencer',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -136,209 +122,34 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AiInfluencerRoute = AiInfluencerRouteImport.update({
+  id: '/ai-influencer',
+  path: '/ai-influencer',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AiInfluencerIndexRoute = AiInfluencerIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AiInfluencerRoute,
+const MixingRoute = MixingRouteImport.update({
+  id: '/mixing',
+  path: '/mixing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReffEditRoute = ReffEditRouteImport.update({
+  id: '/reff-edit',
+  path: '/reff-edit',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const SystemSettingsRoute = SystemSettingsRouteImport.update({
-  id: '/system/settings',
-  path: '/system/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SystemHelpRoute = SystemHelpRouteImport.update({
-  id: '/system/help',
-  path: '/system/help',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SystemCloudRoute = SystemCloudRouteImport.update({
-  id: '/system/cloud',
-  path: '/system/cloud',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SystemAnalyticRoute = SystemAnalyticRouteImport.update({
-  id: '/system/analytic',
-  path: '/system/analytic',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReffEditVideoRoute = ReffEditVideoRouteImport.update({
-  id: '/video',
-  path: '/video',
-  getParentRoute: () => ReffEditRoute,
-} as any)
-const ReffEditImageRoute = ReffEditImageRouteImport.update({
-  id: '/image',
-  path: '/image',
-  getParentRoute: () => ReffEditRoute,
-} as any)
-const ReffEditHistoryRoute = ReffEditHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => ReffEditRoute,
-} as any)
-const MixingDubbingRoute = MixingDubbingRouteImport.update({
-  id: '/dubbing',
-  path: '/dubbing',
-  getParentRoute: () => MixingRoute,
-} as any)
-const MixingClipperRoute = MixingClipperRouteImport.update({
-  id: '/clipper',
-  path: '/clipper',
-  getParentRoute: () => MixingRoute,
-} as any)
-const ManageTokensRoute = ManageTokensRouteImport.update({
-  id: '/manage/tokens',
-  path: '/manage/tokens',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManageRoutingRoute = ManageRoutingRouteImport.update({
-  id: '/manage/routing',
-  path: '/manage/routing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManageAccountsRoute = ManageAccountsRouteImport.update({
-  id: '/manage/accounts',
-  path: '/manage/accounts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
-  id: '/generate/upscaler',
-  path: '/generate/upscaler',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateTextToVideoRoute = GenerateTextToVideoRouteImport.update({
-  id: '/generate/text-to-video',
-  path: '/generate/text-to-video',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateStoryboardRoute = GenerateStoryboardRouteImport.update({
-  id: '/generate/storyboard',
-  path: '/generate/storyboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateNaratifRoute = GenerateNaratifRouteImport.update({
-  id: '/generate/naratif',
-  path: '/generate/naratif',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateMotionRoute = GenerateMotionRouteImport.update({
-  id: '/generate/motion',
-  path: '/generate/motion',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateLeonardoRoute = GenerateLeonardoRouteImport.update({
-  id: '/generate/leonardo',
-  path: '/generate/leonardo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateImageToVideoRoute = GenerateImageToVideoRouteImport.update({
-  id: '/generate/image-to-video',
-  path: '/generate/image-to-video',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateFramiaRoute = GenerateFramiaRouteImport.update({
-  id: '/generate/framia',
-  path: '/generate/framia',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateBulkFashionRoute = GenerateBulkFashionRouteImport.update({
-  id: '/generate/bulk-fashion',
-  path: '/generate/bulk-fashion',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DevWeavyTestRoute = DevWeavyTestRouteImport.update({
-  id: '/dev/weavy-test',
-  path: '/dev/weavy-test',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DevWeavyNodeInspectRoute = DevWeavyNodeInspectRouteImport.update({
-  id: '/dev/weavy-node-inspect',
-  path: '/dev/weavy-node-inspect',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthCallbackRoute = AuthCallbackRouteImport.update({
-  id: '/auth/callback',
-  path: '/auth/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiProxyImageRoute = ApiProxyImageRouteImport.update({
-  id: '/api/proxy-image',
-  path: '/api/proxy-image',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AiInfluencerPublisherRoute = AiInfluencerPublisherRouteImport.update({
-  id: '/publisher',
-  path: '/publisher',
-  getParentRoute: () => AiInfluencerRoute,
-} as any)
-const AiInfluencerPlannerRoute = AiInfluencerPlannerRouteImport.update({
-  id: '/planner',
-  path: '/planner',
-  getParentRoute: () => AiInfluencerRoute,
-} as any)
-const AiInfluencerLibraryRoute = AiInfluencerLibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
-  getParentRoute: () => AiInfluencerRoute,
-} as any)
-const AiInfluencerCharacterRoute = AiInfluencerCharacterRouteImport.update({
-  id: '/character',
-  path: '/character',
-  getParentRoute: () => AiInfluencerRoute,
-} as any)
-const AiInfluencerBrainRoute = AiInfluencerBrainRouteImport.update({
-  id: '/brain',
-  path: '/brain',
-  getParentRoute: () => AiInfluencerRoute,
-} as any)
-const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
-  getParentRoute: () => AiInfluencerRoute,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
-  id: '/transactions',
-  path: '/transactions',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
-  id: '/token-bank',
-  path: '/token-bank',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRequestsRoute = AdminRequestsRouteImport.update({
-  id: '/requests',
-  path: '/requests',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPluginConfigRoute = AdminPluginConfigRouteImport.update({
-  id: '/plugin-config',
-  path: '/plugin-config',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
-  id: '/payments',
-  path: '/payments',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminActivityLogRoute = AdminActivityLogRouteImport.update({
-  id: '/activity-log',
-  path: '/activity-log',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAccessRoute = AdminAccessRouteImport.update({
@@ -346,168 +157,219 @@ const AdminAccessRoute = AdminAccessRouteImport.update({
   path: '/access',
   getParentRoute: () => AdminRoute,
 } as any)
-const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
-  id: '/oauth/google-drive/return',
-  path: '/oauth/google-drive/return',
+const AdminActivityLogRoute = AdminActivityLogRouteImport.update({
+  id: '/activity-log',
+  path: '/activity-log',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminContactRoute = AdminContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPluginConfigRoute = AdminPluginConfigRouteImport.update({
+  id: '/plugin-config',
+  path: '/plugin-config',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRequestsRoute = AdminRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTokenBankRoute = AdminTokenBankRouteImport.update({
+  id: '/token-bank',
+  path: '/token-bank',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTransactionsRoute = AdminTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AiInfluencerIndexRoute = AiInfluencerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerIdRoute = AiInfluencerIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerBrainRoute = AiInfluencerBrainRouteImport.update({
+  id: '/brain',
+  path: '/brain',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerCharacterRoute = AiInfluencerCharacterRouteImport.update({
+  id: '/character',
+  path: '/character',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerLibraryRoute = AiInfluencerLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerNewRoute = AiInfluencerNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerPlannerRoute = AiInfluencerPlannerRouteImport.update({
+  id: '/planner',
+  path: '/planner',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerPublisherRoute = AiInfluencerPublisherRouteImport.update({
+  id: '/publisher',
+  path: '/publisher',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const ApiProxyImageRoute = ApiProxyImageRouteImport.update({
+  id: '/api/proxy-image',
+  path: '/api/proxy-image',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
-  id: '/api/router/voice',
-  path: '/api/router/voice',
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterSubtitleRoute = ApiRouterSubtitleRouteImport.update({
-  id: '/api/router/subtitle',
-  path: '/api/router/subtitle',
+const DevWeavyNodeInspectRoute = DevWeavyNodeInspectRouteImport.update({
+  id: '/dev/weavy-node-inspect',
+  path: '/dev/weavy-node-inspect',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterSttRoute = ApiRouterSttRouteImport.update({
-  id: '/api/router/stt',
-  path: '/api/router/stt',
+const DevWeavyTestRoute = DevWeavyTestRouteImport.update({
+  id: '/dev/weavy-test',
+  path: '/dev/weavy-test',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterRenderCloudRoute = ApiRouterRenderCloudRouteImport.update({
-  id: '/api/router/render-cloud',
-  path: '/api/router/render-cloud',
+const GenerateBulkFashionRoute = GenerateBulkFashionRouteImport.update({
+  id: '/generate/bulk-fashion',
+  path: '/generate/bulk-fashion',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterRenderRoute = ApiRouterRenderRouteImport.update({
-  id: '/api/router/render',
-  path: '/api/router/render',
+const GenerateFramiaRoute = GenerateFramiaRouteImport.update({
+  id: '/generate/framia',
+  path: '/generate/framia',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterPlanWeeklyRoute = ApiRouterPlanWeeklyRouteImport.update({
-  id: '/api/router/plan-weekly',
-  path: '/api/router/plan-weekly',
+const GenerateImageToVideoRoute = GenerateImageToVideoRouteImport.update({
+  id: '/generate/image-to-video',
+  path: '/generate/image-to-video',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterImageRoute = ApiRouterImageRouteImport.update({
-  id: '/api/router/image',
-  path: '/api/router/image',
+const GenerateLeonardoRoute = GenerateLeonardoRouteImport.update({
+  id: '/generate/leonardo',
+  path: '/generate/leonardo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterChatRoute = ApiRouterChatRouteImport.update({
-  id: '/api/router/chat',
-  path: '/api/router/chat',
+const GenerateMotionRoute = GenerateMotionRouteImport.update({
+  id: '/generate/motion',
+  path: '/generate/motion',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiRouterBrainAnalyzeRoute = ApiRouterBrainAnalyzeRouteImport.update({
-  id: '/api/router/brain-analyze',
-  path: '/api/router/brain-analyze',
+const GenerateNaratifRoute = GenerateNaratifRouteImport.update({
+  id: '/generate/naratif',
+  path: '/generate/naratif',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicValidateMediaRoute = ApiPublicValidateMediaRouteImport.update({
-  id: '/api/public/validate-media',
-  path: '/api/public/validate-media',
+const GenerateStoryboardRoute = GenerateStoryboardRouteImport.update({
+  id: '/generate/storyboard',
+  path: '/generate/storyboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicUploadCatboxRoute = ApiPublicUploadCatboxRouteImport.update({
-  id: '/api/public/upload-catbox',
-  path: '/api/public/upload-catbox',
+const GenerateTextToVideoRoute = GenerateTextToVideoRouteImport.update({
+  id: '/generate/text-to-video',
+  path: '/generate/text-to-video',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicStoryboardBrainRoute =
-  ApiPublicStoryboardBrainRouteImport.update({
-    id: '/api/public/storyboard-brain',
-    path: '/api/public/storyboard-brain',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicScrapeProductRoute = ApiPublicScrapeProductRouteImport.update({
-  id: '/api/public/scrape-product',
-  path: '/api/public/scrape-product',
+const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
+  id: '/generate/upscaler',
+  path: '/generate/upscaler',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicScrapeArticleRoute = ApiPublicScrapeArticleRouteImport.update({
-  id: '/api/public/scrape-article',
-  path: '/api/public/scrape-article',
+const ManageAccountsRoute = ManageAccountsRouteImport.update({
+  id: '/manage/accounts',
+  path: '/manage/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicRoboneoMembershipRoute =
-  ApiPublicRoboneoMembershipRouteImport.update({
-    id: '/api/public/roboneo-membership',
-    path: '/api/public/roboneo-membership',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRoboneoRoute = ApiPublicRoboneoRouteImport.update({
-  id: '/api/public/roboneo',
-  path: '/api/public/roboneo',
+const ManageRoutingRoute = ManageRoutingRouteImport.update({
+  id: '/manage/routing',
+  path: '/manage/routing',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicProxyImageRoute = ApiPublicProxyImageRouteImport.update({
-  id: '/api/public/proxy-image',
-  path: '/api/public/proxy-image',
+const ManageTokensRoute = ManageTokensRouteImport.update({
+  id: '/manage/tokens',
+  path: '/manage/tokens',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicNewsFeedRoute = ApiPublicNewsFeedRouteImport.update({
-  id: '/api/public/news-feed',
-  path: '/api/public/news-feed',
+const MixingClipperRoute = MixingClipperRouteImport.update({
+  id: '/clipper',
+  path: '/clipper',
+  getParentRoute: () => MixingRoute,
+} as any)
+const MixingDubbingRoute = MixingDubbingRouteImport.update({
+  id: '/dubbing',
+  path: '/dubbing',
+  getParentRoute: () => MixingRoute,
+} as any)
+const ReffEditHistoryRoute = ReffEditHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const ReffEditImageRoute = ReffEditImageRouteImport.update({
+  id: '/image',
+  path: '/image',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const ReffEditLibraryRoute = ReffEditLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const ReffEditVideoRoute = ReffEditVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => ReffEditRoute,
+} as any)
+const SystemAnalyticRoute = SystemAnalyticRouteImport.update({
+  id: '/system/analytic',
+  path: '/system/analytic',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicNaratifBrainRoute = ApiPublicNaratifBrainRouteImport.update({
-  id: '/api/public/naratif-brain',
-  path: '/api/public/naratif-brain',
+const SystemCloudRoute = SystemCloudRouteImport.update({
+  id: '/system/cloud',
+  path: '/system/cloud',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicMagnificRoute = ApiPublicMagnificRouteImport.update({
-  id: '/api/public/magnific',
-  path: '/api/public/magnific',
+const SystemHelpRoute = SystemHelpRouteImport.update({
+  id: '/system/help',
+  path: '/system/help',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicLeonardoCognitoRoute =
-  ApiPublicLeonardoCognitoRouteImport.update({
-    id: '/api/public/leonardo-cognito',
-    path: '/api/public/leonardo-cognito',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicLeonardoRoute = ApiPublicLeonardoRouteImport.update({
-  id: '/api/public/leonardo',
-  path: '/api/public/leonardo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicFramiaRoute = ApiPublicFramiaRouteImport.update({
-  id: '/api/public/framia',
-  path: '/api/public/framia',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicFireflyRoute = ApiPublicFireflyRouteImport.update({
-  id: '/api/public/firefly',
-  path: '/api/public/firefly',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicFfmpegCdnRoute = ApiPublicFfmpegCdnRouteImport.update({
-  id: '/api/public/ffmpeg-cdn',
-  path: '/api/public/ffmpeg-cdn',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicElevenlabsValidateRoute =
-  ApiPublicElevenlabsValidateRouteImport.update({
-    id: '/api/public/elevenlabs-validate',
-    path: '/api/public/elevenlabs-validate',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicElevenlabsTtsRoute = ApiPublicElevenlabsTtsRouteImport.update({
-  id: '/api/public/elevenlabs-tts',
-  path: '/api/public/elevenlabs-tts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicDubbingBrainRoute = ApiPublicDubbingBrainRouteImport.update({
-  id: '/api/public/dubbing-brain',
-  path: '/api/public/dubbing-brain',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicDolaRoute = ApiPublicDolaRouteImport.update({
-  id: '/api/public/dola',
-  path: '/api/public/dola',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicCreativeBrainRoute = ApiPublicCreativeBrainRouteImport.update({
-  id: '/api/public/creative-brain',
-  path: '/api/public/creative-brain',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicClipperBrainRoute = ApiPublicClipperBrainRouteImport.update({
-  id: '/api/public/clipper-brain',
-  path: '/api/public/clipper-brain',
+const SystemSettingsRoute = SystemSettingsRouteImport.update({
+  id: '/system/settings',
+  path: '/system/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicBacksoundSearchRoute =
@@ -516,50 +378,189 @@ const ApiPublicBacksoundSearchRoute =
     path: '/api/public/backsound-search',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
-  id: '/api/public/tiktok/callback',
-  path: '/api/public/tiktok/callback',
+const ApiPublicClipperBrainRoute = ApiPublicClipperBrainRouteImport.update({
+  id: '/api/public/clipper-brain',
+  path: '/api/public/clipper-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicTemanqrisNotificationRoute =
-  ApiPublicTemanqrisNotificationRouteImport.update({
-    id: '/api/public/temanqris/notification',
-    path: '/api/public/temanqris/notification',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicMidtransNotificationRoute =
-  ApiPublicMidtransNotificationRouteImport.update({
-    id: '/api/public/midtrans/notification',
-    path: '/api/public/midtrans/notification',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicGoogleDriveCallbackRoute =
-  ApiPublicGoogleDriveCallbackRouteImport.update({
-    id: '/api/public/google-drive/callback',
-    path: '/api/public/google-drive/callback',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicExtensionRefreshRoute =
-  ApiPublicExtensionRefreshRouteImport.update({
-    id: '/api/public/extension/refresh',
-    path: '/api/public/extension/refresh',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicExtensionPushTokenRoute =
-  ApiPublicExtensionPushTokenRouteImport.update({
-    id: '/api/public/extension/push-token',
-    path: '/api/public/extension/push-token',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicExtensionLoginRoute = ApiPublicExtensionLoginRouteImport.update({
-  id: '/api/public/extension/login',
-  path: '/api/public/extension/login',
+const ApiPublicCreativeBrainRoute = ApiPublicCreativeBrainRouteImport.update({
+  id: '/api/public/creative-brain',
+  path: '/api/public/creative-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicExtensionConfigRoute =
-  ApiPublicExtensionConfigRouteImport.update({
-    id: '/api/public/extension/config',
-    path: '/api/public/extension/config',
+const ApiPublicDolaRoute = ApiPublicDolaRouteImport.update({
+  id: '/api/public/dola',
+  path: '/api/public/dola',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicDubbingBrainRoute = ApiPublicDubbingBrainRouteImport.update({
+  id: '/api/public/dubbing-brain',
+  path: '/api/public/dubbing-brain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicElevenlabsTtsRoute = ApiPublicElevenlabsTtsRouteImport.update({
+  id: '/api/public/elevenlabs-tts',
+  path: '/api/public/elevenlabs-tts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicElevenlabsValidateRoute =
+  ApiPublicElevenlabsValidateRouteImport.update({
+    id: '/api/public/elevenlabs-validate',
+    path: '/api/public/elevenlabs-validate',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicFfmpegCdnRoute = ApiPublicFfmpegCdnRouteImport.update({
+  id: '/api/public/ffmpeg-cdn',
+  path: '/api/public/ffmpeg-cdn',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFireflyRoute = ApiPublicFireflyRouteImport.update({
+  id: '/api/public/firefly',
+  path: '/api/public/firefly',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicFramiaRoute = ApiPublicFramiaRouteImport.update({
+  id: '/api/public/framia',
+  path: '/api/public/framia',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeonardoRoute = ApiPublicLeonardoRouteImport.update({
+  id: '/api/public/leonardo',
+  path: '/api/public/leonardo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLeonardoCognitoRoute =
+  ApiPublicLeonardoCognitoRouteImport.update({
+    id: '/api/public/leonardo-cognito',
+    path: '/api/public/leonardo-cognito',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicLeonardoUploadRoute = ApiPublicLeonardoUploadRouteImport.update({
+  id: '/api/public/leonardo-upload',
+  path: '/api/public/leonardo-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMagnificRoute = ApiPublicMagnificRouteImport.update({
+  id: '/api/public/magnific',
+  path: '/api/public/magnific',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicNaratifBrainRoute = ApiPublicNaratifBrainRouteImport.update({
+  id: '/api/public/naratif-brain',
+  path: '/api/public/naratif-brain',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicNewsFeedRoute = ApiPublicNewsFeedRouteImport.update({
+  id: '/api/public/news-feed',
+  path: '/api/public/news-feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicProxyImageRoute = ApiPublicProxyImageRouteImport.update({
+  id: '/api/public/proxy-image',
+  path: '/api/public/proxy-image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRoboneoRoute = ApiPublicRoboneoRouteImport.update({
+  id: '/api/public/roboneo',
+  path: '/api/public/roboneo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRoboneoMembershipRoute =
+  ApiPublicRoboneoMembershipRouteImport.update({
+    id: '/api/public/roboneo-membership',
+    path: '/api/public/roboneo-membership',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicScrapeArticleRoute = ApiPublicScrapeArticleRouteImport.update({
+  id: '/api/public/scrape-article',
+  path: '/api/public/scrape-article',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicScrapeProductRoute = ApiPublicScrapeProductRouteImport.update({
+  id: '/api/public/scrape-product',
+  path: '/api/public/scrape-product',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicStoryboardBrainRoute =
+  ApiPublicStoryboardBrainRouteImport.update({
+    id: '/api/public/storyboard-brain',
+    path: '/api/public/storyboard-brain',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicUploadCatboxRoute = ApiPublicUploadCatboxRouteImport.update({
+  id: '/api/public/upload-catbox',
+  path: '/api/public/upload-catbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicValidateMediaRoute = ApiPublicValidateMediaRouteImport.update({
+  id: '/api/public/validate-media',
+  path: '/api/public/validate-media',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterBrainAnalyzeRoute = ApiRouterBrainAnalyzeRouteImport.update({
+  id: '/api/router/brain-analyze',
+  path: '/api/router/brain-analyze',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterChatRoute = ApiRouterChatRouteImport.update({
+  id: '/api/router/chat',
+  path: '/api/router/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterImageRoute = ApiRouterImageRouteImport.update({
+  id: '/api/router/image',
+  path: '/api/router/image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterPlanWeeklyRoute = ApiRouterPlanWeeklyRouteImport.update({
+  id: '/api/router/plan-weekly',
+  path: '/api/router/plan-weekly',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterRenderRoute = ApiRouterRenderRouteImport.update({
+  id: '/api/router/render',
+  path: '/api/router/render',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterRenderCloudRoute = ApiRouterRenderCloudRouteImport.update({
+  id: '/api/router/render-cloud',
+  path: '/api/router/render-cloud',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterSttRoute = ApiRouterSttRouteImport.update({
+  id: '/api/router/stt',
+  path: '/api/router/stt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterSubtitleRoute = ApiRouterSubtitleRouteImport.update({
+  id: '/api/router/subtitle',
+  path: '/api/router/subtitle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterVideoRoute = ApiRouterVideoRouteImport.update({
+  id: '/api/router/video',
+  path: '/api/router/video',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
+  id: '/api/router/voice',
+  path: '/api/router/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
+  id: '/oauth/google-drive/return',
+  path: '/oauth/google-drive/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCloudUploadRoute = ApiPublicCloudUploadRouteImport.update({
+  id: '/api/public/cloud/upload',
+  path: '/api/public/cloud/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCompanionHealthRoute =
+  ApiPublicCompanionHealthRouteImport.update({
+    id: '/api/public/companion/health',
+    path: '/api/public/companion/health',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicDokuNotificationRoute =
@@ -568,21 +569,61 @@ const ApiPublicDokuNotificationRoute =
     path: '/api/public/doku/notification',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCompanionHealthRoute =
-  ApiPublicCompanionHealthRouteImport.update({
-    id: '/api/public/companion/health',
-    path: '/api/public/companion/health',
+const ApiPublicExtensionConfigRoute =
+  ApiPublicExtensionConfigRouteImport.update({
+    id: '/api/public/extension/config',
+    path: '/api/public/extension/config',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCloudUploadRoute = ApiPublicCloudUploadRouteImport.update({
-  id: '/api/public/cloud/upload',
-  path: '/api/public/cloud/upload',
+const ApiPublicExtensionLoginRoute = ApiPublicExtensionLoginRouteImport.update({
+  id: '/api/public/extension/login',
+  path: '/api/public/extension/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicCompanionPaymentVerifyRoute =
-  ApiPublicCompanionPaymentVerifyRouteImport.update({
-    id: '/api/public/companion/payment/verify',
-    path: '/api/public/companion/payment/verify',
+const ApiPublicExtensionPushTokenRoute =
+  ApiPublicExtensionPushTokenRouteImport.update({
+    id: '/api/public/extension/push-token',
+    path: '/api/public/extension/push-token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicExtensionRefreshRoute =
+  ApiPublicExtensionRefreshRouteImport.update({
+    id: '/api/public/extension/refresh',
+    path: '/api/public/extension/refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicGoogleDriveCallbackRoute =
+  ApiPublicGoogleDriveCallbackRouteImport.update({
+    id: '/api/public/google-drive/callback',
+    path: '/api/public/google-drive/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicMidtransNotificationRoute =
+  ApiPublicMidtransNotificationRouteImport.update({
+    id: '/api/public/midtrans/notification',
+    path: '/api/public/midtrans/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicTemanqrisNotificationRoute =
+  ApiPublicTemanqrisNotificationRouteImport.update({
+    id: '/api/public/temanqris/notification',
+    path: '/api/public/temanqris/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
+  id: '/api/public/tiktok/callback',
+  path: '/api/public/tiktok/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCloudFileIdRoute = ApiPublicCloudFileIdRouteImport.update({
+  id: '/api/public/cloud/file/$id',
+  path: '/api/public/cloud/file/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicCompanionDeviceRegisterRoute =
+  ApiPublicCompanionDeviceRegisterRouteImport.update({
+    id: '/api/public/companion/device/register',
+    path: '/api/public/companion/device/register',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicCompanionPaymentPaidRoute =
@@ -591,17 +632,12 @@ const ApiPublicCompanionPaymentPaidRoute =
     path: '/api/public/companion/payment/paid',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCompanionDeviceRegisterRoute =
-  ApiPublicCompanionDeviceRegisterRouteImport.update({
-    id: '/api/public/companion/device/register',
-    path: '/api/public/companion/device/register',
+const ApiPublicCompanionPaymentVerifyRoute =
+  ApiPublicCompanionPaymentVerifyRouteImport.update({
+    id: '/api/public/companion/payment/verify',
+    path: '/api/public/companion/payment/verify',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCloudFileIdRoute = ApiPublicCloudFileIdRouteImport.update({
-  id: '/api/public/cloud/file/$id',
-  path: '/api/public/cloud/file/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -613,16 +649,19 @@ export interface FileRoutesByFullPath {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -645,6 +684,7 @@ export interface FileRoutesByFullPath {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -664,6 +704,7 @@ export interface FileRoutesByFullPath {
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -683,6 +724,7 @@ export interface FileRoutesByFullPath {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
@@ -709,16 +751,19 @@ export interface FileRoutesByTo {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -741,6 +786,7 @@ export interface FileRoutesByTo {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -760,6 +806,7 @@ export interface FileRoutesByTo {
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -779,6 +826,7 @@ export interface FileRoutesByTo {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
@@ -808,16 +856,19 @@ export interface FileRoutesById {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -840,6 +891,7 @@ export interface FileRoutesById {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -859,6 +911,7 @@ export interface FileRoutesById {
   '/api/public/framia': typeof ApiPublicFramiaRoute
   '/api/public/leonardo': typeof ApiPublicLeonardoRoute
   '/api/public/leonardo-cognito': typeof ApiPublicLeonardoCognitoRoute
+  '/api/public/leonardo-upload': typeof ApiPublicLeonardoUploadRoute
   '/api/public/magnific': typeof ApiPublicMagnificRoute
   '/api/public/naratif-brain': typeof ApiPublicNaratifBrainRoute
   '/api/public/news-feed': typeof ApiPublicNewsFeedRoute
@@ -878,6 +931,7 @@ export interface FileRoutesById {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
@@ -908,16 +962,19 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
     | '/admin/users'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -940,6 +997,7 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
+    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -959,6 +1017,7 @@ export interface FileRouteTypes {
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -978,6 +1037,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
@@ -1004,16 +1064,19 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
     | '/admin/users'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -1036,6 +1099,7 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
+    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -1055,6 +1119,7 @@ export interface FileRouteTypes {
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -1074,6 +1139,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
@@ -1102,16 +1168,19 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
     | '/admin/users'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -1134,6 +1203,7 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
+    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -1153,6 +1223,7 @@ export interface FileRouteTypes {
     | '/api/public/framia'
     | '/api/public/leonardo'
     | '/api/public/leonardo-cognito'
+    | '/api/public/leonardo-upload'
     | '/api/public/magnific'
     | '/api/public/naratif-brain'
     | '/api/public/news-feed'
@@ -1172,6 +1243,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
@@ -1231,6 +1303,7 @@ export interface RootRouteChildren {
   ApiPublicFramiaRoute: typeof ApiPublicFramiaRoute
   ApiPublicLeonardoRoute: typeof ApiPublicLeonardoRoute
   ApiPublicLeonardoCognitoRoute: typeof ApiPublicLeonardoCognitoRoute
+  ApiPublicLeonardoUploadRoute: typeof ApiPublicLeonardoUploadRoute
   ApiPublicMagnificRoute: typeof ApiPublicMagnificRoute
   ApiPublicNaratifBrainRoute: typeof ApiPublicNaratifBrainRoute
   ApiPublicNewsFeedRoute: typeof ApiPublicNewsFeedRoute
@@ -1250,6 +1323,7 @@ export interface RootRouteChildren {
   ApiRouterRenderCloudRoute: typeof ApiRouterRenderCloudRoute
   ApiRouterSttRoute: typeof ApiRouterSttRoute
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
+  ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
   ApiPublicCloudUploadRoute: typeof ApiPublicCloudUploadRoute
@@ -1271,39 +1345,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/reff-edit': {
-      id: '/reff-edit'
-      path: '/reff-edit'
-      fullPath: '/reff-edit'
-      preLoaderRoute: typeof ReffEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plugins': {
-      id: '/plugins'
-      path: '/plugins'
-      fullPath: '/plugins'
-      preLoaderRoute: typeof PluginsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mixing': {
-      id: '/mixing'
-      path: '/mixing'
-      fullPath: '/mixing'
-      preLoaderRoute: typeof MixingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ai-influencer': {
-      id: '/ai-influencer'
-      path: '/ai-influencer'
-      fullPath: '/ai-influencer'
-      preLoaderRoute: typeof AiInfluencerRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1313,291 +1359,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/ai-influencer': {
+      id: '/ai-influencer'
+      path: '/ai-influencer'
+      fullPath: '/ai-influencer'
+      preLoaderRoute: typeof AiInfluencerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ai-influencer/': {
-      id: '/ai-influencer/'
-      path: '/'
-      fullPath: '/ai-influencer/'
-      preLoaderRoute: typeof AiInfluencerIndexRouteImport
-      parentRoute: typeof AiInfluencerRoute
+    '/mixing': {
+      id: '/mixing'
+      path: '/mixing'
+      fullPath: '/mixing'
+      preLoaderRoute: typeof MixingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reff-edit': {
+      id: '/reff-edit'
+      path: '/reff-edit'
+      fullPath: '/reff-edit'
+      preLoaderRoute: typeof ReffEditRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/system/settings': {
-      id: '/system/settings'
-      path: '/system/settings'
-      fullPath: '/system/settings'
-      preLoaderRoute: typeof SystemSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/system/help': {
-      id: '/system/help'
-      path: '/system/help'
-      fullPath: '/system/help'
-      preLoaderRoute: typeof SystemHelpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/system/cloud': {
-      id: '/system/cloud'
-      path: '/system/cloud'
-      fullPath: '/system/cloud'
-      preLoaderRoute: typeof SystemCloudRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/system/analytic': {
-      id: '/system/analytic'
-      path: '/system/analytic'
-      fullPath: '/system/analytic'
-      preLoaderRoute: typeof SystemAnalyticRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reff-edit/video': {
-      id: '/reff-edit/video'
-      path: '/video'
-      fullPath: '/reff-edit/video'
-      preLoaderRoute: typeof ReffEditVideoRouteImport
-      parentRoute: typeof ReffEditRoute
-    }
-    '/reff-edit/image': {
-      id: '/reff-edit/image'
-      path: '/image'
-      fullPath: '/reff-edit/image'
-      preLoaderRoute: typeof ReffEditImageRouteImport
-      parentRoute: typeof ReffEditRoute
-    }
-    '/reff-edit/history': {
-      id: '/reff-edit/history'
-      path: '/history'
-      fullPath: '/reff-edit/history'
-      preLoaderRoute: typeof ReffEditHistoryRouteImport
-      parentRoute: typeof ReffEditRoute
-    }
-    '/mixing/dubbing': {
-      id: '/mixing/dubbing'
-      path: '/dubbing'
-      fullPath: '/mixing/dubbing'
-      preLoaderRoute: typeof MixingDubbingRouteImport
-      parentRoute: typeof MixingRoute
-    }
-    '/mixing/clipper': {
-      id: '/mixing/clipper'
-      path: '/clipper'
-      fullPath: '/mixing/clipper'
-      preLoaderRoute: typeof MixingClipperRouteImport
-      parentRoute: typeof MixingRoute
-    }
-    '/manage/tokens': {
-      id: '/manage/tokens'
-      path: '/manage/tokens'
-      fullPath: '/manage/tokens'
-      preLoaderRoute: typeof ManageTokensRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/manage/routing': {
-      id: '/manage/routing'
-      path: '/manage/routing'
-      fullPath: '/manage/routing'
-      preLoaderRoute: typeof ManageRoutingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/manage/accounts': {
-      id: '/manage/accounts'
-      path: '/manage/accounts'
-      fullPath: '/manage/accounts'
-      preLoaderRoute: typeof ManageAccountsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/upscaler': {
-      id: '/generate/upscaler'
-      path: '/generate/upscaler'
-      fullPath: '/generate/upscaler'
-      preLoaderRoute: typeof GenerateUpscalerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/text-to-video': {
-      id: '/generate/text-to-video'
-      path: '/generate/text-to-video'
-      fullPath: '/generate/text-to-video'
-      preLoaderRoute: typeof GenerateTextToVideoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/storyboard': {
-      id: '/generate/storyboard'
-      path: '/generate/storyboard'
-      fullPath: '/generate/storyboard'
-      preLoaderRoute: typeof GenerateStoryboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/naratif': {
-      id: '/generate/naratif'
-      path: '/generate/naratif'
-      fullPath: '/generate/naratif'
-      preLoaderRoute: typeof GenerateNaratifRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/motion': {
-      id: '/generate/motion'
-      path: '/generate/motion'
-      fullPath: '/generate/motion'
-      preLoaderRoute: typeof GenerateMotionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/leonardo': {
-      id: '/generate/leonardo'
-      path: '/generate/leonardo'
-      fullPath: '/generate/leonardo'
-      preLoaderRoute: typeof GenerateLeonardoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/image-to-video': {
-      id: '/generate/image-to-video'
-      path: '/generate/image-to-video'
-      fullPath: '/generate/image-to-video'
-      preLoaderRoute: typeof GenerateImageToVideoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/framia': {
-      id: '/generate/framia'
-      path: '/generate/framia'
-      fullPath: '/generate/framia'
-      preLoaderRoute: typeof GenerateFramiaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/bulk-fashion': {
-      id: '/generate/bulk-fashion'
-      path: '/generate/bulk-fashion'
-      fullPath: '/generate/bulk-fashion'
-      preLoaderRoute: typeof GenerateBulkFashionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dev/weavy-test': {
-      id: '/dev/weavy-test'
-      path: '/dev/weavy-test'
-      fullPath: '/dev/weavy-test'
-      preLoaderRoute: typeof DevWeavyTestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dev/weavy-node-inspect': {
-      id: '/dev/weavy-node-inspect'
-      path: '/dev/weavy-node-inspect'
-      fullPath: '/dev/weavy-node-inspect'
-      preLoaderRoute: typeof DevWeavyNodeInspectRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/proxy-image': {
-      id: '/api/proxy-image'
-      path: '/api/proxy-image'
-      fullPath: '/api/proxy-image'
-      preLoaderRoute: typeof ApiProxyImageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/ai-influencer/publisher': {
-      id: '/ai-influencer/publisher'
-      path: '/publisher'
-      fullPath: '/ai-influencer/publisher'
-      preLoaderRoute: typeof AiInfluencerPublisherRouteImport
-      parentRoute: typeof AiInfluencerRoute
-    }
-    '/ai-influencer/planner': {
-      id: '/ai-influencer/planner'
-      path: '/planner'
-      fullPath: '/ai-influencer/planner'
-      preLoaderRoute: typeof AiInfluencerPlannerRouteImport
-      parentRoute: typeof AiInfluencerRoute
-    }
-    '/ai-influencer/library': {
-      id: '/ai-influencer/library'
-      path: '/library'
-      fullPath: '/ai-influencer/library'
-      preLoaderRoute: typeof AiInfluencerLibraryRouteImport
-      parentRoute: typeof AiInfluencerRoute
-    }
-    '/ai-influencer/character': {
-      id: '/ai-influencer/character'
-      path: '/character'
-      fullPath: '/ai-influencer/character'
-      preLoaderRoute: typeof AiInfluencerCharacterRouteImport
-      parentRoute: typeof AiInfluencerRoute
-    }
-    '/ai-influencer/brain': {
-      id: '/ai-influencer/brain'
-      path: '/brain'
-      fullPath: '/ai-influencer/brain'
-      preLoaderRoute: typeof AiInfluencerBrainRouteImport
-      parentRoute: typeof AiInfluencerRoute
-    }
-    '/ai-influencer/analytics': {
-      id: '/ai-influencer/analytics'
-      path: '/analytics'
-      fullPath: '/ai-influencer/analytics'
-      preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
-      parentRoute: typeof AiInfluencerRoute
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/transactions': {
-      id: '/admin/transactions'
-      path: '/transactions'
-      fullPath: '/admin/transactions'
-      preLoaderRoute: typeof AdminTransactionsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/token-bank': {
-      id: '/admin/token-bank'
-      path: '/token-bank'
-      fullPath: '/admin/token-bank'
-      preLoaderRoute: typeof AdminTokenBankRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/requests': {
-      id: '/admin/requests'
-      path: '/requests'
-      fullPath: '/admin/requests'
-      preLoaderRoute: typeof AdminRequestsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/plugin-config': {
-      id: '/admin/plugin-config'
-      path: '/plugin-config'
-      fullPath: '/admin/plugin-config'
-      preLoaderRoute: typeof AdminPluginConfigRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/payments': {
-      id: '/admin/payments'
-      path: '/payments'
-      fullPath: '/admin/payments'
-      preLoaderRoute: typeof AdminPaymentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/activity-log': {
-      id: '/admin/activity-log'
-      path: '/activity-log'
-      fullPath: '/admin/activity-log'
-      preLoaderRoute: typeof AdminActivityLogRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/access': {
@@ -1607,228 +1408,305 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAccessRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/oauth/google-drive/return': {
-      id: '/oauth/google-drive/return'
-      path: '/oauth/google-drive/return'
-      fullPath: '/oauth/google-drive/return'
-      preLoaderRoute: typeof OauthGoogleDriveReturnRouteImport
+    '/admin/activity-log': {
+      id: '/admin/activity-log'
+      path: '/activity-log'
+      fullPath: '/admin/activity-log'
+      preLoaderRoute: typeof AdminActivityLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/contact': {
+      id: '/admin/contact'
+      path: '/contact'
+      fullPath: '/admin/contact'
+      preLoaderRoute: typeof AdminContactRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/plugin-config': {
+      id: '/admin/plugin-config'
+      path: '/plugin-config'
+      fullPath: '/admin/plugin-config'
+      preLoaderRoute: typeof AdminPluginConfigRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/requests': {
+      id: '/admin/requests'
+      path: '/requests'
+      fullPath: '/admin/requests'
+      preLoaderRoute: typeof AdminRequestsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/token-bank': {
+      id: '/admin/token-bank'
+      path: '/token-bank'
+      fullPath: '/admin/token-bank'
+      preLoaderRoute: typeof AdminTokenBankRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/transactions': {
+      id: '/admin/transactions'
+      path: '/transactions'
+      fullPath: '/admin/transactions'
+      preLoaderRoute: typeof AdminTransactionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/ai-influencer/': {
+      id: '/ai-influencer/'
+      path: '/'
+      fullPath: '/ai-influencer/'
+      preLoaderRoute: typeof AiInfluencerIndexRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/$id': {
+      id: '/ai-influencer/$id'
+      path: '/$id'
+      fullPath: '/ai-influencer/$id'
+      preLoaderRoute: typeof AiInfluencerIdRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/analytics': {
+      id: '/ai-influencer/analytics'
+      path: '/analytics'
+      fullPath: '/ai-influencer/analytics'
+      preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/brain': {
+      id: '/ai-influencer/brain'
+      path: '/brain'
+      fullPath: '/ai-influencer/brain'
+      preLoaderRoute: typeof AiInfluencerBrainRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/character': {
+      id: '/ai-influencer/character'
+      path: '/character'
+      fullPath: '/ai-influencer/character'
+      preLoaderRoute: typeof AiInfluencerCharacterRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/library': {
+      id: '/ai-influencer/library'
+      path: '/library'
+      fullPath: '/ai-influencer/library'
+      preLoaderRoute: typeof AiInfluencerLibraryRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/new': {
+      id: '/ai-influencer/new'
+      path: '/new'
+      fullPath: '/ai-influencer/new'
+      preLoaderRoute: typeof AiInfluencerNewRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/planner': {
+      id: '/ai-influencer/planner'
+      path: '/planner'
+      fullPath: '/ai-influencer/planner'
+      preLoaderRoute: typeof AiInfluencerPlannerRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/publisher': {
+      id: '/ai-influencer/publisher'
+      path: '/publisher'
+      fullPath: '/ai-influencer/publisher'
+      preLoaderRoute: typeof AiInfluencerPublisherRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/api/proxy-image': {
+      id: '/api/proxy-image'
+      path: '/api/proxy-image'
+      fullPath: '/api/proxy-image'
+      preLoaderRoute: typeof ApiProxyImageRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/voice': {
-      id: '/api/router/voice'
-      path: '/api/router/voice'
-      fullPath: '/api/router/voice'
-      preLoaderRoute: typeof ApiRouterVoiceRouteImport
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/subtitle': {
-      id: '/api/router/subtitle'
-      path: '/api/router/subtitle'
-      fullPath: '/api/router/subtitle'
-      preLoaderRoute: typeof ApiRouterSubtitleRouteImport
+    '/dev/weavy-node-inspect': {
+      id: '/dev/weavy-node-inspect'
+      path: '/dev/weavy-node-inspect'
+      fullPath: '/dev/weavy-node-inspect'
+      preLoaderRoute: typeof DevWeavyNodeInspectRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/stt': {
-      id: '/api/router/stt'
-      path: '/api/router/stt'
-      fullPath: '/api/router/stt'
-      preLoaderRoute: typeof ApiRouterSttRouteImport
+    '/dev/weavy-test': {
+      id: '/dev/weavy-test'
+      path: '/dev/weavy-test'
+      fullPath: '/dev/weavy-test'
+      preLoaderRoute: typeof DevWeavyTestRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/render-cloud': {
-      id: '/api/router/render-cloud'
-      path: '/api/router/render-cloud'
-      fullPath: '/api/router/render-cloud'
-      preLoaderRoute: typeof ApiRouterRenderCloudRouteImport
+    '/generate/bulk-fashion': {
+      id: '/generate/bulk-fashion'
+      path: '/generate/bulk-fashion'
+      fullPath: '/generate/bulk-fashion'
+      preLoaderRoute: typeof GenerateBulkFashionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/render': {
-      id: '/api/router/render'
-      path: '/api/router/render'
-      fullPath: '/api/router/render'
-      preLoaderRoute: typeof ApiRouterRenderRouteImport
+    '/generate/framia': {
+      id: '/generate/framia'
+      path: '/generate/framia'
+      fullPath: '/generate/framia'
+      preLoaderRoute: typeof GenerateFramiaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/plan-weekly': {
-      id: '/api/router/plan-weekly'
-      path: '/api/router/plan-weekly'
-      fullPath: '/api/router/plan-weekly'
-      preLoaderRoute: typeof ApiRouterPlanWeeklyRouteImport
+    '/generate/image-to-video': {
+      id: '/generate/image-to-video'
+      path: '/generate/image-to-video'
+      fullPath: '/generate/image-to-video'
+      preLoaderRoute: typeof GenerateImageToVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/image': {
-      id: '/api/router/image'
-      path: '/api/router/image'
-      fullPath: '/api/router/image'
-      preLoaderRoute: typeof ApiRouterImageRouteImport
+    '/generate/leonardo': {
+      id: '/generate/leonardo'
+      path: '/generate/leonardo'
+      fullPath: '/generate/leonardo'
+      preLoaderRoute: typeof GenerateLeonardoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/chat': {
-      id: '/api/router/chat'
-      path: '/api/router/chat'
-      fullPath: '/api/router/chat'
-      preLoaderRoute: typeof ApiRouterChatRouteImport
+    '/generate/motion': {
+      id: '/generate/motion'
+      path: '/generate/motion'
+      fullPath: '/generate/motion'
+      preLoaderRoute: typeof GenerateMotionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/router/brain-analyze': {
-      id: '/api/router/brain-analyze'
-      path: '/api/router/brain-analyze'
-      fullPath: '/api/router/brain-analyze'
-      preLoaderRoute: typeof ApiRouterBrainAnalyzeRouteImport
+    '/generate/naratif': {
+      id: '/generate/naratif'
+      path: '/generate/naratif'
+      fullPath: '/generate/naratif'
+      preLoaderRoute: typeof GenerateNaratifRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/validate-media': {
-      id: '/api/public/validate-media'
-      path: '/api/public/validate-media'
-      fullPath: '/api/public/validate-media'
-      preLoaderRoute: typeof ApiPublicValidateMediaRouteImport
+    '/generate/storyboard': {
+      id: '/generate/storyboard'
+      path: '/generate/storyboard'
+      fullPath: '/generate/storyboard'
+      preLoaderRoute: typeof GenerateStoryboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/upload-catbox': {
-      id: '/api/public/upload-catbox'
-      path: '/api/public/upload-catbox'
-      fullPath: '/api/public/upload-catbox'
-      preLoaderRoute: typeof ApiPublicUploadCatboxRouteImport
+    '/generate/text-to-video': {
+      id: '/generate/text-to-video'
+      path: '/generate/text-to-video'
+      fullPath: '/generate/text-to-video'
+      preLoaderRoute: typeof GenerateTextToVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/storyboard-brain': {
-      id: '/api/public/storyboard-brain'
-      path: '/api/public/storyboard-brain'
-      fullPath: '/api/public/storyboard-brain'
-      preLoaderRoute: typeof ApiPublicStoryboardBrainRouteImport
+    '/generate/upscaler': {
+      id: '/generate/upscaler'
+      path: '/generate/upscaler'
+      fullPath: '/generate/upscaler'
+      preLoaderRoute: typeof GenerateUpscalerRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/scrape-product': {
-      id: '/api/public/scrape-product'
-      path: '/api/public/scrape-product'
-      fullPath: '/api/public/scrape-product'
-      preLoaderRoute: typeof ApiPublicScrapeProductRouteImport
+    '/manage/accounts': {
+      id: '/manage/accounts'
+      path: '/manage/accounts'
+      fullPath: '/manage/accounts'
+      preLoaderRoute: typeof ManageAccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/scrape-article': {
-      id: '/api/public/scrape-article'
-      path: '/api/public/scrape-article'
-      fullPath: '/api/public/scrape-article'
-      preLoaderRoute: typeof ApiPublicScrapeArticleRouteImport
+    '/manage/routing': {
+      id: '/manage/routing'
+      path: '/manage/routing'
+      fullPath: '/manage/routing'
+      preLoaderRoute: typeof ManageRoutingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/roboneo-membership': {
-      id: '/api/public/roboneo-membership'
-      path: '/api/public/roboneo-membership'
-      fullPath: '/api/public/roboneo-membership'
-      preLoaderRoute: typeof ApiPublicRoboneoMembershipRouteImport
+    '/manage/tokens': {
+      id: '/manage/tokens'
+      path: '/manage/tokens'
+      fullPath: '/manage/tokens'
+      preLoaderRoute: typeof ManageTokensRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/roboneo': {
-      id: '/api/public/roboneo'
-      path: '/api/public/roboneo'
-      fullPath: '/api/public/roboneo'
-      preLoaderRoute: typeof ApiPublicRoboneoRouteImport
+    '/mixing/clipper': {
+      id: '/mixing/clipper'
+      path: '/clipper'
+      fullPath: '/mixing/clipper'
+      preLoaderRoute: typeof MixingClipperRouteImport
+      parentRoute: typeof MixingRoute
+    }
+    '/mixing/dubbing': {
+      id: '/mixing/dubbing'
+      path: '/dubbing'
+      fullPath: '/mixing/dubbing'
+      preLoaderRoute: typeof MixingDubbingRouteImport
+      parentRoute: typeof MixingRoute
+    }
+    '/reff-edit/history': {
+      id: '/reff-edit/history'
+      path: '/history'
+      fullPath: '/reff-edit/history'
+      preLoaderRoute: typeof ReffEditHistoryRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/image': {
+      id: '/reff-edit/image'
+      path: '/image'
+      fullPath: '/reff-edit/image'
+      preLoaderRoute: typeof ReffEditImageRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/library': {
+      id: '/reff-edit/library'
+      path: '/library'
+      fullPath: '/reff-edit/library'
+      preLoaderRoute: typeof ReffEditLibraryRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/video': {
+      id: '/reff-edit/video'
+      path: '/video'
+      fullPath: '/reff-edit/video'
+      preLoaderRoute: typeof ReffEditVideoRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/system/analytic': {
+      id: '/system/analytic'
+      path: '/system/analytic'
+      fullPath: '/system/analytic'
+      preLoaderRoute: typeof SystemAnalyticRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/proxy-image': {
-      id: '/api/public/proxy-image'
-      path: '/api/public/proxy-image'
-      fullPath: '/api/public/proxy-image'
-      preLoaderRoute: typeof ApiPublicProxyImageRouteImport
+    '/system/cloud': {
+      id: '/system/cloud'
+      path: '/system/cloud'
+      fullPath: '/system/cloud'
+      preLoaderRoute: typeof SystemCloudRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/news-feed': {
-      id: '/api/public/news-feed'
-      path: '/api/public/news-feed'
-      fullPath: '/api/public/news-feed'
-      preLoaderRoute: typeof ApiPublicNewsFeedRouteImport
+    '/system/help': {
+      id: '/system/help'
+      path: '/system/help'
+      fullPath: '/system/help'
+      preLoaderRoute: typeof SystemHelpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/naratif-brain': {
-      id: '/api/public/naratif-brain'
-      path: '/api/public/naratif-brain'
-      fullPath: '/api/public/naratif-brain'
-      preLoaderRoute: typeof ApiPublicNaratifBrainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/magnific': {
-      id: '/api/public/magnific'
-      path: '/api/public/magnific'
-      fullPath: '/api/public/magnific'
-      preLoaderRoute: typeof ApiPublicMagnificRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/leonardo-cognito': {
-      id: '/api/public/leonardo-cognito'
-      path: '/api/public/leonardo-cognito'
-      fullPath: '/api/public/leonardo-cognito'
-      preLoaderRoute: typeof ApiPublicLeonardoCognitoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/leonardo': {
-      id: '/api/public/leonardo'
-      path: '/api/public/leonardo'
-      fullPath: '/api/public/leonardo'
-      preLoaderRoute: typeof ApiPublicLeonardoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/framia': {
-      id: '/api/public/framia'
-      path: '/api/public/framia'
-      fullPath: '/api/public/framia'
-      preLoaderRoute: typeof ApiPublicFramiaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/firefly': {
-      id: '/api/public/firefly'
-      path: '/api/public/firefly'
-      fullPath: '/api/public/firefly'
-      preLoaderRoute: typeof ApiPublicFireflyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/ffmpeg-cdn': {
-      id: '/api/public/ffmpeg-cdn'
-      path: '/api/public/ffmpeg-cdn'
-      fullPath: '/api/public/ffmpeg-cdn'
-      preLoaderRoute: typeof ApiPublicFfmpegCdnRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/elevenlabs-validate': {
-      id: '/api/public/elevenlabs-validate'
-      path: '/api/public/elevenlabs-validate'
-      fullPath: '/api/public/elevenlabs-validate'
-      preLoaderRoute: typeof ApiPublicElevenlabsValidateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/elevenlabs-tts': {
-      id: '/api/public/elevenlabs-tts'
-      path: '/api/public/elevenlabs-tts'
-      fullPath: '/api/public/elevenlabs-tts'
-      preLoaderRoute: typeof ApiPublicElevenlabsTtsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/dubbing-brain': {
-      id: '/api/public/dubbing-brain'
-      path: '/api/public/dubbing-brain'
-      fullPath: '/api/public/dubbing-brain'
-      preLoaderRoute: typeof ApiPublicDubbingBrainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/dola': {
-      id: '/api/public/dola'
-      path: '/api/public/dola'
-      fullPath: '/api/public/dola'
-      preLoaderRoute: typeof ApiPublicDolaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/creative-brain': {
-      id: '/api/public/creative-brain'
-      path: '/api/public/creative-brain'
-      fullPath: '/api/public/creative-brain'
-      preLoaderRoute: typeof ApiPublicCreativeBrainRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/clipper-brain': {
-      id: '/api/public/clipper-brain'
-      path: '/api/public/clipper-brain'
-      fullPath: '/api/public/clipper-brain'
-      preLoaderRoute: typeof ApiPublicClipperBrainRouteImport
+    '/system/settings': {
+      id: '/system/settings'
+      path: '/system/settings'
+      fullPath: '/system/settings'
+      preLoaderRoute: typeof SystemSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/backsound-search': {
@@ -1838,74 +1716,242 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBacksoundSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/tiktok/callback': {
-      id: '/api/public/tiktok/callback'
-      path: '/api/public/tiktok/callback'
-      fullPath: '/api/public/tiktok/callback'
-      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+    '/api/public/clipper-brain': {
+      id: '/api/public/clipper-brain'
+      path: '/api/public/clipper-brain'
+      fullPath: '/api/public/clipper-brain'
+      preLoaderRoute: typeof ApiPublicClipperBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/temanqris/notification': {
-      id: '/api/public/temanqris/notification'
-      path: '/api/public/temanqris/notification'
-      fullPath: '/api/public/temanqris/notification'
-      preLoaderRoute: typeof ApiPublicTemanqrisNotificationRouteImport
+    '/api/public/creative-brain': {
+      id: '/api/public/creative-brain'
+      path: '/api/public/creative-brain'
+      fullPath: '/api/public/creative-brain'
+      preLoaderRoute: typeof ApiPublicCreativeBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/midtrans/notification': {
-      id: '/api/public/midtrans/notification'
-      path: '/api/public/midtrans/notification'
-      fullPath: '/api/public/midtrans/notification'
-      preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
+    '/api/public/dola': {
+      id: '/api/public/dola'
+      path: '/api/public/dola'
+      fullPath: '/api/public/dola'
+      preLoaderRoute: typeof ApiPublicDolaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/google-drive/callback': {
-      id: '/api/public/google-drive/callback'
-      path: '/api/public/google-drive/callback'
-      fullPath: '/api/public/google-drive/callback'
-      preLoaderRoute: typeof ApiPublicGoogleDriveCallbackRouteImport
+    '/api/public/dubbing-brain': {
+      id: '/api/public/dubbing-brain'
+      path: '/api/public/dubbing-brain'
+      fullPath: '/api/public/dubbing-brain'
+      preLoaderRoute: typeof ApiPublicDubbingBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/extension/refresh': {
-      id: '/api/public/extension/refresh'
-      path: '/api/public/extension/refresh'
-      fullPath: '/api/public/extension/refresh'
-      preLoaderRoute: typeof ApiPublicExtensionRefreshRouteImport
+    '/api/public/elevenlabs-tts': {
+      id: '/api/public/elevenlabs-tts'
+      path: '/api/public/elevenlabs-tts'
+      fullPath: '/api/public/elevenlabs-tts'
+      preLoaderRoute: typeof ApiPublicElevenlabsTtsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/extension/push-token': {
-      id: '/api/public/extension/push-token'
-      path: '/api/public/extension/push-token'
-      fullPath: '/api/public/extension/push-token'
-      preLoaderRoute: typeof ApiPublicExtensionPushTokenRouteImport
+    '/api/public/elevenlabs-validate': {
+      id: '/api/public/elevenlabs-validate'
+      path: '/api/public/elevenlabs-validate'
+      fullPath: '/api/public/elevenlabs-validate'
+      preLoaderRoute: typeof ApiPublicElevenlabsValidateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/extension/login': {
-      id: '/api/public/extension/login'
-      path: '/api/public/extension/login'
-      fullPath: '/api/public/extension/login'
-      preLoaderRoute: typeof ApiPublicExtensionLoginRouteImport
+    '/api/public/ffmpeg-cdn': {
+      id: '/api/public/ffmpeg-cdn'
+      path: '/api/public/ffmpeg-cdn'
+      fullPath: '/api/public/ffmpeg-cdn'
+      preLoaderRoute: typeof ApiPublicFfmpegCdnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/extension/config': {
-      id: '/api/public/extension/config'
-      path: '/api/public/extension/config'
-      fullPath: '/api/public/extension/config'
-      preLoaderRoute: typeof ApiPublicExtensionConfigRouteImport
+    '/api/public/firefly': {
+      id: '/api/public/firefly'
+      path: '/api/public/firefly'
+      fullPath: '/api/public/firefly'
+      preLoaderRoute: typeof ApiPublicFireflyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/doku/notification': {
-      id: '/api/public/doku/notification'
-      path: '/api/public/doku/notification'
-      fullPath: '/api/public/doku/notification'
-      preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
+    '/api/public/framia': {
+      id: '/api/public/framia'
+      path: '/api/public/framia'
+      fullPath: '/api/public/framia'
+      preLoaderRoute: typeof ApiPublicFramiaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/companion/health': {
-      id: '/api/public/companion/health'
-      path: '/api/public/companion/health'
-      fullPath: '/api/public/companion/health'
-      preLoaderRoute: typeof ApiPublicCompanionHealthRouteImport
+    '/api/public/leonardo': {
+      id: '/api/public/leonardo'
+      path: '/api/public/leonardo'
+      fullPath: '/api/public/leonardo'
+      preLoaderRoute: typeof ApiPublicLeonardoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leonardo-cognito': {
+      id: '/api/public/leonardo-cognito'
+      path: '/api/public/leonardo-cognito'
+      fullPath: '/api/public/leonardo-cognito'
+      preLoaderRoute: typeof ApiPublicLeonardoCognitoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/leonardo-upload': {
+      id: '/api/public/leonardo-upload'
+      path: '/api/public/leonardo-upload'
+      fullPath: '/api/public/leonardo-upload'
+      preLoaderRoute: typeof ApiPublicLeonardoUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/magnific': {
+      id: '/api/public/magnific'
+      path: '/api/public/magnific'
+      fullPath: '/api/public/magnific'
+      preLoaderRoute: typeof ApiPublicMagnificRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/naratif-brain': {
+      id: '/api/public/naratif-brain'
+      path: '/api/public/naratif-brain'
+      fullPath: '/api/public/naratif-brain'
+      preLoaderRoute: typeof ApiPublicNaratifBrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/news-feed': {
+      id: '/api/public/news-feed'
+      path: '/api/public/news-feed'
+      fullPath: '/api/public/news-feed'
+      preLoaderRoute: typeof ApiPublicNewsFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/proxy-image': {
+      id: '/api/public/proxy-image'
+      path: '/api/public/proxy-image'
+      fullPath: '/api/public/proxy-image'
+      preLoaderRoute: typeof ApiPublicProxyImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/roboneo': {
+      id: '/api/public/roboneo'
+      path: '/api/public/roboneo'
+      fullPath: '/api/public/roboneo'
+      preLoaderRoute: typeof ApiPublicRoboneoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/roboneo-membership': {
+      id: '/api/public/roboneo-membership'
+      path: '/api/public/roboneo-membership'
+      fullPath: '/api/public/roboneo-membership'
+      preLoaderRoute: typeof ApiPublicRoboneoMembershipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/scrape-article': {
+      id: '/api/public/scrape-article'
+      path: '/api/public/scrape-article'
+      fullPath: '/api/public/scrape-article'
+      preLoaderRoute: typeof ApiPublicScrapeArticleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/scrape-product': {
+      id: '/api/public/scrape-product'
+      path: '/api/public/scrape-product'
+      fullPath: '/api/public/scrape-product'
+      preLoaderRoute: typeof ApiPublicScrapeProductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/storyboard-brain': {
+      id: '/api/public/storyboard-brain'
+      path: '/api/public/storyboard-brain'
+      fullPath: '/api/public/storyboard-brain'
+      preLoaderRoute: typeof ApiPublicStoryboardBrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/upload-catbox': {
+      id: '/api/public/upload-catbox'
+      path: '/api/public/upload-catbox'
+      fullPath: '/api/public/upload-catbox'
+      preLoaderRoute: typeof ApiPublicUploadCatboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/validate-media': {
+      id: '/api/public/validate-media'
+      path: '/api/public/validate-media'
+      fullPath: '/api/public/validate-media'
+      preLoaderRoute: typeof ApiPublicValidateMediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/brain-analyze': {
+      id: '/api/router/brain-analyze'
+      path: '/api/router/brain-analyze'
+      fullPath: '/api/router/brain-analyze'
+      preLoaderRoute: typeof ApiRouterBrainAnalyzeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/chat': {
+      id: '/api/router/chat'
+      path: '/api/router/chat'
+      fullPath: '/api/router/chat'
+      preLoaderRoute: typeof ApiRouterChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/image': {
+      id: '/api/router/image'
+      path: '/api/router/image'
+      fullPath: '/api/router/image'
+      preLoaderRoute: typeof ApiRouterImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/plan-weekly': {
+      id: '/api/router/plan-weekly'
+      path: '/api/router/plan-weekly'
+      fullPath: '/api/router/plan-weekly'
+      preLoaderRoute: typeof ApiRouterPlanWeeklyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/render': {
+      id: '/api/router/render'
+      path: '/api/router/render'
+      fullPath: '/api/router/render'
+      preLoaderRoute: typeof ApiRouterRenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/render-cloud': {
+      id: '/api/router/render-cloud'
+      path: '/api/router/render-cloud'
+      fullPath: '/api/router/render-cloud'
+      preLoaderRoute: typeof ApiRouterRenderCloudRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/stt': {
+      id: '/api/router/stt'
+      path: '/api/router/stt'
+      fullPath: '/api/router/stt'
+      preLoaderRoute: typeof ApiRouterSttRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/subtitle': {
+      id: '/api/router/subtitle'
+      path: '/api/router/subtitle'
+      fullPath: '/api/router/subtitle'
+      preLoaderRoute: typeof ApiRouterSubtitleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/video': {
+      id: '/api/router/video'
+      path: '/api/router/video'
+      fullPath: '/api/router/video'
+      preLoaderRoute: typeof ApiRouterVideoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/voice': {
+      id: '/api/router/voice'
+      path: '/api/router/voice'
+      fullPath: '/api/router/voice'
+      preLoaderRoute: typeof ApiRouterVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/google-drive/return': {
+      id: '/oauth/google-drive/return'
+      path: '/oauth/google-drive/return'
+      fullPath: '/oauth/google-drive/return'
+      preLoaderRoute: typeof OauthGoogleDriveReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cloud/upload': {
@@ -1915,25 +1961,74 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCloudUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/companion/payment/verify': {
-      id: '/api/public/companion/payment/verify'
-      path: '/api/public/companion/payment/verify'
-      fullPath: '/api/public/companion/payment/verify'
-      preLoaderRoute: typeof ApiPublicCompanionPaymentVerifyRouteImport
+    '/api/public/companion/health': {
+      id: '/api/public/companion/health'
+      path: '/api/public/companion/health'
+      fullPath: '/api/public/companion/health'
+      preLoaderRoute: typeof ApiPublicCompanionHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/companion/payment/paid': {
-      id: '/api/public/companion/payment/paid'
-      path: '/api/public/companion/payment/paid'
-      fullPath: '/api/public/companion/payment/paid'
-      preLoaderRoute: typeof ApiPublicCompanionPaymentPaidRouteImport
+    '/api/public/doku/notification': {
+      id: '/api/public/doku/notification'
+      path: '/api/public/doku/notification'
+      fullPath: '/api/public/doku/notification'
+      preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/companion/device/register': {
-      id: '/api/public/companion/device/register'
-      path: '/api/public/companion/device/register'
-      fullPath: '/api/public/companion/device/register'
-      preLoaderRoute: typeof ApiPublicCompanionDeviceRegisterRouteImport
+    '/api/public/extension/config': {
+      id: '/api/public/extension/config'
+      path: '/api/public/extension/config'
+      fullPath: '/api/public/extension/config'
+      preLoaderRoute: typeof ApiPublicExtensionConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/extension/login': {
+      id: '/api/public/extension/login'
+      path: '/api/public/extension/login'
+      fullPath: '/api/public/extension/login'
+      preLoaderRoute: typeof ApiPublicExtensionLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/extension/push-token': {
+      id: '/api/public/extension/push-token'
+      path: '/api/public/extension/push-token'
+      fullPath: '/api/public/extension/push-token'
+      preLoaderRoute: typeof ApiPublicExtensionPushTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/extension/refresh': {
+      id: '/api/public/extension/refresh'
+      path: '/api/public/extension/refresh'
+      fullPath: '/api/public/extension/refresh'
+      preLoaderRoute: typeof ApiPublicExtensionRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/google-drive/callback': {
+      id: '/api/public/google-drive/callback'
+      path: '/api/public/google-drive/callback'
+      fullPath: '/api/public/google-drive/callback'
+      preLoaderRoute: typeof ApiPublicGoogleDriveCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/midtrans/notification': {
+      id: '/api/public/midtrans/notification'
+      path: '/api/public/midtrans/notification'
+      fullPath: '/api/public/midtrans/notification'
+      preLoaderRoute: typeof ApiPublicMidtransNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/temanqris/notification': {
+      id: '/api/public/temanqris/notification'
+      path: '/api/public/temanqris/notification'
+      fullPath: '/api/public/temanqris/notification'
+      preLoaderRoute: typeof ApiPublicTemanqrisNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tiktok/callback': {
+      id: '/api/public/tiktok/callback'
+      path: '/api/public/tiktok/callback'
+      fullPath: '/api/public/tiktok/callback'
+      preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cloud/file/$id': {
@@ -1943,12 +2038,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCloudFileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/companion/device/register': {
+      id: '/api/public/companion/device/register'
+      path: '/api/public/companion/device/register'
+      fullPath: '/api/public/companion/device/register'
+      preLoaderRoute: typeof ApiPublicCompanionDeviceRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/payment/paid': {
+      id: '/api/public/companion/payment/paid'
+      path: '/api/public/companion/payment/paid'
+      fullPath: '/api/public/companion/payment/paid'
+      preLoaderRoute: typeof ApiPublicCompanionPaymentPaidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/payment/verify': {
+      id: '/api/public/companion/payment/verify'
+      path: '/api/public/companion/payment/verify'
+      fullPath: '/api/public/companion/payment/verify'
+      preLoaderRoute: typeof ApiPublicCompanionPaymentVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminActivityLogRoute: typeof AdminActivityLogRoute
+  AdminContactRoute: typeof AdminContactRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminPluginConfigRoute: typeof AdminPluginConfigRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
@@ -1961,6 +2078,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminActivityLogRoute: AdminActivityLogRoute,
+  AdminContactRoute: AdminContactRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminPluginConfigRoute: AdminPluginConfigRoute,
   AdminRequestsRoute: AdminRequestsRoute,
@@ -1973,20 +2091,24 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AiInfluencerRouteChildren {
+  AiInfluencerIdRoute: typeof AiInfluencerIdRoute
   AiInfluencerAnalyticsRoute: typeof AiInfluencerAnalyticsRoute
   AiInfluencerBrainRoute: typeof AiInfluencerBrainRoute
   AiInfluencerCharacterRoute: typeof AiInfluencerCharacterRoute
   AiInfluencerLibraryRoute: typeof AiInfluencerLibraryRoute
+  AiInfluencerNewRoute: typeof AiInfluencerNewRoute
   AiInfluencerPlannerRoute: typeof AiInfluencerPlannerRoute
   AiInfluencerPublisherRoute: typeof AiInfluencerPublisherRoute
   AiInfluencerIndexRoute: typeof AiInfluencerIndexRoute
 }
 
 const AiInfluencerRouteChildren: AiInfluencerRouteChildren = {
+  AiInfluencerIdRoute: AiInfluencerIdRoute,
   AiInfluencerAnalyticsRoute: AiInfluencerAnalyticsRoute,
   AiInfluencerBrainRoute: AiInfluencerBrainRoute,
   AiInfluencerCharacterRoute: AiInfluencerCharacterRoute,
   AiInfluencerLibraryRoute: AiInfluencerLibraryRoute,
+  AiInfluencerNewRoute: AiInfluencerNewRoute,
   AiInfluencerPlannerRoute: AiInfluencerPlannerRoute,
   AiInfluencerPublisherRoute: AiInfluencerPublisherRoute,
   AiInfluencerIndexRoute: AiInfluencerIndexRoute,
@@ -2012,12 +2134,14 @@ const MixingRouteWithChildren =
 interface ReffEditRouteChildren {
   ReffEditHistoryRoute: typeof ReffEditHistoryRoute
   ReffEditImageRoute: typeof ReffEditImageRoute
+  ReffEditLibraryRoute: typeof ReffEditLibraryRoute
   ReffEditVideoRoute: typeof ReffEditVideoRoute
 }
 
 const ReffEditRouteChildren: ReffEditRouteChildren = {
   ReffEditHistoryRoute: ReffEditHistoryRoute,
   ReffEditImageRoute: ReffEditImageRoute,
+  ReffEditLibraryRoute: ReffEditLibraryRoute,
   ReffEditVideoRoute: ReffEditVideoRoute,
 }
 
@@ -2065,6 +2189,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFramiaRoute: ApiPublicFramiaRoute,
   ApiPublicLeonardoRoute: ApiPublicLeonardoRoute,
   ApiPublicLeonardoCognitoRoute: ApiPublicLeonardoCognitoRoute,
+  ApiPublicLeonardoUploadRoute: ApiPublicLeonardoUploadRoute,
   ApiPublicMagnificRoute: ApiPublicMagnificRoute,
   ApiPublicNaratifBrainRoute: ApiPublicNaratifBrainRoute,
   ApiPublicNewsFeedRoute: ApiPublicNewsFeedRoute,
@@ -2084,6 +2209,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterRenderCloudRoute: ApiRouterRenderCloudRoute,
   ApiRouterSttRoute: ApiRouterSttRoute,
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
+  ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
   ApiPublicCloudUploadRoute: ApiPublicCloudUploadRoute,

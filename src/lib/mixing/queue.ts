@@ -8,9 +8,7 @@ export type QueueTask<T> = {
   run: () => Promise<T>;
 };
 
-export type QueueResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: string };
+export type QueueResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 

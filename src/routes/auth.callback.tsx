@@ -24,7 +24,8 @@ function AuthCallback() {
       try {
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
-        const authError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
+        const authError =
+          url.searchParams.get("error_description") ?? url.searchParams.get("error");
 
         if (authError) throw new Error(authError);
 

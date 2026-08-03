@@ -37,7 +37,11 @@ export const Route = createFileRoute("/api/public/google-drive/callback")({
         } = await import("@/lib/cloud/google-oauth.server");
 
         const state = verifyState(rawState);
-        if (!code || !state) return closingPage(false, "Sesi OAuth tidak valid atau kedaluwarsa. Coba hubungkan lagi.");
+        if (!code || !state)
+          return closingPage(
+            false,
+            "Sesi OAuth tidak valid atau kedaluwarsa. Coba hubungkan lagi.",
+          );
 
         try {
           const client = await getOAuthClient();
@@ -55,24 +59,28 @@ export const Route = createFileRoute("/api/public/google-drive/callback")({
               _user_id: state.userId,
               _role: "admin",
             });
-            if (!isAdmin) return closingPage(false, "Hanya admin yang boleh menghubungkan Global Cloud.");
-            const { saveGlobalCloudRow, encryptSecret } = await import("@/lib/cloud/global-cloud.server");
+            if (!isAdmin)
+              return closingPage(false, "Hanya admin yang boleh menghubungkan Global Cloud.");
+            const { saveGlobalCloudRow, encryptSecret } =
+              await import("@/lib/cloud/global-cloud.server");
             await saveGlobalCloudRow({
               refresh_token_cipher: encryptSecret(refreshToken),
               account_email: email,
               enabled: true,
             });
           } else {
-            const { saveConnectionKeyForUser, setStorageMode, DRIVE_CONNECTOR_ID } = await import(
-              "@/lib/cloud/connections.server"
-            );
+            const { saveConnectionKeyForUser, setStorageMode, DRIVE_CONNECTOR_ID } =
+              await import("@/lib/cloud/connections.server");
             await saveConnectionKeyForUser(state.userId, DRIVE_CONNECTOR_ID, refreshToken, email);
             await setStorageMode(state.userId, "personal");
           }
           return closingPage(true, "Google Drive terhubung. Jendela ini akan tertutup…");
         } catch (e) {
           console.error("[cloud] oauth callback failed", e);
-          return closingPage(false, (e as Error).message || "Gagal menyelesaikan koneksi Google Drive.");
+          return closingPage(
+            false,
+            (e as Error).message || "Gagal menyelesaikan koneksi Google Drive.",
+          );
         }
       },
     },

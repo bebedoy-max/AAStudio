@@ -3,9 +3,21 @@ import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  CalendarRange, ListChecks, Clock, Sparkles, ArrowRight, Loader2, Play,
-  Trash2, RefreshCw, BookOpen, Brain as BrainIcon, Send, Library as LibraryIcon,
-  AlertTriangle, PlugZap,
+  CalendarRange,
+  ListChecks,
+  Clock,
+  Sparkles,
+  ArrowRight,
+  Loader2,
+  Play,
+  Trash2,
+  RefreshCw,
+  BookOpen,
+  Brain as BrainIcon,
+  Send,
+  Library as LibraryIcon,
+  AlertTriangle,
+  PlugZap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -14,8 +26,14 @@ import { Chip } from "@/components/dashboard/os/section";
 import { CONTENT_QUEUE_STATES, PUBLISH_PLATFORMS } from "@/lib/ai-influencer/catalog";
 import { useActiveCharacterId } from "@/lib/ai-influencer/active-character";
 import {
-  loadStrategy, saveStrategy, listQueue, saveQueueBatch, deleteQueueItem, updateQueueItem,
-  loadBrain, listPublisherAccounts,
+  loadStrategy,
+  saveStrategy,
+  listQueue,
+  saveQueueBatch,
+  deleteQueueItem,
+  updateQueueItem,
+  loadBrain,
+  listPublisherAccounts,
 } from "@/lib/ai-influencer/studio.functions";
 import { getCharacter } from "@/lib/ai-influencer/service";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
@@ -27,8 +45,16 @@ export const Route = createFileRoute("/ai-influencer/planner")({
 });
 
 const WORKFLOW_STEPS = [
-  "Idea", "Scenario", "Prompt", "Generate Image", "Generate Motion",
-  "Generate Caption", "Generate Subtitle", "Render", "Schedule", "Publish",
+  "Idea",
+  "Scenario",
+  "Prompt",
+  "Generate Image",
+  "Generate Motion",
+  "Generate Caption",
+  "Generate Subtitle",
+  "Render",
+  "Schedule",
+  "Publish",
 ];
 
 type StrategyRow = { k: string; v: string };
@@ -61,8 +87,16 @@ const CONTENT_TYPES = [
   { key: "reels", label: "Reels / Shorts Script" },
 ];
 const CATEGORIES = [
-  "Fashion", "Beauty", "Lifestyle", "Personal Branding", "Food",
-  "Travel", "Fitness", "Education", "Entertainment", "Affiliate/Review",
+  "Fashion",
+  "Beauty",
+  "Lifestyle",
+  "Personal Branding",
+  "Food",
+  "Travel",
+  "Fitness",
+  "Education",
+  "Entertainment",
+  "Affiliate/Review",
 ];
 
 type PlannerConfig = {
@@ -153,7 +187,11 @@ function PlannerPage() {
   const _listAccounts = useServerFn(listPublisherAccounts);
 
   useEffect(() => {
-    if (!activeId) { setStrategy(null); setQueue([]); return; }
+    if (!activeId) {
+      setStrategy(null);
+      setQueue([]);
+      return;
+    }
     let cancel = false;
     setLoading(true);
     Promise.all([
@@ -164,7 +202,8 @@ function PlannerPage() {
         if (cancel) return;
         const ratios = (strat.ratios ?? {}) as Record<string, unknown>;
         const savedCfg = ratios.__config as PlannerConfig | undefined;
-        if (savedCfg && Array.isArray(savedCfg.contentTypes)) setCfg({ ...DEFAULT_CFG, ...savedCfg });
+        if (savedCfg && Array.isArray(savedCfg.contentTypes))
+          setCfg({ ...DEFAULT_CFG, ...savedCfg });
         const rows: StrategyRow[] = Object.entries(ratios)
           .filter(([k]) => k !== "__config")
           .map(([k, v]) => ({ k, v: String(v) }));
@@ -172,8 +211,12 @@ function PlannerPage() {
         setQueue((q as QueueRow[]) ?? []);
       })
       .catch((e) => toast.error(`Gagal load: ${(e as Error).message}`))
-      .finally(() => { if (!cancel) setLoading(false); });
-    return () => { cancel = true; };
+      .finally(() => {
+        if (!cancel) setLoading(false);
+      });
+    return () => {
+      cancel = true;
+    };
   }, [activeId, _loadStrategy, _listQueue]);
 
   useEffect(() => {
@@ -187,11 +230,16 @@ function PlannerPage() {
         }
         setConnectedPlatforms(s);
       })
-      .catch(() => { /* silent */ });
-    return () => { cancel = true; };
+      .catch(() => {
+        /* silent */
+      });
+    return () => {
+      cancel = true;
+    };
   }, [_listAccounts]);
 
-  const cfgValid = cfg.contentTypes.length > 0 && cfg.categories.length > 0 && cfg.platforms.length > 0;
+  const cfgValid =
+    cfg.contentTypes.length > 0 && cfg.categories.length > 0 && cfg.platforms.length > 0;
   const unconnectedSelected = cfg.platforms.filter((p) => !connectedPlatforms.has(p));
 
   const toggleIn = (arr: string[], key: string): string[] =>
@@ -199,7 +247,10 @@ function PlannerPage() {
 
   const generateStrategy = async () => {
     if (!activeId) return;
-    if (!cfgValid) { toast.error("Pilih minimal 1 jenis konten, kategori, dan platform."); return; }
+    if (!cfgValid) {
+      toast.error("Pilih minimal 1 jenis konten, kategori, dan platform.");
+      return;
+    }
     setBusy(true);
     try {
       const [character, brain] = await Promise.all([
@@ -229,20 +280,32 @@ function PlannerPage() {
       if (!res.ok || !data.items) throw new Error(data.error || "Planner AI gagal");
 
       const items = data.items as Array<{
-        day?: string; slot_time?: string; platform?: string;
-        content_type?: string; category?: string;
-        title?: string; caption?: string; hashtags?: string[];
-        image_prompt?: string; video_reference_url?: string; notes?: string;
+        day?: string;
+        slot_time?: string;
+        platform?: string;
+        content_type?: string;
+        category?: string;
+        title?: string;
+        caption?: string;
+        hashtags?: string[];
+        image_prompt?: string;
+        video_reference_url?: string;
+        notes?: string;
       }>;
 
       const dayIdx = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
       const now = new Date();
-      const startOfDay = new Date(now); startOfDay.setHours(0, 0, 0, 0);
-      const scheduleFor = (day: string | undefined, slot: string | undefined, i: number): string => {
+      const startOfDay = new Date(now);
+      startOfDay.setHours(0, 0, 0, 0);
+      const scheduleFor = (
+        day: string | undefined,
+        slot: string | undefined,
+        i: number,
+      ): string => {
         const di = day ? dayIdx.indexOf(day) : -1;
         const base = new Date(startOfDay);
         const todayIdx = (now.getDay() + 6) % 7;
-        const offset = di >= 0 ? ((di - todayIdx + 7) % 7) || 7 : i + 1;
+        const offset = di >= 0 ? (di - todayIdx + 7) % 7 || 7 : i + 1;
         base.setDate(base.getDate() + offset);
         const [hh, mm] = (slot ?? "09:00").split(":").map((n) => parseInt(n, 10));
         base.setHours(hh || 9, mm || 0, 0, 0);
@@ -254,8 +317,8 @@ function PlannerPage() {
         "Posting Frequency": `${cfg.perDay}x / hari`,
         "Total Konten": `${items.length} item`,
         "Content Types": cfg.contentTypes.join(", "),
-        "Categories": cfg.categories.join(", "),
-        "Platforms": cfg.platforms.map(labelOfPlatform).join(", "),
+        Categories: cfg.categories.join(", "),
+        Platforms: cfg.platforms.map(labelOfPlatform).join(", "),
         __config: cfg,
       };
       await _saveStrategy({
@@ -268,7 +331,11 @@ function PlannerPage() {
       });
 
       for (const q of queue) {
-        try { await _deleteQueue({ data: { id: q.id } }); } catch { /* ignore */ }
+        try {
+          await _deleteQueue({ data: { id: q.id } });
+        } catch {
+          /* ignore */
+        }
       }
 
       const queueItems = items.map((it, i) => ({
@@ -277,7 +344,9 @@ function PlannerPage() {
         slot_time: it.slot_time ?? null,
         platform: it.platform ?? cfg.platforms[0],
         caption: it.caption ?? null,
-        hashtag: it.hashtags?.length ? it.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ") : null,
+        hashtag: it.hashtags?.length
+          ? it.hashtags.map((h) => `#${h.replace(/^#/, "")}`).join(" ")
+          : null,
         status: "ready",
         scheduled_for: scheduleFor(it.day, it.slot_time, i),
         payload: {
@@ -302,7 +371,9 @@ function PlannerPage() {
       toast.success(`Weekly strategy ${items.length} konten dibuat AI & tersimpan.`);
     } catch (e) {
       toast.error(`Gagal generate: ${(e as Error).message}`);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const resetStrategy = async () => {
@@ -322,11 +393,16 @@ function PlannerPage() {
       setStrategy(null);
       setQueue([]);
       toast.success("Strategy direset.");
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const runCycle = async () => {
-    if (queue.length === 0) { toast.error("Generate strategi dulu."); return; }
+    if (queue.length === 0) {
+      toast.error("Generate strategi dulu.");
+      return;
+    }
     setCycling(true);
     toast.info("Menjalankan 1 siklus otomatis: Idea → Publish…");
     try {
@@ -342,7 +418,9 @@ function PlannerPage() {
         await new Promise((r) => setTimeout(r, 300));
       }
       toast.success("Siklus selesai. Item yang platform-nya connected sudah published.");
-    } finally { setCycling(false); }
+    } finally {
+      setCycling(false);
+    }
   };
 
   useEffect(() => {
@@ -350,7 +428,8 @@ function PlannerPage() {
     const tick = async () => {
       const now = Date.now();
       const due = queue.filter(
-        (q) => q.status === "ready" && q.scheduled_for && new Date(q.scheduled_for).getTime() <= now,
+        (q) =>
+          q.status === "ready" && q.scheduled_for && new Date(q.scheduled_for).getTime() <= now,
       );
       for (const it of due) {
         const plat = (it.platform || "").toLowerCase();
@@ -394,7 +473,11 @@ function PlannerPage() {
               </GhostButton>
             )}
             <PrimaryButton onClick={generateStrategy} disabled={!activeId || busy || !cfgValid}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
               {strategy ? "Regenerate Weekly Strategy" : "Generate Weekly Strategy"}
             </PrimaryButton>
           </div>
@@ -414,20 +497,29 @@ function PlannerPage() {
       )}
 
       {activeId && (
-        <Card title="Planner Config" sub="Tentukan jenis konten, kategori, dan platform target sebelum generate.">
+        <Card
+          title="Planner Config"
+          sub="Tentukan jenis konten, kategori, dan platform target sebelum generate."
+        >
           <div className="grid gap-5 md:grid-cols-3">
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Jenis Konten</div>
+              <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                Jenis Konten
+              </div>
               <div className="flex flex-wrap gap-2">
                 {CONTENT_TYPES.map((ct) => {
                   const on = cfg.contentTypes.includes(ct.key);
                   return (
                     <button
                       key={ct.key}
-                      onClick={() => setCfg((c) => ({ ...c, contentTypes: toggleIn(c.contentTypes, ct.key) }))}
+                      onClick={() =>
+                        setCfg((c) => ({ ...c, contentTypes: toggleIn(c.contentTypes, ct.key) }))
+                      }
                       className={[
                         "px-3 py-1.5 rounded-full text-xs border transition",
-                        on ? "border-transparent text-primary-foreground glow-pink" : "border-border bg-card/40 hover:bg-sidebar-accent/60",
+                        on
+                          ? "border-transparent text-primary-foreground glow-pink"
+                          : "border-border bg-card/40 hover:bg-sidebar-accent/60",
                       ].join(" ")}
                       style={on ? { background: "var(--gradient-neon)" } : undefined}
                     >
@@ -438,17 +530,23 @@ function PlannerPage() {
               </div>
             </div>
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Kategori</div>
+              <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                Kategori
+              </div>
               <div className="flex flex-wrap gap-2">
                 {CATEGORIES.map((c) => {
                   const on = cfg.categories.includes(c);
                   return (
                     <button
                       key={c}
-                      onClick={() => setCfg((s) => ({ ...s, categories: toggleIn(s.categories, c) }))}
+                      onClick={() =>
+                        setCfg((s) => ({ ...s, categories: toggleIn(s.categories, c) }))
+                      }
                       className={[
                         "px-3 py-1.5 rounded-full text-xs border transition",
-                        on ? "border-transparent text-primary-foreground glow-cyan" : "border-border bg-card/40 hover:bg-sidebar-accent/60",
+                        on
+                          ? "border-transparent text-primary-foreground glow-cyan"
+                          : "border-border bg-card/40 hover:bg-sidebar-accent/60",
                       ].join(" ")}
                       style={on ? { background: "var(--gradient-neon)" } : undefined}
                     >
@@ -459,7 +557,9 @@ function PlannerPage() {
               </div>
             </div>
             <div>
-              <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Target Platform</div>
+              <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                Target Platform
+              </div>
               <div className="flex flex-wrap gap-2">
                 {PUBLISH_PLATFORMS.map((p) => {
                   const on = cfg.platforms.includes(p.key);
@@ -467,15 +567,24 @@ function PlannerPage() {
                   return (
                     <button
                       key={p.key}
-                      onClick={() => setCfg((s) => ({ ...s, platforms: toggleIn(s.platforms, p.key) }))}
+                      onClick={() =>
+                        setCfg((s) => ({ ...s, platforms: toggleIn(s.platforms, p.key) }))
+                      }
                       title={conn ? "Terhubung" : "Belum terhubung"}
                       className={[
                         "px-3 py-1.5 rounded-full text-xs border transition flex items-center gap-1.5",
-                        on ? "border-transparent text-primary-foreground" : "border-border bg-card/40 hover:bg-sidebar-accent/60",
+                        on
+                          ? "border-transparent text-primary-foreground"
+                          : "border-border bg-card/40 hover:bg-sidebar-accent/60",
                       ].join(" ")}
                       style={on ? { background: "var(--gradient-neon)" } : undefined}
                     >
-                      <span className={["h-1.5 w-1.5 rounded-full", conn ? "bg-emerald-400" : "bg-amber-400"].join(" ")} />
+                      <span
+                        className={[
+                          "h-1.5 w-1.5 rounded-full",
+                          conn ? "bg-emerald-400" : "bg-amber-400",
+                        ].join(" ")}
+                      />
                       {p.label}
                     </button>
                   );
@@ -487,16 +596,32 @@ function PlannerPage() {
             <label className="text-xs">
               <span className="block text-muted-foreground mb-1">Posting per hari</span>
               <input
-                type="number" min={1} max={4} value={cfg.perDay}
-                onChange={(e) => setCfg((s) => ({ ...s, perDay: Math.max(1, Math.min(4, parseInt(e.target.value) || 1)) }))}
+                type="number"
+                min={1}
+                max={4}
+                value={cfg.perDay}
+                onChange={(e) =>
+                  setCfg((s) => ({
+                    ...s,
+                    perDay: Math.max(1, Math.min(4, parseInt(e.target.value) || 1)),
+                  }))
+                }
                 className="w-full rounded-xl border border-border bg-card/50 px-3 py-2 text-sm"
               />
             </label>
             <label className="text-xs">
               <span className="block text-muted-foreground mb-1">Jumlah hari</span>
               <input
-                type="number" min={1} max={14} value={cfg.days}
-                onChange={(e) => setCfg((s) => ({ ...s, days: Math.max(1, Math.min(14, parseInt(e.target.value) || 7)) }))}
+                type="number"
+                min={1}
+                max={14}
+                value={cfg.days}
+                onChange={(e) =>
+                  setCfg((s) => ({
+                    ...s,
+                    days: Math.max(1, Math.min(14, parseInt(e.target.value) || 7)),
+                  }))
+                }
                 className="w-full rounded-xl border border-border bg-card/50 px-3 py-2 text-sm"
               />
             </label>
@@ -505,8 +630,16 @@ function PlannerPage() {
             <div className="mt-4 rounded-xl border border-amber-400/40 bg-amber-400/10 p-3 text-xs text-amber-200 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <div>
-                Platform belum terhubung: <b>{unconnectedSelected.map(labelOfPlatform).join(", ")}</b>. Konten tetap dibuat & dijadwalkan, tapi saat waktunya tiba sistem tidak akan meng-upload. Sambungkan di{" "}
-                <Link to="/ai-influencer/publisher" className="underline inline-flex items-center gap-1"><PlugZap className="h-3 w-3" /> Publisher</Link>.
+                Platform belum terhubung:{" "}
+                <b>{unconnectedSelected.map(labelOfPlatform).join(", ")}</b>. Konten tetap dibuat &
+                dijadwalkan, tapi saat waktunya tiba sistem tidak akan meng-upload. Sambungkan di{" "}
+                <Link
+                  to="/ai-influencer/publisher"
+                  className="underline inline-flex items-center gap-1"
+                >
+                  <PlugZap className="h-3 w-3" /> Publisher
+                </Link>
+                .
               </div>
             </div>
           )}
@@ -521,15 +654,24 @@ function PlannerPage() {
         </Card>
       )}
 
-      <Card title="AI Content Strategy" sub="Ringkasan hasil generate — tersimpan otomatis di database.">
+      <Card
+        title="AI Content Strategy"
+        sub="Ringkasan hasil generate — tersimpan otomatis di database."
+      >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(strategy ?? [
-            { k: "Posting Frequency", v: "—" }, { k: "Total Konten", v: "—" },
-            { k: "Content Types", v: "—" }, { k: "Categories", v: "—" },
-            { k: "Platforms", v: "—" },
-          ]).map((r) => (
+          {(
+            strategy ?? [
+              { k: "Posting Frequency", v: "—" },
+              { k: "Total Konten", v: "—" },
+              { k: "Content Types", v: "—" },
+              { k: "Categories", v: "—" },
+              { k: "Platforms", v: "—" },
+            ]
+          ).map((r) => (
             <div key={r.k} className="rounded-xl border border-border/60 bg-card/40 p-3">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{r.k}</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                {r.k}
+              </div>
               <div className="font-display text-lg mt-1">{r.v}</div>
             </div>
           ))}
@@ -547,7 +689,9 @@ function PlannerPage() {
                 onClick={() => setView(v)}
                 className={[
                   "px-3 py-1.5 rounded-full text-xs border transition",
-                  view === v ? "border-transparent text-primary-foreground glow-pink" : "border-border bg-card/50",
+                  view === v
+                    ? "border-transparent text-primary-foreground glow-pink"
+                    : "border-border bg-card/50",
                 ].join(" ")}
                 style={view === v ? { background: "var(--gradient-neon)" } : undefined}
               >
@@ -562,7 +706,8 @@ function PlannerPage() {
       >
         {queue.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/60 bg-card/20 p-10 text-center text-sm text-muted-foreground">
-            Pilih config di atas lalu klik <b>Generate Weekly Strategy</b> — AI akan mengisi {view} dengan konten siap-pakai.
+            Pilih config di atas lalu klik <b>Generate Weekly Strategy</b> — AI akan mengisi {view}{" "}
+            dengan konten siap-pakai.
           </div>
         ) : view === "queue" ? (
           <ul className="space-y-3">
@@ -571,25 +716,49 @@ function PlannerPage() {
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <Chip tone={it.status === "published" ? "success" : it.status === "failed" ? "danger" : it.status === "ready" ? "primary" : "default"}>
+                      <Chip
+                        tone={
+                          it.status === "published"
+                            ? "success"
+                            : it.status === "failed"
+                              ? "danger"
+                              : it.status === "ready"
+                                ? "primary"
+                                : "default"
+                        }
+                      >
                         {it.status}
                       </Chip>
-                      {it.payload?.content_type && <Chip tone="default">{it.payload.content_type}</Chip>}
+                      {it.payload?.content_type && (
+                        <Chip tone="default">{it.payload.content_type}</Chip>
+                      )}
                       {it.payload?.category && <Chip tone="default">{it.payload.category}</Chip>}
                       {it.platform && (
-                        <Chip tone={connectedPlatforms.has(it.platform.toLowerCase()) ? "success" : "danger"}>
-                          {labelOfPlatform(it.platform)}{connectedPlatforms.has(it.platform.toLowerCase()) ? "" : " · offline"}
+                        <Chip
+                          tone={
+                            connectedPlatforms.has(it.platform.toLowerCase()) ? "success" : "danger"
+                          }
+                        >
+                          {labelOfPlatform(it.platform)}
+                          {connectedPlatforms.has(it.platform.toLowerCase()) ? "" : " · offline"}
                         </Chip>
                       )}
                     </div>
-                    <div className="text-sm font-medium truncate">{it.payload?.title || it.idea}</div>
+                    <div className="text-sm font-medium truncate">
+                      {it.payload?.title || it.idea}
+                    </div>
                     {it.payload?.caption && (
-                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{it.payload.caption}</div>
+                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                        {it.payload.caption}
+                      </div>
                     )}
                     {it.payload?.hashtags?.length ? (
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {it.payload.hashtags.slice(0, 8).map((h, i) => (
-                          <span key={i} className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-0.5">
+                          <span
+                            key={i}
+                            className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-0.5"
+                          >
                             #{h.replace(/^#/, "")}
                           </span>
                         ))}
@@ -598,7 +767,12 @@ function PlannerPage() {
                     {it.payload?.video_reference_url && (
                       <div className="mt-1.5 text-[11px] text-muted-foreground truncate">
                         Ref video:{" "}
-                        <a href={it.payload.video_reference_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                        <a
+                          href={it.payload.video_reference_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
                           {it.payload.video_reference_url}
                         </a>
                       </div>
@@ -617,9 +791,11 @@ function PlannerPage() {
                       className="text-[11px] rounded-lg border border-border bg-card/50 px-2 py-1"
                     />
                     <button
-                      onClick={() => _deleteQueue({ data: { id: it.id } }).then(() =>
-                        setQueue((p) => p.filter((q) => q.id !== it.id)),
-                      )}
+                      onClick={() =>
+                        _deleteQueue({ data: { id: it.id } }).then(() =>
+                          setQueue((p) => p.filter((q) => q.id !== it.id)),
+                        )
+                      }
                       className="text-muted-foreground hover:text-rose-300 text-[11px] inline-flex items-center gap-1"
                     >
                       <Trash2 className="h-3 w-3" /> Hapus
@@ -637,7 +813,8 @@ function PlannerPage() {
                 <span className="absolute left-0 top-3 h-2 w-2 rounded-full bg-primary glow-pink" />
                 <div className="text-sm">{it.payload?.title || it.idea}</div>
                 <div className="text-[11px] text-muted-foreground">
-                  {it.scheduled_for ? new Date(it.scheduled_for).toLocaleString() : "—"} · {it.status}
+                  {it.scheduled_for ? new Date(it.scheduled_for).toLocaleString() : "—"} ·{" "}
+                  {it.status}
                   {it.payload?.content_type && ` · ${it.payload.content_type}`}
                 </div>
               </div>
@@ -648,10 +825,15 @@ function PlannerPage() {
             {Array.from({ length: 21 }).map((_, i) => {
               const has = queue[i % queue.length];
               return (
-                <div key={i} className="aspect-square rounded-lg border border-border/60 bg-card/30 p-1.5 text-[10px] text-muted-foreground">
+                <div
+                  key={i}
+                  className="aspect-square rounded-lg border border-border/60 bg-card/30 p-1.5 text-[10px] text-muted-foreground"
+                >
                   <div className="opacity-60">D{i + 1}</div>
                   {i < queue.length && has && (
-                    <div className="mt-0.5 text-[10px] text-foreground truncate">{(has.payload?.title || has.idea).slice(0, 12)}</div>
+                    <div className="mt-0.5 text-[10px] text-foreground truncate">
+                      {(has.payload?.title || has.idea).slice(0, 12)}
+                    </div>
                   )}
                 </div>
               );
@@ -660,16 +842,32 @@ function PlannerPage() {
         )}
       </Card>
 
-      <Card title="AI Content Queue" sub="State lifecycle setiap item konten (tersimpan permanen di database).">
+      <Card
+        title="AI Content Queue"
+        sub="State lifecycle setiap item konten (tersimpan permanen di database)."
+      >
         <div className="flex flex-wrap gap-2">
           {CONTENT_QUEUE_STATES.map((s) => (
-            <Chip key={s} tone={s === "published" ? "success" : s === "failed" ? "danger" : s === "ready" ? "primary" : "default"}>
+            <Chip
+              key={s}
+              tone={
+                s === "published"
+                  ? "success"
+                  : s === "failed"
+                    ? "danger"
+                    : s === "ready"
+                      ? "primary"
+                      : "default"
+              }
+            >
               {s}
             </Chip>
           ))}
         </div>
         <div className="mt-4 text-xs text-muted-foreground">
-          {queue.length === 0 ? "Belum ada item dalam antrian." : `${queue.length} item dalam antrian. Auto-publish poller aktif tiap 30 detik.`}
+          {queue.length === 0
+            ? "Belum ada item dalam antrian."
+            : `${queue.length} item dalam antrian. Auto-publish poller aktif tiap 30 detik.`}
         </div>
       </Card>
 
@@ -677,8 +875,12 @@ function PlannerPage() {
         <div className="flex flex-wrap items-center gap-2">
           {WORKFLOW_STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
-              <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-xs font-medium">{s}</div>
-              {i < WORKFLOW_STEPS.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground" />}
+              <div className="rounded-xl border border-border bg-card/50 px-3 py-2 text-xs font-medium">
+                {s}
+              </div>
+              {i < WORKFLOW_STEPS.length - 1 && (
+                <ArrowRight className="h-3 w-3 text-muted-foreground" />
+              )}
             </div>
           ))}
         </div>
@@ -687,7 +889,10 @@ function PlannerPage() {
             {cycling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
             Jalankan 1 siklus otomatis
           </GhostButton>
-          <Link to="/ai-influencer/library" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline self-center">
+          <Link
+            to="/ai-influencer/library"
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline self-center"
+          >
             <RefreshCw className="h-3 w-3" /> Lihat hasil di Content Library →
           </Link>
         </div>

@@ -9,12 +9,14 @@ import { logActivity } from "@/lib/activity/log";
 import { useServerFn } from "@tanstack/react-start";
 import { getMyUserTags } from "@/lib/admin/users.functions";
 
-
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
       { title: "Profil Saya — AA Creative Studio" },
-      { name: "description", content: "Kelola info profil, avatar, dan password akun AA Creative Studio." },
+      {
+        name: "description",
+        content: "Kelola info profil, avatar, dan password akun AA Creative Studio.",
+      },
     ],
   }),
   component: ProfilePage,
@@ -54,8 +56,7 @@ function ProfilePage() {
     avatarUrl !== (profile?.avatar_url ?? "") ||
     phone !== ((user?.user_metadata as { phone?: string } | undefined)?.phone ?? "");
 
-  const hasFullAccess =
-    isAdmin || ALL_ROUTE_KEYS.every((r) => routePermissions.includes(r.key));
+  const hasFullAccess = isAdmin || ALL_ROUTE_KEYS.every((r) => routePermissions.includes(r.key));
 
   const grantedFeatures = isAdmin
     ? ALL_ROUTE_KEYS
@@ -132,7 +133,7 @@ function ProfilePage() {
   };
 
   const initial = (displayName[0] || user?.email?.[0] || "U").toUpperCase();
-  const roleLabel = isAdmin ? "Admin" : roles[0] ?? "user";
+  const roleLabel = isAdmin ? "Admin" : (roles[0] ?? "user");
 
   return (
     <DashboardShell>
@@ -153,7 +154,6 @@ function ProfilePage() {
           ) : undefined
         }
       />
-
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Avatar + identity card */}
@@ -288,7 +288,6 @@ function ProfilePage() {
               </button>
             </div>
           </div>
-
 
           <div className="neumorph p-5">
             <div className="font-display text-lg text-foreground">Ganti Password</div>

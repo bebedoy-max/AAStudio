@@ -103,7 +103,12 @@ async function callGemini(
   wantJson: boolean,
   temperature: number,
 ): Promise<{ ok: true; text: string } | { ok: false; status: number; body: string }> {
-  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+  ];
   let last: { ok: false; status: number; body: string } | undefined;
   for (const model of models) {
     const useLegacyQueryParam = key.startsWith("AIza");
@@ -132,7 +137,9 @@ async function callGemini(
     const data = (await res.json()) as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
-    const text = (data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "").trim();
+    const text = (
+      data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || ""
+    ).trim();
     if (!text) {
       last = { ok: false as const, status: 502, body: `${model}: empty` };
       continue;
@@ -160,9 +167,11 @@ export async function loadGlobalBrainKeys(): Promise<{ gemini: string[]; openai:
       console.error("[global-brain] gagal membaca tabel global_brain:", error.message);
       return { gemini: [], openai: [] };
     }
-    const row = data as unknown as
-      | { enabled?: boolean; gemini_keys?: string[]; openai_keys?: string[] }
-      | null;
+    const row = data as unknown as {
+      enabled?: boolean;
+      gemini_keys?: string[];
+      openai_keys?: string[];
+    } | null;
     if (!row?.enabled) return { gemini: [], openai: [] };
     const clean = (arr?: string[]) => (arr ?? []).map((s) => (s || "").trim()).filter(Boolean);
     return { gemini: clean(row.gemini_keys), openai: clean(row.openai_keys) };
@@ -237,14 +246,28 @@ export async function routeChat(opts: {
       bump("global-gemini", r.status, r.body);
       if (!isRotatable(r.status)) break;
     }
-    if (openaiKeys.length === 0 && geminiKeys.length === 0 && globalOpenai.length + globalGemini.length > 0) {
-      const summary = Array.from(statusCount.entries()).map(([k, n]) => `${k}×${n}`).join(", ");
-      return { ok: false, status: lastStatus, error: `Global Brain gagal. Status: ${summary}. Last: ${lastSample}` };
+    if (
+      openaiKeys.length === 0 &&
+      geminiKeys.length === 0 &&
+      globalOpenai.length + globalGemini.length > 0
+    ) {
+      const summary = Array.from(statusCount.entries())
+        .map(([k, n]) => `${k}×${n}`)
+        .join(", ");
+      return {
+        ok: false,
+        status: lastStatus,
+        error: `Global Brain gagal. Status: ${summary}. Last: ${lastSample}`,
+      };
     }
   }
 
   if (openaiKeys.length === 0 && geminiKeys.length === 0) {
-    return { ok: false, status: 400, error: "No AI keys configured. Add keys via Token/API Manager." };
+    return {
+      ok: false,
+      status: 400,
+      error: "No AI keys configured. Add keys via Token/API Manager.",
+    };
   }
 
   const summary = Array.from(statusCount.entries())
@@ -277,8 +300,12 @@ export const Route = createFileRoute("/api/router/chat")({
           const user = (body.user || "").trim();
           if (!user) return json({ error: "user prompt required" }, 400);
 
-          const openaiKeys = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
-          const geminiKeys = parseKeys(request.headers.get("x-user-gemini-keys")).filter((k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k));
+          const openaiKeys = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) =>
+            k.startsWith("sk-"),
+          );
+          const geminiKeys = parseKeys(request.headers.get("x-user-gemini-keys")).filter(
+            (k) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k),
+          );
 
           // Tanpa key user pun tetap lanjut: routeChat akan mencoba Global Brain
           // (kalau admin mengaktifkannya) sebelum menyerah.

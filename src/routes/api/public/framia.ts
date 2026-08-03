@@ -60,7 +60,8 @@ export const Route = createFileRoute("/api/public/framia")({
           },
         }),
       POST: async ({ request }) => {
-        const contentType = request.headers.get("Content-Type") || request.headers.get("content-type") || "";
+        const contentType =
+          request.headers.get("Content-Type") || request.headers.get("content-type") || "";
         if (contentType.toLowerCase().includes("multipart/form-data")) {
           const form = await request.formData().catch(() => null);
           const uploadUrlEntry = form?.get("uploadUrl");
@@ -79,7 +80,10 @@ export const Route = createFileRoute("/api/public/framia")({
               body: file,
             });
           } catch (e) {
-            return json({ ok: false, status: 0, data: null, raw: `upload network: ${(e as Error).message}` }, 200);
+            return json(
+              { ok: false, status: 0, data: null, raw: `upload network: ${(e as Error).message}` },
+              200,
+            );
           }
           const text = await upstream.text().catch(() => "");
           return json(
@@ -94,10 +98,9 @@ export const Route = createFileRoute("/api/public/framia")({
         }
 
         const token =
-          request.headers.get("X-Framia-Token") ||
-          request.headers.get("x-framia-token") ||
-          "";
-        if (!token) return json({ ok: false, status: 400, data: null, raw: "X-Framia-Token required" }, 200);
+          request.headers.get("X-Framia-Token") || request.headers.get("x-framia-token") || "";
+        if (!token)
+          return json({ ok: false, status: 400, data: null, raw: "X-Framia-Token required" }, 200);
 
         const body = (await request.json().catch(() => null)) as Body | null;
         if (!body?.path || !safeAllowed(body.path)) {
@@ -125,7 +128,10 @@ export const Route = createFileRoute("/api/public/framia")({
         try {
           upstream = await fetch(`${BASE}${body.path}`, init);
         } catch (e) {
-          return json({ ok: false, status: 0, data: null, raw: `network: ${(e as Error).message}` }, 200);
+          return json(
+            { ok: false, status: 0, data: null, raw: `network: ${(e as Error).message}` },
+            200,
+          );
         }
         const text = await upstream.text();
         let parsed: unknown = null;

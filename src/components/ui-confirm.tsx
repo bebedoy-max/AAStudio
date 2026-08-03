@@ -48,10 +48,7 @@ export function ConfirmDialog({
       aria-modal="true"
       onClick={busy ? undefined : onCancel}
     >
-      <div
-        className="neumorph w-full max-w-md p-6 relative"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="neumorph w-full max-w-md p-6 relative" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onCancel}
           disabled={busy}
@@ -78,9 +75,7 @@ export function ConfirmDialog({
             </div>
             <h2 className="mt-1 font-display text-lg leading-tight">{title}</h2>
             {description && (
-              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                {description}
-              </p>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{description}</p>
             )}
           </div>
         </div>
@@ -131,12 +126,7 @@ export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
       resolve(val);
     };
     root!.render(
-      <ConfirmDialog
-        open
-        {...opts}
-        onConfirm={() => close(true)}
-        onCancel={() => close(false)}
-      />,
+      <ConfirmDialog open {...opts} onConfirm={() => close(true)} onCancel={() => close(false)} />,
     );
   });
 }

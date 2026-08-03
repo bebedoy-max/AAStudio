@@ -2,7 +2,13 @@
 // Dipakai lewat hook `useFilePicker()` supaya bisa dipasang di tombol upload manapun.
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Cloud, HardDrive, Search, Loader2, FileIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { listCloudFiles } from "@/lib/cloud/cloud.functions";
 import { archiveUploadInBackground } from "@/lib/cloud/client";
@@ -42,7 +48,6 @@ function shortenFileName(name: string, max = 38): string {
   const keep = Math.max(8, max - ext.length - 1);
   return `${base.slice(0, keep).trimEnd()}…${ext}`;
 }
-
 
 const KIND_FROM_ACCEPT = (accept?: string): string | null => {
   if (!accept) return null;
@@ -86,9 +91,10 @@ export function useFilePicker() {
     try {
       const kind = opts.kind ?? KIND_FROM_ACCEPT(opts.accept);
       // Hanya file hasil upload user — hasil generate tidak ikut ditampilkan.
-      const data = (await listCloudFiles({ data: { kind, origin: "upload" } })) as unknown as CloudRow[];
+      const data = (await listCloudFiles({
+        data: { kind, origin: "upload" },
+      })) as unknown as CloudRow[];
       setRows(data);
-
     } catch (e) {
       console.warn("[file-picker] load cloud failed", e);
       setRows([]);
@@ -120,7 +126,9 @@ export function useFilePicker() {
         const res = await fetch(row.url);
         if (!res.ok) throw new Error(`Gagal mengambil file cloud (${res.status})`);
         const blob = await res.blob();
-        const file = new File([blob], row.name, { type: row.mimeType || blob.type || "application/octet-stream" });
+        const file = new File([blob], row.name, {
+          type: row.mimeType || blob.type || "application/octet-stream",
+        });
         finish([file]);
       } catch (e) {
         console.warn("[file-picker] fetch cloud file failed", e);
@@ -137,7 +145,8 @@ export function useFilePicker() {
       const files = Array.from(list ?? []);
       if (!files.length) return finish([]);
       // Setiap file yang dipilih dari perangkat ikut diarsipkan ke Google Drive.
-      for (const f of files) archiveUploadInBackground(f, { source: opts.source, origin: "upload" });
+      for (const f of files)
+        archiveUploadInBackground(f, { source: opts.source, origin: "upload" });
       finish(files);
     },
     [finish, opts.source],
@@ -166,7 +175,9 @@ export function useFilePicker() {
         <DialogContent className="max-w-lg" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
             <DialogTitle>{opts.title ?? "Pilih file"}</DialogTitle>
-            <DialogDescription>Ambil dari perangkat atau dari file yang sudah tersimpan di cloud.</DialogDescription>
+            <DialogDescription>
+              Ambil dari perangkat atau dari file yang sudah tersimpan di cloud.
+            </DialogDescription>
           </DialogHeader>
 
           {tab === "device" ? (
@@ -177,7 +188,9 @@ export function useFilePicker() {
               >
                 <HardDrive className="h-6 w-6 mx-auto mb-2 text-primary" />
                 <div className="text-sm font-semibold">Perangkat</div>
-                <div className="text-[11px] text-muted-foreground">Browse file di perangkat ini</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Browse file di perangkat ini
+                </div>
               </button>
               <button
                 onClick={openCloud}
@@ -185,7 +198,9 @@ export function useFilePicker() {
               >
                 <Cloud className="h-6 w-6 mx-auto mb-2 text-primary" />
                 <div className="text-sm font-semibold">Cloud</div>
-                <div className="text-[11px] text-muted-foreground">Riwayat file di Google Drive</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Riwayat file di Google Drive
+                </div>
               </button>
             </div>
           ) : (
@@ -205,7 +220,9 @@ export function useFilePicker() {
                     <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" /> Memuat file cloud...
                   </div>
                 ) : filtered.length === 0 ? (
-                  <div className="p-6 text-center text-sm text-muted-foreground">Tidak ada file cocok.</div>
+                  <div className="p-6 text-center text-sm text-muted-foreground">
+                    Tidak ada file cocok.
+                  </div>
                 ) : (
                   filtered.map((r) => (
                     <button
@@ -215,7 +232,12 @@ export function useFilePicker() {
                       className="w-full flex items-center gap-3 p-2.5 text-left hover:bg-accent/40 transition disabled:opacity-50"
                     >
                       {r.kind === "image" ? (
-                        <img src={r.url} alt="" loading="lazy" className="h-10 w-10 rounded-lg object-cover bg-muted" />
+                        <img
+                          src={r.url}
+                          alt=""
+                          loading="lazy"
+                          className="h-10 w-10 rounded-lg object-cover bg-muted"
+                        />
                       ) : (
                         <div className="h-10 w-10 rounded-lg bg-muted grid place-items-center">
                           <FileIcon className="h-4 w-4 text-muted-foreground" />
@@ -227,15 +249,18 @@ export function useFilePicker() {
                         </div>
                         <div className="text-[11px] text-muted-foreground truncate">
                           {r.origin === "upload" ? "Upload" : "Generate"}
-                          {r.source ? ` · ${r.source}` : ""} · {new Date(r.createdAt).toLocaleDateString()}
+                          {r.source ? ` · ${r.source}` : ""} ·{" "}
+                          {new Date(r.createdAt).toLocaleDateString()}
                         </div>
                       </div>
-
                     </button>
                   ))
                 )}
               </div>
-              <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setTab("device")}>
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setTab("device")}
+              >
                 ← Kembali ke pilihan sumber
               </button>
             </div>

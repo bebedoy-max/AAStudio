@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Cloud, HardDrive, Loader2, Link2, Unlink, Trash2, Download, ExternalLink, RefreshCw } from "lucide-react";
+import {
+  Cloud,
+  HardDrive,
+  Loader2,
+  Link2,
+  Unlink,
+  Trash2,
+  Download,
+  ExternalLink,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, GhostButton, PrimaryButton, GalleryEmpty, Input } from "@/components/dashboard/ui";
@@ -29,7 +39,8 @@ export const Route = createFileRoute("/system/cloud")({
       { property: "og:title", content: "Cloud Storage — AA Creative Studio" },
       {
         property: "og:description",
-        content: "Semua upload dan hasil generate tersimpan aman di cloud dan bisa diakses dari perangkat mana pun.",
+        content:
+          "Semua upload dan hasil generate tersimpan aman di cloud dan bisa diakses dari perangkat mana pun.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -219,14 +230,19 @@ function CloudStoragePage() {
         }
       />
 
-      <Card title="Pilih penyimpanan" sub="Global Cloud disediakan aplikasi, atau pakai Google Drive milik Anda sendiri.">
+      <Card
+        title="Pilih penyimpanan"
+        sub="Global Cloud disediakan aplikasi, atau pakai Google Drive milik Anda sendiri."
+      >
         <div className="grid gap-3 md:grid-cols-2">
           <button
             onClick={() => void onMode("global")}
             disabled={busy || status?.storageMode === "global"}
             className={[
               "text-left rounded-2xl border p-4 transition",
-              status?.storageMode === "global" ? "border-primary bg-primary/5" : "border-border bg-card/40 hover:bg-card/70",
+              status?.storageMode === "global"
+                ? "border-primary bg-primary/5"
+                : "border-border bg-card/40 hover:bg-card/70",
             ].join(" ")}
           >
             <div className="flex items-center gap-2 font-medium">
@@ -234,7 +250,8 @@ function CloudStoragePage() {
               {status?.storageMode === "global" && <Chip tone="primary">Aktif</Chip>}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Google Drive milik aplikasi. Tidak perlu setup — file Anda tersimpan di folder khusus akun Anda.
+              Google Drive milik aplikasi. Tidak perlu setup — file Anda tersimpan di folder khusus
+              akun Anda.
             </p>
           </button>
 
@@ -243,7 +260,9 @@ function CloudStoragePage() {
             disabled={busy || !status?.personalConnected || status?.storageMode === "personal"}
             className={[
               "text-left rounded-2xl border p-4 transition disabled:opacity-60",
-              status?.storageMode === "personal" ? "border-primary bg-primary/5" : "border-border bg-card/40 hover:bg-card/70",
+              status?.storageMode === "personal"
+                ? "border-primary bg-primary/5"
+                : "border-border bg-card/40 hover:bg-card/70",
             ].join(" ")}
           >
             <div className="flex items-center gap-2 font-medium">
@@ -260,7 +279,11 @@ function CloudStoragePage() {
 
         <div className="mt-4 flex flex-wrap gap-2">
           {status?.personalConnected ? (
-            <GhostButton onClick={() => void onDisconnect()} disabled={busy} className="text-destructive hover:text-destructive">
+            <GhostButton
+              onClick={() => void onDisconnect()}
+              disabled={busy}
+              className="text-destructive hover:text-destructive"
+            >
               <Unlink className="h-4 w-4" /> Putuskan Google Drive
             </GhostButton>
           ) : (
@@ -269,7 +292,9 @@ function CloudStoragePage() {
             </PrimaryButton>
           )}
           {status && !status.globalAvailable && (
-            <span className="text-xs text-destructive self-center">Global Cloud belum dikonfigurasi admin.</span>
+            <span className="text-xs text-destructive self-center">
+              Global Cloud belum dikonfigurasi admin.
+            </span>
           )}
         </div>
       </Card>
@@ -289,7 +314,9 @@ function CloudStoragePage() {
                 onClick={() => setKind(k)}
                 className={[
                   "px-3 py-1.5 rounded-full text-xs border transition",
-                  kind === k ? "border-transparent text-primary-foreground glow-pink" : "border-border bg-card/50",
+                  kind === k
+                    ? "border-transparent text-primary-foreground glow-pink"
+                    : "border-border bg-card/50",
                 ].join(" ")}
                 style={kind === k ? { background: "var(--gradient-neon)" } : undefined}
               >
@@ -311,12 +338,25 @@ function CloudStoragePage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((f) => (
-            <div key={f.id} className="rounded-2xl border border-border bg-card/40 overflow-hidden flex flex-col">
+            <div
+              key={f.id}
+              className="rounded-2xl border border-border bg-card/40 overflow-hidden flex flex-col"
+            >
               <div className="aspect-square relative bg-black/40 grid place-items-center text-xs text-muted-foreground">
                 {f.kind === "image" ? (
-                  <img src={f.url} alt={f.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                  <img
+                    src={f.url}
+                    alt={f.name}
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
                 ) : f.kind === "video" ? (
-                  <video src={f.url} className="absolute inset-0 h-full w-full object-cover" muted playsInline />
+                  <video
+                    src={f.url}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    muted
+                    playsInline
+                  />
                 ) : (
                   <span className="p-3 text-center break-all">{f.name}</span>
                 )}
@@ -328,7 +368,9 @@ function CloudStoragePage() {
                 </span>
               </div>
               <div className="p-3 space-y-1">
-                <div className="text-xs truncate" title={f.name}>{f.name}</div>
+                <div className="text-xs truncate" title={f.name}>
+                  {f.name}
+                </div>
                 <div className="text-[10px] text-muted-foreground">
                   {fmtSize(f.size)} · {f.origin} · {new Date(f.createdAt).toLocaleString()}
                 </div>
@@ -343,7 +385,11 @@ function CloudStoragePage() {
                       <Download className="h-3 w-3" />
                     </GhostButton>
                   </a>
-                  <GhostButton className="!px-2 !py-1 text-xs" title="Hapus" onClick={() => void onDelete(f)}>
+                  <GhostButton
+                    className="!px-2 !py-1 text-xs"
+                    title="Hapus"
+                    onClick={() => void onDelete(f)}
+                  >
                     <Trash2 className="h-3 w-3" />
                   </GhostButton>
                 </div>

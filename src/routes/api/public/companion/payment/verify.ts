@@ -11,11 +11,8 @@ export const Route = createFileRoute("/api/public/companion/payment/verify")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
-        const {
-          authenticateDevice,
-          matchPurchaseByAmount,
-          recordEvent,
-        } = await import("@/lib/companion/companion.server");
+        const { authenticateDevice, matchPurchaseByAmount, recordEvent } =
+          await import("@/lib/companion/companion.server");
 
         const device = await authenticateDevice(request);
         if (!device) return jsonResponse({ ok: false, error: "unauthorized" }, 401);

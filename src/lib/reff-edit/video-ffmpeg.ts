@@ -21,7 +21,7 @@ async function readSourceBytes(file: File | Blob | null, url: string): Promise<U
     const reader = (b.stream() as ReadableStream<Uint8Array>).getReader();
     const chunks: Uint8Array[] = [];
     let total = 0;
-    // eslint-disable-next-line no-constant-condition
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -188,11 +188,13 @@ function motionFromText(text: string): string[] {
   return f;
 }
 
-function buildSceneFilter(opts: {
-  aspect: string;
-  dna: ReferenceDNA;
-  scene: BlueprintScene;
-}): { vf: string; speed: number; ramp: RampKind; direction: DirectionKind; freeze: boolean } {
+function buildSceneFilter(opts: { aspect: string; dna: ReferenceDNA; scene: BlueprintScene }): {
+  vf: string;
+  speed: number;
+  ramp: RampKind;
+  direction: DirectionKind;
+  freeze: boolean;
+} {
   const dnaText = [
     opts.dna.colorGrading,
     opts.dna.mood,
@@ -219,10 +221,7 @@ function buildSceneFilter(opts: {
   return { vf: filters.filter(Boolean).join(","), speed, ramp, direction, freeze };
 }
 
-function transitionKind(
-  dna: ReferenceDNA,
-  blueprint: BlueprintScene[],
-): "none" | "fade" | "wipe" {
+function transitionKind(dna: ReferenceDNA, blueprint: BlueprintScene[]): "none" | "fade" | "wipe" {
   const t = `${dna.transition ?? ""} ${dna.editingRhythm ?? ""} ${blueprint
     .flatMap((s) => s.apply)
     .join(" ")}`.toLowerCase();
@@ -271,14 +270,17 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   const MAX_SIZE = 350 * 1024 * 1024; // 350 MB per file
   const MAX_TOTAL = 800 * 1024 * 1024; // 800 MB total
   const MAX_DUR = 8 * 60; // 8 menit per source
-  const sourceList = opts.sources && opts.sources.length
-    ? opts.sources
-    : [{
-        url: opts.sourceUrl ?? "",
-        file: opts.sourceFile ?? null,
-        durationSec: opts.targetDurationSec ?? 0,
-        name: "source",
-      }];
+  const sourceList =
+    opts.sources && opts.sources.length
+      ? opts.sources
+      : [
+          {
+            url: opts.sourceUrl ?? "",
+            file: opts.sourceFile ?? null,
+            durationSec: opts.targetDurationSec ?? 0,
+            name: "source",
+          },
+        ];
   let totalSize = 0;
   for (let i = 0; i < sourceList.length; i++) {
     const s = sourceList[i];
@@ -307,9 +309,20 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
   }
 
   // Normalisasi blueprint → clamp per-source.
-  const scenes = (opts.blueprint.length
-    ? opts.blueprint
-    : [{ id: "s1", name: "Full", from: 0, to: sourceList[0].durationSec || 5, apply: [], sourceIdx: 0 } as BlueprintScene])
+  const scenes = (
+    opts.blueprint.length
+      ? opts.blueprint
+      : [
+          {
+            id: "s1",
+            name: "Full",
+            from: 0,
+            to: sourceList[0].durationSec || 5,
+            apply: [],
+            sourceIdx: 0,
+          } as BlueprintScene,
+        ]
+  )
     .map((s) => {
       const idx = Math.max(0, Math.min(sourceList.length - 1, s.sourceIdx ?? 0));
       const dur = Math.max(0.1, sourceList[idx].durationSec || 0);
@@ -356,17 +369,27 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       if (s !== 1) chainParts.push(`setpts=${(1 / s).toFixed(3)}*PTS`);
       const chain = [vf, ...chainParts].filter(Boolean).join(",");
       const args = [
-        "-ss", String(from),
-        "-t", String(dur),
-        "-i", inFile,
-        "-vf", chain,
+        "-ss",
+        String(from),
+        "-t",
+        String(dur),
+        "-i",
+        inFile,
+        "-vf",
+        chain,
         "-an",
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "24",
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
-        "-y", outName,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "24",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "-y",
+        outName,
       ];
       await execOrThrow(ff, args, `Render ${outName}`, logs);
     };
@@ -384,7 +407,20 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       await ff.writeFile(list, new TextEncoder().encode(`file '${fwd}'\nfile '${rev}'\n`));
       await execOrThrow(
         ff,
-        ["-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", "-y", out],
+        [
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          list,
+          "-c",
+          "copy",
+          "-movflags",
+          "+faststart",
+          "-y",
+          out,
+        ],
         `Boomerang ${i + 1}`,
         logs,
       );
@@ -404,7 +440,20 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       await ff.writeFile(list, new TextEncoder().encode(`file '${a}'\nfile '${b}'\n`));
       await execOrThrow(
         ff,
-        ["-f", "concat", "-safe", "0", "-i", list, "-c", "copy", "-movflags", "+faststart", "-y", out],
+        [
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          list,
+          "-c",
+          "copy",
+          "-movflags",
+          "+faststart",
+          "-y",
+          out,
+        ],
         `Ramp ${i + 1}`,
         logs,
       );
@@ -433,7 +482,28 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       await ff.writeFile("list.txt", new TextEncoder().encode(listTxt));
       await execOrThrow(
         ff,
-        ["-f", "concat", "-safe", "0", "-i", "list.txt", "-vf", "fade=t=in:st=0:d=0.35", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-y", "out.mp4"],
+        [
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          "list.txt",
+          "-vf",
+          "fade=t=in:st=0:d=0.35",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-crf",
+          "24",
+          "-pix_fmt",
+          "yuv420p",
+          "-movflags",
+          "+faststart",
+          "-y",
+          "out.mp4",
+        ],
         "Concat + fade",
         logs,
       );
@@ -444,7 +514,20 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
       log("Menggabungkan scene…");
       await execOrThrow(
         ff,
-        ["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "-movflags", "+faststart", "-y", "out.mp4"],
+        [
+          "-f",
+          "concat",
+          "-safe",
+          "0",
+          "-i",
+          "list.txt",
+          "-c",
+          "copy",
+          "-movflags",
+          "+faststart",
+          "-y",
+          "out.mp4",
+        ],
         "Concat scenes",
         logs,
       );
@@ -461,7 +544,9 @@ export async function reffVideoRender(opts: ReffVideoRenderOpts): Promise<ReffVi
     for (const p of parts) await ff.deleteFile(p);
     if (parts.length > 1) await ff.deleteFile("list.txt");
     for (let i = 0; i < sourceList.length; i++) {
-      try { await ff.deleteFile(`in${i}.mp4`); } catch {}
+      try {
+        await ff.deleteFile(`in${i}.mp4`);
+      } catch {}
     }
     if (finalName === "out.mp4") await ff.deleteFile("out.mp4");
   } catch {

@@ -2,7 +2,15 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
-import { Card, Field, Input, Select, Textarea, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
+import {
+  Card,
+  Field,
+  Input,
+  Select,
+  Textarea,
+  PrimaryButton,
+  GhostButton,
+} from "@/components/dashboard/ui";
 import { createCharacter } from "@/lib/ai-influencer/service";
 
 export const Route = createFileRoute("/ai-influencer/new")({
@@ -122,10 +130,18 @@ function NewCharacterPage() {
         <Card title="Identitas" sub="Data utama karakter">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Character Name">
-              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Aria" />
+              <Input
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                placeholder="Aria"
+              />
             </Field>
             <Field label="Gender">
-              <Select value={form.gender} onChange={(e) => set("gender", e.target.value)} options={GENDERS} />
+              <Select
+                value={form.gender}
+                onChange={(e) => set("gender", e.target.value)}
+                options={GENDERS}
+              />
             </Field>
             <Field label="Age">
               <Input
@@ -136,19 +152,35 @@ function NewCharacterPage() {
               />
             </Field>
             <Field label="Nationality">
-              <Input value={form.nationality} onChange={(e) => set("nationality", e.target.value)} placeholder="Indonesian" />
+              <Input
+                value={form.nationality}
+                onChange={(e) => set("nationality", e.target.value)}
+                placeholder="Indonesian"
+              />
             </Field>
             <Field label="Language">
               <Input value={form.language} onChange={(e) => set("language", e.target.value)} />
             </Field>
             <Field label="Occupation">
-              <Input value={form.occupation} onChange={(e) => set("occupation", e.target.value)} placeholder="Content Creator" />
+              <Input
+                value={form.occupation}
+                onChange={(e) => set("occupation", e.target.value)}
+                placeholder="Content Creator"
+              />
             </Field>
             <Field label="Niche">
-              <Input value={form.niche} onChange={(e) => set("niche", e.target.value)} placeholder="Lifestyle · Fashion" />
+              <Input
+                value={form.niche}
+                onChange={(e) => set("niche", e.target.value)}
+                placeholder="Lifestyle · Fashion"
+              />
             </Field>
             <Field label="Style">
-              <Input value={form.style} onChange={(e) => set("style", e.target.value)} placeholder="Editorial minimalist" />
+              <Input
+                value={form.style}
+                onChange={(e) => set("style", e.target.value)}
+                placeholder="Editorial minimalist"
+              />
             </Field>
           </div>
         </Card>
@@ -156,19 +188,39 @@ function NewCharacterPage() {
         <Card title="Physical & Voice" sub="Ciri visual dan suara">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Body Type">
-              <Select value={form.body_type} onChange={(e) => set("body_type", e.target.value)} options={BODY} />
+              <Select
+                value={form.body_type}
+                onChange={(e) => set("body_type", e.target.value)}
+                options={BODY}
+              />
             </Field>
             <Field label="Hair Style">
-              <Input value={form.hair_style} onChange={(e) => set("hair_style", e.target.value)} placeholder="Long wavy brown" />
+              <Input
+                value={form.hair_style}
+                onChange={(e) => set("hair_style", e.target.value)}
+                placeholder="Long wavy brown"
+              />
             </Field>
             <Field label="Fashion Style">
-              <Input value={form.fashion_style} onChange={(e) => set("fashion_style", e.target.value)} placeholder="Streetwear · Minimal" />
+              <Input
+                value={form.fashion_style}
+                onChange={(e) => set("fashion_style", e.target.value)}
+                placeholder="Streetwear · Minimal"
+              />
             </Field>
             <Field label="Favorite Color">
-              <Input value={form.favorite_color} onChange={(e) => set("favorite_color", e.target.value)} placeholder="Nude · Warm beige" />
+              <Input
+                value={form.favorite_color}
+                onChange={(e) => set("favorite_color", e.target.value)}
+                placeholder="Nude · Warm beige"
+              />
             </Field>
             <Field label="Voice">
-              <Input value={form.voice} onChange={(e) => set("voice", e.target.value)} placeholder="Warm, calm, mid-range" />
+              <Input
+                value={form.voice}
+                onChange={(e) => set("voice", e.target.value)}
+                placeholder="Warm, calm, mid-range"
+              />
             </Field>
             <Field label="Relationship Status">
               <Select
@@ -178,10 +230,18 @@ function NewCharacterPage() {
               />
             </Field>
             <Field label="Avatar URL (opsional)">
-              <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+              <Input
+                value={form.avatar_url}
+                onChange={(e) => set("avatar_url", e.target.value)}
+                placeholder="https://..."
+              />
             </Field>
             <Field label="Hobby">
-              <Input value={form.hobby} onChange={(e) => set("hobby", e.target.value)} placeholder="Yoga · Cafe hopping" />
+              <Input
+                value={form.hobby}
+                onChange={(e) => set("hobby", e.target.value)}
+                placeholder="Yoga · Cafe hopping"
+              />
             </Field>
           </div>
         </Card>

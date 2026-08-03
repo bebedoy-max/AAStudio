@@ -6,8 +6,12 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const getCloudStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { getStorageMode, getConnectionKeyForUser, getConnectionInfoForUser, DRIVE_CONNECTOR_ID } =
-      await import("./connections.server");
+    const {
+      getStorageMode,
+      getConnectionKeyForUser,
+      getConnectionInfoForUser,
+      DRIVE_CONNECTOR_ID,
+    } = await import("./connections.server");
     const { getGlobalCloudRow } = await import("./global-cloud.server");
     const [mode, key, info, global] = await Promise.all([
       getStorageMode(context.userId),
@@ -21,7 +25,8 @@ export const getCloudStatus = createServerFn({ method: "GET" })
       accountEmail: info?.account_email ?? null,
       globalAvailable: Boolean(
         global?.enabled &&
-          (global.refresh_token_cipher || (process.env.GOOGLE_DRIVE_API_KEY && process.env.LOVABLE_API_KEY)),
+        (global.refresh_token_cipher ||
+          (process.env.GOOGLE_DRIVE_API_KEY && process.env.LOVABLE_API_KEY)),
       ),
     };
   });
@@ -33,7 +38,8 @@ export const setCloudStorageMode = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data, context }) => {
-    const { setStorageMode, getConnectionKeyForUser, DRIVE_CONNECTOR_ID } = await import("./connections.server");
+    const { setStorageMode, getConnectionKeyForUser, DRIVE_CONNECTOR_ID } =
+      await import("./connections.server");
     if (data.mode === "personal") {
       const key = await getConnectionKeyForUser(context.userId, DRIVE_CONNECTOR_ID);
       if (!key) throw new Error("Hubungkan Google Drive pribadi dulu.");
@@ -44,11 +50,15 @@ export const setCloudStorageMode = createServerFn({ method: "POST" })
 
 export const listCloudFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { kind?: string | null; source?: string | null; origin?: string | null } | undefined) => ({
-    kind: data?.kind ?? null,
-    source: data?.source ?? null,
-    origin: data?.origin ?? null,
-  }))
+  .inputValidator(
+    (
+      data: { kind?: string | null; source?: string | null; origin?: string | null } | undefined,
+    ) => ({
+      kind: data?.kind ?? null,
+      source: data?.source ?? null,
+      origin: data?.origin ?? null,
+    }),
+  )
   .handler(async ({ data, context }) => {
     const { listCloudFilesForUser } = await import("./registry.server");
     const rows = await listCloudFilesForUser(context.userId, data.kind, {
@@ -128,7 +138,8 @@ export const startDriveConnect = createServerFn({ method: "POST" })
     if (!request) throw new Error("OAuth harus dimulai dari request aplikasi.");
 
     // Jalur utama: OAuth Google milik aplikasi sendiri (client dikonfigurasi admin).
-    const { getOAuthClient, buildAuthUrl, signState, callbackUrl } = await import("./google-oauth.server");
+    const { getOAuthClient, buildAuthUrl, signState, callbackUrl } =
+      await import("./google-oauth.server");
     const ownClient = await getOAuthClient();
     if (ownClient) {
       return {
@@ -178,14 +189,16 @@ export const completeDriveConnect = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { exchangeAppUserOAuthCode } = await import("@/integrations/lovable/appUserConnector");
-    const { saveConnectionKeyForUser, setStorageMode, DRIVE_CONNECTOR_ID } = await import("./connections.server");
+    const { saveConnectionKeyForUser, setStorageMode, DRIVE_CONNECTOR_ID } =
+      await import("./connections.server");
     const { fetchDriveAccountEmail } = await import("./drive.server");
 
     const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(
       "https://connector-gateway.lovable.dev",
       data.code,
     );
-    if (connectorId !== DRIVE_CONNECTOR_ID) throw new Error("OAuth mengembalikan connector yang salah");
+    if (connectorId !== DRIVE_CONNECTOR_ID)
+      throw new Error("OAuth mengembalikan connector yang salah");
     const email = await fetchDriveAccountEmail(connectionAPIKey);
     await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey, email);
     await setStorageMode(context.userId, "personal");
@@ -221,18 +234,27 @@ export const disconnectDrive = createServerFn({ method: "POST" })
  */
 export const createCloudUploadTicket = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { name: string; mimeType: string; size: number; source?: string | null; origin?: string | null }) => {
-    const size = Number(data?.size ?? 0);
-    if (!data?.name) throw new Error("name wajib diisi");
-    if (!Number.isFinite(size) || size <= 0 || size > 250 * 1024 * 1024) throw new Error("Ukuran file tidak valid");
-    return {
-      name: String(data.name).slice(0, 200),
-      mimeType: data.mimeType || "application/octet-stream",
-      size,
-      source: data.source ?? null,
-      origin: data.origin ?? "upload",
-    };
-  })
+  .inputValidator(
+    (data: {
+      name: string;
+      mimeType: string;
+      size: number;
+      source?: string | null;
+      origin?: string | null;
+    }) => {
+      const size = Number(data?.size ?? 0);
+      if (!data?.name) throw new Error("name wajib diisi");
+      if (!Number.isFinite(size) || size <= 0 || size > 250 * 1024 * 1024)
+        throw new Error("Ukuran file tidak valid");
+      return {
+        name: String(data.name).slice(0, 200),
+        mimeType: data.mimeType || "application/octet-stream",
+        size,
+        source: data.source ?? null,
+        origin: data.origin ?? "upload",
+      };
+    },
+  )
   .handler(async ({ data, context }) => {
     const { UploadService } = await import("./storage/service.server");
     const ticket = await UploadService.createTicket({ userId: context.userId, ...data });

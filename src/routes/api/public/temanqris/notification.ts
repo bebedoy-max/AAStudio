@@ -54,19 +54,19 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
             .select("id, status, payment_gateway_id, temanqris_order_id");
           q = orderId ? q.eq("temanqris_order_id", orderId) : q.eq("temanqris_link_code", linkCode);
           const { data: prRaw } = await q.maybeSingle();
-          const pr = prRaw as
-            | { id: string; status: string; payment_gateway_id: string | null; temanqris_order_id: string | null }
-            | null;
+          const pr = prRaw as {
+            id: string;
+            status: string;
+            payment_gateway_id: string | null;
+            temanqris_order_id: string | null;
+          } | null;
           if (!pr) {
             console.warn("[temanqris-webhook] unknown order", orderId ?? linkCode);
             return OK({ ok: true, skipped: "unknown order" });
           }
 
-          const {
-            loadTemanQrisConfig,
-            verifyTemanQrisSignature,
-            fetchTemanQrisOrder,
-          } = await import("@/lib/payments/temanqris.server");
+          const { loadTemanQrisConfig, verifyTemanQrisSignature, fetchTemanQrisOrder } =
+            await import("@/lib/payments/temanqris.server");
 
           const loaded = await loadTemanQrisConfig(pr.payment_gateway_id ?? undefined);
           if (!loaded) {
@@ -90,7 +90,10 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
           }
 
           try {
-            await admin.from("purchase_requests").update({ temanqris_raw: payload }).eq("id", pr.id);
+            await admin
+              .from("purchase_requests")
+              .update({ temanqris_raw: payload })
+              .eq("id", pr.id);
           } catch {
             /* non-fatal */
           }
@@ -127,7 +130,6 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
               .eq("id", pr.id);
             return OK({ ok: true, status: "awaiting_confirmation" });
           }
-
 
           if (["expired", "cancelled"].includes(status)) {
             await admin

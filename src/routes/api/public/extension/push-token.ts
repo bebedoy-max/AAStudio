@@ -21,7 +21,9 @@ function cors(res: Response) {
   return new Response(res.body, { status: res.status, headers: h });
 }
 const json = (data: unknown, status = 200) =>
-  cors(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+  cors(
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }),
+  );
 
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
 
@@ -48,16 +50,20 @@ export const Route = createFileRoute("/api/public/extension/push-token")({
         const user = (await userRes.json()) as { id?: string };
         if (!user?.id) return json({ error: "unauthorized" }, 401);
 
-        const body = (await request.json().catch(() => null)) as { provider?: string; token?: string } | null;
+        const body = (await request.json().catch(() => null)) as {
+          provider?: string;
+          token?: string;
+        } | null;
         const provider = body?.provider ?? "";
         const token = body?.token ?? "";
         const storageKey = PROVIDER_KEYS[provider];
         if (!storageKey) return json({ error: "unknown_provider" }, 400);
         // Dola memakai cookie session (bukan JWT) — validasi longgar untuk provider itu.
         if (provider === "dola") {
-          const hasSession = /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token)=/.test(
-            token,
-          );
+          const hasSession =
+            /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token)=/.test(
+              token,
+            );
           if (!hasSession) return json({ error: "invalid_cookie" }, 400);
         } else if (!JWT_RE.test(token)) {
           return json({ error: "invalid_jwt" }, 400);
@@ -70,13 +76,25 @@ export const Route = createFileRoute("/api/public/extension/push-token")({
         const db = supabaseAdmin as unknown as {
           from: (t: string) => {
             select: (c: string) => {
-              eq: (col: string, v: string) => {
-                eq: (col: string, v: string) => {
-                  maybeSingle: () => Promise<{ data: { ciphertext: string } | null; error: unknown }>;
+              eq: (
+                col: string,
+                v: string,
+              ) => {
+                eq: (
+                  col: string,
+                  v: string,
+                ) => {
+                  maybeSingle: () => Promise<{
+                    data: { ciphertext: string } | null;
+                    error: unknown;
+                  }>;
                 };
               };
             };
-            upsert: (v: Record<string, unknown>, o: { onConflict: string }) => Promise<{ error: unknown }>;
+            upsert: (
+              v: Record<string, unknown>,
+              o: { onConflict: string },
+            ) => Promise<{ error: unknown }>;
           };
         };
         const existing = await db

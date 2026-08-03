@@ -82,12 +82,16 @@ function deriveFireflyAccountId(token: string): string | undefined {
 export function markFireflyKeyFailed(token: string, reason: string) {
   if (typeof window === "undefined") return;
   const list = readList();
-  const next = list.map((x) => (x.key === token ? { ...x, status: "failed" as const, note: reason } : x));
+  const next = list.map((x) =>
+    x.key === token ? { ...x, status: "failed" as const, note: reason } : x,
+  );
   const value = JSON.stringify(next);
   localStorage.setItem(LS_FIREFLY_KEYS, value);
   pushTokenAsync(LS_FIREFLY_KEYS, value);
   window.dispatchEvent(
-    new CustomEvent("aatools:tokens-synced", { detail: { provider: "firefly", action: "failed", reason } }),
+    new CustomEvent("aatools:tokens-synced", {
+      detail: { provider: "firefly", action: "failed", reason },
+    }),
   );
   window.dispatchEvent(new Event("storage"));
 }
@@ -164,8 +168,12 @@ async function parseProxyResponse<T>(r: Response): Promise<ProxyResult<T>> {
   try {
     return JSON.parse(text) as ProxyResult<T>;
   } catch {
-    const snippet = text.replace(/<[^>]+>/g, " ").trim().slice(0, 200);
-    const tooLarge = r.status === 413 || /request entity too large|payload too large/i.test(snippet);
+    const snippet = text
+      .replace(/<[^>]+>/g, " ")
+      .trim()
+      .slice(0, 200);
+    const tooLarge =
+      r.status === 413 || /request entity too large|payload too large/i.test(snippet);
     return {
       ok: false,
       status: r.status,
@@ -284,7 +292,11 @@ type FireflyUploadImage = FireflyBlobRef & {
   blobRef?: unknown;
   reference?: unknown;
 };
-type FireflyUploadResponse = { images?: FireflyUploadImage[]; image?: FireflyUploadImage; id?: string };
+type FireflyUploadResponse = {
+  images?: FireflyUploadImage[];
+  image?: FireflyUploadImage;
+  id?: string;
+};
 
 function asFireflyBlobRef(value: unknown, depth = 0): FireflyBlobRef | null {
   if (depth > 5) return null;
@@ -355,7 +367,9 @@ async function uploadFireflyImage(opts: {
   });
   const ref = pickUploadedImageRef(res.data);
   if (!res.ok || !ref) {
-    throw new Error(`Firefly upload gagal (${res.status}): ${res.raw || JSON.stringify(res.data)?.slice(0, 200) || res.error || ""}`);
+    throw new Error(
+      `Firefly upload gagal (${res.status}): ${res.raw || JSON.stringify(res.data)?.slice(0, 200) || res.error || ""}`,
+    );
   }
   return ref;
 }
@@ -378,7 +392,8 @@ function buildFireflyVideoPayload(opts: {
 }): Record<string, unknown> {
   const seed = opts.seed ?? randomSeed();
   const size = fireflyVideoSize(opts.ratio || "16:9");
-  const negativePrompt = opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic";
+  const negativePrompt =
+    opts.negativePrompt || "cartoon, vector art, & bad aesthetics & poor aesthetic";
 
   // Send the final Firefly web payload shape. `referenceBlobs` / `image.conditions`
   // are editor-side inputs that the web client transforms before submit; leaving
@@ -387,7 +402,9 @@ function buildFireflyVideoPayload(opts: {
   return {
     model: fireflyVideoModelKey(opts.model),
     size,
-    referenceFrames: opts.referenceRef ? [{ referenceFrame: opts.referenceRef }, null] : [null, null],
+    referenceFrames: opts.referenceRef
+      ? [{ referenceFrame: opts.referenceRef }, null]
+      : [null, null],
     shots: [
       {
         prompt: opts.prompt,
@@ -435,7 +452,10 @@ type Quota = { total?: number; used?: number; available?: number };
 
 type BalanceResponse = {
   total?: { quota?: Quota; planCap?: string; availableUntil?: string };
-  credits?: { remaining?: number; total?: number; used?: number } & Record<string, { quota?: Quota } | unknown>;
+  credits?: { remaining?: number; total?: number; used?: number } & Record<
+    string,
+    { quota?: Quota } | unknown
+  >;
   quota?: Quota;
   available?: number | string;
   availableCredits?: number | string;
@@ -487,17 +507,25 @@ export async function fetchFireflyBalance(token: string): Promise<FireflyBalance
       };
     }
     const d = res.data || {};
-    const balance = pickNumber(
-      d.total?.quota?.available,
-      d.quota?.available,
-      d.availableCredits,
-      d.remainingCredits,
-      d.available,
-      d.credits?.remaining,
-      d.generativeCredits?.remaining,
-      d.remaining,
-      d.balance,
-    ) ?? findNumberByKey(d, ["available", "availableCredits", "remainingCredits", "remaining", "balance"]);
+    const balance =
+      pickNumber(
+        d.total?.quota?.available,
+        d.quota?.available,
+        d.availableCredits,
+        d.remainingCredits,
+        d.available,
+        d.credits?.remaining,
+        d.generativeCredits?.remaining,
+        d.remaining,
+        d.balance,
+      ) ??
+      findNumberByKey(d, [
+        "available",
+        "availableCredits",
+        "remainingCredits",
+        "remaining",
+        "balance",
+      ]);
     return { ok: true, balance, plan: d.plan || d.entitlement?.name };
   } catch (e) {
     return { ok: false, balance: null, message: (e as Error).message };
@@ -583,8 +611,18 @@ export type FireflyImageModel = {
 };
 
 export const FIREFLY_IMAGE_MODELS: FireflyImageModel[] = [
-  { key: "ff:image4-standard", label: "Firefly Image 4 Standard", modelVersion: "image4_standard", cost: "~1 cr / image" },
-  { key: "ff:image4-ultra", label: "Firefly Image 4 Ultra", modelVersion: "image4_ultra", cost: "~4 cr / image" },
+  {
+    key: "ff:image4-standard",
+    label: "Firefly Image 4 Standard",
+    modelVersion: "image4_standard",
+    cost: "~1 cr / image",
+  },
+  {
+    key: "ff:image4-ultra",
+    label: "Firefly Image 4 Ultra",
+    modelVersion: "image4_ultra",
+    cost: "~4 cr / image",
+  },
   { key: "ff:image3", label: "Firefly Image 3", modelVersion: "image3", cost: "~1 cr / image" },
 ];
 
@@ -710,7 +748,10 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
   // to the nearest supported one instead of sending e.g. 10s and failing.
   const allowed = model.durations && model.durations.length ? model.durations : [8];
   const wanted = opts.duration || 8;
-  const duration = allowed.reduce((a, b) => (Math.abs(b - wanted) < Math.abs(a - wanted) ? b : a), allowed[0]!);
+  const duration = allowed.reduce(
+    (a, b) => (Math.abs(b - wanted) < Math.abs(a - wanted) ? b : a),
+    allowed[0]!,
+  );
 
   const payload = buildFireflyVideoPayload({
     model,
@@ -721,10 +762,7 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
     referenceRef,
   });
   const relayOn = await isRelayAvailable(true);
-  opts.onProgress?.(
-    relayOn ? "Submit via extension relay (browser kamu)…" : "Submit Firefly…",
-    15,
-  );
+  opts.onProgress?.(relayOn ? "Submit via extension relay (browser kamu)…" : "Submit Firefly…", 15);
 
   // Firefly frequently answers 408 "system under load" / 429 on the first hits.
   // Retry with backoff before surfacing an error to the user.
@@ -738,7 +776,11 @@ export async function generateFireflyVideo(opts: FireflyVideoOpts): Promise<stri
     headers: { Accept: "*/*", "x-arp-session-id": sessionId, "x-nonce": randomHex(32) },
   });
   const backoff = [6000, 12000, 20000, 30000, 45000];
-  for (let i = 0; i < backoff.length && !res.ok && [0, 408, 429, 500, 502, 503, 504].includes(res.status); i++) {
+  for (
+    let i = 0;
+    i < backoff.length && !res.ok && [0, 408, 429, 500, 502, 503, 504].includes(res.status);
+    i++
+  ) {
     opts.onProgress?.(`Firefly sibuk (${res.status}), coba lagi ${i + 1}/${backoff.length}…`, 18);
     await new Promise((r) => setTimeout(r, backoff[i]!));
     res = await fireflyFetch<AsyncSubmit>({
@@ -838,7 +880,9 @@ export async function runFireflyWithRotation<T>(
   onRotate?: (index: number, total: number, reason: string) => void,
 ): Promise<T> {
   if (!getAllFireflyKeys().length)
-    throw new Error("Belum ada token Firefly. Buka Token Manager → Firefly dan tempel Bearer token.");
+    throw new Error(
+      "Belum ada token Firefly. Buka Token Manager → Firefly dan tempel Bearer token.",
+    );
   const { preflightTokens } = await import("@/lib/tokens/preflight");
   const pre = await preflightTokens("firefly", { onLog: (m) => onRotate?.(0, 0, m) });
   const tokens = pre.keys.length ? pre.keys : pre.emptyKeys;

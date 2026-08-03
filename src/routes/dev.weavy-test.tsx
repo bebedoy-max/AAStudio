@@ -14,21 +14,31 @@ type Row = { key: string; status: "idle" | "running" | "ok" | "fail"; msg: strin
 function Tester() {
   const keys = getWeavyI2VModelKeys();
   const [file, setFile] = useState<File | null>(null);
-  const [prompt, setPrompt] = useState("cinematic slow camera pan, subject stays centered, soft cinematic light");
+  const [prompt, setPrompt] = useState(
+    "cinematic slow camera pan, subject stays centered, soft cinematic light",
+  );
   const [rows, setRows] = useState<Row[]>(keys.map((k) => ({ key: k, status: "idle", msg: "" })));
   const [busy, setBusy] = useState(false);
 
   async function runOne(key: string) {
     if (!file) return;
-    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, status: "running", msg: "start..." } : r)));
+    setRows((prev) =>
+      prev.map((r) => (r.key === key ? { ...r, status: "running", msg: "start..." } : r)),
+    );
     try {
       const url = await generateWeavyI2V({
-        modelKey: key, imageFile: file, prompt, duration: 5, ratio: "9:16",
+        modelKey: key,
+        imageFile: file,
+        prompt,
+        duration: 5,
+        ratio: "9:16",
         onProgress: (m) => setRows((p) => p.map((r) => (r.key === key ? { ...r, msg: m } : r))),
       });
       setRows((p) => p.map((r) => (r.key === key ? { ...r, status: "ok", msg: "done", url } : r)));
     } catch (e) {
-      setRows((p) => p.map((r) => (r.key === key ? { ...r, status: "fail", msg: (e as Error).message } : r)));
+      setRows((p) =>
+        p.map((r) => (r.key === key ? { ...r, status: "fail", msg: (e as Error).message } : r)),
+      );
     }
   }
 
@@ -37,7 +47,7 @@ function Tester() {
     setBusy(true);
     for (const k of keys) {
       // sequential — Weavy account may throttle parallel batches
-      // eslint-disable-next-line no-await-in-loop
+
       await runOne(k);
     }
     setBusy(false);
@@ -45,17 +55,32 @@ function Tester() {
 
   return (
     <DashboardShell>
-      <PageHero eyebrow="Dev" title="Weavy I2V Tester" desc="Uji semua recipe image-to-video pakai token Weavy aktif." />
+      <PageHero
+        eyebrow="Dev"
+        title="Weavy I2V Tester"
+        desc="Uji semua recipe image-to-video pakai token Weavy aktif."
+      />
       <Card>
         <div className="space-y-3">
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+          />
           <textarea
             className="w-full min-h-20 rounded-md bg-muted/40 border border-border p-2 text-sm"
-            value={prompt} onChange={(e) => setPrompt(e.target.value)}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
           />
           <div className="flex gap-2">
-            <PrimaryButton disabled={!file || busy} onClick={runAll}>Test Semua Model</PrimaryButton>
-            <GhostButton onClick={() => setRows(keys.map((k) => ({ key: k, status: "idle", msg: "" })))}>Reset</GhostButton>
+            <PrimaryButton disabled={!file || busy} onClick={runAll}>
+              Test Semua Model
+            </PrimaryButton>
+            <GhostButton
+              onClick={() => setRows(keys.map((k) => ({ key: k, status: "idle", msg: "" })))}
+            >
+              Reset
+            </GhostButton>
           </div>
         </div>
       </Card>
@@ -66,16 +91,25 @@ function Tester() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="font-medium">{r.key}</div>
-                <div className={`text-xs ${r.status === "fail" ? "text-red-500" : "text-muted-foreground"} break-all`}>
+                <div
+                  className={`text-xs ${r.status === "fail" ? "text-red-500" : "text-muted-foreground"} break-all`}
+                >
                   [{r.status}] {r.msg}
                 </div>
                 {r.url && (
-                  <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline break-all">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-500 underline break-all"
+                  >
                     {r.url}
                   </a>
                 )}
               </div>
-              <GhostButton onClick={() => runOne(r.key)} disabled={!file || busy}>Test</GhostButton>
+              <GhostButton onClick={() => runOne(r.key)} disabled={!file || busy}>
+                Test
+              </GhostButton>
             </div>
             {r.url && <video src={r.url} controls className="mt-2 max-h-64 rounded" />}
           </Card>

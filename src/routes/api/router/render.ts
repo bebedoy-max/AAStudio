@@ -15,7 +15,10 @@ function json(data: unknown, status = 200) {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export const Route = createFileRoute("/api/router/render")({

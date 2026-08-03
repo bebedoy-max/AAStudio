@@ -142,9 +142,13 @@ function collectMedia(node: unknown, out: { videos: string[]; images: string[] }
 
 const enc = new TextEncoder();
 async function hmac(key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> {
-  const k = await crypto.subtle.importKey("raw", key as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, [
-    "sign",
-  ]);
+  const k = await crypto.subtle.importKey(
+    "raw",
+    key as BufferSource,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
   return crypto.subtle.sign("HMAC", k, enc.encode(data));
 }
 const hex = (buf: ArrayBuffer) =>
@@ -167,7 +171,14 @@ async function signImageX(opts: {
   const signedHeaders = "x-amz-date;x-amz-security-token";
   const canonicalHeaders = `x-amz-date:${opts.amzDate}\nx-amz-security-token:${opts.sessionToken}\n`;
   const payloadHash = hex(await crypto.subtle.digest("SHA-256", enc.encode("")));
-  const canonicalRequest = ["GET", "/", opts.query, canonicalHeaders, signedHeaders, payloadHash].join("\n");
+  const canonicalRequest = [
+    "GET",
+    "/",
+    opts.query,
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
   const scope = `${date}/${region}/${service}/aws4_request`;
   const stringToSign = [
     "AWS4-HMAC-SHA256",
@@ -280,7 +291,11 @@ function crc32(bytes: Uint8Array): string {
   return ((c ^ 0xffffffff) >>> 0).toString(16).padStart(8, "0");
 }
 
-async function authorizeImageUpload(cookie: string, fileSize: number, ext: string): Promise<Response> {
+async function authorizeImageUpload(
+  cookie: string,
+  fileSize: number,
+  ext: string,
+): Promise<Response> {
   const creds = await fetchUploadCreds(cookie);
   if (!creds) {
     return json(
@@ -293,7 +308,10 @@ async function authorizeImageUpload(cookie: string, fileSize: number, ext: strin
     );
   }
 
-  const amzDate = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const amzDate = new Date()
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
   // Query harus urut byte-order (SigV4) — "s" (random) selalu terakhir.
   const params: [string, string][] = [
     ["Action", "ApplyImageUpload"],
@@ -327,7 +345,9 @@ async function authorizeImageUpload(cookie: string, fileSize: number, ext: strin
   });
   const applyText = await applyRes.text();
   let apply: {
-    Result?: { UploadAddress?: { StoreInfos?: { StoreUri: string; Auth: string }[]; UploadHosts?: string[] } };
+    Result?: {
+      UploadAddress?: { StoreInfos?: { StoreUri: string; Auth: string }[]; UploadHosts?: string[] };
+    };
     ResponseMetadata?: { Error?: { Code?: string; Message?: string } };
   } | null = null;
   try {
@@ -339,7 +359,8 @@ async function authorizeImageUpload(cookie: string, fileSize: number, ext: strin
   const host = apply?.Result?.UploadAddress?.UploadHosts?.[0];
   if (!store || !host) {
     const err = apply?.ResponseMetadata?.Error;
-    const detail = err?.Message || err?.Code || applyText.slice(0, 300) || `HTTP ${applyRes.status}`;
+    const detail =
+      err?.Message || err?.Code || applyText.slice(0, 300) || `HTTP ${applyRes.status}`;
     const expired = /expire|token|denied|signature/i.test(detail);
     return json(
       {
@@ -360,7 +381,10 @@ async function authorizeImageUpload(cookie: string, fileSize: number, ext: strin
 
 async function uploadImage(cookie: string, bin: Uint8Array, ext: string) {
   const authorized = await authorizeImageUpload(cookie, bin.byteLength, ext);
-  const result = (await authorized.clone().json().catch(() => null)) as {
+  const result = (await authorized
+    .clone()
+    .json()
+    .catch(() => null)) as {
     ok?: boolean;
     upload?: ImageXUploadTarget;
   } | null;
@@ -411,7 +435,13 @@ async function completion(cookie: string, body: Record<string, unknown>) {
                   image: {
                     name: imageUri.split("/").pop() || "image.png",
                     uri: imageUri,
-                    image_ori: { url: "", width: imageWidth, height: imageHeight, format: "", url_formats: {} },
+                    image_ori: {
+                      url: "",
+                      width: imageWidth,
+                      height: imageHeight,
+                      format: "",
+                      url_formats: {},
+                    },
                   },
                   parse_state: 0,
                   review_state: 1,
@@ -648,7 +678,8 @@ export const Route = createFileRoute("/api/public/dola")({
           body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
           cookie = cookie || String(body?.["_cookie"] ?? "");
         }
-        const hasSession = /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt)=/.test(cookie);
+        const hasSession =
+          /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt)=/.test(cookie);
         if (!cookie || !hasSession) {
           return json({ ok: false, error: "Cookie session dola.com required" }, 400);
         }

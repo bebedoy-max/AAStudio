@@ -102,7 +102,9 @@ function normalizeMagnificError(status: number, data: unknown) {
 
   if (
     status === 401 ||
-    /invalid\s+api\s+key|missing\s+api\s+key|provided\s+api\s+key\s+is\s+invalid|unauthori[sz]ed|authenticate/.test(text)
+    /invalid\s+api\s+key|missing\s+api\s+key|provided\s+api\s+key\s+is\s+invalid|unauthori[sz]ed|authenticate/.test(
+      text,
+    )
   ) {
     return {
       providerErrorType: "invalid_api_key",
@@ -112,7 +114,10 @@ function normalizeMagnificError(status: number, data: unknown) {
     };
   }
 
-  if (status === 402 || /credit|credits|balance|quota|cap|allowance|insufficient|exhausted|not\s+enough/.test(text)) {
+  if (
+    status === 402 ||
+    /credit|credits|balance|quota|cap|allowance|insufficient|exhausted|not\s+enough/.test(text)
+  ) {
     return {
       providerErrorType: "insufficient_credits",
       error:
@@ -132,7 +137,8 @@ function normalizeMagnificError(status: number, data: unknown) {
   if (status === 403 || /not\s+authorized|not\s+owner|permission|privilege|forbidden/.test(text)) {
     return {
       providerErrorType: "forbidden",
-      error: "API key Magnific valid, tapi tidak punya akses ke model/resource ini. Cek izin API key atau paket akun Magnific.",
+      error:
+        "API key Magnific valid, tapi tidak punya akses ke model/resource ini. Cek izin API key atau paket akun Magnific.",
       upstreamMessage,
     };
   }
@@ -142,8 +148,15 @@ function normalizeMagnificError(status: number, data: unknown) {
 
 function normalizeMagnificResponse(data: unknown, status: number) {
   if (status >= 200 && status < 300) return data;
-  const base = data && typeof data === "object" && !Array.isArray(data) ? data : { message: getMessageFromMagnific(data) };
-  return { ...(base as Record<string, unknown>), ...normalizeMagnificError(status, data), upstreamStatus: status };
+  const base =
+    data && typeof data === "object" && !Array.isArray(data)
+      ? data
+      : { message: getMessageFromMagnific(data) };
+  return {
+    ...(base as Record<string, unknown>),
+    ...normalizeMagnificError(status, data),
+    upstreamStatus: status,
+  };
 }
 
 export const Route = createFileRoute("/api/public/magnific")({
@@ -160,7 +173,10 @@ export const Route = createFileRoute("/api/public/magnific")({
 
         const parsed = z.discriminatedUnion("action", [SubmitBody, StatusBody]).safeParse(body);
         if (!parsed.success) {
-          return json({ error: "Request Magnific tidak valid", detail: parsed.error.flatten() }, { status: 400 });
+          return json(
+            { error: "Request Magnific tidak valid", detail: parsed.error.flatten() },
+            { status: 400 },
+          );
         }
 
         const endpoint = MODEL_ENDPOINTS[parsed.data.modelKey];
@@ -179,20 +195,27 @@ export const Route = createFileRoute("/api/public/magnific")({
             });
 
             const data = await readMagnificJson(upstream);
-            return json(normalizeMagnificResponse(data, upstream.status), { status: upstream.status });
+            return json(normalizeMagnificResponse(data, upstream.status), {
+              status: upstream.status,
+            });
           }
 
-          const upstream = await fetch(`${MAGNIFIC_API}${endpoint.status}/${encodeURIComponent(parsed.data.taskId)}`, {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              "x-magnific-api-key": parsed.data.apiKey,
+          const upstream = await fetch(
+            `${MAGNIFIC_API}${endpoint.status}/${encodeURIComponent(parsed.data.taskId)}`,
+            {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                "x-magnific-api-key": parsed.data.apiKey,
+              },
+              signal: AbortSignal.timeout(45_000),
             },
-            signal: AbortSignal.timeout(45_000),
-          });
+          );
 
           const data = await readMagnificJson(upstream);
-          return json(normalizeMagnificResponse(data, upstream.status), { status: upstream.status });
+          return json(normalizeMagnificResponse(data, upstream.status), {
+            status: upstream.status,
+          });
         } catch (error) {
           return json(
             { error: error instanceof Error ? error.message : "Gagal menghubungi Magnific" },

@@ -30,8 +30,7 @@ const PROVIDERS: readonly BankProvider[] = [
 ] as const;
 
 function assertProvider(p: string): asserts p is BankProvider {
-  if (!(PROVIDERS as readonly string[]).includes(p))
-    throw new Error(`Unknown provider: ${p}`);
+  if (!(PROVIDERS as readonly string[]).includes(p)) throw new Error(`Unknown provider: ${p}`);
 }
 
 export const BANK_STORAGE_KEY: Record<BankProvider, string> = {
@@ -115,10 +114,7 @@ export const listBankInventory = createServerFn({ method: "GET" })
       .select(`${BASE}, credit_status, credit_detail, credit_checked_at`)
       .order("created_at", { ascending: false });
     if (res.error) {
-      res = await db
-        .from("token_bank_keys")
-        .select(BASE)
-        .order("created_at", { ascending: false });
+      res = await db.from("token_bank_keys").select(BASE).order("created_at", { ascending: false });
     }
     if (res.error) throw new Error(res.error.message);
     const rows = (res.data ?? []) as {
@@ -155,8 +151,8 @@ export const listBankInventory = createServerFn({ method: "GET" })
       credit_status: r.credit_status ?? null,
       credit_detail: r.credit_detail ?? null,
       credit_checked_at: r.credit_checked_at ?? null,
-      assigned_email: r.assigned_to ? byId[r.assigned_to]?.email ?? null : null,
-      assigned_display_name: r.assigned_to ? byId[r.assigned_to]?.display_name ?? null : null,
+      assigned_email: r.assigned_to ? (byId[r.assigned_to]?.email ?? null) : null,
+      assigned_display_name: r.assigned_to ? (byId[r.assigned_to]?.display_name ?? null) : null,
     }));
   });
 
@@ -243,7 +239,6 @@ export const addBankKeys = createServerFn({ method: "POST" })
     };
   });
 
-
 export const deleteBankKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { id: string }) => {
@@ -295,7 +290,9 @@ export const restoreAssignedBankKeys = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { provider: string; keys: string[] }) => {
     assertProvider(data.provider);
-    const keys = Array.from(new Set((data.keys ?? []).map((k) => String(k).trim()).filter(Boolean)));
+    const keys = Array.from(
+      new Set((data.keys ?? []).map((k) => String(k).trim()).filter(Boolean)),
+    );
     if (keys.length === 0) throw new Error("keys required");
     return { provider: data.provider as BankProvider, keys };
   })
@@ -326,7 +323,8 @@ export const restoreAssignedBankKeys = createServerFn({ method: "POST" })
     }
 
     const keepIds = Array.from(keepByKey.values()).map((r) => r.id);
-    if (keepIds.length === 0) return { ok: true, restored: [] as { id: string; key_value: string }[] };
+    if (keepIds.length === 0)
+      return { ok: true, restored: [] as { id: string; key_value: string }[] };
 
     const { data: restored, error } = await db
       .from("token_bank_keys")
@@ -508,7 +506,6 @@ async function deliverKeysToUser(params: {
   if (delErr) throw new Error(delErr.message);
 
   return { delivered: picked.length };
-
 }
 
 export const transferBankKeys = createServerFn({ method: "POST" })
@@ -581,7 +578,9 @@ export const transferBankKeysByIds = createServerFn({ method: "POST" })
   });
 
 const CART_MARKER = "[TOKEN_BANK_CART]";
-function parseCartFromNote(note: string | null | undefined): { provider: BankProvider; qty: number }[] | null {
+function parseCartFromNote(
+  note: string | null | undefined,
+): { provider: BankProvider; qty: number }[] | null {
   if (!note) return null;
   const i = note.indexOf(CART_MARKER);
   if (i < 0) return null;
@@ -648,8 +647,7 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
       (pr.token_provider && pr.token_qty
         ? [{ provider: pr.token_provider as BankProvider, qty: pr.token_qty }]
         : null);
-    if (!items || items.length === 0)
-      throw new Error("Request is missing token cart items");
+    if (!items || items.length === 0) throw new Error("Request is missing token cart items");
 
     const totalKeys = items.reduce((a, it) => a + it.qty, 0);
     const perKeyPrice = totalKeys > 0 ? Math.round(pr.price_idr / totalKeys) : 0;
@@ -673,7 +671,11 @@ export const fulfillTokenPurchase = createServerFn({ method: "POST" })
 
 export const searchUsersForTransfer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { q: string }) => ({ q: String(data.q ?? "").trim().slice(0, 100) }))
+  .inputValidator((data: { q: string }) => ({
+    q: String(data.q ?? "")
+      .trim()
+      .slice(0, 100),
+  }))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     if (!data.q) return [];
@@ -835,16 +837,12 @@ export const listBankTransactions = createServerFn({ method: "POST" })
     return out as BankTxRow[];
   });
 
-
 export const resetBankTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const db = context.supabase as unknown as LooseClient;
-    const { error } = await db
-      .from("token_bank_transactions")
-      .delete()
-      .not("id", "is", null);
+    const { error } = await db.from("token_bank_transactions").delete().not("id", "is", null);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

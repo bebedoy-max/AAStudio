@@ -16,20 +16,10 @@ const MOOD_ALBUMS: Record<string, string[]> = {
     "Kevin-MacLeod_Falcon-Banner_2006_FullAlbum",
     "Kevin-MacLeod_Netherworld-Shanty_2014_FullAlbum",
   ],
-  horror: [
-    "Kevin-MacLeod_Falcon-Banner_2006_FullAlbum",
-  ],
-  inspiration: [
-    "Kevin-MacLeod_Rollin-at-5_2014_FullAlbum",
-    "Kevin-MacLeod_Ferret_2017_FullAlbum",
-  ],
-  comedy: [
-    "Kevin-MacLeod_Comedy-Scoring_2014_FullAlbum",
-  ],
-  upbeat: [
-    "Kevin-MacLeod_Mad-Pianist_2008_FullAlbum",
-    "Kevin-MacLeod_Ferret_2017_FullAlbum",
-  ],
+  horror: ["Kevin-MacLeod_Falcon-Banner_2006_FullAlbum"],
+  inspiration: ["Kevin-MacLeod_Rollin-at-5_2014_FullAlbum", "Kevin-MacLeod_Ferret_2017_FullAlbum"],
+  comedy: ["Kevin-MacLeod_Comedy-Scoring_2014_FullAlbum"],
+  upbeat: ["Kevin-MacLeod_Mad-Pianist_2008_FullAlbum", "Kevin-MacLeod_Ferret_2017_FullAlbum"],
   documentary: [
     "Kevin-MacLeod_Utility_Vadodara_2014_FullAlbum",
     "Kevin-MacLeod_Silent-Film-Light-Collection_2014_FullAlbum",
@@ -95,7 +85,9 @@ export const Route = createFileRoute("/api/public/backsound-search")({
         const url = new URL(request.url);
         const mood = (url.searchParams.get("mood") || "cinematic").toLowerCase();
         if (mood === "moods") {
-          return json({ moods: Object.entries(MOOD_LABELS).map(([k, v]) => ({ key: k, label: v })) });
+          return json({
+            moods: Object.entries(MOOD_LABELS).map(([k, v]) => ({ key: k, label: v })),
+          });
         }
         const albums = MOOD_ALBUMS[mood] || MOOD_ALBUMS.cinematic;
         const results = await Promise.all(albums.map(fetchAlbumTracks));

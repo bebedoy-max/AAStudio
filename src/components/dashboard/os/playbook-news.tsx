@@ -19,7 +19,16 @@ const NEWS_QUERIES = [
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
+  | {
+      open: true;
+      title: string;
+      url: string;
+      loading: boolean;
+      body?: string;
+      hero?: string;
+      error?: string;
+      refined?: string;
+    };
 
 export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => void }) {
   const [tab, setTab] = useState<"playbook" | "news">("playbook");
@@ -41,8 +50,15 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
               const j = await r.json();
               const it = Array.isArray(j.items) ? j.items[0] : null;
               if (!it || !it.url || !it.title) return null;
-              return { title: it.title, url: it.url, source: it.source || "Google News", tag } as LiveNews;
-            } catch { return null; }
+              return {
+                title: it.title,
+                url: it.url,
+                source: it.source || "Google News",
+                tag,
+              } as LiveNews;
+            } catch {
+              return null;
+            }
           }),
         );
         const filtered = results.filter((x): x is LiveNews => !!x);
@@ -54,7 +70,6 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
       }
     })();
   }, [tab, news.length, loadingNews]);
-
 
   const openReader = async (n: LiveNews) => {
     const cached = getArticle(n.url);
@@ -84,7 +99,6 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
       error: data.error,
     });
   };
-
 
   const handleGenerate = (n: { title: string; url?: string; body?: string }) => {
     if (n.url) {
@@ -121,7 +135,9 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
             onClick={() => setTab(t)}
             className={
               "rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-widest transition " +
-              (tab === t ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground")
+              (tab === t
+                ? "text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground")
             }
             style={tab === t ? { background: "var(--gradient-neon)" } : undefined}
           >
@@ -151,7 +167,10 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
       ) : (
         <ul className="mt-3 space-y-2">
           {news.map((n, i) => (
-            <li key={i} className="rounded-xl border border-border bg-card/30 p-3 flex items-start gap-3">
+            <li
+              key={i}
+              className="rounded-xl border border-border bg-card/30 p-3 flex items-start gap-3"
+            >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Chip>{n.tag}</Chip>
@@ -183,7 +202,11 @@ export function PlaybookNews({ onGenerate }: { onGenerate: (topic: string) => vo
           onClose={() => setReader({ open: false })}
           onGenerate={() => {
             if (!reader.open) return;
-            handleGenerate({ title: reader.title, url: reader.url, body: reader.refined || reader.body });
+            handleGenerate({
+              title: reader.title,
+              url: reader.url,
+              body: reader.refined || reader.body,
+            });
             setReader({ open: false });
           }}
         />
@@ -249,7 +272,9 @@ function NewsReaderModal({
               </div>
               {state.refined && state.body && (
                 <details className="mt-4 text-[11px] text-muted-foreground">
-                  <summary className="cursor-pointer hover:text-foreground">Lihat teks mentah</summary>
+                  <summary className="cursor-pointer hover:text-foreground">
+                    Lihat teks mentah
+                  </summary>
                   <div className="mt-2 whitespace-pre-wrap text-foreground/60">{state.body}</div>
                 </details>
               )}

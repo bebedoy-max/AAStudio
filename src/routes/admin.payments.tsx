@@ -155,13 +155,21 @@ function PricesSection() {
     const existingKeys = new Set(existing.map((r) => r.route_key));
     const missing = premiumMenus
       .filter((m) => !existingKeys.has(m.key))
-      .map((m) => ({ route_key: m.key, label: m.label, price_idr: DEFAULT_FEATURE_PRICE, is_active: true }));
+      .map((m) => ({
+        route_key: m.key,
+        label: m.label,
+        price_idr: DEFAULT_FEATURE_PRICE,
+        is_active: true,
+      }));
 
     let finalRows = existing;
     if (missing.length > 0) {
       const { error: insErr } = await supabase.from("feature_prices").insert(missing);
       if (!insErr) {
-        const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
+        const { data: refetched } = await supabase
+          .from("feature_prices")
+          .select("*")
+          .order("label");
         finalRows = (refetched ?? []) as Price[];
       } else {
         finalRows = [...existing, ...missing];
@@ -175,8 +183,6 @@ function PricesSection() {
   useEffect(() => {
     load();
   }, []);
-
-
 
   async function save(row: Price) {
     const newPrice = drafts[row.route_key];
@@ -272,8 +278,9 @@ function PricesSection() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">{bundleRow.label}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    Dihitung otomatis: 70% dari total {featureRows.filter((r) => r.is_active).length} fitur
-                    premium aktif ({formatRupiah(featuresTotal)}).
+                    Dihitung otomatis: 70% dari total{" "}
+                    {featureRows.filter((r) => r.is_active).length} fitur premium aktif (
+                    {formatRupiah(featuresTotal)}).
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -372,7 +379,6 @@ function formatRupiah(n: number) {
   return "Rp " + (n ?? 0).toLocaleString("id-ID");
 }
 
-
 // ============= Methods =============
 
 type Method = {
@@ -442,7 +448,9 @@ function MethodsSection() {
       <div className="p-4 border-b border-border/60 flex items-center justify-between gap-3">
         <div>
           <div className="font-display text-lg">Metode Pembayaran</div>
-          <div className="text-xs text-muted-foreground">QRIS (upload gambar), Bank, E-wallet, atau custom.</div>
+          <div className="text-xs text-muted-foreground">
+            QRIS (upload gambar), Bank, E-wallet, atau custom.
+          </div>
         </div>
         <button
           onClick={() => setCreating(true)}
@@ -485,7 +493,9 @@ function MethodsSection() {
                       </div>
                     )}
                     {m.type === "qris" && m.image_url && (
-                      <div className="text-[11px] text-muted-foreground mt-0.5">Gambar QRIS terupload</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        Gambar QRIS terupload
+                      </div>
                     )}
                   </div>
                   <button
@@ -564,7 +574,9 @@ function MethodModal({
     accountNumber,
     accountHolder,
     imagePath,
-    imageFileKey: imageFile ? `${imageFile.name}:${imageFile.size}:${imageFile.lastModified}` : null,
+    imageFileKey: imageFile
+      ? `${imageFile.name}:${imageFile.size}:${imageFile.lastModified}`
+      : null,
     sortOrder,
   });
 
@@ -573,7 +585,9 @@ function MethodModal({
       supabase.storage
         .from("payment-assets")
         .createSignedUrl(imagePath, 3600)
-        .then(({ data }: { data: { signedUrl: string } | null }) => setSignedPreview(data?.signedUrl ?? null));
+        .then(({ data }: { data: { signedUrl: string } | null }) =>
+          setSignedPreview(data?.signedUrl ?? null),
+        );
     }
   }, [imagePath, imageFile]);
 
@@ -612,7 +626,10 @@ function MethodModal({
       };
 
       if (method) {
-        const { error } = await supabase.from("payment_methods").update(payload).eq("id", method.id);
+        const { error } = await supabase
+          .from("payment_methods")
+          .update(payload)
+          .eq("id", method.id);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("payment_methods").insert(payload);
@@ -639,7 +656,10 @@ function MethodModal({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
           <div className="font-display text-lg">{method ? "Edit metode" : "Tambah metode"}</div>
-          <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full border border-border">
+          <button
+            onClick={onClose}
+            className="h-8 w-8 grid place-items-center rounded-full border border-border"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -656,7 +676,9 @@ function MethodModal({
                     onClick={() => setType(t)}
                     className={[
                       "flex flex-col items-center gap-1 rounded-xl border py-2 text-xs transition",
-                      active ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:bg-card/70",
+                      active
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border bg-card/40 hover:bg-card/70",
                     ].join(" ")}
                   >
                     <Icon className="h-4 w-4" />
@@ -668,7 +690,13 @@ function MethodModal({
           </FieldLabel>
 
           <FieldLabel label="Nama tampilan">
-            <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} placeholder="cth: QRIS BCA, BCA 1234567890, DANA" />
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className={inputCls}
+              placeholder="cth: QRIS BCA, BCA 1234567890, DANA"
+            />
           </FieldLabel>
 
           {type === "qris" ? (
@@ -677,7 +705,11 @@ function MethodModal({
                 <Upload className="h-4 w-4 text-primary" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm truncate">
-                    {imageFile ? imageFile.name : imagePath ? "Ganti gambar" : "Upload gambar QRIS (max 3MB)"}
+                    {imageFile
+                      ? imageFile.name
+                      : imagePath
+                        ? "Ganti gambar"
+                        : "Upload gambar QRIS (max 3MB)"}
                   </div>
                   <div className="text-[10px] text-muted-foreground">PNG / JPG</div>
                 </div>
@@ -694,10 +726,19 @@ function MethodModal({
           ) : (
             <>
               <FieldLabel label="Nomor rekening / e-wallet">
-                <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className={inputCls} placeholder="1234567890" />
+                <input
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className={inputCls}
+                  placeholder="1234567890"
+                />
               </FieldLabel>
               <FieldLabel label="Atas nama">
-                <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} className={inputCls} />
+                <input
+                  value={accountHolder}
+                  onChange={(e) => setAccountHolder(e.target.value)}
+                  className={inputCls}
+                />
               </FieldLabel>
             </>
           )}
@@ -742,7 +783,9 @@ const inputCls =
 function FieldLabel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );

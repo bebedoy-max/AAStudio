@@ -4,12 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Check, X, ExternalLink, Clock, CircleCheck, CircleX } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  Check,
+  X,
+  ExternalLink,
+  Clock,
+  CircleCheck,
+  CircleX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { fulfillTokenPurchase } from "@/lib/token-bank/bank.functions";
 import { promptDialog } from "@/components/ui-prompt";
 import { confirmDialog } from "@/components/ui-confirm";
-
 
 export const Route = createFileRoute("/admin/requests")({
   head: () => ({
@@ -46,7 +54,10 @@ function parseFeaturesFromNote(note: string | null): string[] {
   if (!note) return [];
   const m = note.match(/\[FEATURES:([^\]]+)\]/);
   if (!m) return [];
-  return m[1].split(",").map((s) => s.trim()).filter(Boolean);
+  return m[1]
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function AdminRequestsPage() {
@@ -96,7 +107,6 @@ function Body() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
-
   async function load() {
     setLoading(true);
     const [{ data: reqs }, { data: profiles }] = await Promise.all([
@@ -104,11 +114,11 @@ function Body() {
       supabase.from("profiles").select("id, email, display_name"),
     ]);
     const byId: Record<string, { email: string | null; display_name: string | null }> = {};
-    ((profiles ?? []) as { id: string; email: string | null; display_name: string | null }[]).forEach(
-      (p) => {
-        byId[p.id] = { email: p.email, display_name: p.display_name };
-      },
-    );
+    (
+      (profiles ?? []) as { id: string; email: string | null; display_name: string | null }[]
+    ).forEach((p) => {
+      byId[p.id] = { email: p.email, display_name: p.display_name };
+    });
     setRows(
       ((reqs ?? []) as Req[]).map((r) => ({
         ...r,
@@ -129,7 +139,9 @@ function Body() {
   );
 
   // Clear selection when filter changes (avoid dangling ids not on screen)
-  useEffect(() => { setSelected(new Set()); }, [filter]);
+  useEffect(() => {
+    setSelected(new Set());
+  }, [filter]);
 
   const allChecked = filtered.length > 0 && filtered.every((r) => selected.has(r.id));
   const someChecked = filtered.some((r) => selected.has(r.id));
@@ -140,13 +152,16 @@ function Body() {
   function toggleOne(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
 
   async function bulkDecide(status: "approved" | "rejected") {
-    const ids = filtered.filter((r) => selected.has(r.id) && r.status === "pending").map((r) => r.id);
+    const ids = filtered
+      .filter((r) => selected.has(r.id) && r.status === "pending")
+      .map((r) => r.id);
     if (ids.length === 0) return toast.error("Pilih minimal 1 request pending");
     let admin_note: string | null = null;
     if (status === "rejected") {
@@ -171,22 +186,43 @@ function Body() {
     }
     setBulkBusy(true);
     const targetRows = rows.filter((r) => ids.includes(r.id));
-    let ok = 0, fail = 0;
+    let ok = 0,
+      fail = 0;
     for (const row of targetRows) {
       const { error } = await supabase
         .from("purchase_requests")
-        .update({ status, admin_note, reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
+        .update({
+          status,
+          admin_note,
+          reviewed_by: user?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+        })
         .eq("id", row.id);
-      if (error) { fail += 1; continue; }
+      if (error) {
+        fail += 1;
+        continue;
+      }
       if (status === "approved") {
         if ((row as unknown as { request_kind?: string }).request_kind === "token_bank") {
-          try { await fulfillTokenPurchase({ data: { purchaseRequestId: row.id } }); } catch { fail += 1; continue; }
+          try {
+            await fulfillTokenPurchase({ data: { purchaseRequestId: row.id } });
+          } catch {
+            fail += 1;
+            continue;
+          }
         } else {
-          const extras = parseFeaturesFromNote(row.note ?? null).filter((rk) => rk && rk !== row.route_key);
+          const extras = parseFeaturesFromNote(row.note ?? null).filter(
+            (rk) => rk && rk !== row.route_key,
+          );
           if (extras.length > 0) {
-            const until = new Date(); until.setDate(until.getDate() + 30);
+            const until = new Date();
+            until.setDate(until.getDate() + 30);
             await supabase.from("route_permissions").upsert(
-              extras.map((rk) => ({ user_id: row.user_id, route_key: rk, expires_at: until.toISOString() })),
+              extras.map((rk) => ({
+                user_id: row.user_id,
+                route_key: rk,
+                expires_at: until.toISOString(),
+              })),
               { onConflict: "user_id,route_key" },
             );
           }
@@ -196,7 +232,9 @@ function Body() {
     }
     setBulkBusy(false);
     setSelected(new Set());
-    toast.success(`${status === "approved" ? "Disetujui" : "Ditolak"}: ${ok}${fail ? ` · gagal ${fail}` : ""}`);
+    toast.success(
+      `${status === "approved" ? "Disetujui" : "Ditolak"}: ${ok}${fail ? ` · gagal ${fail}` : ""}`,
+    );
     load();
   }
 
@@ -212,7 +250,8 @@ function Body() {
     if (status === "rejected") {
       const reason = await promptDialog({
         title: "Tolak permintaan ini?",
-        description: "Berikan alasan penolakan (opsional). User akan melihat catatan ini pada notifikasinya.",
+        description:
+          "Berikan alasan penolakan (opsional). User akan melihat catatan ini pada notifikasinya.",
         placeholder: "Alasan penolakan…",
         confirmLabel: "Tolak permintaan",
         cancelLabel: "Batal",
@@ -225,7 +264,12 @@ function Body() {
     setBusy(row.id);
     const { error } = await supabase
       .from("purchase_requests")
-      .update({ status, admin_note, reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
+      .update({
+        status,
+        admin_note,
+        reviewed_by: user?.id ?? null,
+        reviewed_at: new Date().toISOString(),
+      })
       .eq("id", row.id);
     if (error) {
       setBusy(null);
@@ -233,7 +277,10 @@ function Body() {
     }
     // Auto-fulfill token-bank purchases: pulls N keys from bank, appends encrypted
     // to buyer's user_tokens, marks bank rows as assigned. Idempotent server-side.
-    if (status === "approved" && (row as unknown as { request_kind?: string }).request_kind === "token_bank") {
+    if (
+      status === "approved" &&
+      (row as unknown as { request_kind?: string }).request_kind === "token_bank"
+    ) {
       try {
         await fulfillTokenPurchase({ data: { purchaseRequestId: row.id } });
         toast.success("Disetujui — token dikirim ke user");
@@ -244,8 +291,9 @@ function Body() {
       // Bundle checkouts encode ALL feature route_keys in the note. Grant
       // route_permissions for every listed extra key so the whole bundle
       // activates, not just pr.route_key (which the DB trigger handles).
-      const extras = parseFeaturesFromNote((row as unknown as { note?: string | null }).note ?? null)
-        .filter((rk: string) => rk && rk !== row.route_key);
+      const extras = parseFeaturesFromNote(
+        (row as unknown as { note?: string | null }).note ?? null,
+      ).filter((rk: string) => rk && rk !== row.route_key);
       if (extras.length > 0) {
         const until = new Date();
         until.setDate(until.getDate() + 30);
@@ -294,9 +342,7 @@ function Body() {
               ].join(" ")}
             >
               {s}
-              {s !== "all" && (
-                <span className="ml-1.5 text-[10px] opacity-70">({counts[s]})</span>
-              )}
+              {s !== "all" && <span className="ml-1.5 text-[10px] opacity-70">({counts[s]})</span>}
             </button>
           ))}
           {selected.size > 0 && (
@@ -310,7 +356,11 @@ function Body() {
                 className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                 style={{ background: "var(--gradient-neon)" }}
               >
-                {bulkBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                {bulkBusy ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Check className="h-3 w-3" />
+                )}
                 Approve
               </button>
               <button
@@ -331,7 +381,6 @@ function Body() {
         </div>
       </Card>
 
-
       <Card>
         {loading ? (
           <div className="p-8 grid place-items-center">
@@ -348,7 +397,9 @@ function Body() {
                     <input
                       type="checkbox"
                       checked={allChecked}
-                      ref={(el) => { if (el) el.indeterminate = !allChecked && someChecked; }}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !allChecked && someChecked;
+                      }}
                       onChange={toggleAll}
                       className="h-3.5 w-3.5 accent-primary cursor-pointer"
                       aria-label="Pilih semua"
@@ -363,11 +414,16 @@ function Body() {
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
-
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className={"border-b border-border/40 hover:bg-sidebar-accent/20 align-top " + (selected.has(r.id) ? "bg-primary/5" : "")}>
+                  <tr
+                    key={r.id}
+                    className={
+                      "border-b border-border/40 hover:bg-sidebar-accent/20 align-top " +
+                      (selected.has(r.id) ? "bg-primary/5" : "")
+                    }
+                  >
                     <td className="px-3 py-3">
                       <input
                         type="checkbox"
@@ -399,7 +455,10 @@ function Body() {
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
                       {r.note && (
-                        <div className="mt-1 text-[11px] text-muted-foreground max-w-[200px] truncate" title={r.note}>
+                        <div
+                          className="mt-1 text-[11px] text-muted-foreground max-w-[200px] truncate"
+                          title={r.note}
+                        >
                           "{r.note}"
                         </div>
                       )}
@@ -429,7 +488,11 @@ function Body() {
                             className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                             style={{ background: "var(--gradient-neon)" }}
                           >
-                            {busy === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                            {busy === r.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <Check className="h-3 w-3" />
+                            )}
                             Approve
                           </button>
                           <button
@@ -466,7 +529,11 @@ function Body() {
             >
               <X className="h-4 w-4" />
             </button>
-            <img src={previewUrl} alt="bukti" className="max-h-[85vh] max-w-[90vw] rounded-2xl border border-border" />
+            <img
+              src={previewUrl}
+              alt="bukti"
+              className="max-h-[85vh] max-w-[90vw] rounded-2xl border border-border"
+            />
           </div>
         </div>
       )}
@@ -476,13 +543,27 @@ function Body() {
 
 function StatusPill({ status }: { status: "pending" | "approved" | "rejected" }) {
   const map = {
-    pending: { icon: Clock, cls: "border-amber-400/50 text-amber-300 bg-amber-400/10", label: "pending" },
-    approved: { icon: CircleCheck, cls: "border-emerald-400/50 text-emerald-300 bg-emerald-400/10", label: "approved" },
-    rejected: { icon: CircleX, cls: "border-rose-400/50 text-rose-300 bg-rose-400/10", label: "rejected" },
+    pending: {
+      icon: Clock,
+      cls: "border-amber-400/50 text-amber-300 bg-amber-400/10",
+      label: "pending",
+    },
+    approved: {
+      icon: CircleCheck,
+      cls: "border-emerald-400/50 text-emerald-300 bg-emerald-400/10",
+      label: "approved",
+    },
+    rejected: {
+      icon: CircleX,
+      cls: "border-rose-400/50 text-rose-300 bg-rose-400/10",
+      label: "rejected",
+    },
   } as const;
   const { icon: Icon, cls, label } = map[status];
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}
+    >
       <Icon className="h-3 w-3" /> {label}
     </span>
   );

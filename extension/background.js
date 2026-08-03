@@ -55,7 +55,8 @@ async function handleHeaders(details, provider) {
   for (const h of headers) {
     if (!h?.name || typeof h.value !== "string") continue;
     const name = h.name.toLowerCase();
-    if (name === "cookie" || name === "user-agent" || name === "referer" || name === "origin") continue;
+    if (name === "cookie" || name === "user-agent" || name === "referer" || name === "origin")
+      continue;
     // Strip an optional "Bearer " / "Token " prefix.
     const raw = h.value.replace(/^\s*(Bearer|Token)\s+/i, "").trim();
     if (!JWT_RE.test(raw)) continue;
@@ -157,10 +158,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.kind !== "AA_GRAB_COOKIES") return;
   (async () => {
     const provider = self.AA_PROVIDERS.find((p) => p.id === msg.providerId);
-    if (!provider?.cookieCapture) return sendResponse({ ok: false, error: "provider bukan cookie-based" });
+    if (!provider?.cookieCapture)
+      return sendResponse({ ok: false, error: "provider bukan cookie-based" });
     const cookies = await collectCookies(provider.cookieCapture);
     if (!cookies.length) return sendResponse({ ok: false, error: "no-cookies" });
-    if (!cookieJarValid(cookies, provider.cookieCapture)) return sendResponse({ ok: false, error: "no-session" });
+    if (!cookieJarValid(cookies, provider.cookieCapture))
+      return sendResponse({ ok: false, error: "no-session" });
     sendResponse({ ok: true, jar: await buildJar(provider.id, cookies) });
   })();
   return true;
@@ -267,11 +270,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
  * "system under load"). Requests come from the relay.js content script.
  * ------------------------------------------------------------------ */
 
-const RELAY_ALLOWED_HOSTS = [
-  "firefly.adobe.io",
-  "firefly-3p.ff.adobe.io",
-  "firefly-api.adobe.io",
-];
+const RELAY_ALLOWED_HOSTS = ["firefly.adobe.io", "firefly-3p.ff.adobe.io", "firefly-api.adobe.io"];
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -318,7 +317,8 @@ async function relayFirefly(req) {
     url: target.toString(),
     method,
     headers,
-    bodyText: req.bodyBase64 === undefined && req.body !== undefined ? JSON.stringify(req.body) : null,
+    bodyText:
+      req.bodyBase64 === undefined && req.body !== undefined ? JSON.stringify(req.body) : null,
     bodyBase64: req.bodyBase64 ?? null,
   });
   if (viaTab) return { ...viaTab, via: "firefly-tab" };
@@ -386,7 +386,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse(res);
     })
     .catch((e) => {
-      noteRelay({ ok: false, status: 0, path: String(req.url || ""), via: "error", error: String(e?.message || e) });
+      noteRelay({
+        ok: false,
+        status: 0,
+        path: String(req.url || ""),
+        via: "error",
+        error: String(e?.message || e),
+      });
       sendResponse({ ok: false, status: 0, data: null, error: String(e?.message || e) });
     });
   return true; // async
@@ -401,7 +407,6 @@ function relayErrorMessage(res) {
   if (res.raw) return String(res.raw).slice(0, 160);
   return "";
 }
-
 
 async function findFireflyTab() {
   const tabs = await chrome.tabs.query({ url: ["https://firefly.adobe.com/*"] });
@@ -431,10 +436,17 @@ async function relayViaFireflyTab({ url, method, headers, bodyText, bodyBase64 }
           const r = await fetch(u, { method: m, headers: h, body, credentials: "include" });
           const t = await r.text();
           let d = null;
-          try { d = JSON.parse(t); } catch {}
+          try {
+            d = JSON.parse(t);
+          } catch {}
           return { ok: r.ok, status: r.status, data: d, raw: d ? undefined : t.slice(0, 800) };
         } catch (e) {
-          return { ok: false, status: 0, data: null, error: String(e && e.message ? e.message : e) };
+          return {
+            ok: false,
+            status: 0,
+            data: null,
+            error: String(e && e.message ? e.message : e),
+          };
         }
       },
       args: [url, method, headers, bodyText, bodyBase64],

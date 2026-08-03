@@ -2,8 +2,21 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import {
-  Search, KeyRound, Route as RouteIcon, Brain, Mic2, Sparkles, ShieldCheck,
-  ExternalLink, ChevronRight, Zap, LifeBuoy, Mail, MessageCircle, Info, Wallet,
+  Search,
+  KeyRound,
+  Route as RouteIcon,
+  Brain,
+  Mic2,
+  Sparkles,
+  ShieldCheck,
+  ExternalLink,
+  ChevronRight,
+  Zap,
+  LifeBuoy,
+  Mail,
+  MessageCircle,
+  Info,
+  Wallet,
 } from "lucide-react";
 import { APP_NAME, APP_VERSION } from "@/lib/dashboard/help-guides-index";
 import { supabase } from "@/integrations/supabase/client";
@@ -159,7 +172,7 @@ const GUIDES: Guide[] = [
     summary: "Trik kecil yang menghemat banyak klik.",
     tags: ["shortcut", "tips"],
     steps: [
-      "Ganti provider tanpa pindah menu: klik label \"Provider aktif: …\" di halaman generate — ikon switch berputar menandakan tombol itu bisa diklik.",
+      'Ganti provider tanpa pindah menu: klik label "Provider aktif: …" di halaman generate — ikon switch berputar menandakan tombol itu bisa diklik.',
       "Tempel banyak key sekaligus di Token Manager (satu per baris) — pengecekan berjalan otomatis.",
       "Klik ikon gembok pada menu = fitur dikunci admin; ikon keranjang = fitur premium yang bisa dibeli.",
       "Semua hasil generate tersimpan di Library / Asset Hub, tidak perlu download satu per satu saat itu juga.",
@@ -186,7 +199,8 @@ export const Route = createFileRoute("/system/help")({
       { property: "og:title", content: "Pusat Bantuan — AA Creative Studio" },
       {
         property: "og:description",
-        content: "Panduan singkat: token/API, routing provider, dan shortcut pemakaian AA Creative Studio.",
+        content:
+          "Panduan singkat: token/API, routing provider, dan shortcut pemakaian AA Creative Studio.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -199,7 +213,11 @@ function HelpPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>("quickstart");
-  const [support, setSupport] = useState<{ email: string; phone: string; whatsapp: string }>({ email: "", phone: "", whatsapp: "" });
+  const [support, setSupport] = useState<{ email: string; phone: string; whatsapp: string }>({
+    email: "",
+    phone: "",
+    whatsapp: "",
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -207,7 +225,9 @@ function HelpPage() {
     if (h && GUIDES.some((g) => g.id === h)) {
       setOpenId(h);
       requestAnimationFrame(() => {
-        document.getElementById(`guide-${h}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document
+          .getElementById(`guide-${h}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
   }, []);
@@ -234,7 +254,8 @@ function HelpPage() {
     return GUIDES.filter((g) => {
       if (cat !== "all" && g.category !== cat) return false;
       if (!query) return true;
-      const hay = `${g.title} ${g.summary} ${g.tags.join(" ")} ${(g.steps || []).join(" ")}`.toLowerCase();
+      const hay =
+        `${g.title} ${g.summary} ${g.tags.join(" ")} ${(g.steps || []).join(" ")}`.toLowerCase();
       return hay.includes(query);
     });
   }, [q, cat]);
@@ -260,11 +281,20 @@ function HelpPage() {
           />
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
-          <CatChip active={cat === "all"} onClick={() => setCat("all")} label={`Semua (${GUIDES.length})`} />
+          <CatChip
+            active={cat === "all"}
+            onClick={() => setCat("all")}
+            label={`Semua (${GUIDES.length})`}
+          />
           {CATEGORIES.map((c) => {
             const n = GUIDES.filter((g) => g.category === c.id).length;
             return (
-              <CatChip key={c.id} active={cat === c.id} onClick={() => setCat(c.id)} label={`${c.label} (${n})`} />
+              <CatChip
+                key={c.id}
+                active={cat === c.id}
+                onClick={() => setCat(c.id)}
+                label={`${c.label} (${n})`}
+              />
             );
           })}
         </div>
@@ -276,12 +306,19 @@ function HelpPage() {
           const open = openId === g.id;
           const Icon = g.icon;
           return (
-            <article key={g.id} id={`guide-${g.id}`} className="neumorph overflow-hidden scroll-mt-24">
+            <article
+              key={g.id}
+              id={`guide-${g.id}`}
+              className="neumorph overflow-hidden scroll-mt-24"
+            >
               <button
                 onClick={() => setOpenId(open ? null : g.id)}
                 className="w-full text-left p-5 flex items-start gap-4 hover:bg-card/40 transition"
               >
-                <div className="h-11 w-11 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
+                <div
+                  className="h-11 w-11 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+                  style={{ background: "var(--gradient-neon)" }}
+                >
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -293,24 +330,34 @@ function HelpPage() {
                   <div className="font-display text-base text-foreground mt-1.5">{g.title}</div>
                   <div className="text-xs text-muted-foreground mt-1">{g.summary}</div>
                 </div>
-                <ChevronRight className={`h-4 w-4 text-muted-foreground mt-3 shrink-0 transition ${open ? "rotate-90" : ""}`} />
+                <ChevronRight
+                  className={`h-4 w-4 text-muted-foreground mt-3 shrink-0 transition ${open ? "rotate-90" : ""}`}
+                />
               </button>
 
               {open && (
                 <div className="px-5 pb-5 -mt-1 space-y-4 text-sm">
                   {g.steps && (
                     <div>
-                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Langkah</div>
+                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                        Langkah
+                      </div>
                       <ol className="space-y-1.5 list-decimal list-inside text-foreground/90">
-                        {g.steps.map((s, i) => <li key={i}>{s}</li>)}
+                        {g.steps.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
                       </ol>
                     </div>
                   )}
                   {g.tips && (
                     <div>
-                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Tips</div>
+                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                        Tips
+                      </div>
                       <ul className="space-y-1.5 list-disc list-inside text-foreground/80">
-                        {g.tips.map((s, i) => <li key={i}>{s}</li>)}
+                        {g.tips.map((s, i) => (
+                          <li key={i}>{s}</li>
+                        ))}
                       </ul>
                     </div>
                   )}
@@ -318,11 +365,21 @@ function HelpPage() {
                     <div className="flex flex-wrap gap-2 pt-1">
                       {g.links.map((l) =>
                         l.to ? (
-                          <Link key={l.label} to={l.to} className="text-xs inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 border border-border/60 hover:border-primary/60 hover:bg-primary/5">
+                          <Link
+                            key={l.label}
+                            to={l.to}
+                            className="text-xs inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 border border-border/60 hover:border-primary/60 hover:bg-primary/5"
+                          >
                             {l.label} <ChevronRight className="h-3 w-3" />
                           </Link>
                         ) : (
-                          <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className="text-xs inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 border border-border/60 hover:border-primary/60 hover:bg-primary/5">
+                          <a
+                            key={l.label}
+                            href={l.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 border border-border/60 hover:border-primary/60 hover:bg-primary/5"
+                          >
                             {l.label} <ExternalLink className="h-3 w-3" />
                           </a>
                         ),
@@ -346,23 +403,34 @@ function HelpPage() {
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="neumorph p-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
+            <div
+              className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+              style={{ background: "var(--gradient-neon)" }}
+            >
               <LifeBuoy className="h-5 w-5" />
             </div>
             <div>
               <div className="font-display text-sm">Kontak Support</div>
-              <div className="text-[11px] text-muted-foreground">Hubungi kami melalui kanal berikut.</div>
+              <div className="text-[11px] text-muted-foreground">
+                Hubungi kami melalui kanal berikut.
+              </div>
             </div>
           </div>
           <div className="mt-4 space-y-2">
             {support.email && (
-              <a href={`mailto:${support.email}`} className="flex items-center gap-2.5 rounded-lg px-3 py-2 border border-border/60 hover:border-primary/60 hover:bg-primary/5 text-xs">
+              <a
+                href={`mailto:${support.email}`}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 border border-border/60 hover:border-primary/60 hover:bg-primary/5 text-xs"
+              >
                 <Mail className="h-3.5 w-3.5 text-primary" />
                 <span className="text-foreground/90">{support.email}</span>
               </a>
             )}
             {support.phone && (
-              <a href={`tel:${support.phone.replace(/\s+/g, "")}`} className="flex items-center gap-2.5 rounded-lg px-3 py-2 border border-border/60 hover:border-primary/60 hover:bg-primary/5 text-xs">
+              <a
+                href={`tel:${support.phone.replace(/\s+/g, "")}`}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 border border-border/60 hover:border-primary/60 hover:bg-primary/5 text-xs"
+              >
                 <MessageCircle className="h-3.5 w-3.5 text-primary" />
                 <span className="text-foreground/90">Telp {support.phone}</span>
               </a>
@@ -389,7 +457,10 @@ function HelpPage() {
 
         <div className="neumorph p-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
+            <div
+              className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+              style={{ background: "var(--gradient-neon)" }}
+            >
               <Info className="h-5 w-5" />
             </div>
             <div>
@@ -415,7 +486,10 @@ function HelpPage() {
 
         <div className="neumorph p-5">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
+            <div
+              className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+              style={{ background: "var(--gradient-neon)" }}
+            >
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
@@ -426,23 +500,38 @@ function HelpPage() {
           <ul className="mt-4 text-xs text-foreground/85 space-y-2.5">
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Bring Your Own Key (BYOK).</b> Key Anda disimpan terenkripsi dan tidak dibagikan ke pengguna lain.</span>
+              <span>
+                <b className="text-foreground">Bring Your Own Key (BYOK).</b> Key Anda disimpan
+                terenkripsi dan tidak dibagikan ke pengguna lain.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Tanggung jawab konten.</b> Seluruh hasil generate menjadi tanggung jawab pembuat.</span>
+              <span>
+                <b className="text-foreground">Tanggung jawab konten.</b> Seluruh hasil generate
+                menjadi tanggung jawab pembuat.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Satu akun, satu pengguna.</b> Sesi lama otomatis dinonaktifkan (single-session).</span>
+              <span>
+                <b className="text-foreground">Satu akun, satu pengguna.</b> Sesi lama otomatis
+                dinonaktifkan (single-session).
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Provider pihak ketiga.</b> Uptime, harga, dan kebijakan provider di luar kendali kami.</span>
+              <span>
+                <b className="text-foreground">Provider pihak ketiga.</b> Uptime, harga, dan
+                kebijakan provider di luar kendali kami.
+              </span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary mt-0.5">•</span>
-              <span><b className="text-foreground">Persetujuan.</b> Dengan menggunakan {APP_NAME}, Anda menyetujui ketentuan di atas.</span>
+              <span>
+                <b className="text-foreground">Persetujuan.</b> Dengan menggunakan {APP_NAME}, Anda
+                menyetujui ketentuan di atas.
+              </span>
             </li>
           </ul>
         </div>
@@ -451,7 +540,15 @@ function HelpPage() {
   );
 }
 
-function CatChip({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+function CatChip({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}

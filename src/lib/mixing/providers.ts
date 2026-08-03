@@ -29,7 +29,8 @@ function readArray(key: string): string[] {
     const v = localStorage.getItem(key);
     if (!v) return [];
     const parsed = JSON.parse(v);
-    if (Array.isArray(parsed)) return parsed.filter((s): s is string => typeof s === "string" && s.trim().length > 0);
+    if (Array.isArray(parsed))
+      return parsed.filter((s): s is string => typeof s === "string" && s.trim().length > 0);
     if (typeof parsed === "string" && parsed.trim().length > 0) return [parsed];
     return [];
   } catch {
@@ -43,8 +44,10 @@ function readEleven(): string[] {
     const v = localStorage.getItem("aatools.eleven");
     if (!v) return [];
     const parsed = JSON.parse(v);
-    if (Array.isArray(parsed)) return parsed.map((x) => (typeof x === "string" ? x : x?.key)).filter(Boolean);
-    if (parsed?.keys && Array.isArray(parsed.keys)) return parsed.keys.filter((k: unknown): k is string => typeof k === "string");
+    if (Array.isArray(parsed))
+      return parsed.map((x) => (typeof x === "string" ? x : x?.key)).filter(Boolean);
+    if (parsed?.keys && Array.isArray(parsed.keys))
+      return parsed.keys.filter((k: unknown): k is string => typeof k === "string");
     if (parsed?.key) return [parsed.key];
     return [];
   } catch {
@@ -58,7 +61,8 @@ function readWavespeed(): string[] {
     const v = localStorage.getItem("aatools.wavespeed.keys");
     if (!v) return [];
     const parsed = JSON.parse(v);
-    if (Array.isArray(parsed)) return parsed.map((x) => (typeof x === "string" ? x : x?.key)).filter(Boolean);
+    if (Array.isArray(parsed))
+      return parsed.map((x) => (typeof x === "string" ? x : x?.key)).filter(Boolean);
     return [];
   } catch {
     return [];
@@ -71,7 +75,8 @@ function readWeavy(): string[] {
     const v = localStorage.getItem("aatools.weavy.tokens");
     if (!v) return [];
     const parsed = JSON.parse(v);
-    if (Array.isArray(parsed)) return parsed.map((x) => (typeof x === "string" ? x : x?.token)).filter(Boolean);
+    if (Array.isArray(parsed))
+      return parsed.map((x) => (typeof x === "string" ? x : x?.token)).filter(Boolean);
     return [];
   } catch {
     return [];
@@ -197,4 +202,3 @@ export function cloudRenderStatus(): CloudRenderStatus {
     creatomate: { available: c.length > 0, count: c.length },
   };
 }
-

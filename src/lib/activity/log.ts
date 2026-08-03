@@ -2,13 +2,7 @@
 // Fire-and-forget: never throws to the caller, never blocks the UI.
 import { supabase } from "@/integrations/supabase/client";
 
-export type ActivityCategory =
-  | "auth"
-  | "profile"
-  | "generate"
-  | "payment"
-  | "admin"
-  | "system";
+export type ActivityCategory = "auth" | "profile" | "generate" | "payment" | "admin" | "system";
 
 export type ActivityInput = {
   category: ActivityCategory;
@@ -25,8 +19,7 @@ export async function logActivity(input: ActivityInput): Promise<void> {
       uid = data.user?.id ?? undefined;
     }
     if (!uid) return; // anonymous — nothing to log
-    const ua =
-      typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 512) : null;
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 512) : null;
     await supabase.from("user_activity_logs" as never).insert({
       user_id: uid,
       category: input.category,

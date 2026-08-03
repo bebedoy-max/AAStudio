@@ -77,13 +77,15 @@ const ASPECT_SCALE: Record<string, string> = {
   "4:5": "scale=720:900:force_original_aspect_ratio=increase,crop=720:900",
 };
 
-async function execOrThrow(ff: FFmpeg, args: string[], label: string, logs: string[]): Promise<void> {
+async function execOrThrow(
+  ff: FFmpeg,
+  args: string[],
+  label: string,
+  logs: string[],
+): Promise<void> {
   const ret = await ff.exec(args);
   if (ret !== 0) {
-    const tail = logs
-      .slice(-20)
-      .filter(Boolean)
-      .join("\n");
+    const tail = logs.slice(-20).filter(Boolean).join("\n");
     throw new Error(`${label} gagal (FFmpeg exit ${ret})${tail ? `\n${tail}` : ""}`);
   }
 }
@@ -99,7 +101,9 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
   const progress = opts.onProgress ?? (() => {});
   const ff = await getFfmpeg(log);
 
-  ff.on("progress", ({ progress: p }: { progress: number }) => progress(Math.max(0, Math.min(100, Math.round(p * 100)))));
+  ff.on("progress", ({ progress: p }: { progress: number }) =>
+    progress(Math.max(0, Math.min(100, Math.round(p * 100)))),
+  );
 
   log("Fetching source video…");
   await ff.writeFile("src.mp4", await fetchFile(opts.sourceUrl));
@@ -123,7 +127,24 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
     const vf = opts.srt
       ? `${scaleVf},subtitles=subs.srt:force_style='FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H80000000&,BorderStyle=3,Outline=1,Shadow=0,MarginV=40'`
       : scaleVf;
-    args.push("-vf", vf, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", "-y", out);
+    args.push(
+      "-vf",
+      vf,
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-crf",
+      "28",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "96k",
+      "-movflags",
+      "+faststart",
+      "-y",
+      out,
+    );
     log(`Rendering clip ${i + 1}/${clips.length}…`);
     await execOrThrow(ff, args, `Render clip ${i + 1}`, logLines);
     parts.push(out);
@@ -136,7 +157,25 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
     const listTxt = parts.map((p) => `file '${esc(p)}'`).join("\n");
     await ff.writeFile("list.txt", new TextEncoder().encode(listTxt));
     log("Concatenating clips…");
-    await execOrThrow(ff, ["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "-movflags", "+faststart", "-y", "render.mp4"], "Concat clips", logLines);
+    await execOrThrow(
+      ff,
+      [
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        "list.txt",
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        "-y",
+        "render.mp4",
+      ],
+      "Concat clips",
+      logLines,
+    );
     finalName = "render.mp4";
   }
 
@@ -159,16 +198,27 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
       await execOrThrow(
         ff,
         [
-          "-i", finalName,
-          "-i", "dub.m4a",
-          "-filter_complex", filter,
-          "-map", "0:v",
-          "-map", "[aout]",
-          "-c:v", "copy",
-          "-c:a", "aac", "-b:a", "160k",
+          "-i",
+          finalName,
+          "-i",
+          "dub.m4a",
+          "-filter_complex",
+          filter,
+          "-map",
+          "0:v",
+          "-map",
+          "[aout]",
+          "-c:v",
+          "copy",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "160k",
           "-shortest",
-          "-movflags", "+faststart",
-          "-y", "mixed.mp4",
+          "-movflags",
+          "+faststart",
+          "-y",
+          "mixed.mp4",
         ],
         "Mix dubbed voice",
         logLines,
@@ -191,8 +241,18 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
     await ff.deleteFile("src.mp4");
     if (parts.length > 1) await ff.deleteFile("render.mp4");
     if (opts.voiceUrl) {
-      try { await ff.deleteFile("dub.m4a"); } catch { /* noop */ }
-      if (muxedName === "mixed.mp4") { try { await ff.deleteFile("mixed.mp4"); } catch { /* noop */ } }
+      try {
+        await ff.deleteFile("dub.m4a");
+      } catch {
+        /* noop */
+      }
+      if (muxedName === "mixed.mp4") {
+        try {
+          await ff.deleteFile("mixed.mp4");
+        } catch {
+          /* noop */
+        }
+      }
     }
   } catch {
     // best-effort cleanup
@@ -202,7 +262,9 @@ export async function ffmpegRenderClips(opts: FfmpegRenderOptions): Promise<Ffmp
 }
 
 /** Convert a Timeline structure into simple clip ranges. */
-export function timelineToClipRanges(timeline: Timeline | null | undefined): { startSec: number; endSec: number }[] {
+export function timelineToClipRanges(
+  timeline: Timeline | null | undefined,
+): { startSec: number; endSec: number }[] {
   if (!timeline) return [];
   const clips: { startSec: number; endSec: number }[] = [];
   for (const t of timeline.tracks ?? []) {

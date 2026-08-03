@@ -121,7 +121,11 @@ export const getAdminStats = createServerFn({ method: "GET" })
       ((onlineRows?.data ?? []) as { user_id: string }[]).map((r) => r.user_id),
     ).size;
 
-    const rows = (recentGen?.data ?? []) as { created_at: string; source: string | null; kind: string }[];
+    const rows = (recentGen?.data ?? []) as {
+      created_at: string;
+      source: string | null;
+      kind: string;
+    }[];
 
     const { menuFolderName } = await import("@/lib/cloud/drive.server");
     const menuMap = new Map<string, number>();
@@ -164,9 +168,16 @@ export const getAdminStats = createServerFn({ method: "GET" })
   });
 
 export type AdminDetailKey =
-  | "users" | "onlineUsers" | "paidUsers"
-  | "totalVideos" | "totalImages" | "totalAssets" | "totalUploads"
-  | "pendingRequests" | "activityToday" | "generateToday";
+  | "users"
+  | "onlineUsers"
+  | "paidUsers"
+  | "totalVideos"
+  | "totalImages"
+  | "totalAssets"
+  | "totalUploads"
+  | "pendingRequests"
+  | "activityToday"
+  | "generateToday";
 
 export type AdminDetailRow = {
   id: string;
@@ -180,7 +191,11 @@ async function profileMap(db: LooseClient, ids: string[]) {
   const map = new Map<string, { email: string | null; display_name: string | null }>();
   if (ids.length === 0) return map;
   const { data } = await db.from("profiles").select("id, email, display_name").in("id", ids);
-  for (const p of (data ?? []) as { id: string; email: string | null; display_name: string | null }[]) {
+  for (const p of (data ?? []) as {
+    id: string;
+    email: string | null;
+    display_name: string | null;
+  }[]) {
     map.set(p.id, { email: p.email, display_name: p.display_name });
   }
   return map;
@@ -268,7 +283,10 @@ export const getAdminDetail = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false })
         .limit(30);
       const rows = (d ?? []) as any[];
-      const map = await profileMap(db, Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean))));
+      const map = await profileMap(
+        db,
+        Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean))),
+      );
       return rows.map((r) => ({
         id: r.id,
         primary: r.route_key,
@@ -287,7 +305,10 @@ export const getAdminDetail = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false })
         .limit(50);
       const rows = (d ?? []) as any[];
-      const map = await profileMap(db, Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean))));
+      const map = await profileMap(
+        db,
+        Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean))),
+      );
       return rows.map((r) => ({
         id: r.id,
         primary: r.action,
@@ -311,7 +332,10 @@ export const getAdminDetail = createServerFn({ method: "GET" })
     }
     const { data: d } = await q;
     const rows = (d ?? []) as any[];
-    const map = await profileMap(db, Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean))));
+    const map = await profileMap(
+      db,
+      Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean))),
+    );
     const { menuFolderName } = await import("@/lib/cloud/drive.server");
     return rows.map((r) => ({
       id: r.id,

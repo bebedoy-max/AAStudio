@@ -51,25 +51,31 @@ export async function storeMediaForUser(params: {
   const { mode, key } = await resolveStorageMode(params.userId);
   const ctx = { mode, connectionKey: key };
   const origin = params.origin ?? "upload";
-  const uploaded = await uploadToDrive(ctx, params.userId, {
-    name: params.name,
-    type: params.mimeType,
-    bytes: params.bytes,
-  }, params.source ?? null, origin);
+  const uploaded = await uploadToDrive(
+    ctx,
+    params.userId,
+    {
+      name: params.name,
+      type: params.mimeType,
+      bytes: params.bytes,
+    },
+    params.source ?? null,
+    origin,
+  );
 
   const db = await admin();
   const baseRow = {
-        user_id: params.userId,
-        storage_mode: mode,
-        drive_file_id: uploaded.id,
-        name: uploaded.name,
-        mime_type: uploaded.mimeType,
-        size_bytes: uploaded.size,
-        kind: guessKind(uploaded.mimeType, uploaded.name),
-        origin,
+    user_id: params.userId,
+    storage_mode: mode,
+    drive_file_id: uploaded.id,
+    name: uploaded.name,
+    mime_type: uploaded.mimeType,
+    size_bytes: uploaded.size,
+    kind: guessKind(uploaded.mimeType, uploaded.name),
+    origin,
 
-        source: params.source ?? null,
-        source_url: params.sourceUrl ?? null,
+    source: params.source ?? null,
+    source_url: params.sourceUrl ?? null,
   } as Record<string, unknown>;
 
   // Catatan: unique index (user_id, source_url) bersifat partial, jadi ON CONFLICT
@@ -91,7 +97,10 @@ export async function storeMediaForUser(params: {
   return data as CloudFileRow;
 }
 
-export async function findBySourceUrl(userId: string, sourceUrl: string): Promise<CloudFileRow | null> {
+export async function findBySourceUrl(
+  userId: string,
+  sourceUrl: string,
+): Promise<CloudFileRow | null> {
   const db = await admin();
   const { data } = await db
     .from("cloud_files")
@@ -131,7 +140,8 @@ export async function registerUploadedFile(params: {
     source: params.source ?? null,
     source_url: params.sourceUrl ?? null,
   };
-  const insert = (row: Record<string, unknown>) => db.from("cloud_files").insert(row).select("*").single();
+  const insert = (row: Record<string, unknown>) =>
+    db.from("cloud_files").insert(row).select("*").single();
   let { data, error } = await insert({ ...baseRow, meta: params.meta ?? {} });
   if (error && /meta/i.test(error.message ?? "")) ({ data, error } = await insert(baseRow));
   if (error) throw new Error(`Simpan registry cloud gagal: ${error.message}`);
@@ -150,7 +160,12 @@ export async function listCloudFilesForUser(
   filters?: { source?: string | null; origin?: string | null },
 ): Promise<CloudFileRow[]> {
   const db = await admin();
-  let query = db.from("cloud_files").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(500);
+  let query = db
+    .from("cloud_files")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(500);
   if (kind && kind !== "all") query = query.eq("kind", kind);
   if (filters?.source) query = query.eq("source", filters.source);
   if (filters?.origin) query = query.eq("origin", filters.origin);
@@ -220,9 +235,7 @@ export async function archiveRemoteUrlForUser(params: {
   const isGeneric = !headerMime || /octet-stream|binary/i.test(headerMime);
   const mimeType = isGeneric ? pathMime || headerMime || "application/octet-stream" : headerMime;
   const fallbackName =
-    params.name ||
-    decodeURIComponent(pathname.split("/").pop() || "") ||
-    `generated-${Date.now()}`;
+    params.name || decodeURIComponent(pathname.split("/").pop() || "") || `generated-${Date.now()}`;
   const ext = mimeType.startsWith("video/")
     ? "mp4"
     : mimeType.startsWith("image/")
@@ -231,7 +244,6 @@ export async function archiveRemoteUrlForUser(params: {
         ? "mp3"
         : "bin";
   const name = /\.[a-z0-9]{2,5}$/i.test(fallbackName) ? fallbackName : `${fallbackName}.${ext}`;
-
 
   // Utama: alirkan (stream) byte langsung ke storage tanpa buffering penuh di server.
   const declared = Number(res.headers.get("content-length") || 0);
@@ -255,7 +267,12 @@ export async function archiveRemoteUrlForUser(params: {
         duplex: "half",
       });
       if (put.ok) {
-        const up = (await put.json().catch(() => ({}))) as { id?: string; name?: string; size?: string; mimeType?: string };
+        const up = (await put.json().catch(() => ({}))) as {
+          id?: string;
+          name?: string;
+          size?: string;
+          mimeType?: string;
+        };
         if (up.id) {
           return registerUploadedFile({
             userId: params.userId,

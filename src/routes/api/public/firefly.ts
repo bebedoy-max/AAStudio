@@ -62,7 +62,8 @@ export const Route = createFileRoute("/api/public/firefly")({
           body = {
             url: rawUrl,
             method: "POST",
-            contentType: request.headers.get("x-firefly-content-type") || "application/octet-stream",
+            contentType:
+              request.headers.get("x-firefly-content-type") || "application/octet-stream",
           };
         } else {
           body = (await request.json().catch(() => null)) as Body | null;
@@ -92,10 +93,13 @@ export const Route = createFileRoute("/api/public/firefly")({
           ...(body.headers || {}),
         };
         const method =
-          body.method || (body.body !== undefined || body.bodyBase64 !== undefined || rawBinary ? "POST" : "GET");
+          body.method ||
+          (body.body !== undefined || body.bodyBase64 !== undefined || rawBinary ? "POST" : "GET");
         if (rawBinary) headers["Content-Type"] = body.contentType || "application/octet-stream";
-        else if (body.bodyBase64 !== undefined) headers["Content-Type"] = body.contentType || "application/octet-stream";
-        else if (body.body !== undefined) headers["Content-Type"] = body.contentType || "application/json";
+        else if (body.bodyBase64 !== undefined)
+          headers["Content-Type"] = body.contentType || "application/octet-stream";
+        else if (body.body !== undefined)
+          headers["Content-Type"] = body.contentType || "application/json";
 
         let requestBody: BodyInit | undefined;
         if (rawBinary) {

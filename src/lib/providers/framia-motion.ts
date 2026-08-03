@@ -93,7 +93,9 @@ async function resolveWorkspaceId(token: string): Promise<string | null> {
   const creator = await fetchFramiaCreatorProfile(token).catch(() => null);
   const direct = findFramiaWorkspaceId(profile, creator);
   if (direct) return direct;
-  const projects = (await listFramiaProjects(token).catch(() => [])) as Array<Record<string, unknown>>;
+  const projects = (await listFramiaProjects(token).catch(() => [])) as Array<
+    Record<string, unknown>
+  >;
   for (const p of projects) {
     const ws = findFramiaWorkspaceId(p);
     if (ws) return ws;
@@ -176,7 +178,9 @@ async function trimVideoTo15(
   const src =
     file instanceof File
       ? file
-      : new File([file], `motion_src_${Date.now()}.mp4`, { type: (file as Blob).type || "video/mp4" });
+      : new File([file], `motion_src_${Date.now()}.mp4`, {
+          type: (file as Blob).type || "video/mp4",
+        });
   try {
     onProgress?.(`Framia: memotong video ke batas aman ${FRAMIA_SAFE_TRIM_SEC} detik...`, 12);
     const { getFfmpeg } = await import("@/lib/mixing/ffmpeg-render");
@@ -215,7 +219,6 @@ async function trimVideoTo15(
   }
 }
 
-
 /* ---------------------------------- run ----------------------------------- */
 
 export type FramiaMotionOpts = {
@@ -234,14 +237,15 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
   const resolution = opts.resolution === "720p" ? "720p" : "480p";
   const rawMeta = await probeVideoMeta(opts.videoFile);
   const needsTrim = rawMeta.duration > FRAMIA_SAFE_TRIM_SEC;
-  const sourceVideo = needsTrim ? await trimVideoTo15(opts.videoFile, opts.onProgress) : opts.videoFile;
+  const sourceVideo = needsTrim
+    ? await trimVideoTo15(opts.videoFile, opts.onProgress)
+    : opts.videoFile;
   const processedMeta = needsTrim ? await probeVideoMeta(sourceVideo) : rawMeta;
   const videoMeta: VideoMeta = {
     aspect: processedMeta.aspect,
-    duration: Math.floor(Math.min(FRAMIA_SAFE_TRIM_SEC, Math.max(1, processedMeta.duration)) * 10) / 10,
+    duration:
+      Math.floor(Math.min(FRAMIA_SAFE_TRIM_SEC, Math.max(1, processedMeta.duration)) * 10) / 10,
   };
-
-
 
   opts.onProgress?.("Framia: mengambil profil...", 5);
   const workspaceId = await resolveWorkspaceId(token);
@@ -272,7 +276,6 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
       : new File([sourceVideo], `motion_src_${Date.now()}.mp4`, {
           type: (sourceVideo as Blob).type || "video/mp4",
         });
-
 
   opts.onProgress?.("Framia: upload gambar referensi...", 20);
   const uploadedImage = await uploadFramiaAsset(token, {
@@ -378,8 +381,16 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
                 reads: {
                   resources: {
                     sources: [
-                      { source: "run_input", key: "nodes", path: [imageNodeId, "output", "result"] },
-                      { source: "run_input", key: "nodes", path: [videoRefNodeId, "output", "result"] },
+                      {
+                        source: "run_input",
+                        key: "nodes",
+                        path: [imageNodeId, "output", "result"],
+                      },
+                      {
+                        source: "run_input",
+                        key: "nodes",
+                        path: [videoRefNodeId, "output", "result"],
+                      },
                     ],
                   },
                 },
@@ -431,7 +442,6 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
   }
   throw new Error(`Framia node failed: ${lastFailure || "unknown"}`);
 }
-
 
 function formatFramiaFailure(node: FramiaRunNode): string {
   const candidates = [node.error, node.message, node.detail, node.output];

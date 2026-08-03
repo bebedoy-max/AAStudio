@@ -80,10 +80,7 @@ export function PromptDialog({
       aria-modal="true"
       onClick={busy ? undefined : onCancel}
     >
-      <div
-        className="neumorph w-full max-w-md p-6 relative"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="neumorph w-full max-w-md p-6 relative" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onCancel}
           disabled={busy}
@@ -106,9 +103,7 @@ export function PromptDialog({
             </div>
             <h2 className="mt-1 font-display text-lg leading-tight">{title}</h2>
             {description && (
-              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-                {description}
-              </p>
+              <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{description}</p>
             )}
           </div>
         </div>
@@ -179,12 +174,7 @@ export function promptDialog(opts: PromptOptions): Promise<string | null> {
       resolve(val);
     };
     root!.render(
-      <PromptDialog
-        open
-        {...opts}
-        onConfirm={(v) => close(v)}
-        onCancel={() => close(null)}
-      />,
+      <PromptDialog open {...opts} onConfirm={(v) => close(v)} onCancel={() => close(null)} />,
     );
   });
 }

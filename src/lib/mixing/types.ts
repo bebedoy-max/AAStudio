@@ -84,7 +84,8 @@ export type TransitionKind =
   | "Blur"
   | "Dip To Black"
   | "Random";
-export type MusicPreset = "None" | "Cinematic" | "Vlog" | "Epic" | "Documentary" | "Relax" | "Corporate";
+export type MusicPreset =
+  "None" | "Cinematic" | "Vlog" | "Epic" | "Documentary" | "Relax" | "Corporate";
 export type SfxKind = "Whoosh" | "Click" | "Pop" | "Impact" | "Typing" | "Notification";
 
 export type ClipperSettings = {
@@ -110,12 +111,33 @@ export type ClipperSettings = {
 };
 
 export type TimelineTrack =
-  | { kind: "clip"; start: number; end: number; sourceIn: number; sourceOut: number; sourceId: string }
+  | {
+      kind: "clip";
+      start: number;
+      end: number;
+      sourceIn: number;
+      sourceOut: number;
+      sourceId: string;
+    }
   | { kind: "subtitle"; start: number; end: number; text: string; style: SubtitleStyle }
   | { kind: "zoom"; start: number; end: number; scale: number; anchorX: number; anchorY: number }
-  | { kind: "reframe"; start: number; end: number; ratio: AspectRatio; anchorX: number; anchorY: number }
+  | {
+      kind: "reframe";
+      start: number;
+      end: number;
+      ratio: AspectRatio;
+      anchorX: number;
+      anchorY: number;
+    }
   | { kind: "transition"; start: number; end: number; transitionKind: TransitionKind }
-  | { kind: "music"; start: number; end: number; preset: MusicPreset; volume: number; duck: boolean }
+  | {
+      kind: "music";
+      start: number;
+      end: number;
+      preset: MusicPreset;
+      volume: number;
+      duck: boolean;
+    }
   | { kind: "sfx"; at: number; sfx: SfxKind };
 
 export type Timeline = {
@@ -142,13 +164,19 @@ export type ClipperProject = {
   settings: ClipperSettings;
   timeline: Timeline | null;
   clips: Array<{ id: string; title: string; start: number; end: number; timeline: Timeline }>;
-  renderResult?: { url?: string; provider?: string; status: "queued" | "rendering" | "done" | "error"; message?: string };
+  renderResult?: {
+    url?: string;
+    provider?: string;
+    status: "queued" | "rendering" | "done" | "error";
+    message?: string;
+  };
   renderHistory?: RenderResult[];
   log?: string[];
   lastProgress?: MixingProgress;
 };
 
-export type DubTranslationMode = "Literal" | "Natural" | "Localization" | "Affiliate Style" | "Formal" | "Casual";
+export type DubTranslationMode =
+  "Literal" | "Natural" | "Localization" | "Affiliate Style" | "Formal" | "Casual";
 export type DubVoicePreset =
   | "Original Voice Clone"
   | "AI Voice Male"
@@ -187,7 +215,12 @@ export type DubbingProject = {
   voiceUrl?: string;
   subtitleSrt?: string;
   timeline: Timeline | null;
-  renderResult?: { url?: string; provider?: string; status: "queued" | "rendering" | "done" | "error"; message?: string };
+  renderResult?: {
+    url?: string;
+    provider?: string;
+    status: "queued" | "rendering" | "done" | "error";
+    message?: string;
+  };
   renderHistory?: RenderResult[];
   log?: string[];
   lastProgress?: MixingProgress;

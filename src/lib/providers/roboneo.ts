@@ -107,9 +107,9 @@ const genRoomId = () => {
   // Format observasi: <base64uid>-<hex32>-<timestamp>
   const uid = Math.floor(Math.random() * 1e10).toString();
   const b64 = btoa(uid).replace(/=/g, "");
-  const hex = Array.from({ length: 32 }, () =>
-    Math.floor(Math.random() * 16).toString(16),
-  ).join("");
+  const hex = Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(
+    "",
+  );
   return `${b64}-${hex}-${Date.now()}`;
 };
 
@@ -128,9 +128,7 @@ function extractUid(accessToken: string): string {
     let b64 = accessToken.replace(/^_v\d+/, "");
     b64 = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
     const decoded =
-      typeof atob === "function"
-        ? atob(b64)
-        : Buffer.from(b64, "base64").toString("binary");
+      typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
     const parts = decoded.split("#");
     const uid = parts[2];
     if (uid && /^\d+$/.test(uid)) return uid;
@@ -211,7 +209,6 @@ function baseParameter(accessToken: string, pathScene: string, roomId?: string) 
     _access_token: accessToken, // internal helper, di-strip di rnCall
   };
 }
-
 
 async function rnCall<T = unknown>(
   path: "nodeexecute" | "nodeexecutequery" | "vipshow",
@@ -312,9 +309,7 @@ export async function checkRoboneoToken(
     let b64 = trimmed.replace(/^_v\d+/, "");
     b64 = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
     const decoded =
-      typeof atob === "function"
-        ? atob(b64)
-        : Buffer.from(b64, "base64").toString("binary");
+      typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
     const parts = decoded.split("#");
     if (parts.length < 6 || !/^\d+$/.test(parts[2] ?? "")) {
       return { ok: false, message: "Payload token tidak valid" };
@@ -324,7 +319,10 @@ export async function checkRoboneoToken(
       // Meitu timestamps observed as seconds; treat >180 days as likely expired.
       const ageDays = (Date.now() / 1000 - ts) / 86400;
       if (ageDays > 180) {
-        return { ok: true, message: `Umur token ~${Math.round(ageDays)} hari — kemungkinan expired` };
+        return {
+          ok: true,
+          message: `Umur token ~${Math.round(ageDays)} hari — kemungkinan expired`,
+        };
       }
     }
     return { ok: true };
@@ -332,7 +330,6 @@ export async function checkRoboneoToken(
     return { ok: false, message: (e as Error).message };
   }
 }
-
 
 /**
  * Submit motion-control Kling job. Mengembalikan taskId untuk di-poll.
@@ -368,17 +365,13 @@ export async function submitRoboneoMotion(opts: {
   const result = await rnCall<{
     tasks?: Record<string, unknown> | Array<{ task_id?: string }>;
     task_ids?: string[];
-  }>(
-    "nodeexecute",
-    opts.accessToken,
-    {
-      room_id: roomId,
-      node_id: nodeId,
-      need_node_name: true,
-      workflow_version: "v2",
-      node_list_array: [[node]],
-    },
-  );
+  }>("nodeexecute", opts.accessToken, {
+    room_id: roomId,
+    node_id: nodeId,
+    need_node_name: true,
+    workflow_version: "v2",
+    node_list_array: [[node]],
+  });
   // task id bisa muncul sebagai key di `tasks` atau di `task_ids`.
   const ids = result?.task_ids?.length
     ? result.task_ids
@@ -407,13 +400,13 @@ export async function submitRoboneoI2V(opts: {
   accessToken: string;
   imageUrl: string;
   prompt?: string;
-  modelKey?: string;            // preferred: full modelKey ("rn:seedance-pro" dst)
+  modelKey?: string; // preferred: full modelKey ("rn:seedance-pro" dst)
   modelVersion?: "v26" | "v21"; // legacy
-  quality?: "std" | "pro";      // legacy — hanya untuk apiName kling lama
+  quality?: "std" | "pro"; // legacy — hanya untuk apiName kling lama
   ratio?: string;
   duration?: number;
-  resolution?: string;          // seedance-pro only
-  sound?: "on" | "off";         // kling-v26 only
+  resolution?: string; // seedance-pro only
+  sound?: "on" | "off"; // kling-v26 only
 }): Promise<string> {
   const roomId = genRoomId();
   const nodeId = uuid();
@@ -497,8 +490,16 @@ export async function submitRoboneoI2V(opts: {
       family: "kling26",
     },
     // legacy fallbacks (nama apiName lama — mungkin sudah tidak dilayani gateway)
-    "rn:kling-v21": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" },
-    "rn:kling-v21:std": { apiName: "video_bonbon_kling_v21", toolLabel: "Kling 2.1", family: "legacy21" },
+    "rn:kling-v21": {
+      apiName: "video_bonbon_kling_v21",
+      toolLabel: "Kling 2.1",
+      family: "legacy21",
+    },
+    "rn:kling-v21:std": {
+      apiName: "video_bonbon_kling_v21",
+      toolLabel: "Kling 2.1",
+      family: "legacy21",
+    },
   };
   const legacyFallback: Spec =
     opts.modelVersion === "v21"
@@ -600,18 +601,66 @@ export async function submitRoboneoT2V(opts: {
   type ParamFamily = "seedance" | "happyhorse" | "kling3" | "kling26" | "omni";
   type Spec = { apiName: string; toolLabel: string; family: ParamFamily };
   const specs: Record<string, Spec> = {
-    "rn:google-omni": { apiName: "video_barley_t2v_omni_flash", toolLabel: "Google Omni Flash", family: "omni" },
-    "rn:seedance-2.0": { apiName: "video_toffee_t2v_v20", toolLabel: "Seedance 2.0", family: "seedance" },
-    "rn:seedance-2.0-mini": { apiName: "video_toffee_t2v_v20_mini", toolLabel: "Seedance 2.0 Mini", family: "seedance" },
-    "rn:seedance-2.0-fast": { apiName: "video_toffee_t2v_v20_fast", toolLabel: "Seedance 2.0 Fast", family: "seedance" },
-    "rn:happyhorse-1.1": { apiName: "text2video_edit_hydra", toolLabel: "Happy Horse 1.1", family: "happyhorse" },
-    "rn:happyhorse-1.0": { apiName: "video_happyhorse_t2v", toolLabel: "Happy Horse 1.0", family: "happyhorse" },
-    "rn:kling-v3": { apiName: "video_bonbon_txt2vid_v30", toolLabel: "Kling 3.0", family: "kling3" },
-    "rn:kling-v3-turbo": { apiName: "video_bonbon_t2v_v3turbo", toolLabel: "Kling 3.0 Turbo", family: "kling3" },
-    "rn:kling-v26": { apiName: "video_bonbon_txt2vid_v26", toolLabel: "Kling 2.6", family: "kling26" },
-    "rn:kling-v26:std": { apiName: "video_bonbon_txt2vid_v26", toolLabel: "Kling 2.6", family: "kling26" },
-    "rn:seedance-1.0": { apiName: "api_v1_outsourcing_text_to_video", toolLabel: "Seedance 1.0", family: "seedance" },
-    "rn:seedance-pro": { apiName: "api_v1_outsourcing_text_to_video", toolLabel: "Seedance Pro", family: "seedance" },
+    "rn:google-omni": {
+      apiName: "video_barley_t2v_omni_flash",
+      toolLabel: "Google Omni Flash",
+      family: "omni",
+    },
+    "rn:seedance-2.0": {
+      apiName: "video_toffee_t2v_v20",
+      toolLabel: "Seedance 2.0",
+      family: "seedance",
+    },
+    "rn:seedance-2.0-mini": {
+      apiName: "video_toffee_t2v_v20_mini",
+      toolLabel: "Seedance 2.0 Mini",
+      family: "seedance",
+    },
+    "rn:seedance-2.0-fast": {
+      apiName: "video_toffee_t2v_v20_fast",
+      toolLabel: "Seedance 2.0 Fast",
+      family: "seedance",
+    },
+    "rn:happyhorse-1.1": {
+      apiName: "text2video_edit_hydra",
+      toolLabel: "Happy Horse 1.1",
+      family: "happyhorse",
+    },
+    "rn:happyhorse-1.0": {
+      apiName: "video_happyhorse_t2v",
+      toolLabel: "Happy Horse 1.0",
+      family: "happyhorse",
+    },
+    "rn:kling-v3": {
+      apiName: "video_bonbon_txt2vid_v30",
+      toolLabel: "Kling 3.0",
+      family: "kling3",
+    },
+    "rn:kling-v3-turbo": {
+      apiName: "video_bonbon_t2v_v3turbo",
+      toolLabel: "Kling 3.0 Turbo",
+      family: "kling3",
+    },
+    "rn:kling-v26": {
+      apiName: "video_bonbon_txt2vid_v26",
+      toolLabel: "Kling 2.6",
+      family: "kling26",
+    },
+    "rn:kling-v26:std": {
+      apiName: "video_bonbon_txt2vid_v26",
+      toolLabel: "Kling 2.6",
+      family: "kling26",
+    },
+    "rn:seedance-1.0": {
+      apiName: "api_v1_outsourcing_text_to_video",
+      toolLabel: "Seedance 1.0",
+      family: "seedance",
+    },
+    "rn:seedance-pro": {
+      apiName: "api_v1_outsourcing_text_to_video",
+      toolLabel: "Seedance Pro",
+      family: "seedance",
+    },
   };
   const spec = specs[mk] || specs["rn:google-omni"]!;
 
@@ -689,7 +738,10 @@ export async function runRoboneoT2V(opts: {
   for (let ti = 0; ti < tokens.length; ti++) {
     const at = tokens[ti]!;
     try {
-      opts.onProgress?.(`Submit Roboneo ${opts.modelKey ?? ""} (token ${ti + 1}/${tokens.length})…`, 15);
+      opts.onProgress?.(
+        `Submit Roboneo ${opts.modelKey ?? ""} (token ${ti + 1}/${tokens.length})…`,
+        15,
+      );
       const taskId = await submitRoboneoT2V({
         accessToken: at,
         prompt: opts.prompt,
@@ -714,9 +766,10 @@ export async function runRoboneoT2V(opts: {
       opts.onProgress?.(`↻ Token Roboneo ${ti + 1} invalid/habis — rotate…`, 15);
     }
   }
-  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+  throw new Error(
+    "Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.",
+  );
 }
-
 
 export type RoboneoTask = {
   status?: string;
@@ -754,7 +807,8 @@ export async function pollRoboneoTask(opts: {
     if (typeof value !== "string") return value;
     const trimmed = value.trim();
     if (!trimmed) return value;
-    if (!trimmed.startsWith("{") && !trimmed.startsWith("[") && !trimmed.startsWith('"')) return value;
+    if (!trimmed.startsWith("{") && !trimmed.startsWith("[") && !trimmed.startsWith('"'))
+      return value;
     try {
       const parsed = JSON.parse(trimmed);
       return typeof parsed === "string" && parsed !== value ? parseMaybeJson(parsed) : parsed;
@@ -768,7 +822,9 @@ export async function pollRoboneoTask(opts: {
       .replace(/\\u002F/gi, "/")
       .replace(/&amp;/g, "&");
     const matches = normalized.match(/(?:https?:)?\/\/[^\s"'<>\\]+/gi) || [];
-    return matches.map((url) => (url.startsWith("//") ? `https:${url}` : url).replace(/[),.;\]]+$/g, ""));
+    return matches.map((url) =>
+      (url.startsWith("//") ? `https:${url}` : url).replace(/[),.;\]]+$/g, ""),
+    );
   };
   const collectMediaUrls = (value: unknown, acc: string[] = []): string[] => {
     value = parseMaybeJson(value);
@@ -889,7 +945,12 @@ export async function pollRoboneoTask(opts: {
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       const lk = k.toLowerCase();
       if (PROGRESS_HINTS.some((h) => lk.includes(h))) {
-        const n = typeof v === "number" ? v : typeof v === "string" && /^\d+(\.\d+)?$/.test(v) ? Number(v) : NaN;
+        const n =
+          typeof v === "number"
+            ? v
+            : typeof v === "string" && /^\d+(\.\d+)?$/.test(v)
+              ? Number(v)
+              : NaN;
         if (Number.isFinite(n)) {
           // Normalize 0-1 to 0-100.
           const pct = n <= 1 ? n * 100 : n;
@@ -919,7 +980,9 @@ export async function pollRoboneoTask(opts: {
         media_info_list?: Array<{ url?: string; media_url?: string }>;
       }>("nodeexecutequery", opts.accessToken, {
         task_ids: [opts.taskId],
-        ...(taskContext ? { room_id: taskContext.roomId, node_id: taskContext.nodeId, workflow_version: "v2" } : {}),
+        ...(taskContext
+          ? { room_id: taskContext.roomId, node_id: taskContext.nodeId, workflow_version: "v2" }
+          : {}),
       });
       transientPollErrors = 0;
     } catch (e) {
@@ -936,7 +999,10 @@ export async function pollRoboneoTask(opts: {
     }
     const t = res?.tasks?.[opts.taskId] || ({} as RoboneoTask);
     const steps = Array.isArray(t.steps) ? t.steps : [];
-    const step = steps.find((item) => /success|succeeded|completed|done|finished/i.test(String(item.status || item.state || ""))) || steps[0];
+    const step =
+      steps.find((item) =>
+        /success|succeeded|completed|done|finished/i.test(String(item.status || item.state || "")),
+      ) || steps[0];
     const stepOutputs = steps.map((item) => parseMaybeJson(item.output));
     const stepOutput = parseMaybeJson(step?.output);
     const status = String(t.status || t.state || step?.status || step?.state || "").toLowerCase();
@@ -955,7 +1021,6 @@ export async function pollRoboneoTask(opts: {
     if (!loggedShape && typeof console !== "undefined") {
       loggedShape = true;
       try {
-        // eslint-disable-next-line no-console
         console.debug("[roboneo] first poll payload", {
           taskKeys: Object.keys(t),
           stepKeys: steps.map((item) => Object.keys(item)),
@@ -1044,13 +1109,18 @@ export async function pollRoboneoTask(opts: {
     }
     if (["fail", "failed", "error", "cancelled", "canceled"].includes(status)) {
       ROBONEO_TASK_CONTEXT.delete(opts.taskId);
-      const parsedOutput = stepOutput && typeof stepOutput === "object" ? (stepOutput as Record<string, unknown>) : null;
+      const parsedOutput =
+        stepOutput && typeof stepOutput === "object"
+          ? (stepOutput as Record<string, unknown>)
+          : null;
       const message =
         t.error_message ||
         t.error_msg ||
         step?.error_message ||
         step?.error_msg ||
-        (typeof parsedOutput?.error_message === "string" ? parsedOutput.error_message : undefined) ||
+        (typeof parsedOutput?.error_message === "string"
+          ? parsedOutput.error_message
+          : undefined) ||
         (typeof parsedOutput?.error_msg === "string" ? parsedOutput.error_msg : undefined) ||
         findRoboneoErrorMessage(t) ||
         findRoboneoErrorMessage(stepOutput) ||
@@ -1103,9 +1173,7 @@ export function isRoboneoRotatableError(msg: string): boolean {
  *   { error_code, error_msg, data: { credit, free_credit, vip_credit, ...vip_info } }
  * We scan recursively for numeric fields hinting at credit/balance/point.
  */
-export async function fetchRoboneoBalance(
-  accessToken: string,
-): Promise<{
+export async function fetchRoboneoBalance(accessToken: string): Promise<{
   ok: boolean;
   balance: number | null;
   free?: number | null;
@@ -1139,7 +1207,8 @@ export async function fetchRoboneoBalance(
       return {
         ok: false,
         balance: null,
-        message: obj.error_msg || (obj as { message?: string }).message || `error_code=${errorCode}`,
+        message:
+          obj.error_msg || (obj as { message?: string }).message || `error_code=${errorCode}`,
       };
     }
     const payload = (obj.data ?? (obj as { result?: unknown }).result ?? obj) as unknown;
@@ -1194,10 +1263,22 @@ export async function fetchRoboneoBalance(
 
     const cyberCarrots = pickDetailBalance(payload, /cyber|carrot/i);
     const dailyFree = pickDetailBalance(payload, /daily|free/i);
-    const free = pickNum(payload, ["free_credit", "free_amount", "daily_free", "free"]) ?? dailyFree;
+    const free =
+      pickNum(payload, ["free_credit", "free_amount", "daily_free", "free"]) ?? dailyFree;
     const vip = pickNum(payload, ["vip_credit", "vip_amount", "vip"]);
     const total =
-      pickNum(payload, ["total_amount", "total_credit", "credit_balance", "balance", "credit", "remain", "point", "coin", "energy", "quota"]) ??
+      pickNum(payload, [
+        "total_amount",
+        "total_credit",
+        "credit_balance",
+        "balance",
+        "credit",
+        "remain",
+        "point",
+        "coin",
+        "energy",
+        "quota",
+      ]) ??
       cyberCarrots ??
       ((free ?? 0) + (vip ?? 0) || null);
 
@@ -1206,7 +1287,10 @@ export async function fetchRoboneoBalance(
       balance: total,
       free,
       vip,
-      message: total !== null ? `Cyber Carrots ${total}${free !== null ? ` · Daily free ${free}` : ""}` : undefined,
+      message:
+        total !== null
+          ? `Cyber Carrots ${total}${free !== null ? ` · Daily free ${free}` : ""}`
+          : undefined,
     };
   } catch (e) {
     return { ok: false, balance: null, message: (e as Error).message };

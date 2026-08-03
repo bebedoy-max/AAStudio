@@ -12,7 +12,10 @@ function json(data: unknown, status = 200) {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function tryParse(text: string): unknown {
@@ -36,13 +39,23 @@ export const Route = createFileRoute("/api/public/clipper-brain")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
-          const gemini = parseKeys(request.headers.get("x-user-gemini-keys")).filter((k) => (k.startsWith("AIza") || k.startsWith("AQ.")));
+          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) =>
+            k.startsWith("sk-"),
+          );
+          const gemini = parseKeys(request.headers.get("x-user-gemini-keys")).filter(
+            (k) => k.startsWith("AIza") || k.startsWith("AQ."),
+          );
           if (openai.length === 0 && gemini.length === 0) {
-            return json({ error: "No brain keys configured. Add OpenAI or Gemini key via Token Manager." }, 400);
+            return json(
+              { error: "No brain keys configured. Add OpenAI or Gemini key via Token Manager." },
+              400,
+            );
           }
           const body = (await request.json().catch(() => ({}))) as {
-            transcript?: { segments?: Array<{ start: number; end: number; text: string }>; fullText?: string };
+            transcript?: {
+              segments?: Array<{ start: number; end: number; text: string }>;
+              fullText?: string;
+            };
             durationSec?: number;
             language?: string;
           };

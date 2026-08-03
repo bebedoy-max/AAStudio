@@ -11,7 +11,17 @@ import { fetchFramiaBalance } from "@/lib/providers/framia";
 import { fetchFireflyBalance } from "@/lib/providers/firefly";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola" | "eleven" | "brain";
+export type RefreshableProvider =
+  | "weavy"
+  | "wavespeed"
+  | "magnific"
+  | "roboneo"
+  | "framia"
+  | "leonardo"
+  | "firefly"
+  | "dola"
+  | "eleven"
+  | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,
@@ -21,7 +31,6 @@ export const MIN_CREDITS = {
   framia: 1,
   firefly: 1,
 } as const;
-
 
 const LS_KEYS = {
   brain: "aatools.brain.geminiKeys",
@@ -37,7 +46,6 @@ const LS_KEYS = {
   elevenChecks: "aatools.eleven.checks",
 } as const;
 
-
 type BrainKeyStatus = {
   key: string;
   state: "unknown" | "checking" | "active" | "invalid" | "limited" | "failed";
@@ -46,10 +54,9 @@ type BrainKeyStatus = {
 
 async function checkGeminiKey(key: string): Promise<BrainKeyStatus> {
   try {
-    const r = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
-      { headers: { "x-goog-api-key": key } },
-    );
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {
+      headers: { "x-goog-api-key": key },
+    });
     if (r.ok) return { key, state: "active", detail: "OK" };
     if (r.status === 429) return { key, state: "limited", detail: "429 · quota / rate-limit" };
     if (r.status === 401 || r.status === 403 || r.status === 400)
@@ -108,7 +115,16 @@ type WeavyTok = {
 };
 type SimpleKey = { id: string; key: string; balance: number | null; status: string; note?: string };
 type ElevenCfg = { keys: string[]; voice: string; customVoice: string };
-type ElevenKeyStatus = { key: string; ok: boolean; remaining: number | null; limit: number; tier?: string; method?: string; note?: string; reason?: string };
+type ElevenKeyStatus = {
+  key: string;
+  ok: boolean;
+  remaining: number | null;
+  limit: number;
+  tier?: string;
+  method?: string;
+  note?: string;
+  reason?: string;
+};
 
 async function refreshWeavy(): Promise<void> {
   const list = readJSON<WeavyTok[]>(LS_KEYS.weavy, []);
@@ -207,7 +223,6 @@ async function refreshFramia(): Promise<void> {
   }
 }
 
-
 async function refreshFirefly(): Promise<void> {
   // Firefly token = IMS session Bearer; jangan auto-drop, cukup refresh saldo.
   const list = readJSON<SimpleKey[]>(LS_KEYS.firefly, []);
@@ -257,7 +272,7 @@ async function refreshEleven(): Promise<void> {
   writeJSON(LS_KEYS.elevenChecks, statuses);
 }
 
-let inFlight: Partial<Record<RefreshableProvider, Promise<void>>> = {};
+const inFlight: Partial<Record<RefreshableProvider, Promise<void>>> = {};
 
 export function refreshAndPruneProvider(provider: RefreshableProvider): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();

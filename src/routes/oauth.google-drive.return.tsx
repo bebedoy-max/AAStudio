@@ -5,10 +5,7 @@ import { completeDriveConnect } from "@/lib/cloud/cloud.functions";
 export const Route = createFileRoute("/oauth/google-drive/return")({
   component: DriveOAuthReturn,
   head: () => ({
-    meta: [
-      { title: "Menyelesaikan koneksi Google Drive" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Menyelesaikan koneksi Google Drive" }, { name: "robots", content: "noindex" }],
   }),
 });
 

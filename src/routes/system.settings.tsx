@@ -22,7 +22,11 @@ export const Route = createFileRoute("/system/settings")({
   head: () => ({
     meta: [
       { title: "Pengaturan — AA Creative Studio" },
-      { name: "description", content: "Kelola akun, tampilan, default generasi, penyimpanan, dan keamanan AA Creative Studio." },
+      {
+        name: "description",
+        content:
+          "Kelola akun, tampilan, default generasi, penyimpanan, dan keamanan AA Creative Studio.",
+      },
     ],
   }),
   component: SettingsPage,
@@ -271,14 +275,22 @@ function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Akun */}
-        <Section icon={UserIcon} title="Akun & Profil" desc="Info akun yang tampil di workspace dan history.">
+        <Section
+          icon={UserIcon}
+          title="Akun & Profil"
+          desc="Info akun yang tampil di workspace dan history."
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Email</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
+                Email
+              </div>
               <TextInput value={user?.email ?? ""} disabled />
             </div>
             <div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">Role</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-1">
+                Role
+              </div>
               <TextInput value={roles.join(", ") || "user"} disabled />
             </div>
             <div>
@@ -315,7 +327,11 @@ function SettingsPage() {
         </Section>
 
         {/* Tampilan */}
-        <Section icon={Palette} title="Tampilan & Bahasa" desc="Tema, animasi, dan bahasa antarmuka.">
+        <Section
+          icon={Palette}
+          title="Tampilan & Bahasa"
+          desc="Tema, animasi, dan bahasa antarmuka."
+        >
           <Row label="Tema" hint="Warna dasar antarmuka.">
             <Select
               value={prefs.theme}
@@ -343,12 +359,20 @@ function SettingsPage() {
         </Section>
 
         {/* Notifikasi */}
-        <Section icon={Bell} title="Notifikasi" desc="Pemberitahuan saat task generate selesai atau gagal.">
+        <Section
+          icon={Bell}
+          title="Notifikasi"
+          desc="Pemberitahuan saat task generate selesai atau gagal."
+        >
           <Row label="Notifikasi Desktop" hint="Tampilkan popup saat render selesai.">
             <Toggle
               value={prefs.notifyDesktop}
               onChange={async (v) => {
-                if (v && typeof Notification !== "undefined" && Notification.permission === "default") {
+                if (
+                  v &&
+                  typeof Notification !== "undefined" &&
+                  Notification.permission === "default"
+                ) {
                   await Notification.requestPermission();
                 }
                 update("notifyDesktop", v);
@@ -364,7 +388,11 @@ function SettingsPage() {
         </Section>
 
         {/* Default Generasi */}
-        <Section icon={Wand2} title="Default Generasi" desc="Preset yang dipakai halaman Generate & Mixing.">
+        <Section
+          icon={Wand2}
+          title="Default Generasi"
+          desc="Preset yang dipakai halaman Generate & Mixing."
+        >
           <Row label="Model Video Default">
             <Select
               value={prefs.defaultVideoModel}
@@ -387,7 +415,10 @@ function SettingsPage() {
               ]}
             />
           </Row>
-          <Row label={`Motion Strength — ${prefs.motionStrength}`} hint="Intensitas gerakan default untuk i2v & motion.">
+          <Row
+            label={`Motion Strength — ${prefs.motionStrength}`}
+            hint="Intensitas gerakan default untuk i2v & motion."
+          >
             <input
               type="range"
               min={0}
@@ -398,12 +429,19 @@ function SettingsPage() {
             />
           </Row>
           <Row label="Auto-download Hasil" hint="Unduh otomatis file render begitu selesai.">
-            <Toggle value={prefs.autoDownloadRender} onChange={(v) => update("autoDownloadRender", v)} />
+            <Toggle
+              value={prefs.autoDownloadRender}
+              onChange={(v) => update("autoDownloadRender", v)}
+            />
           </Row>
         </Section>
 
         {/* Penyimpanan */}
-        <Section icon={HardDrive} title="Penyimpanan Lokal" desc="Draft project & cache di browser (tidak termasuk token).">
+        <Section
+          icon={HardDrive}
+          title="Penyimpanan Lokal"
+          desc="Draft project & cache di browser (tidak termasuk token)."
+        >
           <Row label="Penggunaan" hint="Total data AA Creative Studio di localStorage browser ini.">
             <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-mono text-foreground">
               {humanBytes}
@@ -420,14 +458,23 @@ function SettingsPage() {
         </Section>
 
         {/* Keamanan */}
-        <Section icon={ShieldCheck} title="Keamanan & Sesi" desc="Kontrol sesi login dan akses perangkat.">
-          <Row label="Sesi Tunggal Aktif" hint="Login di perangkat baru otomatis meng-logout perangkat lain.">
+        <Section
+          icon={ShieldCheck}
+          title="Keamanan & Sesi"
+          desc="Kontrol sesi login dan akses perangkat."
+        >
+          <Row
+            label="Sesi Tunggal Aktif"
+            hint="Login di perangkat baru otomatis meng-logout perangkat lain."
+          >
             <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs text-emerald-300">
               Aktif
             </span>
           </Row>
           <Row label="Auto Logout Idle" hint="Sesi berakhir setelah tidak ada aktivitas.">
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-mono">30 menit</span>
+            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-mono">
+              30 menit
+            </span>
           </Row>
           <div className="flex justify-end">
             <button
@@ -440,7 +487,11 @@ function SettingsPage() {
         </Section>
 
         {/* Integrasi */}
-        <Section icon={Plug} title="Integrasi & Token" desc="Kelola API key provider dan routing model.">
+        <Section
+          icon={Plug}
+          title="Integrasi & Token"
+          desc="Kelola API key provider dan routing model."
+        >
           <Row label="Token Provider" hint="Weavy, ElevenLabs, Magnific, Wavespeed, dll.">
             <Link
               to="/manage/tokens"
@@ -457,7 +508,10 @@ function SettingsPage() {
               Buka <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </Row>
-          <Row label="AI Keys (Gemini / OpenAI)" hint="Disimpan lokal di browser, dipakai Brain & Router.">
+          <Row
+            label="AI Keys (Gemini / OpenAI)"
+            hint="Disimpan lokal di browser, dipakai Brain & Router."
+          >
             <Link
               to="/manage/tokens"
               className="inline-flex items-center gap-1.5 text-xs text-[var(--neon-cyan)] hover:underline"
@@ -470,7 +524,9 @@ function SettingsPage() {
         {/* Tentang */}
         <Section icon={Info} title="Tentang AA Creative Studio" desc="Info aplikasi dan bantuan.">
           <Row label="Versi Aplikasi">
-            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-mono">v1.0.0</span>
+            <span className="rounded-full border border-border px-2.5 py-0.5 text-xs font-mono">
+              v1.0.0
+            </span>
           </Row>
           <Row label="Bantuan & Dokumentasi">
             <Link

@@ -7,7 +7,9 @@ import type { DirectUploadTicket, PreviewLinks } from "./types";
 
 export const provider = googleDriveProvider;
 
-export async function ctxForUser(userId: string): Promise<{ ctx: DriveCtx; mode: "global" | "personal" }> {
+export async function ctxForUser(
+  userId: string,
+): Promise<{ ctx: DriveCtx; mode: "global" | "personal" }> {
   const { mode, key } = await resolveStorageMode(userId);
   return { ctx: { mode, connectionKey: key }, mode };
 }

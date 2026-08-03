@@ -98,10 +98,15 @@ const ACTIONS: Action[] = [
 export function QuickActions() {
   const providers = useProviders();
   const { items } = useNotifications();
-  const { isAdmin, hasRoutePermission, isFeatureEnabled, featureAccess, getFeatureMode } = useAuth();
+  const { isAdmin, hasRoutePermission, isFeatureEnabled, featureAccess, getFeatureMode } =
+    useAuth();
   const runningTotal = items.filter((n) => n.status === "running").length;
 
-  function statusFor(actionId: string): { text: string; tone: "success" | "warn" | "default" | "primary"; queue: number } {
+  function statusFor(actionId: string): {
+    text: string;
+    tone: "success" | "warn" | "default" | "primary";
+    queue: number;
+  } {
     const cat: Record<string, string> = {
       motion: "video",
       narrative: "text",
@@ -116,7 +121,8 @@ export function QuickActions() {
     const healthy = relevant.some((p) => p.status === "healthy");
     const queue = relevant.reduce((s, p) => s + p.queue, 0);
     if (healthy) return { text: "Healthy", tone: "success", queue };
-    if (relevant.some((p) => p.status === "fallback")) return { text: "Fallback", tone: "warn", queue };
+    if (relevant.some((p) => p.status === "fallback"))
+      return { text: "Fallback", tone: "warn", queue };
     return { text: "No key", tone: "default", queue };
   }
 
@@ -154,7 +160,9 @@ export function QuickActions() {
                   {showTrial && <Chip tone="warn">Trial</Chip>}
                   {locked && <Chip tone="default">Locked</Chip>}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{a.desc}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                  {a.desc}
+                </div>
               </div>
               {locked ? (
                 <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -209,4 +217,3 @@ export function QuickActions() {
     </div>
   );
 }
-

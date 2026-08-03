@@ -22,7 +22,8 @@ export const Route = createFileRoute("/admin/plugin-config")({
       { title: "Plug-IN Config — Admin" },
       {
         name: "description",
-        content: "Atur URL AA Creative Studio yang dipakai plug-in, status aktif, versi, dan catatan tiap extension.",
+        content:
+          "Atur URL AA Creative Studio yang dipakai plug-in, status aktif, versi, dan catatan tiap extension.",
       },
     ],
   }),
@@ -94,7 +95,7 @@ function LogoPreview({ raw }: { raw: string }) {
       </div>
       <p className="text-[11px] text-muted-foreground">
         {broken
-          ? "Gambar tidak bisa dimuat. Pastikan file Google Drive di-share ke \"Anyone with the link\", atau pakai URL gambar langsung (.png/.jpg)."
+          ? 'Gambar tidak bisa dimuat. Pastikan file Google Drive di-share ke "Anyone with the link", atau pakai URL gambar langsung (.png/.jpg).'
           : "Preview logo OK."}
       </p>
     </div>
@@ -161,7 +162,8 @@ function PluginConfigFormInner() {
           <div>
             <div className="font-display text-lg">URL AA Creative Studio</div>
             <div className="text-xs text-muted-foreground">
-              Dipakai semua plug-in untuk login &amp; push token. User tidak bisa mengubah nilai ini.
+              Dipakai semua plug-in untuk login &amp; push token. User tidak bisa mengubah nilai
+              ini.
             </div>
           </div>
         </div>
@@ -173,9 +175,11 @@ function PluginConfigFormInner() {
             placeholder={DEFAULT_STUDIO_URL}
           />
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Extension yang sudah ter-install ikut ter-update otomatis (auto-sync tiap ±30 menit atau saat browser dibuka).
-            Untuk paket unduhan baru, build ulang:{" "}
-            <span className="text-foreground">bun scripts/build-plugin-extensions.mjs {studioUrl || DEFAULT_STUDIO_URL}</span>
+            Extension yang sudah ter-install ikut ter-update otomatis (auto-sync tiap ±30 menit atau
+            saat browser dibuka). Untuk paket unduhan baru, build ulang:{" "}
+            <span className="text-foreground">
+              bun scripts/build-plugin-extensions.mjs {studioUrl || DEFAULT_STUDIO_URL}
+            </span>
           </p>
         </div>
       </Card>
@@ -222,7 +226,9 @@ function PluginConfigFormInner() {
                 />
               </div>
               <div>
-                <label className="text-[11px] text-muted-foreground">URL logo extension (https / png)</label>
+                <label className="text-[11px] text-muted-foreground">
+                  URL logo extension (https / png)
+                </label>
                 <input
                   className={inputCls}
                   value={c.logoUrl ?? ""}

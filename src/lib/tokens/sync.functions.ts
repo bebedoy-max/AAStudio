@@ -34,16 +34,21 @@ export const pullUserTokens = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data, error } = await (supabase as unknown as {
-      from: (t: string) => {
-        select: (c: string) => {
-          eq: (
-            col: string,
-            v: string,
-          ) => Promise<{ data: { storage_key: string; ciphertext: string }[] | null; error: { message: string } | null }>;
+    const { data, error } = await (
+      supabase as unknown as {
+        from: (t: string) => {
+          select: (c: string) => {
+            eq: (
+              col: string,
+              v: string,
+            ) => Promise<{
+              data: { storage_key: string; ciphertext: string }[] | null;
+              error: { message: string } | null;
+            }>;
+          };
         };
-      };
-    })
+      }
+    )
       .from("user_tokens")
       .select("storage_key, ciphertext")
       .eq("user_id", userId);

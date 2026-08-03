@@ -46,7 +46,9 @@ function safeSet(value: CreativeHandoff) {
 export function setHandoff(payload: Omit<CreativeHandoff, "createdAt">) {
   if (typeof window === "undefined") return;
   const value: CreativeHandoff = { ...payload, createdAt: Date.now() };
-  memoryLarge = payload.thumbnail_data_url ? { thumbnail_data_url: payload.thumbnail_data_url } : null;
+  memoryLarge = payload.thumbnail_data_url
+    ? { thumbnail_data_url: payload.thumbnail_data_url }
+    : null;
   safeSet(value);
 }
 
@@ -80,7 +82,6 @@ export function peekHandoff(): CreativeHandoff | null {
   const raw = sessionStorage.getItem(KEY);
   return raw ? hydrate(raw) : null;
 }
-
 
 export const WORKFLOW_ROUTES: Record<CreativeHandoff["workflow"], string> = {
   "narrative-video": "/generate/naratif",
