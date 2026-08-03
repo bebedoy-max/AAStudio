@@ -12,8 +12,7 @@ export const Route = createFileRoute("/reff-edit/history")({
       { title: "Edit History — Reff EDIT" },
       {
         name: "description",
-        content:
-          "Riwayat hasil edit berbasis referensi: blueprint, provider, dan output.",
+        content: "Riwayat hasil edit berbasis referensi: blueprint, provider, dan output.",
       },
       { property: "og:title", content: "Edit History — Reff EDIT" },
       {
@@ -79,9 +78,7 @@ function HistoryPage() {
         title={`Riwayat (${items.length})`}
         sub="Tersimpan lokal per akun"
         right={
-          items.length > 0 ? (
-            <GhostButton onClick={clearAll}>Hapus semua</GhostButton>
-          ) : undefined
+          items.length > 0 ? <GhostButton onClick={clearAll}>Hapus semua</GhostButton> : undefined
         }
       >
         {items.length === 0 ? (
@@ -145,13 +142,14 @@ function HistoryPage() {
                   {h.blueprint && h.blueprint.length > 0 && (
                     <div className="text-[11px] text-muted-foreground line-clamp-2">
                       {h.blueprint.length} scene ·{" "}
-                      {h.blueprint.map((s) => s.name).slice(0, 3).join(", ")}
+                      {h.blueprint
+                        .map((s) => s.name)
+                        .slice(0, 3)
+                        .join(", ")}
                       {h.blueprint.length > 3 ? "…" : ""}
                     </div>
                   )}
-                  {h.error && (
-                    <div className="text-xs text-red-400">{h.error}</div>
-                  )}
+                  {h.error && <div className="text-xs text-red-400">{h.error}</div>}
                 </div>
               </div>
             ))}

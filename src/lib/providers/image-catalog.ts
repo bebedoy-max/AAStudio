@@ -24,9 +24,24 @@ export const IMAGE_PROVIDER_LABEL: Record<ImageProviderId, string> = {
 
 export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">, ImgModelDef[]> = {
   firefly: [
-    { key: "ff:image4-standard", label: "Firefly Image 4 Standard", qualities: [{ v: "standard", label: "Standard (~1 cr)" }], ratios: RATIOS_STD },
-    { key: "ff:image4-ultra", label: "Firefly Image 4 Ultra", qualities: [{ v: "ultra", label: "Ultra (~4 cr)" }], ratios: RATIOS_STD },
-    { key: "ff:image3", label: "Firefly Image 3", qualities: [{ v: "standard", label: "Standard (~1 cr)" }], ratios: RATIOS_STD },
+    {
+      key: "ff:image4-standard",
+      label: "Firefly Image 4 Standard",
+      qualities: [{ v: "standard", label: "Standard (~1 cr)" }],
+      ratios: RATIOS_STD,
+    },
+    {
+      key: "ff:image4-ultra",
+      label: "Firefly Image 4 Ultra",
+      qualities: [{ v: "ultra", label: "Ultra (~4 cr)" }],
+      ratios: RATIOS_STD,
+    },
+    {
+      key: "ff:image3",
+      label: "Firefly Image 3",
+      qualities: [{ v: "standard", label: "Standard (~1 cr)" }],
+      ratios: RATIOS_STD,
+    },
   ],
   weavy: [
     {
@@ -46,19 +61,19 @@ export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">
       key: "gptimage2",
       label: "ChatGPT Images 2.0 (Weavy)",
       qualities: [
-        { v: "low@1024x1024",   label: "1024² · Low (~5 cr)" },
-        { v: "medium@1024x1024",label: "1024² · Medium (~11 cr)" },
-        { v: "high@1024x1024",  label: "1024² · High (~20 cr)" },
-        { v: "medium@1536x1024",label: "1536×1024 · Medium (~13 cr)" },
-        { v: "high@1536x1024",  label: "1536×1024 · High (~24 cr)" },
-        { v: "medium@1024x1536",label: "1024×1536 · Medium (~13 cr)" },
-        { v: "high@1024x1536",  label: "1024×1536 · High (~24 cr)" },
-        { v: "medium@2048x2048",label: "2048² · Medium (~17 cr)" },
-        { v: "high@2048x2048",  label: "2048² · High (~30 cr)" },
-        { v: "high@2048x1152",  label: "2048×1152 · High (~24 cr)" },
-        { v: "high@3840x2160",  label: "3840×2160 · High (~37 cr)" },
-        { v: "high@2160x3840",  label: "2160×3840 · High (~37 cr)" },
-        { v: "high@auto",       label: "Auto · High (~20 cr)" },
+        { v: "low@1024x1024", label: "1024² · Low (~5 cr)" },
+        { v: "medium@1024x1024", label: "1024² · Medium (~11 cr)" },
+        { v: "high@1024x1024", label: "1024² · High (~20 cr)" },
+        { v: "medium@1536x1024", label: "1536×1024 · Medium (~13 cr)" },
+        { v: "high@1536x1024", label: "1536×1024 · High (~24 cr)" },
+        { v: "medium@1024x1536", label: "1024×1536 · Medium (~13 cr)" },
+        { v: "high@1024x1536", label: "1024×1536 · High (~24 cr)" },
+        { v: "medium@2048x2048", label: "2048² · Medium (~17 cr)" },
+        { v: "high@2048x2048", label: "2048² · High (~30 cr)" },
+        { v: "high@2048x1152", label: "2048×1152 · High (~24 cr)" },
+        { v: "high@3840x2160", label: "3840×2160 · High (~37 cr)" },
+        { v: "high@2160x3840", label: "2160×3840 · High (~37 cr)" },
+        { v: "high@auto", label: "Auto · High (~20 cr)" },
       ],
       ratios: ["1:1", "9:16", "16:9"],
     },
@@ -66,28 +81,96 @@ export const IMAGE_PROVIDER_CATALOG: Record<Exclude<ImageProviderId, "leonardo">
       key: "seedream-v50-pro",
       label: "Seedream V5.0 Pro (Weavy)",
       qualities: [
-        { v: "square_hd",       label: "Square HD (12 cr)" },
-        { v: "square",          label: "Square (12 cr)" },
-        { v: "portrait",        label: "Portrait (12 cr)" },
-        { v: "landscape",       label: "Landscape (12 cr)" },
-        { v: "auto_2K",         label: "Auto 2K (12 cr)" },
-        { v: "auto_3K",         label: "Auto 3K (12 cr)" },
+        { v: "square_hd", label: "Square HD (12 cr)" },
+        { v: "square", label: "Square (12 cr)" },
+        { v: "portrait", label: "Portrait (12 cr)" },
+        { v: "landscape", label: "Landscape (12 cr)" },
+        { v: "auto_2K", label: "Auto 2K (12 cr)" },
+        { v: "auto_3K", label: "Auto 3K (12 cr)" },
       ],
       ratios: RATIOS_STD,
     },
   ],
   framia: [
-    { key: "framia:nano-banana-lite", label: "Nano Banana Lite (Framia)", qualities: [{ v: "1K", label: "1K (~1 cr)" }, { v: "2K", label: "2K (~2 cr)" }] },
-    { key: "framia:nano-banana", label: "Nano Banana (Framia)", qualities: [{ v: "1K", label: "1K (~2 cr)" }, { v: "2K", label: "2K (~3 cr)" }] },
-    { key: "framia:nano-banana-2", label: "Nano Banana 2 (Framia)", qualities: [{ v: "1K", label: "1K (~3 cr)" }, { v: "2K", label: "2K (~4 cr)" }] },
-    { key: "framia:nano-banana-pro", label: "Nano Banana Pro (Framia)", qualities: [{ v: "default", label: "Standard (~5 cr)" }] },
-    { key: "framia:gpt-image-2", label: "GPT Image 2 (Framia)", qualities: [{ v: "2K", label: "2K (~5 cr)" }, { v: "4K", label: "4K (~8 cr)" }] },
-    { key: "framia:seedream-4", label: "Seedream 4.0 (Framia)", qualities: [{ v: "1K", label: "1K (~3 cr)" }, { v: "2K", label: "2K (~4 cr)" }] },
-    { key: "framia:seedream-4-5", label: "Seedream 4.5 (Framia)", qualities: [{ v: "1K", label: "1K (~3 cr)" }, { v: "2K", label: "2K (~4 cr)" }] },
-    { key: "framia:seedream-5", label: "Seedream 5 (Framia)", qualities: [{ v: "1K", label: "1K (~4 cr)" }, { v: "2K", label: "2K (~5 cr)" }] },
-    { key: "framia:seedream-5-pro", label: "Seedream 5 Pro (Framia)", qualities: [{ v: "1K", label: "1K (~4 cr)" }, { v: "2K", label: "2K (~5 cr)" }] },
-    { key: "framia:flux-1.1-pro", label: "Flux 1.1 Pro (Framia)", qualities: [{ v: "default", label: "Standard (~3 cr)" }] },
-    { key: "framia:flux-max", label: "Flux Max (Framia)", qualities: [{ v: "default", label: "Standard (~6 cr)" }] },
+    {
+      key: "framia:nano-banana-lite",
+      label: "Nano Banana Lite (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~1 cr)" },
+        { v: "2K", label: "2K (~2 cr)" },
+      ],
+    },
+    {
+      key: "framia:nano-banana",
+      label: "Nano Banana (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~2 cr)" },
+        { v: "2K", label: "2K (~3 cr)" },
+      ],
+    },
+    {
+      key: "framia:nano-banana-2",
+      label: "Nano Banana 2 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)" },
+        { v: "2K", label: "2K (~4 cr)" },
+      ],
+    },
+    {
+      key: "framia:nano-banana-pro",
+      label: "Nano Banana Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~5 cr)" }],
+    },
+    {
+      key: "framia:gpt-image-2",
+      label: "GPT Image 2 (Framia)",
+      qualities: [
+        { v: "2K", label: "2K (~5 cr)" },
+        { v: "4K", label: "4K (~8 cr)" },
+      ],
+    },
+    {
+      key: "framia:seedream-4",
+      label: "Seedream 4.0 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)" },
+        { v: "2K", label: "2K (~4 cr)" },
+      ],
+    },
+    {
+      key: "framia:seedream-4-5",
+      label: "Seedream 4.5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~3 cr)" },
+        { v: "2K", label: "2K (~4 cr)" },
+      ],
+    },
+    {
+      key: "framia:seedream-5",
+      label: "Seedream 5 (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)" },
+        { v: "2K", label: "2K (~5 cr)" },
+      ],
+    },
+    {
+      key: "framia:seedream-5-pro",
+      label: "Seedream 5 Pro (Framia)",
+      qualities: [
+        { v: "1K", label: "1K (~4 cr)" },
+        { v: "2K", label: "2K (~5 cr)" },
+      ],
+    },
+    {
+      key: "framia:flux-1.1-pro",
+      label: "Flux 1.1 Pro (Framia)",
+      qualities: [{ v: "default", label: "Standard (~3 cr)" }],
+    },
+    {
+      key: "framia:flux-max",
+      label: "Flux Max (Framia)",
+      qualities: [{ v: "default", label: "Standard (~6 cr)" }],
+    },
   ],
   gemini: [
     {

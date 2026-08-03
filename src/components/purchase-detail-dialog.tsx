@@ -2,7 +2,16 @@
 // notification bell when a user clicks a purchase row.
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { X, Clock, CircleCheck, CircleAlert, QrCode, Landmark, Wallet, CircleDollarSign } from "lucide-react";
+import {
+  X,
+  Clock,
+  CircleCheck,
+  CircleAlert,
+  QrCode,
+  Landmark,
+  Wallet,
+  CircleDollarSign,
+} from "lucide-react";
 import { PROVIDER_LABELS } from "@/lib/token-bank/bank.functions";
 import type { PurchaseView } from "@/lib/stores/purchase-feed";
 import { rupiah } from "@/lib/stores/purchase-feed";
@@ -13,7 +22,6 @@ import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-
 
 const statusMeta = {
   pending: {
@@ -110,11 +118,6 @@ export function PurchaseDetailDialog({
     };
   }, [liveStatus, purchase.id]);
 
-
-
-
-
-
   return (
     <div
       className="fixed inset-0 z-[80] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
@@ -199,24 +202,23 @@ export function PurchaseDetailDialog({
           )}
         </div>
 
-        {liveStatus === "pending" && purchase.payment_provider === "temanqris" && purchase.temanqris_order_id && (
-          <div className="mt-4">
-            <TemanQrisPanel
-              purchaseRequestId={purchase.id}
-              orderId={purchase.temanqris_order_id}
-              qrImage={purchase.temanqris_qr_image}
-              paymentUrl={purchase.temanqris_payment_url}
-              amount={purchase.temanqris_total_amount ?? purchase.price_idr}
-              expiresAt={purchase.temanqris_expires_at}
-            />
-          </div>
-        )}
+        {liveStatus === "pending" &&
+          purchase.payment_provider === "temanqris" &&
+          purchase.temanqris_order_id && (
+            <div className="mt-4">
+              <TemanQrisPanel
+                purchaseRequestId={purchase.id}
+                orderId={purchase.temanqris_order_id}
+                qrImage={purchase.temanqris_qr_image}
+                paymentUrl={purchase.temanqris_payment_url}
+                amount={purchase.temanqris_total_amount ?? purchase.price_idr}
+                expiresAt={purchase.temanqris_expires_at}
+              />
+            </div>
+          )}
         {liveStatus === "pending" && purchase.payment_provider === "midtrans" && (
           <div className="mt-4">
-            <MidtransQrisPanel
-              purchaseRequestId={purchase.id}
-              amount={purchase.price_idr}
-            />
+            <MidtransQrisPanel purchaseRequestId={purchase.id} amount={purchase.price_idr} />
           </div>
         )}
         {liveStatus === "pending" && !purchase.payment_provider && gopayAmount !== null && (
@@ -228,7 +230,6 @@ export function PurchaseDetailDialog({
             />
           </div>
         )}
-
 
         {liveStatus === "approved" && purchase.kind === "token_bank" && (
           <div className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-xs text-emerald-200/90">

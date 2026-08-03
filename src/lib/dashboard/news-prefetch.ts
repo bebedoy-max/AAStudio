@@ -85,7 +85,7 @@ export function prefetchArticle(url: string, title: string): void {
 
 export function getArticle(url: string): PrefetchedArticle | null {
   const e = cache.get(url);
-  return e && e.status !== "loading" ? e.data ?? null : null;
+  return e && e.status !== "loading" ? (e.data ?? null) : null;
 }
 
 export async function ensureArticle(url: string, title: string): Promise<PrefetchedArticle> {

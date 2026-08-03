@@ -107,7 +107,6 @@ function sanitizeDokuText(input: string): string {
     .trim();
 }
 
-
 export async function createDokuCheckout(params: {
   cfg: DokuConfig;
   invoiceNumber: string;
@@ -122,7 +121,7 @@ export async function createDokuCheckout(params: {
     order: {
       amount: Math.round(params.amountIdr),
       invoice_number: params.invoiceNumber,
-    line_items: [
+      line_items: [
         {
           name: sanitizeDokuText(params.itemName || params.invoiceNumber).slice(0, 60) || "Payment",
           price: Math.round(params.amountIdr),
@@ -174,7 +173,9 @@ export async function createDokuCheckout(params: {
  * Panggil endpoint status ringan. Kalau kredensial valid tapi invoice tidak
  * ada, DOKU balas 404 — kita anggap koneksi OK. 401 = kredensial salah.
  */
-export async function pingDoku(cfg: DokuConfig): Promise<{ ok: boolean; status: number; message: string }> {
+export async function pingDoku(
+  cfg: DokuConfig,
+): Promise<{ ok: boolean; status: number; message: string }> {
   const path = `/orders/v1/status/aa-conn-test-${Date.now()}`;
   const r = await dokuRequest<{ message?: string[] | string }>({
     cfg,
@@ -187,7 +188,9 @@ export async function pingDoku(cfg: DokuConfig): Promise<{ ok: boolean; status: 
   if (r.status === 404 || r.status === 200) {
     return { ok: true, status: r.status, message: `Terkoneksi ke DOKU (${cfg.environment})` };
   }
-  const msg = Array.isArray(r.json?.message) ? r.json?.message.join("; ") : (r.json?.message ?? r.raw?.slice(0, 160));
+  const msg = Array.isArray(r.json?.message)
+    ? r.json?.message.join("; ")
+    : (r.json?.message ?? r.raw?.slice(0, 160));
   return { ok: false, status: r.status, message: `DOKU HTTP ${r.status}: ${msg ?? "unknown"}` };
 }
 
@@ -220,7 +223,8 @@ export function verifyDokuNotificationSignature(params: {
   // constant-time-ish compare
   if (expected.length !== signature.length) return false;
   let diff = 0;
-  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  for (let i = 0; i < expected.length; i++)
+    diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
   return diff === 0;
 }
 
@@ -244,9 +248,12 @@ export async function loadDokuConfig(gatewayId?: string): Promise<{
     if (gatewayId) q = q.eq("id", gatewayId);
     else q = q.eq("is_active", true).order("updated_at", { ascending: false }).limit(1);
     const { data } = await q.maybeSingle();
-    const row = data as
-      | { id: string; environment: string; config_ciphertext: string; is_active: boolean }
-      | null;
+    const row = data as {
+      id: string;
+      environment: string;
+      config_ciphertext: string;
+      is_active: boolean;
+    } | null;
     if (!row?.config_ciphertext) return null;
     const { decryptString } = await import("@/lib/tokens/crypto.server");
     const cfg = JSON.parse(await decryptString(row.config_ciphertext)) as Record<string, string>;

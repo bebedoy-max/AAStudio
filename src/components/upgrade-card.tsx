@@ -9,7 +9,13 @@ import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 // Pending purchase considered stale after 1 hour (matches Midtrans QRIS expiry).
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
-type PendingRow = { id: string; route_key: string; price_idr: number; created_at: string; note?: string | null };
+type PendingRow = {
+  id: string;
+  route_key: string;
+  price_idr: number;
+  created_at: string;
+  note?: string | null;
+};
 
 const FEATURES_MARKER = "[FEATURES:";
 function extraFeatureKeysFromNote(note: string | null | undefined): string[] {
@@ -18,7 +24,11 @@ function extraFeatureKeysFromNote(note: string | null | undefined): string[] {
   if (i < 0) return [];
   const end = note.indexOf("]", i);
   if (end < 0) return [];
-  return note.slice(i + FEATURES_MARKER.length, end).split(",").map((s) => s.trim()).filter(Boolean);
+  return note
+    .slice(i + FEATURES_MARKER.length, end)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 const FULL_ACCESS_KEY = "__full_access__";
@@ -70,9 +80,7 @@ export function UpgradeCard() {
         <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
           Upgrade
         </div>
-        <div className="mt-1 font-display text-base text-foreground">
-          Buka semua fitur premium
-        </div>
+        <div className="mt-1 font-display text-base text-foreground">Buka semua fitur premium</div>
         <p className="mt-1 text-xs text-muted-foreground">
           Motion Control, Storyboard, Bulk Fashion, Naratif Video, dan banyak lainnya..
         </p>
@@ -108,7 +116,9 @@ export function UpgradeDialog({
   const { routePermissions, featureAccess, user } = useAuth();
   const [prices, setPrices] = useState<Record<string, { label: string; price_idr: number }>>({});
   const [pendingRows, setPendingRows] = useState<PendingRow[]>([]);
-  const [selected, setSelected] = useState<string[]>(preselectedFeature ? [preselectedFeature] : []);
+  const [selected, setSelected] = useState<string[]>(
+    preselectedFeature ? [preselectedFeature] : [],
+  );
   const [bundle, setBundle] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [resume, setResume] = useState<PendingRow | null>(null);
@@ -129,12 +139,15 @@ export function UpgradeDialog({
       .eq("status", "pending")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
-    setPendingRows(((data ?? []) as PendingRow[]));
+    setPendingRows((data ?? []) as PendingRow[]);
   };
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("feature_prices").select("route_key, label, price_idr").eq("is_active", true);
+      const { data } = await supabase
+        .from("feature_prices")
+        .select("route_key, label, price_idr")
+        .eq("is_active", true);
       const map: Record<string, { label: string; price_idr: number }> = {};
       ((data ?? []) as { route_key: string; label: string; price_idr: number }[]).forEach((r) => {
         map[r.route_key] = { label: r.label, price_idr: r.price_idr };
@@ -171,9 +184,8 @@ export function UpgradeDialog({
 
   const isPending = (k: string) => pendingKeys.includes(k);
   const pendingFor = (k: string) =>
-    pendingRows.find(
-      (r) => r.route_key === k || extraFeatureKeysFromNote(r.note).includes(k),
-    ) ?? null;
+    pendingRows.find((r) => r.route_key === k || extraFeatureKeysFromNote(r.note).includes(k)) ??
+    null;
 
   const bundlePrice = prices[FULL_ACCESS_KEY];
   const bundleAvailable = availableFeatures.length > 1;
@@ -185,10 +197,7 @@ export function UpgradeDialog({
 
   // Harga full akses selalu 70% dari total harga fitur premium yang masih
   // bisa dibeli — tidak pernah nol.
-  const effectiveBundlePrice = useMemo(
-    () => Math.round(individualTotal * 0.7),
-    [individualTotal],
-  );
+  const effectiveBundlePrice = useMemo(() => Math.round(individualTotal * 0.7), [individualTotal]);
 
   const toggle = (key: string) => {
     if (isPending(key)) {
@@ -216,7 +225,6 @@ export function UpgradeDialog({
 
   const savings = Math.max(0, individualTotal - effectiveBundlePrice);
 
-
   const handleContinue = () => {
     if (selected.length === 0) return;
     setCheckout(true);
@@ -226,7 +234,7 @@ export function UpgradeDialog({
     return (
       <CheckoutDialog
         featureKeys={selected}
-        bundleLabel={bundle ? bundlePrice?.label ?? "Full Akses (Semua Fitur)" : null}
+        bundleLabel={bundle ? (bundlePrice?.label ?? "Full Akses (Semua Fitur)") : null}
         bundlePrice={bundle ? effectiveBundlePrice : null}
         onClose={() => {
           // Menutup dialog pembayaran menutup seluruh alur upgrade.
@@ -240,7 +248,6 @@ export function UpgradeDialog({
     );
   }
 
-
   if (resume) {
     return (
       <ResumePaymentDialog
@@ -252,7 +259,6 @@ export function UpgradeDialog({
       />
     );
   }
-
 
   return (
     <div
@@ -280,7 +286,8 @@ export function UpgradeDialog({
           Pilih fitur <span className="text-gradient">premium</span>
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Beli akses per fitur untuk 30 hari. Bayar → upload bukti → admin verifikasi → fitur aktif otomatis.
+          Beli akses per fitur untuk 30 hari. Bayar → upload bukti → admin verifikasi → fitur aktif
+          otomatis.
         </p>
 
         {bundleAvailable && (
@@ -332,7 +339,6 @@ export function UpgradeDialog({
                     </span>
                   )}
                 </div>
-
               </div>
               <span
                 className={[
@@ -348,65 +354,69 @@ export function UpgradeDialog({
 
         {/* Per-feature list */}
         <div className="mt-5">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
-              {bundle ? "Termasuk semua fitur di bawah" : `Atau pilih per fitur (${selected.length} dipilih)`}
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+            {bundle
+              ? "Termasuk semua fitur di bawah"
+              : `Atau pilih per fitur (${selected.length} dipilih)`}
+          </div>
+          {availableFeatures.length === 0 ? (
+            <div className="text-sm text-muted-foreground p-4 border border-border rounded-xl">
+              Semua fitur sudah terbuka untuk akun Anda.
             </div>
-            {availableFeatures.length === 0 ? (
-              <div className="text-sm text-muted-foreground p-4 border border-border rounded-xl">
-                Semua fitur sudah terbuka untuk akun Anda.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-                {availableFeatures.map((f) => {
-                  const checked = selected.includes(f.key);
-                  const pending = isPending(f.key);
-                  const price = prices[f.key]?.price_idr;
-                  return (
-                    <label
-                      key={f.key}
-                      className={[
-                        "flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all",
-                        bundle ? "cursor-default opacity-70" : "cursor-pointer",
-                        pending
-                          ? "border-amber-500/40 bg-amber-500/[0.06] cursor-not-allowed"
-                          : checked
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+              {availableFeatures.map((f) => {
+                const checked = selected.includes(f.key);
+                const pending = isPending(f.key);
+                const price = prices[f.key]?.price_idr;
+                return (
+                  <label
+                    key={f.key}
+                    className={[
+                      "flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all",
+                      bundle ? "cursor-default opacity-70" : "cursor-pointer",
+                      pending
+                        ? "border-amber-500/40 bg-amber-500/[0.06] cursor-not-allowed"
+                        : checked
                           ? "border-primary/60 bg-primary/[0.08]"
                           : "border-border bg-card/40 hover:bg-sidebar-accent/40",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={[
+                        "h-5 w-5 grid place-items-center rounded-md border shrink-0",
+                        checked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border",
                       ].join(" ")}
                     >
-                      <span
-                        className={[
-                          "h-5 w-5 grid place-items-center rounded-md border shrink-0",
-                          checked ? "border-primary bg-primary text-primary-foreground" : "border-border",
-                        ].join(" ")}
-                      >
-                        {checked && <Check className="h-3.5 w-3.5" />}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm text-foreground truncate">{f.label}</div>
-                        {pending ? (
-                          <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400 flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> menunggu verifikasi
-                          </div>
-                        ) : (
-                          <div className="text-[10px] font-mono text-muted-foreground">
-                            {price ? `${formatRupiah(price)} / 30 hari` : "—"}
-                          </div>
-                        )}
-                      </div>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={checked}
-                        disabled={pending}
-                        onChange={() => toggle(f.key)}
-                      />
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                      {checked && <Check className="h-3.5 w-3.5" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-foreground truncate">{f.label}</div>
+                      {pending ? (
+                        <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400 flex items-center gap-1">
+                          <Clock className="h-3 w-3" /> menunggu verifikasi
+                        </div>
+                      ) : (
+                        <div className="text-[10px] font-mono text-muted-foreground">
+                          {price ? `${formatRupiah(price)} / 30 hari` : "—"}
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={checked}
+                      disabled={pending}
+                      onChange={() => toggle(f.key)}
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Footer */}
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-border/60">
@@ -430,7 +440,10 @@ export function UpgradeDialog({
               onClick={handleContinue}
               disabled={selected.length === 0}
               className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground"
-              style={{ background: "var(--gradient-neon)", opacity: selected.length === 0 ? 0.5 : 1 }}
+              style={{
+                background: "var(--gradient-neon)",
+                opacity: selected.length === 0 ? 0.5 : 1,
+              }}
             >
               <Zap className="h-4 w-4" /> Lanjut ke Pembayaran
             </button>

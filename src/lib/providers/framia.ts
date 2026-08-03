@@ -111,7 +111,9 @@ export async function runFramiaWithRotation<T>(
 /* -------------------------------- helpers --------------------------------- */
 
 /** Decode payload JWT tanpa validasi signature — sekedar untuk ambil exp/email. */
-export function decodeFramiaJwt(token: string): { exp?: number; iat?: number; sub?: string } | null {
+export function decodeFramiaJwt(
+  token: string,
+): { exp?: number; iat?: number; sub?: string } | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
@@ -231,12 +233,18 @@ export async function fetchFramiaCredits(token: string): Promise<FramiaCredits> 
 }
 
 export async function fetchFramiaProfile(token: string): Promise<FramiaProfile> {
-  const info = await framiaFetch<Record<string, unknown>>({ token, path: "/video/api/v2/user/info" });
+  const info = await framiaFetch<Record<string, unknown>>({
+    token,
+    path: "/video/api/v2/user/info",
+  });
   return unwrapFramiaEnvelope<FramiaProfile>(info);
 }
 
 export async function fetchFramiaCreatorProfile(token: string): Promise<Record<string, unknown>> {
-  const profile = await framiaFetch<Record<string, unknown>>({ token, path: "/video/api/v2/creator/profile" });
+  const profile = await framiaFetch<Record<string, unknown>>({
+    token,
+    path: "/video/api/v2/creator/profile",
+  });
   return unwrapFramiaEnvelope<Record<string, unknown>>(profile);
 }
 
@@ -335,11 +343,7 @@ export async function fetchFramiaBalance(
   try {
     const c = await fetchFramiaCredits(token);
     const balance =
-      typeof c.credits === "number"
-        ? c.credits
-        : typeof c.balance === "number"
-          ? c.balance
-          : null;
+      typeof c.credits === "number" ? c.credits : typeof c.balance === "number" ? c.balance : null;
     return { ok: true, balance };
   } catch (e) {
     return { ok: false, balance: null, message: (e as Error).message };
@@ -399,7 +403,9 @@ export async function listFramiaTemplates(
   token: string,
   opts: { scope?: string; page?: number; page_size?: number; category_id?: string | number } = {},
 ): Promise<FramiaTemplate[]> {
-  const data = await framiaFetch<{ items?: FramiaTemplate[]; data?: FramiaTemplate[] } | FramiaTemplate[]>({
+  const data = await framiaFetch<
+    { items?: FramiaTemplate[]; data?: FramiaTemplate[] } | FramiaTemplate[]
+  >({
     token,
     path: "/video/api/workflows/templates",
     query: {
@@ -429,11 +435,17 @@ export async function listFramiaTemplateCategories(
 }
 
 export async function fetchAgentNodeOptions(token: string): Promise<FramiaAgentNodeOptions> {
-  return framiaFetch<FramiaAgentNodeOptions>({ token, path: "/video/api/workflows/agent-node/options" });
+  return framiaFetch<FramiaAgentNodeOptions>({
+    token,
+    path: "/video/api/workflows/agent-node/options",
+  });
 }
 
 export async function fetchCanvasNodeRules(token: string): Promise<FramiaCanvasNodeRules> {
-  return framiaFetch<FramiaCanvasNodeRules>({ token, path: "/video/api/workflows/canvas-node-rules" });
+  return framiaFetch<FramiaCanvasNodeRules>({
+    token,
+    path: "/video/api/workflows/canvas-node-rules",
+  });
 }
 
 /* --------------------------------- assets --------------------------------- */
@@ -467,7 +479,9 @@ export type FramiaProject = {
 };
 
 function asObject(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function unwrapFramiaEnvelope<T = unknown>(value: unknown): T {
@@ -475,7 +489,8 @@ function unwrapFramiaEnvelope<T = unknown>(value: unknown): T {
   for (let depth = 0; depth < 4; depth += 1) {
     const obj = asObject(current);
     if (!obj) return current as T;
-    const looksLikeEnvelope = "code" in obj && ("data" in obj || "message" in obj || "detail" in obj);
+    const looksLikeEnvelope =
+      "code" in obj && ("data" in obj || "message" in obj || "detail" in obj);
     if (!looksLikeEnvelope || !("data" in obj)) return current as T;
     current = obj.data;
   }
@@ -541,7 +556,13 @@ export async function createFramiaProject(
   const project = asObject(nestedData?.project) ?? asObject(root?.project) ?? nestedData ?? root;
   const canvas = asObject(nestedData?.canvas) ?? asObject(root?.canvas);
   const workflow = asObject(nestedData?.workflow) ?? asObject(root?.workflow);
-  const projectId = pickString(project?.project_id, project?.id, nestedData?.project_id, root?.project_id, root?.id);
+  const projectId = pickString(
+    project?.project_id,
+    project?.id,
+    nestedData?.project_id,
+    root?.project_id,
+    root?.id,
+  );
   const canvasId = pickString(
     project?.canvas_id,
     nestedData?.canvas_id,
@@ -604,8 +625,18 @@ export async function getResourceInfo(token: string, resourceId: string) {
     ...data,
     ...(resourceInfo ?? {}),
     resource_id: pickString(data.resource_id, resourceInfo?.resource_id, resourceId),
-    url: pickString(data.url, resourceInfo?.url, resourceInfo?.preview_url, resourceInfo?.download_url),
-    download_url: pickString(data.download_url, resourceInfo?.download_url, resourceInfo?.url, resourceInfo?.preview_url),
+    url: pickString(
+      data.url,
+      resourceInfo?.url,
+      resourceInfo?.preview_url,
+      resourceInfo?.download_url,
+    ),
+    download_url: pickString(
+      data.download_url,
+      resourceInfo?.download_url,
+      resourceInfo?.url,
+      resourceInfo?.preview_url,
+    ),
   };
 }
 
@@ -825,7 +856,6 @@ async function publishWorkflowVersion(
   return { version, error: lastError };
 }
 
-
 /**
  * Kick off a workflow run. Payload shape follows the browser capture of the
  * canvas "Run" button. `inputRefs` should be a `{ nodes: { <node_id>: { output: {...} } } }`
@@ -869,8 +899,16 @@ export async function createWorkflowRun(token: string, req: FramiaRunRequest): P
   });
 
   const data = unwrapFramiaEnvelope<Record<string, unknown>>(raw);
-  const run = asObject(data.run) ?? asObject(data.workflow_run) ?? asObject(data.workflowRun) ?? data;
-  const runId = pickString(run.run_id, run.workflow_run_id, run.id, data.run_id, data.workflow_run_id, data.id);
+  const run =
+    asObject(data.run) ?? asObject(data.workflow_run) ?? asObject(data.workflowRun) ?? data;
+  const runId = pickString(
+    run.run_id,
+    run.workflow_run_id,
+    run.id,
+    data.run_id,
+    data.workflow_run_id,
+    data.id,
+  );
   return {
     ...data,
     ...run,
@@ -895,8 +933,19 @@ export async function listRunNodes(token: string, runId: string): Promise<Framia
     token,
     path: `/video/api/workflows/runs/${encodeURIComponent(runId)}/nodes`,
   });
-  const data = unwrapFramiaEnvelope<{ nodes?: FramiaRunNode[]; items?: FramiaRunNode[] } | FramiaRunNode[]>(raw);
-  return pickArrayFromObject<FramiaRunNode>(data, ["nodes", "items", "node_runs", "run_nodes", "tasks", "results"]) ?? [];
+  const data = unwrapFramiaEnvelope<
+    { nodes?: FramiaRunNode[]; items?: FramiaRunNode[] } | FramiaRunNode[]
+  >(raw);
+  return (
+    pickArrayFromObject<FramiaRunNode>(data, [
+      "nodes",
+      "items",
+      "node_runs",
+      "run_nodes",
+      "tasks",
+      "results",
+    ]) ?? []
+  );
 }
 
 export async function listWorkflowRuns(
@@ -922,7 +971,14 @@ export async function listWorkflowRuns(
   });
 }
 
-const FRAMIA_TERMINAL_STATUSES = new Set(["success", "succeeded", "completed", "failed", "canceled", "cancelled"]);
+const FRAMIA_TERMINAL_STATUSES = new Set([
+  "success",
+  "succeeded",
+  "completed",
+  "failed",
+  "canceled",
+  "cancelled",
+]);
 
 /** Poll a run until every node reaches terminal status. */
 export async function waitForRunCompletion(
@@ -935,7 +991,9 @@ export async function waitForRunCompletion(
   while (Date.now() - start < timeoutMs) {
     const nodes = await listRunNodes(token, runId).catch(() => []);
     opts.onTick?.(nodes);
-    const allTerminal = nodes.length > 0 && nodes.every((n) => FRAMIA_TERMINAL_STATUSES.has(String(n.status ?? "").toLowerCase()));
+    const allTerminal =
+      nodes.length > 0 &&
+      nodes.every((n) => FRAMIA_TERMINAL_STATUSES.has(String(n.status ?? "").toLowerCase()));
     if (allTerminal) return nodes;
     await new Promise((r) => setTimeout(r, intervalMs));
   }

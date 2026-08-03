@@ -2,7 +2,14 @@
 // Wavespeed path uses image-edit endpoints in parallel with auto key-rotation on credit errors.
 // Weavy path uses recipe pipeline (with its own token rotation).
 
-import { getAllWavespeedKeys, wsUploadMedia, wsPost, wsPoll, WAVESPEED_API, isWavespeedRotatableError } from "./wavespeed";
+import {
+  getAllWavespeedKeys,
+  wsUploadMedia,
+  wsPost,
+  wsPoll,
+  WAVESPEED_API,
+  isWavespeedRotatableError,
+} from "./wavespeed";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 export type BulkProvider = "weavy" | "wavespeed" | "magnific" | "framia" | "leonardo";
@@ -24,7 +31,9 @@ const OUTFIT_DIRECTIVE =
   "PENTING (multi-referensi): Gambar #1 adalah KARAKTER — pertahankan identitas persis (wajah, kulit, rambut/hijab, bentuk tubuh, ekspresi). Gambar #2 adalah OUTFIT/PAKAIAN yang harus dikenakan oleh karakter dari gambar #1, mengganti pakaian aslinya. Salin bentuk, warna, motif, tekstur, kerah, dan detail outfit dari gambar #2 seakurat mungkin. Jangan mencampur outfit gambar #1 dengan gambar #2 — outfit lama dari karakter DIHAPUS. Hasil akhir: satu foto karakter dari gambar #1 memakai outfit dari gambar #2.\n\nInstruksi visual tambahan: ";
 
 function buildPrompt(tpl: string, productType: string, idx: number) {
-  const body = tpl.replaceAll("{product_type}", productType).replaceAll("{outfit_index}", String(idx + 1));
+  const body = tpl
+    .replaceAll("{product_type}", productType)
+    .replaceAll("{outfit_index}", String(idx + 1));
   return OUTFIT_DIRECTIVE + body;
 }
 
@@ -38,7 +47,11 @@ async function runWavespeedOne(
   quality: string,
 ): Promise<string> {
   const outfitUrl = await wsUploadMedia(outfit, `outfit_${Date.now()}.jpg`, key);
-  const payload: Record<string, unknown> = { prompt, images: [charUrl, outfitUrl], aspect_ratio: ratio };
+  const payload: Record<string, unknown> = {
+    prompt,
+    images: [charUrl, outfitUrl],
+    aspect_ratio: ratio,
+  };
   if (/gpt-image/.test(modelId)) payload.quality = quality;
   if (/nano-banana/.test(modelId)) payload.resolution = quality;
   const data = await wsPost(modelId, payload, key);
@@ -88,7 +101,16 @@ async function runWavespeedBulk(opts: BulkFashionOpts): Promise<string[]> {
       try {
         opts.onProgress?.(i, `Generate outfit #${i + 1}...`);
         const prompt = buildPrompt(opts.promptTemplate, opts.productType, i);
-        const url = await runWavespeedOneWithRotation(keys, modelId, charUrls, of, prompt, opts.ratio, opts.quality, opts.charFile);
+        const url = await runWavespeedOneWithRotation(
+          keys,
+          modelId,
+          charUrls,
+          of,
+          prompt,
+          opts.ratio,
+          opts.quality,
+          opts.charFile,
+        );
         if (opts.signal?.aborted) return;
         results[i] = url;
         opts.onProgress?.(i, "done", url);
@@ -192,9 +214,13 @@ export async function generateBulkFashion(opts: BulkFashionOpts): Promise<string
     if (opts.provider === "leonardo") return await runLeonardoBulk(opts);
     throw new Error("Magnific belum menyediakan bulk fashion edit endpoint di proxy.");
   } finally {
-    if (opts.provider === "wavespeed" || opts.provider === "weavy" || opts.provider === "framia" || opts.provider === "leonardo") {
+    if (
+      opts.provider === "wavespeed" ||
+      opts.provider === "weavy" ||
+      opts.provider === "framia" ||
+      opts.provider === "leonardo"
+    ) {
       notifyGenerationDone(opts.provider);
     }
   }
 }
-

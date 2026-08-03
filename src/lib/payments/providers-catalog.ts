@@ -35,8 +35,14 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     liveTestSupported: true,
     fields: [
       { key: "merchant_id", label: "Merchant ID", required: true, placeholder: "M123456" },
-      { key: "client_key",  label: "Client Key",  required: true, placeholder: "SB-Mid-client-..." },
-      { key: "server_key",  label: "Server Key",  required: true, secret: true, placeholder: "SB-Mid-server-..." },
+      { key: "client_key", label: "Client Key", required: true, placeholder: "SB-Mid-client-..." },
+      {
+        key: "server_key",
+        label: "Server Key",
+        required: true,
+        secret: true,
+        placeholder: "SB-Mid-server-...",
+      },
     ],
   },
   {
@@ -46,7 +52,13 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     docsUrl: "https://developers.xendit.co/",
     description: "Invoice, e-wallet, VA, QRIS.",
     fields: [
-      { key: "secret_key", label: "Secret Key (API Key)", required: true, secret: true, placeholder: "xnd_..." },
+      {
+        key: "secret_key",
+        label: "Secret Key (API Key)",
+        required: true,
+        secret: true,
+        placeholder: "xnd_...",
+      },
       { key: "public_key", label: "Public Key", placeholder: "xnd_public_..." },
       { key: "webhook_verification_token", label: "Webhook Verification Token", secret: true },
     ],
@@ -97,8 +109,19 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
       "Checkout unified: VA (BCA/Mandiri/BRI/BNI/CIMB/Permata), QRIS, e-wallet (OVO/DANA/ShopeePay/LinkAja), Alfamart, kartu kredit. Test koneksi live tersedia.",
     liveTestSupported: true,
     fields: [
-      { key: "client_id",  label: "Client ID (MCH-...)",  required: true, placeholder: "MCH-0001-XXXXXX" },
-      { key: "secret_key", label: "Secret Key", required: true, secret: true, placeholder: "SK-..." },
+      {
+        key: "client_id",
+        label: "Client ID (MCH-...)",
+        required: true,
+        placeholder: "MCH-0001-XXXXXX",
+      },
+      {
+        key: "secret_key",
+        label: "Secret Key",
+        required: true,
+        secret: true,
+        placeholder: "SK-...",
+      },
     ],
   },
   {
@@ -107,10 +130,10 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "aggregator",
     docsUrl: "https://docs.faspay.co.id/",
     fields: [
-      { key: "merchant_id",   label: "Merchant ID",   required: true },
+      { key: "merchant_id", label: "Merchant ID", required: true },
       { key: "merchant_code", label: "Merchant Code", required: true },
-      { key: "user_id",       label: "User ID",       required: true },
-      { key: "password",      label: "Password",      required: true, secret: true },
+      { key: "user_id", label: "User ID", required: true },
+      { key: "password", label: "Password", required: true, secret: true },
     ],
   },
   {
@@ -119,7 +142,7 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "aggregator",
     docsUrl: "https://docs.finpay.id/",
     fields: [
-      { key: "merchant_id",  label: "Merchant ID",  required: true },
+      { key: "merchant_id", label: "Merchant ID", required: true },
       { key: "merchant_key", label: "Merchant Key", required: true, secret: true },
     ],
   },
@@ -129,9 +152,9 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "aggregator",
     docsUrl: "https://docs.espay.id/",
     fields: [
-      { key: "merchant_id",   label: "Merchant ID",   required: true },
+      { key: "merchant_id", label: "Merchant ID", required: true },
       { key: "signature_key", label: "Signature Key", required: true, secret: true },
-      { key: "password",      label: "Password",      required: true, secret: true },
+      { key: "password", label: "Password", required: true, secret: true },
     ],
   },
   {
@@ -140,7 +163,7 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "aggregator",
     fields: [
       { key: "merchant_id", label: "Merchant ID", required: true },
-      { key: "secret_key",  label: "Secret Key",  required: true, secret: true },
+      { key: "secret_key", label: "Secret Key", required: true, secret: true },
     ],
   },
   {
@@ -150,7 +173,7 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     fields: [
       { key: "merchant_id", label: "Merchant ID", required: true },
       { key: "terminal_id", label: "Terminal ID", required: true },
-      { key: "secret_key",  label: "Secret Key",  required: true, secret: true },
+      { key: "secret_key", label: "Secret Key", required: true, secret: true },
     ],
   },
   {
@@ -159,7 +182,7 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "aggregator",
     fields: [
       { key: "merchant_code", label: "Merchant Code", required: true },
-      { key: "merchant_key",  label: "Merchant Key",  required: true, secret: true },
+      { key: "merchant_key", label: "Merchant Key", required: true, secret: true },
     ],
   },
   {
@@ -168,7 +191,7 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "aggregator",
     fields: [
       { key: "merchant_id", label: "Merchant ID", required: true },
-      { key: "api_key",     label: "API Key",     required: true, secret: true },
+      { key: "api_key", label: "API Key", required: true, secret: true },
     ],
   },
   {
@@ -177,8 +200,8 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "ewallet",
     fields: [
       { key: "merchant_id", label: "Merchant ID", required: true },
-      { key: "api_key",     label: "API Key",     required: true, secret: true },
-      { key: "secret_key",  label: "Secret Key",  required: true, secret: true },
+      { key: "api_key", label: "API Key", required: true, secret: true },
+      { key: "secret_key", label: "Secret Key", required: true, secret: true },
     ],
   },
   {
@@ -188,9 +211,9 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     docsUrl: "https://developer.bca.co.id/",
     fields: [
       { key: "corporate_id", label: "Corporate ID (BCA_ID)", required: true },
-      { key: "va_prefix",    label: "VA Prefix / Company Code", required: true },
-      { key: "api_key",      label: "API Key",     required: true, secret: true },
-      { key: "secret_key",   label: "Secret Key",  required: true, secret: true },
+      { key: "va_prefix", label: "VA Prefix / Company Code", required: true },
+      { key: "api_key", label: "API Key", required: true, secret: true },
+      { key: "secret_key", label: "Secret Key", required: true, secret: true },
     ],
   },
   {
@@ -199,10 +222,10 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     category: "bank_va",
     docsUrl: "https://developers.bri.co.id/",
     fields: [
-      { key: "client_id",           label: "Client ID",           required: true },
-      { key: "client_secret",       label: "Client Secret",       required: true, secret: true },
-      { key: "institution_code",    label: "Institution Code",    required: true },
-      { key: "brizzi_merchant_id",  label: "Brizzi Merchant ID" },
+      { key: "client_id", label: "Client ID", required: true },
+      { key: "client_secret", label: "Client Secret", required: true, secret: true },
+      { key: "institution_code", label: "Institution Code", required: true },
+      { key: "brizzi_merchant_id", label: "Brizzi Merchant ID" },
     ],
   },
   {
@@ -210,8 +233,8 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     name: "Virtual Account Mandiri",
     category: "bank_va",
     fields: [
-      { key: "merchant_id",   label: "Merchant ID",   required: true },
-      { key: "client_id",     label: "Client ID",     required: true },
+      { key: "merchant_id", label: "Merchant ID", required: true },
+      { key: "client_id", label: "Client ID", required: true },
       { key: "client_secret", label: "Client Secret", required: true, secret: true },
     ],
   },
@@ -220,9 +243,9 @@ export const PAYMENT_PROVIDERS: ProviderDef[] = [
     name: "Virtual Account BNI",
     category: "bank_va",
     fields: [
-      { key: "client_id",     label: "Client ID",     required: true },
+      { key: "client_id", label: "Client ID", required: true },
       { key: "client_secret", label: "Client Secret", required: true, secret: true },
-      { key: "prefix",        label: "VA Prefix",     required: true },
+      { key: "prefix", label: "VA Prefix", required: true },
     ],
   },
 ];

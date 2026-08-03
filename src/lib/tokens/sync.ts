@@ -1,6 +1,11 @@
 // Client-side token sync: mirrors encrypted per-user tokens between localStorage
 // and Supabase so users don't have to re-enter API keys on new devices.
-import { pullUserTokens, pushUserToken, deleteUserToken, ALLOWED_TOKEN_KEYS } from "./sync.functions";
+import {
+  pullUserTokens,
+  pushUserToken,
+  deleteUserToken,
+  ALLOWED_TOKEN_KEYS,
+} from "./sync.functions";
 
 const SYNC_FLAG = "aatools.tokens.syncedAt";
 const OWNER_FLAG = "aatools.tokens.ownerUserId";
@@ -11,8 +16,7 @@ let lastPulledUserId: string | null = null;
 let pullInFlightUserId: string | null = null;
 
 type LocalTokenMutation =
-  | { op: "set"; value: string; updatedAt: number }
-  | { op: "delete"; updatedAt: number };
+  { op: "set"; value: string; updatedAt: number } | { op: "delete"; updatedAt: number };
 
 function readLocalMutations(): Record<string, LocalTokenMutation> {
   if (typeof window === "undefined") return {};
@@ -77,7 +81,11 @@ function mergeByString(valuesA: string[], valuesB: string[]) {
   return Array.from(new Set([...valuesA, ...valuesB].filter(Boolean)));
 }
 
-function mergeByField<T extends Record<string, unknown>>(remote: T[], local: T[], field: "key" | "token") {
+function mergeByField<T extends Record<string, unknown>>(
+  remote: T[],
+  local: T[],
+  field: "key" | "token",
+) {
   const byValue = new Map<string, T>();
   for (const item of local) {
     const value = item[field];
@@ -92,16 +100,29 @@ function mergeByField<T extends Record<string, unknown>>(remote: T[], local: T[]
   return Array.from(byValue.values());
 }
 
-function mergeStoredTokenValue(storageKey: string, remoteValue: string, localValue: string): string {
+function mergeStoredTokenValue(
+  storageKey: string,
+  remoteValue: string,
+  localValue: string,
+): string {
   if (storageKey === "aatools.brain.geminiKeys") {
     return JSON.stringify(
-      mergeByString(parseJsonValue<string[]>(remoteValue, []), parseJsonValue<string[]>(localValue, [])),
+      mergeByString(
+        parseJsonValue<string[]>(remoteValue, []),
+        parseJsonValue<string[]>(localValue, []),
+      ),
     );
   }
 
   if (storageKey === "aatools.eleven") {
-    const remote = parseJsonValue<{ keys?: string[]; voice?: string; customVoice?: string }>(remoteValue, {});
-    const local = parseJsonValue<{ keys?: string[]; voice?: string; customVoice?: string }>(localValue, {});
+    const remote = parseJsonValue<{ keys?: string[]; voice?: string; customVoice?: string }>(
+      remoteValue,
+      {},
+    );
+    const local = parseJsonValue<{ keys?: string[]; voice?: string; customVoice?: string }>(
+      localValue,
+      {},
+    );
     return JSON.stringify({
       ...local,
       ...remote,
@@ -231,7 +252,11 @@ export function syncTokensForUser(userId: string, options?: { force?: boolean })
             // User just wrote a new value — that's the source of truth now.
             // Push it up; do NOT overwrite with stale remote.
             if (typeof currentValue === "string" && currentValue.length > 0) {
-              writes.push(pushUserToken({ data: { storageKey: key, value: currentValue } }).then(() => undefined));
+              writes.push(
+                pushUserToken({ data: { storageKey: key, value: currentValue } }).then(
+                  () => undefined,
+                ),
+              );
             }
             continue;
           }
@@ -246,16 +271,22 @@ export function syncTokensForUser(userId: string, options?: { force?: boolean })
             // valid local token and push it again so the cloud copy is re-written
             // with the current encryption key instead of silently deleting it.
             localStorage.setItem(key, localValue);
-            writes.push(pushUserToken({ data: { storageKey: key, value: localValue } }).then(() => undefined));
+            writes.push(
+              pushUserToken({ data: { storageKey: key, value: localValue } }).then(() => undefined),
+            );
           }
         } else if (typeof remoteValue === "string" && remoteValue.length > 0) {
           // First pull as this user in this browser — safe to union-merge with
           // any legacy local entries so nothing is silently dropped.
           const baseLocal = currentValue ?? localValue;
-          const nextValue = baseLocal ? mergeStoredTokenValue(key, remoteValue, baseLocal) : remoteValue;
+          const nextValue = baseLocal
+            ? mergeStoredTokenValue(key, remoteValue, baseLocal)
+            : remoteValue;
           localStorage.setItem(key, nextValue);
           if (nextValue !== remoteValue) {
-            writes.push(pushUserToken({ data: { storageKey: key, value: nextValue } }).then(() => undefined));
+            writes.push(
+              pushUserToken({ data: { storageKey: key, value: nextValue } }).then(() => undefined),
+            );
           }
         } else if (currentValue || localBeforePull[key]) {
           // One-time migration for legacy local-only tokens: attach them to the
@@ -328,6 +359,5 @@ export function deleteTokenAsync(storageKey: string) {
     });
   pendingWrites.set(storageKey, p);
 }
-
 
 export { ALLOWED_TOKEN_KEYS };

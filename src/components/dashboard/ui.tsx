@@ -1,6 +1,16 @@
 import { type ReactNode } from "react";
 
-export function Field({ label, hint, right, children }: { label: string; hint?: ReactNode; right?: ReactNode; children: ReactNode }) {
+export function Field({
+  label,
+  hint,
+  right,
+  children,
+}: {
+  label: string;
+  hint?: ReactNode;
+  right?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2 min-h-[20px]">
@@ -14,7 +24,6 @@ export function Field({ label, hint, right, children }: { label: string; hint?: 
     </div>
   );
 }
-
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
@@ -41,7 +50,12 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   );
 }
 
-export function Select({ options, ...props }: { options: { value: string; label: string }[] } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({
+  options,
+  ...props
+}: {
+  options: { value: string; label: string }[];
+} & React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
@@ -59,12 +73,26 @@ export function Select({ options, ...props }: { options: { value: string; label:
   );
 }
 
-export function Check({ id, label, defaultChecked }: { id: string; label: string; defaultChecked?: boolean }) {
+export function Check({
+  id,
+  label,
+  defaultChecked,
+}: {
+  id: string;
+  label: string;
+  defaultChecked?: boolean;
+}) {
   return (
     <label htmlFor={id} className="flex items-center gap-2.5 cursor-pointer select-none">
       <input id={id} type="checkbox" defaultChecked={defaultChecked} className="peer sr-only" />
       <span className="h-5 w-5 rounded-md border border-border bg-card/50 grid place-items-center peer-checked:bg-[image:var(--gradient-neon)] peer-checked:border-transparent transition">
-        <svg viewBox="0 0 24 24" className="h-3 w-3 text-primary-foreground opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" strokeWidth="3">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-3 w-3 text-primary-foreground opacity-0 peer-checked:opacity-100"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+        >
           <path d="M5 12l5 5L20 7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
@@ -73,10 +101,21 @@ export function Check({ id, label, defaultChecked }: { id: string; label: string
   );
 }
 
-export function Card({ title, sub, children, right, className }: { title?: string; sub?: string; right?: ReactNode; children: ReactNode; className?: string }) {
+export function Card({
+  title,
+  sub,
+  children,
+  right,
+  className,
+}: {
+  title?: string;
+  sub?: string;
+  right?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <div className={["neumorph p-5", className ?? ""].join(" ").trim()}>
-
       {(title || right) && (
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">
@@ -91,7 +130,10 @@ export function Card({ title, sub, children, right, className }: { title?: strin
   );
 }
 
-export function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export function PrimaryButton({
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       {...props}
@@ -127,7 +169,13 @@ export function Dropzone({ label, hint }: { label: string; hint?: string }) {
         className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground"
         style={{ background: "var(--gradient-neon)" }}
       >
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <path d="M12 3v14M5 10l7-7 7 7M4 21h16" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
@@ -141,8 +189,17 @@ export function Dropzone({ label, hint }: { label: string; hint?: string }) {
 export function GalleryEmpty({ label = "Belum ada hasil" }: { label?: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-border/60 bg-card/20 py-14 text-center">
-      <div className="mx-auto h-12 w-12 rounded-2xl grid place-items-center text-primary-foreground opacity-80" style={{ background: "var(--gradient-neon)" }}>
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <div
+        className="mx-auto h-12 w-12 rounded-2xl grid place-items-center text-primary-foreground opacity-80"
+        style={{ background: "var(--gradient-neon)" }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
           <path d="M4 5h16v14H4z" />
           <path d="M4 15l4-4 4 4 3-3 5 5" strokeLinejoin="round" />
         </svg>

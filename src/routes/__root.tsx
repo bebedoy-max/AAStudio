@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth/auth-gate";
 
@@ -77,20 +78,43 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "AA Creative Studio" },
-      { name: "description", content: "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard." },
+      {
+        name: "description",
+        content:
+          "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard.",
+      },
       { name: "author", content: "AA Creative Studio" },
       { name: "theme-color", content: "#0b1024" },
       { property: "og:title", content: "AA Creative Studio" },
-      { property: "og:description", content: "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard." },
+      {
+        property: "og:description",
+        content:
+          "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "AA Creative Studio" },
-      { name: "twitter:description", content: "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard." },
+      {
+        name: "twitter:description",
+        content:
+          "Operating system untuk creator: command center, riset, workflow, project memory, dan realtime tasks dalam satu dashboard.",
+      },
     ],
     links: [
-      { rel: "icon", type: "image/png", href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256" },
-      { rel: "shortcut icon", type: "image/png", href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256" },
-      { rel: "apple-touch-icon", href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256" },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256",
+      },
+      {
+        rel: "shortcut icon",
+        type: "image/png",
+        href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKiOt70bnDc4&sz=w256",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -107,6 +131,7 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <Analytics />
         <Scripts />
       </body>
     </html>

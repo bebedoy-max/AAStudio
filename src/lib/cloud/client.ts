@@ -1,13 +1,20 @@
 // Helper client-side: simpan setiap upload & hasil generate ke cloud (Google Drive).
 // Semua kegagalan bersifat non-fatal — alur generate existing tidak boleh terganggu.
 import { supabase } from "@/integrations/supabase/client";
-import { archiveGeneratedUrl, createCloudUploadTicket, finalizeCloudUpload } from "./cloud.functions";
+import {
+  archiveGeneratedUrl,
+  createCloudUploadTicket,
+  finalizeCloudUpload,
+} from "./cloud.functions";
 
 export type CloudMeta = { origin?: "upload" | "generate"; source?: string; name?: string };
 
 export type CloudUploadResult = { id: string; url: string; storage: "global" | "personal" };
 
-export async function uploadFileToCloud(file: File, meta: CloudMeta = {}): Promise<CloudUploadResult> {
+export async function uploadFileToCloud(
+  file: File,
+  meta: CloudMeta = {},
+): Promise<CloudUploadResult> {
   // Jalur utama: browser -> Google Drive langsung (server hanya beri tiket + simpan metadata).
   try {
     return await directUploadToCloud(file, meta);
@@ -22,7 +29,13 @@ async function directUploadToCloud(file: File, meta: CloudMeta): Promise<CloudUp
   const name = meta.name || file.name || "upload.bin";
   const mimeType = file.type || "application/octet-stream";
   const ticket = await createCloudUploadTicket({
-    data: { name, mimeType, size: file.size, source: meta.source ?? null, origin: meta.origin ?? "upload" },
+    data: {
+      name,
+      mimeType,
+      size: file.size,
+      source: meta.source ?? null,
+      origin: meta.origin ?? "upload",
+    },
   });
 
   const put = await fetch(ticket.uploadUrl, {
@@ -31,7 +44,12 @@ async function directUploadToCloud(file: File, meta: CloudMeta): Promise<CloudUp
     body: file,
   });
   if (!put.ok) throw new Error(`Upload langsung ke storage gagal (${put.status})`);
-  const uploaded = (await put.json().catch(() => ({}))) as { id?: string; name?: string; size?: string; mimeType?: string };
+  const uploaded = (await put.json().catch(() => ({}))) as {
+    id?: string;
+    name?: string;
+    size?: string;
+    mimeType?: string;
+  };
   if (!uploaded.id) throw new Error("Storage tidak mengembalikan id file");
 
   const row = await finalizeCloudUpload({
@@ -48,7 +66,10 @@ async function directUploadToCloud(file: File, meta: CloudMeta): Promise<CloudUp
 }
 
 /** Fallback lama: lewat server (dipakai hanya bila direct upload tidak tersedia). */
-async function legacyUploadThroughServer(file: File, meta: CloudMeta = {}): Promise<CloudUploadResult> {
+async function legacyUploadThroughServer(
+  file: File,
+  meta: CloudMeta = {},
+): Promise<CloudUploadResult> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Sesi login tidak ditemukan.");
@@ -63,8 +84,11 @@ async function legacyUploadThroughServer(file: File, meta: CloudMeta = {}): Prom
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
   });
-  const json = (await res.json().catch(() => ({}))) as Partial<CloudUploadResult> & { error?: string };
-  if (!res.ok || !json.url || !json.id) throw new Error(json.error || `Cloud upload gagal (${res.status})`);
+  const json = (await res.json().catch(() => ({}))) as Partial<CloudUploadResult> & {
+    error?: string;
+  };
+  if (!res.ok || !json.url || !json.id)
+    throw new Error(json.error || `Cloud upload gagal (${res.status})`);
   return { id: json.id, url: json.url, storage: json.storage ?? "global" };
 }
 
@@ -90,6 +114,9 @@ export function archiveUrlInBackground(url: string, meta: CloudMeta = {}): void 
 }
 
 /** Versi list. */
-export function archiveUrlsInBackground(urls: (string | null | undefined)[], meta: CloudMeta = {}): void {
+export function archiveUrlsInBackground(
+  urls: (string | null | undefined)[],
+  meta: CloudMeta = {},
+): void {
   for (const u of urls) if (u) archiveUrlInBackground(u, meta);
 }

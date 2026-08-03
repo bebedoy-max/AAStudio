@@ -38,7 +38,8 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       className={
-        "rounded-xl bg-gradient-to-r from-card/40 via-card/20 to-card/40 animate-pulse " + (className || "")
+        "rounded-xl bg-gradient-to-r from-card/40 via-card/20 to-card/40 animate-pulse " +
+        (className || "")
       }
     />
   );

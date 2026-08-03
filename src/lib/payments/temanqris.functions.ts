@@ -66,7 +66,6 @@ export const claimTemanQrisPayment = createServerFn({ method: "POST" })
     return { status: "awaiting_confirmation" as const };
   });
 
-
 export const checkTemanQrisStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { purchaseRequestId: string }) => {
@@ -78,16 +77,14 @@ export const checkTemanQrisStatus = createServerFn({ method: "POST" })
     if (pr.status === "approved") return { status: "approved" as const };
     if (!pr.temanqris_order_id) return { status: pr.status };
 
-    const { loadTemanQrisConfig, fetchTemanQrisOrder } = await import(
-      "@/lib/payments/temanqris.server"
-    );
+    const { loadTemanQrisConfig, fetchTemanQrisOrder } =
+      await import("@/lib/payments/temanqris.server");
     const loaded = await loadTemanQrisConfig(pr.payment_gateway_id ?? undefined);
     if (!loaded) return { status: "pending" as const };
     // Polling HANYA membaca status asli dari TemanQRIS. Jangan pernah
     // mengirim confirm/verify sendiri di sini — itu membuat order yang belum
     // dibayar ikut ditandai lunas (false positive).
     const order = await fetchTemanQrisOrder(loaded.cfg, pr.temanqris_order_id).catch(() => null);
-
 
     if (order?.isPaid) {
       const { fulfillPurchaseAfterPayment } = await import("@/lib/midtrans/fulfill.server");
@@ -97,8 +94,7 @@ export const checkTemanQrisStatus = createServerFn({ method: "POST" })
 
     const expired =
       order?.isExpired ||
-      (pr.temanqris_expires_at != null &&
-        new Date(pr.temanqris_expires_at).getTime() < Date.now());
+      (pr.temanqris_expires_at != null && new Date(pr.temanqris_expires_at).getTime() < Date.now());
     if (expired) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await (supabaseAdmin as unknown as LooseClient)

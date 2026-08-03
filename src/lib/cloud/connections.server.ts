@@ -67,7 +67,11 @@ export async function getConnectionInfoForUser(userId: string, connectorId: stri
 
 export async function deleteConnectionForUser(userId: string, connectorId: string) {
   const db = await admin();
-  await db.from("app_user_connections").delete().eq("user_id", userId).eq("connector_id", connectorId);
+  await db
+    .from("app_user_connections")
+    .delete()
+    .eq("user_id", userId)
+    .eq("connector_id", connectorId);
 }
 
 export async function getStorageMode(userId: string): Promise<StorageMode> {
@@ -83,15 +87,19 @@ export async function getStorageMode(userId: string): Promise<StorageMode> {
 
 export async function setStorageMode(userId: string, mode: StorageMode) {
   const db = await admin();
-  const { error } = await db.from("user_cloud_prefs").upsert(
-    { user_id: userId, storage_mode: mode, updated_at: new Date().toISOString() },
-    { onConflict: "user_id" },
-  );
+  const { error } = await db
+    .from("user_cloud_prefs")
+    .upsert(
+      { user_id: userId, storage_mode: mode, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
   if (error) throw new Error(error.message);
 }
 
 /** Mode efektif: 'personal' hanya kalau user benar-benar punya koneksi Drive. */
-export async function resolveStorageMode(userId: string): Promise<{ mode: StorageMode; key: string | null }> {
+export async function resolveStorageMode(
+  userId: string,
+): Promise<{ mode: StorageMode; key: string | null }> {
   const preferred = await getStorageMode(userId);
   if (preferred === "personal") {
     const key = await getConnectionKeyForUser(userId, DRIVE_CONNECTOR_ID);

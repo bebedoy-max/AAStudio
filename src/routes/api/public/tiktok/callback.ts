@@ -28,7 +28,10 @@ function htmlResponse(payload: { ok: boolean; message: string; handle?: string }
 try { window.opener && window.opener.postMessage({ source: "tiktok-oauth", ...${safe} }, "*"); } catch (e) {}
 setTimeout(function(){ window.close(); }, 1500);
 </script></body></html>`;
-  return new Response(body, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
 }
 
 export const Route = createFileRoute("/api/public/tiktok/callback")({
@@ -42,7 +45,10 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
         const errDesc = url.searchParams.get("error_description");
 
         if (errCode) {
-          return htmlResponse({ ok: false, message: `TikTok error: ${errCode} — ${errDesc ?? ""}` });
+          return htmlResponse({
+            ok: false,
+            message: `TikTok error: ${errCode} — ${errDesc ?? ""}`,
+          });
         }
         if (!code || !state) {
           return htmlResponse({ ok: false, message: "Parameter code/state hilang." });
@@ -51,7 +57,10 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
         const clientKey = process.env.TIKTOK_CLIENT_KEY?.trim();
         const clientSecret = process.env.TIKTOK_CLIENT_SECRET?.trim();
         if (!clientKey || !clientSecret) {
-          return htmlResponse({ ok: false, message: "TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET belum di-set." });
+          return htmlResponse({
+            ok: false,
+            message: "TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET belum di-set.",
+          });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -65,7 +74,10 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
           .eq("state", state)
           .maybeSingle();
         if (stateErr || !stateRow) {
-          return htmlResponse({ ok: false, message: "State tidak dikenal / kadaluarsa. Coba lagi." });
+          return htmlResponse({
+            ok: false,
+            message: "State tidak dikenal / kadaluarsa. Coba lagi.",
+          });
         }
         await admin.from("tiktok_oauth_state").delete().eq("state", state);
 
@@ -117,7 +129,14 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
             headers: { Authorization: `Bearer ${tokenJson.access_token}` },
           });
           const userJson = (await userRes.json()) as {
-            data?: { user?: { open_id?: string; union_id?: string; avatar_url?: string; display_name?: string } };
+            data?: {
+              user?: {
+                open_id?: string;
+                union_id?: string;
+                avatar_url?: string;
+                display_name?: string;
+              };
+            };
           };
           const u = userJson.data?.user;
           displayName = u?.display_name;
@@ -133,7 +152,9 @@ export const Route = createFileRoute("/api/public/tiktok/callback")({
         }
 
         const accessCt = await encryptString(tokenJson.access_token);
-        const refreshCt = tokenJson.refresh_token ? await encryptString(tokenJson.refresh_token) : null;
+        const refreshCt = tokenJson.refresh_token
+          ? await encryptString(tokenJson.refresh_token)
+          : null;
         const nowMs = Date.now();
         const accessExp = tokenJson.expires_in
           ? new Date(nowMs + tokenJson.expires_in * 1000).toISOString()

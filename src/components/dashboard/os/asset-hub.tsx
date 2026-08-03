@@ -14,7 +14,10 @@ export function AssetHub() {
   const [tab, setTab] = useState<TabId>("all");
 
   const counts = useMemo(() => {
-    let images = 0, videos = 0, storyboards = 0, motion = 0;
+    let images = 0,
+      videos = 0,
+      storyboards = 0,
+      motion = 0;
     for (const p of projects) {
       images += p.counts.images || 0;
       videos += p.counts.videos || 0;
@@ -37,7 +40,8 @@ export function AssetHub() {
     if (tab === "all") return projects;
     if (tab === "image") return projects.filter((p) => (p.counts.images || 0) > 0);
     if (tab === "video") return projects.filter((p) => (p.counts.videos || 0) > 0);
-    if (tab === "storyboard") return projects.filter((p) => p.kind === "storyboard" || (p.counts.storyboards || 0) > 0);
+    if (tab === "storyboard")
+      return projects.filter((p) => p.kind === "storyboard" || (p.counts.storyboards || 0) > 0);
     if (tab === "motion") return projects.filter((p) => p.kind === "motion");
     return projects;
   }, [projects, tab]);
@@ -65,7 +69,9 @@ export function AssetHub() {
               onClick={() => setTab(t.id)}
               className={
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-mono uppercase tracking-widest transition " +
-                (on ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground border border-border bg-card/40")
+                (on
+                  ? "text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground border border-border bg-card/40")
               }
               style={on ? { background: "var(--gradient-neon)" } : undefined}
             >
@@ -80,7 +86,8 @@ export function AssetHub() {
         <div className="mt-4 rounded-xl border border-dashed border-border/60 bg-card/20 p-8 text-center">
           <div className="text-sm text-foreground/80">Belum ada asset tersimpan.</div>
           <div className="text-[11px] text-muted-foreground mt-1">
-            Jalankan satu generate (Naratif, Storyboard, Motion, Bulk Fashion, atau Image-to-Video) untuk mengisi hub.
+            Jalankan satu generate (Naratif, Storyboard, Motion, Bulk Fashion, atau Image-to-Video)
+            untuk mengisi hub.
           </div>
         </div>
       ) : filtered.length === 0 ? (
@@ -95,16 +102,24 @@ export function AssetHub() {
             if (p.counts.videos) summary.push(`${p.counts.videos} vid`);
             if (p.counts.storyboards) summary.push(`${p.counts.storyboards} sb`);
             return (
-              <li key={p.id} className="rounded-xl border border-border bg-card/30 p-3 hover:border-primary/40 transition">
+              <li
+                key={p.id}
+                className="rounded-xl border border-border bg-card/30 p-3 hover:border-primary/40 transition"
+              >
                 <div className="flex items-center gap-2">
                   <Chip tone="primary">{p.kind}</Chip>
                   <span className="text-[10px] text-muted-foreground ml-auto">
-                    {new Date(p.updatedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                    {new Date(p.updatedAt).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                    })}
                   </span>
                 </div>
                 <div className="mt-1 text-sm text-foreground/95 line-clamp-2">{p.title}</div>
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
-                  {summary.map((s, i) => <Chip key={i}>{s}</Chip>)}
+                  {summary.map((s, i) => (
+                    <Chip key={i}>{s}</Chip>
+                  ))}
                   {p.route && (
                     <Link
                       to={p.route}

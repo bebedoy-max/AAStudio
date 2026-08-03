@@ -27,7 +27,6 @@ import { useAuth } from "@/lib/auth-context";
 import { PluginBuyDialog, PLUGIN_ROUTE_PREFIX } from "@/components/plugins/plugin-buy-dialog";
 import { toast } from "sonner";
 
-
 export const Route = createFileRoute("/plugins")({
   head: () => ({
     meta: [
@@ -40,7 +39,8 @@ export const Route = createFileRoute("/plugins")({
       { property: "og:title", content: "AA Plug-IN — Companion App & Browser Extension" },
       {
         property: "og:description",
-        content: "Unduh browser extension AA Creative Studio per provider dan sinkronkan token otomatis.",
+        content:
+          "Unduh browser extension AA Creative Studio per provider dan sinkronkan token otomatis.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -125,9 +125,12 @@ function PluginsPage() {
   );
 }
 
-
 function formatRupiah(n: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n || 0);
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(n || 0);
 }
 
 function PluginCard({
@@ -152,7 +155,6 @@ function PluginCard({
   const mustBuy = access === "premium" && !owned;
   const buyLabel = price > 0 ? `Beli ${formatRupiah(price)}` : "Beli";
 
-
   async function download() {
     setBusy(true);
     try {
@@ -171,7 +173,6 @@ function PluginCard({
       setBusy(false);
     }
   }
-
 
   return (
     <Card className="group overflow-hidden">
@@ -204,7 +205,6 @@ function PluginCard({
               v{pluginVersion(entry, cfg)}
             </span>
           </div>
-
         </div>
 
         <div className="flex flex-wrap gap-1.5">
@@ -286,9 +286,6 @@ function PluginCard({
   );
 }
 
-
-
-
 function Badge({ children, icon: Icon }: { children: React.ReactNode; icon?: React.ElementType }) {
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">
@@ -307,7 +304,8 @@ function ComingSoonCard() {
         </div>
         <div className="font-display text-base">Plug-in berikutnya</div>
         <p className="text-xs text-muted-foreground max-w-[220px]">
-          Companion desktop app dan extension provider lain sedang disiapkan. Menu ini akan otomatis terisi.
+          Companion desktop app dan extension provider lain sedang disiapkan. Menu ini akan otomatis
+          terisi.
         </p>
       </div>
     </Card>

@@ -34,9 +34,15 @@ export const Route = createFileRoute("/manage/accounts")({
   head: () => ({
     meta: [
       { title: "Account Manager — Creative Studio" },
-      { name: "description", content: "Kelola semua akun provider AI dan sosial media dalam satu tempat." },
+      {
+        name: "description",
+        content: "Kelola semua akun provider AI dan sosial media dalam satu tempat.",
+      },
       { property: "og:title", content: "Account Manager — Creative Studio" },
-      { property: "og:description", content: "Kelola semua akun provider AI dan sosial media dalam satu tempat." },
+      {
+        property: "og:description",
+        content: "Kelola semua akun provider AI dan sosial media dalam satu tempat.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -95,7 +101,6 @@ function saveAccounts(list: AccountEntry[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
   } catch {}
 }
-
 
 function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
@@ -223,7 +228,6 @@ function AccountsPage() {
     setMenuFor(null);
   };
 
-
   const addAccount = (entry: AccountEntry) => {
     setAccounts((prev) => [...prev, entry]);
     setAddOpen(false);
@@ -269,7 +273,13 @@ function AccountsPage() {
           {(["all", "provider", "social", "other"] as const).map((k) => {
             const active = filter === k;
             const label =
-              k === "all" ? "Semua" : k === "provider" ? "Provider" : k === "social" ? "Sosial" : "Lainnya";
+              k === "all"
+                ? "Semua"
+                : k === "provider"
+                  ? "Provider"
+                  : k === "social"
+                    ? "Sosial"
+                    : "Lainnya";
             return (
               <button
                 key={k}
@@ -296,7 +306,9 @@ function AccountsPage() {
             <KeyRound className="h-6 w-6 text-muted-foreground" />
           </div>
           <div className="text-lg font-semibold">Belum ada akun cocok</div>
-          <div className="text-sm text-muted-foreground mt-1">Coba ubah kata kunci atau tambah akun baru.</div>
+          <div className="text-sm text-muted-foreground mt-1">
+            Coba ubah kata kunci atau tambah akun baru.
+          </div>
           <div className="mt-4">
             <PrimaryButton onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" />
@@ -328,13 +340,17 @@ function StatChip({ label, value, tone }: { label: string; value: number; tone?:
   return (
     <Panel className="p-3.5 flex items-center justify-between">
       <div>
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+          {label}
+        </div>
         <div className="text-2xl font-black mt-0.5">{value}</div>
       </div>
       <div
         className={[
           "h-9 w-9 rounded-xl grid place-items-center border",
-          tone === "ok" ? "border-emerald-400/40 text-emerald-300" : "border-border text-muted-foreground",
+          tone === "ok"
+            ? "border-emerald-400/40 text-emerald-300"
+            : "border-border text-muted-foreground",
         ].join(" ")}
         style={tone === "ok" ? { background: "rgba(16,185,129,0.08)" } : undefined}
       >
@@ -422,7 +438,9 @@ function AccountCard({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-2">{account.description}</p>
+      <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-2">
+        {account.description}
+      </p>
 
       {/* status row */}
       <div className="mt-4 flex items-center gap-2 text-xs">
@@ -432,7 +450,9 @@ function AccountCard({
               <CheckCircle2 className="h-3 w-3" />
               Tersambung
             </span>
-            {account.handle && <span className="text-muted-foreground truncate">{account.handle}</span>}
+            {account.handle && (
+              <span className="text-muted-foreground truncate">{account.handle}</span>
+            )}
           </>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-muted-foreground">
@@ -562,7 +582,13 @@ function providerOptionsByCategory(category: Category): ProviderOption[] {
 const LS_LEONARDO_KEYS = "aatools.leonardo.keys";
 const LS_LEONARDO_SESSION = "aatools.leonardo.session.v1";
 
-type LeoStoredKey = { id: string; key: string; balance: number | null; status: string; note?: string };
+type LeoStoredKey = {
+  id: string;
+  key: string;
+  balance: number | null;
+  status: string;
+  note?: string;
+};
 
 function decodeJwtEmail(token: string): string | null {
   try {
@@ -595,7 +621,12 @@ function saveLeonardoIdToken(idToken: string) {
   } catch {}
 }
 
-function saveLeonardoSession(data: { email: string; refreshToken?: string; clientId?: string; expiresIn?: number }) {
+function saveLeonardoSession(data: {
+  email: string;
+  refreshToken?: string;
+  clientId?: string;
+  expiresIn?: number;
+}) {
   try {
     const raw = localStorage.getItem(LS_LEONARDO_SESSION);
     const map: Record<string, unknown> = raw ? JSON.parse(raw) : {};
@@ -613,7 +644,13 @@ async function loginLeonardoCognito(payload: {
   email: string;
   password: string;
   clientId?: string;
-}): Promise<{ ok: boolean; idToken?: string; refreshToken?: string; expiresIn?: number; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  idToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  error?: string;
+}> {
   try {
     const res = await fetch("/api/public/leonardo-cognito", {
       method: "POST",
@@ -651,7 +688,8 @@ function AddAccountDialog({
   const [connectedMeta, setConnectedMeta] = useState<{ email?: string } | null>(null);
 
   const availableProviders = providerOptionsByCategory(category);
-  const selectedProvider = availableProviders.find((p) => p.value === provider) || availableProviders[0];
+  const selectedProvider =
+    availableProviders.find((p) => p.value === provider) || availableProviders[0];
   const isLeonardo = category === "provider" && provider === "leonardo";
   const isTikTok = category === "social" && provider === "tiktok";
   const _startTikTok = useServerFn(startTikTokConnect);
@@ -683,7 +721,12 @@ function AddAccountDialog({
           return;
         }
         const onMsg = (ev: MessageEvent) => {
-          const d = ev.data as { source?: string; ok?: boolean; message?: string; handle?: string } | null;
+          const d = ev.data as {
+            source?: string;
+            ok?: boolean;
+            message?: string;
+            handle?: string;
+          } | null;
           if (!d || d.source !== "tiktok-oauth") return;
           window.removeEventListener("message", onMsg);
           if (d.ok) {
@@ -738,9 +781,11 @@ function AddAccountDialog({
   };
 
   const handleOk = () => {
-    const handle = connectedMeta?.email || (identifier.includes("@")
-      ? identifier
-      : identifier.replace(/^https?:\/\//, "").split(/[\/?#]/)[0] || identifier);
+    const handle =
+      connectedMeta?.email ||
+      (identifier.includes("@")
+        ? identifier
+        : identifier.replace(/^https?:\/\//, "").split(/[\/?#]/)[0] || identifier);
     onAdd({
       id: `${selectedProvider.value}-${Date.now().toString(36)}`,
       name: selectedProvider.label,
@@ -772,7 +817,10 @@ function AddAccountDialog({
         </button>
 
         <div className="flex items-center gap-2.5 mb-5">
-          <div className="h-9 w-9 rounded-full grid place-items-center" style={{ background: "var(--gradient-neon)" }}>
+          <div
+            className="h-9 w-9 rounded-full grid place-items-center"
+            style={{ background: "var(--gradient-neon)" }}
+          >
             <Plus className="h-4 w-4 text-primary-foreground" />
           </div>
           <div>
@@ -815,7 +863,11 @@ function AddAccountDialog({
             <>
               <Field label={isLeonardo ? "Email Leonardo" : "Link Profil / Username / Email"}>
                 <Input
-                  placeholder={isLeonardo ? "email@domain.com" : "mis. https://tiktok.com/@akunku atau email@domain.com"}
+                  placeholder={
+                    isLeonardo
+                      ? "email@domain.com"
+                      : "mis. https://tiktok.com/@akunku atau email@domain.com"
+                  }
                   value={identifier}
                   onChange={(e) => {
                     setIdentifier(e.target.value);
@@ -844,19 +896,24 @@ function AddAccountDialog({
 
           {isTikTok && (
             <div className="text-[11px] text-muted-foreground leading-relaxed border border-border rounded-lg p-3 bg-sidebar-accent/30">
-              <div className="font-semibold text-foreground/80 mb-1">TikTok OAuth (Sandbox / Production)</div>
-              Klik <b>Hubungkan</b> → jendela TikTok terbuka → login &amp; approve akses. Setelah selesai, akun otomatis
-              muncul di daftar dengan avatar &amp; display name. Token disimpan terenkripsi di server (AES-GCM) — kamu bisa
-              publish video / list video langsung dari aplikasi.
+              <div className="font-semibold text-foreground/80 mb-1">
+                TikTok OAuth (Sandbox / Production)
+              </div>
+              Klik <b>Hubungkan</b> → jendela TikTok terbuka → login &amp; approve akses. Setelah
+              selesai, akun otomatis muncul di daftar dengan avatar &amp; display name. Token
+              disimpan terenkripsi di server (AES-GCM) — kamu bisa publish video / list video
+              langsung dari aplikasi.
             </div>
           )}
 
           {isLeonardo && (
             <div className="text-[10px] text-muted-foreground leading-relaxed border border-border rounded-lg p-2.5 bg-sidebar-accent/30">
               <div className="font-semibold text-foreground/80 mb-1">Catatan Keamanan</div>
-              Password dikirim satu kali ke server aplikasi ini → diteruskan ke AWS Cognito Leonardo → hanya JWT & refresh token yang disimpan
-              (tidak menyimpan password). Login non-browser melanggar Terms of Service Leonardo — resiko akun ditandai/banned ada di user.
-              Jika akun kamu pakai MFA / Google SSO / password reset, flow ini tidak akan bekerja — pakai paste JWT manual di Token Manager.
+              Password dikirim satu kali ke server aplikasi ini → diteruskan ke AWS Cognito Leonardo
+              → hanya JWT & refresh token yang disimpan (tidak menyimpan password). Login
+              non-browser melanggar Terms of Service Leonardo — resiko akun ditandai/banned ada di
+              user. Jika akun kamu pakai MFA / Google SSO / password reset, flow ini tidak akan
+              bekerja — pakai paste JWT manual di Token Manager.
             </div>
           )}
 
@@ -880,8 +937,10 @@ function AddAccountDialog({
                     />
                   </Field>
                   <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                    Jika error <code>ResourceNotFoundException</code>, buka DevTools di app.leonardo.ai → Network → cari
-                    request ke <code>cognito-idp.us-east-1.amazonaws.com</code> → copy nilai <code>ClientId</code> di body request.
+                    Jika error <code>ResourceNotFoundException</code>, buka DevTools di
+                    app.leonardo.ai → Network → cari request ke{" "}
+                    <code>cognito-idp.us-east-1.amazonaws.com</code> → copy nilai{" "}
+                    <code>ClientId</code> di body request.
                   </div>
                 </div>
               )}
@@ -910,8 +969,18 @@ function AddAccountDialog({
                 <>
                   <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                   <div>
-                    Tersambung — {connectedMeta?.email ? <span className="font-mono">{connectedMeta.email}</span> : "akun siap ditambahkan"}.
-                    {isLeonardo && <div className="text-[10px] opacity-80 mt-0.5">JWT tersimpan ke Token Manager — semua fitur Leonardo langsung aktif.</div>}
+                    Tersambung —{" "}
+                    {connectedMeta?.email ? (
+                      <span className="font-mono">{connectedMeta.email}</span>
+                    ) : (
+                      "akun siap ditambahkan"
+                    )}
+                    .
+                    {isLeonardo && (
+                      <div className="text-[10px] opacity-80 mt-0.5">
+                        JWT tersimpan ke Token Manager — semua fitur Leonardo langsung aktif.
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -920,7 +989,9 @@ function AddAccountDialog({
                   <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                   <div>
                     <div className="font-semibold">Koneksi Gagal</div>
-                    <div className="opacity-90 mt-0.5">{errorMsg || "Periksa kredensial dan coba lagi."}</div>
+                    <div className="opacity-90 mt-0.5">
+                      {errorMsg || "Periksa kredensial dan coba lagi."}
+                    </div>
                   </div>
                 </>
               )}
@@ -938,7 +1009,11 @@ function AddAccountDialog({
           ) : (
             <PrimaryButton onClick={handleConnect} disabled={!canSubmit}>
               <Link2 className="h-4 w-4" />
-              {status === "connecting" ? "Menghubungkan…" : status === "failed" ? "Coba Lagi" : "Hubungkan"}
+              {status === "connecting"
+                ? "Menghubungkan…"
+                : status === "failed"
+                  ? "Coba Lagi"
+                  : "Hubungkan"}
             </PrimaryButton>
           )}
         </div>

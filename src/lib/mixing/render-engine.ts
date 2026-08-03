@@ -74,9 +74,10 @@ async function runFfmpeg(
 ): Promise<RenderResponse> {
   const src = payload.sources[0];
   if (!src?.url) return { ok: false, engine: "ffmpeg", message: "Source video URL kosong" };
-  const clips = payload.kind === "clipper"
-    ? timelineToClipRanges(payload.timeline)
-    : [{ startSec: 0, endSec: payload.timeline.totalSec || 0 }];
+  const clips =
+    payload.kind === "clipper"
+      ? timelineToClipRanges(payload.timeline)
+      : [{ startSec: 0, endSec: payload.timeline.totalSec || 0 }];
   try {
     const out = await ffmpegRenderClips({
       sourceUrl: src.url,
@@ -101,7 +102,10 @@ async function runFfmpeg(
   }
 }
 
-async function runCloud(payload: RenderPayload, provider: CloudRenderProvider): Promise<RenderResponse> {
+async function runCloud(
+  payload: RenderPayload,
+  provider: CloudRenderProvider,
+): Promise<RenderResponse> {
   const status = cloudRenderStatus();
   if (!status[provider].available) {
     return {
@@ -116,7 +120,12 @@ async function runCloud(payload: RenderPayload, provider: CloudRenderProvider): 
     body: JSON.stringify({ ...payload, provider }),
   });
   const data = (await res.json().catch(() => ({}))) as RenderResponse;
-  if (!res.ok) return { ok: false, engine: provider, message: data?.message || `render failed (${res.status})` };
+  if (!res.ok)
+    return {
+      ok: false,
+      engine: provider,
+      message: data?.message || `render failed (${res.status})`,
+    };
   return { ...data, ok: true, engine: provider };
 }
 

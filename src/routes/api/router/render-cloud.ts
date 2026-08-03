@@ -17,7 +17,10 @@ function json(data: unknown, status = 200) {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 type CloudRenderBody = {
@@ -41,11 +44,15 @@ type CloudRenderBody = {
 
 function aspectDim(ar: string | undefined) {
   switch (ar) {
-    case "16:9": return { width: 1920, height: 1080 };
-    case "1:1": return { width: 1080, height: 1080 };
-    case "4:5": return { width: 1080, height: 1350 };
+    case "16:9":
+      return { width: 1920, height: 1080 };
+    case "1:1":
+      return { width: 1080, height: 1080 };
+    case "4:5":
+      return { width: 1080, height: 1350 };
     case "9:16":
-    default: return { width: 1080, height: 1920 };
+    default:
+      return { width: 1080, height: 1920 };
   }
 }
 
@@ -70,7 +77,13 @@ function shotstackFilterFromText(txt: string): string | undefined {
 // Detect transition-out keyword → Shotstack transition preset.
 function shotstackTransitionFromApply(apply: string[]): string | undefined {
   const t = apply.join(" ").toLowerCase();
-  if (t.includes("cross dissolve") || t.includes("dissolve") || t.includes("fade to black") || t.includes("cross fade")) return "fade";
+  if (
+    t.includes("cross dissolve") ||
+    t.includes("dissolve") ||
+    t.includes("fade to black") ||
+    t.includes("cross fade")
+  )
+    return "fade";
   if (t.includes("wipe left")) return "wipeLeft";
   if (t.includes("wipe right")) return "wipeRight";
   if (t.includes("wipe")) return "wipeLeft";
@@ -131,7 +144,8 @@ async function submitShotstack(key: string, body: CloudRenderBody) {
   let clips: Array<Record<string, unknown>>;
   if (body.blueprint && body.blueprint.length && (body.sources || []).some((s) => s.url)) {
     clips = buildShotstackClipsFromBlueprint(body);
-    if (clips.length === 0) throw new Error("Blueprint tidak menghasilkan clip valid (cek sourceIdx/url).");
+    if (clips.length === 0)
+      throw new Error("Blueprint tidak menghasilkan clip valid (cek sourceIdx/url).");
   } else {
     const src = body.sources?.[0]?.url;
     if (!src) throw new Error("Source video URL kosong");
@@ -207,7 +221,12 @@ async function submitCreatomate(key: string, body: CloudRenderBody) {
   if (!r.ok) throw new Error(`Creatomate ${r.status}: ${JSON.stringify(data).slice(0, 200)}`);
   const arr = Array.isArray(data) ? data : [data];
   const first = arr[0] as { id?: string; url?: string; status?: string };
-  return { jobId: first?.id || `creatomate_${Date.now()}`, url: first?.url, status: first?.status, raw: data };
+  return {
+    jobId: first?.id || `creatomate_${Date.now()}`,
+    url: first?.url,
+    status: first?.status,
+    raw: data,
+  };
 }
 
 export const Route = createFileRoute("/api/router/render-cloud")({
@@ -218,31 +237,43 @@ export const Route = createFileRoute("/api/router/render-cloud")({
           const body = (await request.json().catch(() => ({}))) as CloudRenderBody;
           const provider = body.provider;
           if (provider !== "shotstack" && provider !== "creatomate") {
-            return json({ ok: false, message: "provider harus 'shotstack' atau 'creatomate'" }, 400);
+            return json(
+              { ok: false, message: "provider harus 'shotstack' atau 'creatomate'" },
+              400,
+            );
           }
 
           const shotstack = parseKeys(request.headers.get("x-user-shotstack-keys"));
           const creatomate = parseKeys(request.headers.get("x-user-creatomate-keys"));
           const key = provider === "shotstack" ? shotstack[0] : creatomate[0];
           if (!key) {
-            return json({
-              ok: false,
-              provider,
-              message: `Key ${provider} belum diisi di Token Manager → Render.`,
-            }, 400);
+            return json(
+              {
+                ok: false,
+                provider,
+                message: `Key ${provider} belum diisi di Token Manager → Render.`,
+              },
+              400,
+            );
           }
 
           if (provider === "shotstack") {
             const r = await submitShotstack(key, body);
             return json({
-              ok: true, provider, jobId: r.jobId, status: "queued",
+              ok: true,
+              provider,
+              jobId: r.jobId,
+              status: "queued",
               message: `Shotstack render enqueued (${r.jobId}).`,
             });
           }
           const r = await submitCreatomate(key, body);
           return json({
-            ok: true, provider, jobId: r.jobId, url: r.url,
-            status: (r.status === "succeeded" ? "done" : "queued"),
+            ok: true,
+            provider,
+            jobId: r.jobId,
+            url: r.url,
+            status: r.status === "succeeded" ? "done" : "queued",
             message: `Creatomate render ${r.status ?? "queued"} (${r.jobId}).`,
           });
         } catch (e) {

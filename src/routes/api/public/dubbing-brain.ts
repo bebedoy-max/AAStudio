@@ -4,12 +4,18 @@ import { routeChat } from "../router/chat";
 // Dubbing Brain — translate transcript segments preserving timing.
 
 function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function tryParse(text: string): unknown {
@@ -42,8 +48,12 @@ export const Route = createFileRoute("/api/public/dubbing-brain")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
-          const gemini = parseKeys(request.headers.get("x-user-gemini-keys")).filter((k) => (k.startsWith("AIza") || k.startsWith("AQ.")));
+          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) =>
+            k.startsWith("sk-"),
+          );
+          const gemini = parseKeys(request.headers.get("x-user-gemini-keys")).filter(
+            (k) => k.startsWith("AIza") || k.startsWith("AQ."),
+          );
           if (openai.length === 0 && gemini.length === 0) {
             return json({ error: "No brain keys configured." }, 400);
           }
@@ -60,7 +70,10 @@ export const Route = createFileRoute("/api/public/dubbing-brain")({
           const mode = MODES[body.mode ?? "Natural"] ?? MODES.Natural;
 
           const compact = segs
-            .map((s, i) => `${i + 1}\t${s.start.toFixed(2)}\t${s.end.toFixed(2)}\t${s.text.replace(/\t/g, " ")}`)
+            .map(
+              (s, i) =>
+                `${i + 1}\t${s.start.toFixed(2)}\t${s.end.toFixed(2)}\t${s.text.replace(/\t/g, " ")}`,
+            )
             .join("\n");
 
           const system = `You are a professional video dubbing translator. Translate a timestamped transcript from ${source} to ${target}. Style: ${mode}. Keep translation length close to the original so voice fits the same timing.

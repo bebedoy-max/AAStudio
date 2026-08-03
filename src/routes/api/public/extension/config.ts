@@ -15,7 +15,9 @@ function cors(res: Response) {
 }
 
 function json(data: unknown, status = 200) {
-  return cors(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+  return cors(
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }),
+  );
 }
 
 const FALLBACK_URL = "https://aacreative.vercel.app/";

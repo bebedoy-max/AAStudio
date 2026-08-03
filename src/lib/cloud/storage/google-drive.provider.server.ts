@@ -25,7 +25,11 @@ function candidateLinks(objectId: string, mimeType: string): PreviewLinks {
 
 async function urlIsReachable(url: string): Promise<boolean> {
   try {
-    const res = await fetch(url, { method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(6000) });
+    const res = await fetch(url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(6000),
+    });
     return res.ok;
   } catch {
     return false;

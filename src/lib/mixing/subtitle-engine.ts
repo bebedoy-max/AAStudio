@@ -16,8 +16,7 @@ function fmtTime(sec: number, comma = true): string {
 export function toSrt(t: Transcript): string {
   return t.segments
     .map(
-      (seg, i) =>
-        `${i + 1}\n${fmtTime(seg.start)} --> ${fmtTime(seg.end)}\n${seg.text.trim()}\n`,
+      (seg, i) => `${i + 1}\n${fmtTime(seg.start)} --> ${fmtTime(seg.end)}\n${seg.text.trim()}\n`,
     )
     .join("\n");
 }
@@ -25,14 +24,16 @@ export function toSrt(t: Transcript): string {
 export function toVtt(t: Transcript): string {
   const body = t.segments
     .map(
-      (seg) =>
-        `${fmtTime(seg.start, false)} --> ${fmtTime(seg.end, false)}\n${seg.text.trim()}\n`,
+      (seg) => `${fmtTime(seg.start, false)} --> ${fmtTime(seg.end, false)}\n${seg.text.trim()}\n`,
     )
     .join("\n");
   return `WEBVTT\n\n${body}`;
 }
 
-export function stylePreview(style: SubtitleStyle): { className: string; style: React.CSSProperties } {
+export function stylePreview(style: SubtitleStyle): {
+  className: string;
+  style: React.CSSProperties;
+} {
   switch (style) {
     case "Minimal":
       return { className: "text-white", style: { textShadow: "0 1px 2px rgba(0,0,0,.7)" } };
@@ -49,10 +50,17 @@ export function stylePreview(style: SubtitleStyle): { className: string; style: 
     case "CapCut":
       return {
         className: "font-bold",
-        style: { color: "#ffe600", WebkitTextStroke: "2px black", textShadow: "0 0 6px rgba(0,0,0,.8)" },
+        style: {
+          color: "#ffe600",
+          WebkitTextStroke: "2px black",
+          textShadow: "0 0 6px rgba(0,0,0,.8)",
+        },
       };
     case "Cinematic":
-      return { className: "text-white font-light tracking-wide italic", style: { letterSpacing: "0.03em" } };
+      return {
+        className: "text-white font-light tracking-wide italic",
+        style: { letterSpacing: "0.03em" },
+      };
     case "Anime":
       return {
         className: "font-black",

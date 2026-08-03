@@ -2,7 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
-import { Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
+import {
+  Field,
+  Input,
+  Textarea,
+  Select,
+  PrimaryButton,
+  GhostButton,
+} from "@/components/dashboard/ui";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import {
   LEONARDO_MODELS,
@@ -23,7 +30,6 @@ import {
 } from "@/lib/providers/image-catalog";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { useCloudGallery } from "@/lib/cloud/gallery";
-
 
 export const Route = createFileRoute("/generate/leonardo")({
   head: () => ({
@@ -53,7 +59,6 @@ export const Route = createFileRoute("/generate/leonardo")({
   component: LeonardoPage,
 });
 
-
 // Per-model preset table — sesuai app.leonardo.ai (screenshot).
 type ModelPreset = {
   aspects: Array<{ value: string; label: string; ratio: number }>; // ratio = w/h
@@ -71,21 +76,21 @@ const ASPECTS_STD = [
 
 // Exact dims table for gpt-image-2 (Leonardo only accepts these specific pairs).
 const GPT_IMAGE_2_DIMS: Record<string, Record<string, { w: number; h: number }>> = {
-  "2:3":  { small: { w: 768, h: 1376 }, medium: { w: 1136, h: 2048 }, large: { w: 2016, h: 3584 } },
+  "2:3": { small: { w: 768, h: 1376 }, medium: { w: 1136, h: 2048 }, large: { w: 2016, h: 3584 } },
   "9:16": { small: { w: 768, h: 1376 }, medium: { w: 1136, h: 2048 }, large: { w: 2016, h: 3584 } },
-  "1:1":  { small: { w: 1024, h: 1024 }, medium: { w: 1536, h: 1536 }, large: { w: 2048, h: 2048 } },
+  "1:1": { small: { w: 1024, h: 1024 }, medium: { w: 1536, h: 1536 }, large: { w: 2048, h: 2048 } },
   "16:9": { small: { w: 1376, h: 768 }, medium: { w: 2048, h: 1136 }, large: { w: 3584, h: 2016 } },
-  "3:2":  { small: { w: 1376, h: 768 }, medium: { w: 2048, h: 1136 }, large: { w: 3584, h: 2016 } },
+  "3:2": { small: { w: 1376, h: 768 }, medium: { w: 2048, h: 1136 }, large: { w: 3584, h: 2016 } },
 };
 
 // Seedream 5.0 Pro on Leonardo caps at ~2048 per side (validation fails
 // when long side exceeds 2048). Table mirrors app.leonardo.ai presets.
 const SEEDREAM_DIMS: Record<string, Record<string, { w: number; h: number }>> = {
-  "1:1":  { small: { w: 1024, h: 1024 }, medium: { w: 1536, h: 1536 }, large: { w: 2048, h: 2048 } },
-  "16:9": { small: { w: 1360, h: 768 }, medium: { w: 1728, h: 976 },   large: { w: 2048, h: 1152 } },
-  "9:16": { small: { w: 768, h: 1360 }, medium: { w: 976, h: 1728 },   large: { w: 1152, h: 2048 } },
-  "2:3":  { small: { w: 848, h: 1280 }, medium: { w: 1088, h: 1632 },  large: { w: 1280, h: 1920 } },
-  "3:2":  { small: { w: 1280, h: 848 }, medium: { w: 1632, h: 1088 },  large: { w: 1920, h: 1280 } },
+  "1:1": { small: { w: 1024, h: 1024 }, medium: { w: 1536, h: 1536 }, large: { w: 2048, h: 2048 } },
+  "16:9": { small: { w: 1360, h: 768 }, medium: { w: 1728, h: 976 }, large: { w: 2048, h: 1152 } },
+  "9:16": { small: { w: 768, h: 1360 }, medium: { w: 976, h: 1728 }, large: { w: 1152, h: 2048 } },
+  "2:3": { small: { w: 848, h: 1280 }, medium: { w: 1088, h: 1632 }, large: { w: 1280, h: 1920 } },
+  "3:2": { small: { w: 1280, h: 848 }, medium: { w: 1632, h: 1088 }, large: { w: 1920, h: 1280 } },
 };
 
 const MODEL_PRESETS: Record<string, ModelPreset> = {
@@ -158,7 +163,6 @@ function computeDims(
   return { w: short, h: ceil16(short / ratio) };
 }
 
-
 function LeonardoPage() {
   const [prompt, setPrompt] = useSticky("t2i.prompt", "");
   const [neg, setNeg] = useSticky("t2i.neg", "");
@@ -170,9 +174,15 @@ function LeonardoPage() {
   const [num, setNum] = useSticky("t2i.num", "1");
   const [busy, setBusy] = useSticky("t2i.busy", false);
   const [logs, setLogs] = useSticky<string[]>("t2i.logs", []);
-  const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>("t2i.status", {
-    show: false, text: "", pct: 0, time: "0:00",
-  });
+  const [status, setStatus] = useSticky<{ show: boolean; text: string; pct: number; time: string }>(
+    "t2i.status",
+    {
+      show: false,
+      text: "",
+      pct: 0,
+      time: "0:00",
+    },
+  );
   // Galeri hasil tersimpan di cloud (Google Drive), sama di semua perangkat.
   const gallery = useCloudGallery<{ prompt?: string }>("leonardo", "image");
   const images = gallery.items;
@@ -180,8 +190,6 @@ function LeonardoPage() {
   const [keyCount, setKeyCount] = useState(0);
   const [remoteModels, setRemoteModels] = useState<LeonardoPlatformModel[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
-
-
 
   useEffect(() => {
     setKeyCount(getAllLeonardoKeys().length);
@@ -239,7 +247,10 @@ function LeonardoPage() {
     setStatus({ show: true, text, pct: 5, time: "0:00" });
     const tick = setInterval(() => {
       const el = Math.floor((Date.now() - start) / 1000);
-      setStatus((s) => ({ ...s, time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}` }));
+      setStatus((s) => ({
+        ...s,
+        time: `${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}`,
+      }));
     }, 1000);
     return () => clearInterval(tick);
   };
@@ -279,7 +290,6 @@ function LeonardoPage() {
     }
   };
 
-
   const refreshModels = async () => {
     const token = getFirstLeonardoKey();
     if (!token) {
@@ -307,12 +317,16 @@ function LeonardoPage() {
       ? remoteModels.map((m) => ({ value: m.id, label: m.name || m.id }))
       : LEONARDO_MODELS.map((m) => ({ value: m.id, label: m.label }));
 
-
   const preset = getPreset(modelId);
-  const activeAspect =
-    preset.aspects.find((a) => a.value === aspect) ?? preset.aspects[0];
+  const activeAspect = preset.aspects.find((a) => a.value === aspect) ?? preset.aspects[0];
   const activeTier = preset.tiers.find((t) => t.value === tier) ?? preset.tiers[0];
-  const dims = computeDims(modelId, activeTier.value, activeAspect.value, activeTier.short, activeAspect.ratio);
+  const dims = computeDims(
+    modelId,
+    activeTier.value,
+    activeAspect.value,
+    activeTier.short,
+    activeAspect.ratio,
+  );
 
   // Reset aspect/tier when model changes if not compatible
   useEffect(() => {
@@ -367,8 +381,6 @@ function LeonardoPage() {
         desc="Generate gambar — model & parameter mengikuti routing provider aktif."
       />
 
-
-
       {imgProvider === "leonardo" && keyCount === 0 && (
         <div className="neumorph rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm mt-4">
           ⚠️ Belum ada token Leonardo tersimpan. Buka{" "}
@@ -378,7 +390,6 @@ function LeonardoPage() {
           dan paste Cognito Bearer JWT dari DevTools app.leonardo.ai.
         </div>
       )}
-
 
       {imgProvider !== "leonardo" ? (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
@@ -411,7 +422,10 @@ function LeonardoPage() {
                 <Select
                   value={genQuality}
                   onChange={(e) => setGenQuality(e.target.value)}
-                  options={(activeGenModel?.qualities ?? []).map((q) => ({ value: q.v, label: q.label }))}
+                  options={(activeGenModel?.qualities ?? []).map((q) => ({
+                    value: q.v,
+                    label: q.label,
+                  }))}
                 />
               </Field>
               <Field label="Aspect ratio">
@@ -454,7 +468,6 @@ function LeonardoPage() {
                 {error}
               </div>
             )}
-
           </div>
 
           <div className="neumorph rounded-xl p-4 space-y-3">
@@ -465,7 +478,13 @@ function LeonardoPage() {
                   <span className="font-mono text-muted-foreground">{status.time}</span>
                 </div>
                 <div className="h-1 rounded-full bg-border overflow-hidden">
-                  <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }} />
+                  <div
+                    className="h-full transition-all"
+                    style={{
+                      width: `${status.pct}%`,
+                      background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))",
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -486,201 +505,208 @@ function LeonardoPage() {
           </div>
         </div>
       ) : (
-
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
-        <div className="neumorph rounded-xl p-4 space-y-4">
-          <Field label="Prompt">
-            <Textarea
-              rows={5}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Deskripsi visual yang kamu inginkan…"
-            />
-          </Field>
-          <Field label="Negative prompt (opsional)">
-            <Input
-              value={neg}
-              onChange={(e) => setNeg(e.target.value)}
-              placeholder="blurry, low quality, watermark, text…"
-            />
-          </Field>
-
-          <div className="flex flex-col gap-1.5">
-            <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
-              <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
-                Model AI
-              </label>
-              <ProviderActivePill cap="image" />
-            </div>
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Select
-                  value={modelId}
-                  onChange={(e) => setModelId(e.target.value)}
-                  options={modelOptions}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={refreshModels}
-                disabled={loadingModels || keyCount === 0}
-                className="inline-flex items-center gap-1 rounded-md border border-border px-2 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"
-                title="Ambil daftar model dari akun Leonardo"
-              >
-                <RefreshCw className={`h-3 w-3 ${loadingModels ? "animate-spin" : ""}`} />
-                {loadingModels ? "…" : "Refresh"}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-
-
-
-            <Field label="Aspect ratio">
-              <Select
-                value={aspect}
-                onChange={(e) => setAspect(e.target.value)}
-                options={preset.aspects.map((a) => ({ value: a.value, label: a.label }))}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] mt-4">
+          <div className="neumorph rounded-xl p-4 space-y-4">
+            <Field label="Prompt">
+              <Textarea
+                rows={5}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Deskripsi visual yang kamu inginkan…"
               />
             </Field>
-            <Field label={`Size (${dims.w}×${dims.h})`}>
-              <Select
-                value={tier}
-                onChange={(e) => setTier(e.target.value)}
-                options={preset.tiers.map((t) => {
-                  const d = computeDims(modelId, t.value, activeAspect.value, t.short, activeAspect.ratio);
-                  return { value: t.value, label: `${t.label} (${d.w}×${d.h})` };
-                })}
-
+            <Field label="Negative prompt (opsional)">
+              <Input
+                value={neg}
+                onChange={(e) => setNeg(e.target.value)}
+                placeholder="blurry, low quality, watermark, text…"
               />
             </Field>
-            {preset.quality && (
-              <Field label="Quality">
-                <Select
-                  value={quality}
-                  onChange={(e) => setQuality(e.target.value as "low" | "medium" | "high")}
-                  options={preset.quality.map((q) => ({
-                    value: q,
-                    label: q.charAt(0).toUpperCase() + q.slice(1),
-                  }))}
-                />
-              </Field>
-            )}
-            {preset.promptEnhance && (
-              <Field label="Prompt Enhance">
-                <Select
-                  value={promptEnhance}
-                  onChange={(e) => setPromptEnhance(e.target.value as "OFF" | "AUTO")}
-                  options={[
-                    { value: "OFF", label: "Off" },
-                    { value: "AUTO", label: "Auto" },
-                  ]}
-                />
-              </Field>
-            )}
-            <Field label="Jumlah gambar">
-              <Select
-                value={num}
-                onChange={(e) => setNum(e.target.value)}
-                options={[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }))}
-              />
-            </Field>
-          </div>
 
-          <div className="flex gap-2">
-            <PrimaryButton onClick={generate} disabled={busy || !prompt.trim() || keyCount === 0}>
-              {busy ? "Generating…" : "Generate"}
-            </PrimaryButton>
-            <GhostButton
-              onClick={() => {
-                setPrompt("");
-                setNeg("");
-                setLogs([]);
-                setError(null);
-              }}
-              disabled={busy}
-            >
-              Reset
-            </GhostButton>
-          </div>
-
-          {error && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </div>
-          )}
-        </div>
-
-        <div className="neumorph rounded-xl p-4 space-y-3">
-          {status.show && (
-            <div className="rounded-lg border border-border/70 bg-card/40 p-2">
-              <div className="flex justify-between items-center text-[11px] mb-1">
-                <span className="text-foreground">{status.text}</span>
-                <span className="font-mono text-muted-foreground">{status.time}</span>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex flex-wrap items-center gap-2 min-h-[20px]">
+                <label className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground">
+                  Model AI
+                </label>
+                <ProviderActivePill cap="image" />
               </div>
-              <div className="h-1 rounded-full bg-border overflow-hidden">
-                <div className="h-full transition-all" style={{ width: `${status.pct}%`, background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))" }} />
-              </div>
-            </div>
-          )}
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            Log Proses
-          </div>
-          <div className="rounded-lg border border-border bg-black/40 p-2 h-56 overflow-auto font-mono text-[11px] leading-relaxed">
-            {logs.length === 0 ? (
-              <div className="text-muted-foreground italic">Belum ada aktivitas.</div>
-            ) : (
-              logs.map((l, i) => (
-                <div key={i} className="text-muted-foreground">
-                  {l}
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select
+                    value={modelId}
+                    onChange={(e) => setModelId(e.target.value)}
+                    options={modelOptions}
+                  />
                 </div>
-              ))
+                <button
+                  type="button"
+                  onClick={refreshModels}
+                  disabled={loadingModels || keyCount === 0}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 text-[11px] text-primary hover:bg-primary/10 disabled:opacity-50"
+                  title="Ambil daftar model dari akun Leonardo"
+                >
+                  <RefreshCw className={`h-3 w-3 ${loadingModels ? "animate-spin" : ""}`} />
+                  {loadingModels ? "…" : "Refresh"}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Aspect ratio">
+                <Select
+                  value={aspect}
+                  onChange={(e) => setAspect(e.target.value)}
+                  options={preset.aspects.map((a) => ({ value: a.value, label: a.label }))}
+                />
+              </Field>
+              <Field label={`Size (${dims.w}×${dims.h})`}>
+                <Select
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value)}
+                  options={preset.tiers.map((t) => {
+                    const d = computeDims(
+                      modelId,
+                      t.value,
+                      activeAspect.value,
+                      t.short,
+                      activeAspect.ratio,
+                    );
+                    return { value: t.value, label: `${t.label} (${d.w}×${d.h})` };
+                  })}
+                />
+              </Field>
+              {preset.quality && (
+                <Field label="Quality">
+                  <Select
+                    value={quality}
+                    onChange={(e) => setQuality(e.target.value as "low" | "medium" | "high")}
+                    options={preset.quality.map((q) => ({
+                      value: q,
+                      label: q.charAt(0).toUpperCase() + q.slice(1),
+                    }))}
+                  />
+                </Field>
+              )}
+              {preset.promptEnhance && (
+                <Field label="Prompt Enhance">
+                  <Select
+                    value={promptEnhance}
+                    onChange={(e) => setPromptEnhance(e.target.value as "OFF" | "AUTO")}
+                    options={[
+                      { value: "OFF", label: "Off" },
+                      { value: "AUTO", label: "Auto" },
+                    ]}
+                  />
+                </Field>
+              )}
+              <Field label="Jumlah gambar">
+                <Select
+                  value={num}
+                  onChange={(e) => setNum(e.target.value)}
+                  options={[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }))}
+                />
+              </Field>
+            </div>
+
+            <div className="flex gap-2">
+              <PrimaryButton onClick={generate} disabled={busy || !prompt.trim() || keyCount === 0}>
+                {busy ? "Generating…" : "Generate"}
+              </PrimaryButton>
+              <GhostButton
+                onClick={() => {
+                  setPrompt("");
+                  setNeg("");
+                  setLogs([]);
+                  setError(null);
+                }}
+                disabled={busy}
+              >
+                Reset
+              </GhostButton>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                {error}
+              </div>
             )}
           </div>
-          <div className="text-[11px] text-muted-foreground">
-            Token tersimpan: <b className="text-emerald-400">{keyCount}</b>
+
+          <div className="neumorph rounded-xl p-4 space-y-3">
+            {status.show && (
+              <div className="rounded-lg border border-border/70 bg-card/40 p-2">
+                <div className="flex justify-between items-center text-[11px] mb-1">
+                  <span className="text-foreground">{status.text}</span>
+                  <span className="font-mono text-muted-foreground">{status.time}</span>
+                </div>
+                <div className="h-1 rounded-full bg-border overflow-hidden">
+                  <div
+                    className="h-full transition-all"
+                    style={{
+                      width: `${status.pct}%`,
+                      background: "var(--gradient-neon, linear-gradient(90deg,#22d3ee,#a78bfa))",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Log Proses
+            </div>
+            <div className="rounded-lg border border-border bg-black/40 p-2 h-56 overflow-auto font-mono text-[11px] leading-relaxed">
+              {logs.length === 0 ? (
+                <div className="text-muted-foreground italic">Belum ada aktivitas.</div>
+              ) : (
+                logs.map((l, i) => (
+                  <div key={i} className="text-muted-foreground">
+                    {l}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Token tersimpan: <b className="text-emerald-400">{keyCount}</b>
+            </div>
           </div>
         </div>
-      </div>
       )}
 
-              <div className="neumorph rounded-xl p-4 mt-4">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
-            Hasil Generate
-          </div>
-          {images.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">Belum ada gambar.</div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {images.map(({ id, url }, i) => (
-                <div
-                  key={id}
-                  className="group relative rounded-lg overflow-hidden border border-border bg-black/40"
-                >
-                  <img src={url} alt={`Leonardo ${i + 1}`} className="w-full h-auto block" />
-                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 px-2 py-1.5 bg-black/60 opacity-0 group-hover:opacity-100 transition">
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" /> Buka
-                    </a>
-                    <a
-                      href={url}
-                      download
-                      className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
-                    >
-                      <Download className="h-3 w-3" /> Unduh
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      <div className="neumorph rounded-xl p-4 mt-4">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-3">
+          Hasil Generate
         </div>
+        {images.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic">Belum ada gambar.</div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {images.map(({ id, url }, i) => (
+              <div
+                key={id}
+                className="group relative rounded-lg overflow-hidden border border-border bg-black/40"
+              >
+                <img src={url} alt={`Leonardo ${i + 1}`} className="w-full h-auto block" />
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 px-2 py-1.5 bg-black/60 opacity-0 group-hover:opacity-100 transition">
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3" /> Buka
+                  </a>
+                  <a
+                    href={url}
+                    download
+                    className="inline-flex items-center gap-1 text-[10px] text-white hover:underline"
+                  >
+                    <Download className="h-3 w-3" /> Unduh
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </DashboardShell>
   );
 }

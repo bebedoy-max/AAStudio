@@ -30,11 +30,17 @@ function json(data: unknown, status = 200): Response {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\n,]/g).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\n,]/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function extractJsonArray(raw: string): unknown[] {
-  let s = (raw || "").replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  let s = (raw || "")
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
   const start = s.indexOf("[");
   const end = s.lastIndexOf("]");
   if (start === -1 || end === -1) {
@@ -78,9 +84,7 @@ export const Route = createFileRoute("/api/router/plan-weekly")({
         }
 
         const cfg = body.config ?? {};
-        const contentTypes = cfg.contentTypes?.length
-          ? cfg.contentTypes
-          : ["image", "motion"];
+        const contentTypes = cfg.contentTypes?.length ? cfg.contentTypes : ["image", "motion"];
         const categories = cfg.categories?.length ? cfg.categories : ["lifestyle"];
         const platforms = cfg.platforms?.length ? cfg.platforms : ["TikTok", "Instagram"];
         const perDay = Math.max(1, Math.min(4, cfg.perDay ?? 2));
@@ -120,9 +124,7 @@ export const Route = createFileRoute("/api/router/plan-weekly")({
         const attempts = [
           { sys: system, usr: user },
           {
-            sys:
-              system +
-              "\nPENTING: Output WAJIB array JSON valid, diawali '[' diakhiri ']'.",
+            sys: system + "\nPENTING: Output WAJIB array JSON valid, diawali '[' diakhiri ']'.",
             usr: user + "\n\nBalas HANYA array JSON.",
           },
         ];

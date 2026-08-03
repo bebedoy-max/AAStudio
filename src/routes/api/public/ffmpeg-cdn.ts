@@ -26,7 +26,6 @@ const FILE_MAP: Record<string, string> = {
 const ALLOWED_PKGS = new Set(["ffmpeg", "core"]);
 const ALLOWED_VERSIONS = new Set(["0.12.10", "0.12.15", "0.12.6", "0.12.9"]);
 
-
 function mimeFor(f: string): string {
   if (f.endsWith(".wasm")) return "application/wasm";
   if (f.endsWith(".js")) return "text/javascript; charset=utf-8";
@@ -54,14 +53,15 @@ async function fetchWithFallback(pkg: string, ver: string, f: string): Promise<R
 export const Route = createFileRoute("/api/public/ffmpeg-cdn")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, {
-        status: 204,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, OPTIONS",
-          "Access-Control-Allow-Headers": "*",
-        },
-      }),
+      OPTIONS: async () =>
+        new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+          },
+        }),
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const f = url.searchParams.get("f") || "";

@@ -40,7 +40,13 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
     data: {
       handles: {
         output: {
-          file: { type: "any", label: "File", order: 0, format: "uri", description: "The uploaded file" },
+          file: {
+            type: "any",
+            label: "File",
+            order: 0,
+            format: "uri",
+            description: "The uploaded file",
+          },
         },
       },
       name: "File",
@@ -95,7 +101,13 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
     data: {
       handles: {
         output: {
-          file: { type: "any", label: "File", order: 0, format: "uri", description: "The uploaded file" },
+          file: {
+            type: "any",
+            label: "File",
+            order: 0,
+            format: "uri",
+            description: "The uploaded file",
+          },
         },
       },
       name: "File",
@@ -150,11 +162,31 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
     data: {
       handles: {
         input: {
-          prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: false },
-          image_url: { id: "input-image_url", type: "image", label: "image", format: "text", required: true },
-          video_url: { id: "input-video_url", type: "any", label: "video", format: "text", required: true },
+          prompt: {
+            id: "input-prompt",
+            type: "text",
+            label: "prompt",
+            format: "text",
+            required: false,
+          },
+          image_url: {
+            id: "input-image_url",
+            type: "image",
+            label: "image",
+            format: "text",
+            required: true,
+          },
+          video_url: {
+            id: "input-video_url",
+            type: "any",
+            label: "video",
+            format: "text",
+            required: true,
+          },
         },
-        output: { result: { id: "output-result", type: "video", label: "result", order: 0, format: "uri" } },
+        output: {
+          result: { id: "output-result", type: "video", label: "result", order: 0, format: "uri" },
+        },
       },
       name: "Kling Motion Control",
       description: "Transfer movements from a reference video to any character image.",
@@ -169,11 +201,33 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
         ...(prompt ? { prompt } : {}),
       },
       schema: {
-        model: { type: "enum", order: 0, title: "Model", default: "Pro", options: ["Pro", "Standard"] },
+        model: {
+          type: "enum",
+          order: 0,
+          title: "Model",
+          default: "Pro",
+          options: ["Pro", "Standard"],
+        },
         prompt: { type: "string", title: "Prompt", required: false },
-        version: { type: "enum", order: -1, title: "Version", default: "V2.6", options: ["V2.6", "V3"] },
-        keep_original_sound: { type: "boolean", title: "Keep Original Sound", default: true, required: false },
-        character_orientation: { type: "enum", title: "Character Orientation", options: ["image", "video"], required: true },
+        version: {
+          type: "enum",
+          order: -1,
+          title: "Version",
+          default: "V2.6",
+          options: ["V2.6", "V3"],
+        },
+        keep_original_sound: {
+          type: "boolean",
+          title: "Keep Original Sound",
+          default: true,
+          required: false,
+        },
+        character_orientation: {
+          type: "enum",
+          title: "Character Orientation",
+          options: ["image", "video"],
+          required: true,
+        },
       },
       version: 3,
       kind: {
@@ -195,7 +249,20 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
             {
               id: "video_url",
               title: "video",
-              validTypes: ["image", "video", "audio", "3D", "text", "number", "boolean", "seed", "array", "lora", "kling-element", "runway-aleph2-keyframe"],
+              validTypes: [
+                "image",
+                "video",
+                "audio",
+                "3D",
+                "text",
+                "number",
+                "boolean",
+                "seed",
+                "array",
+                "lora",
+                "kling-element",
+                "runway-aleph2-keyframe",
+              ],
               required: true,
             },
             { nodeId: n2, outputId: "file" },
@@ -236,7 +303,8 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
             {
               id: "character_orientation",
               title: "Character Orientation",
-              description: "Controls whether the output character's orientation matches the reference image or video.",
+              description:
+                "Controls whether the output character's orientation matches the reference image or video.",
               constraint: { type: "enum", options: ["image", "video"] },
               defaultValue: { type: "string", value: "image" },
             },
@@ -265,7 +333,12 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
       sourceHandle: `${n1}-output-file`,
       targetHandle: `${n3}-input-image_url`,
       type: "custom",
-      data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" },
+      data: {
+        sourceColor: "Yambo_Blue",
+        targetColor: "Red",
+        sourceHandleType: "any",
+        targetHandleType: "image",
+      },
     },
     {
       id: "e-" + mkId(),
@@ -274,7 +347,12 @@ export function buildKlingMotionControlRecipe(opts: MotionControlOpts) {
       sourceHandle: `${n2}-output-file`,
       targetHandle: `${n3}-input-video_url`,
       type: "custom",
-      data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "video" },
+      data: {
+        sourceColor: "Yambo_Blue",
+        targetColor: "Red",
+        sourceHandleType: "any",
+        targetHandleType: "video",
+      },
     },
   ];
 

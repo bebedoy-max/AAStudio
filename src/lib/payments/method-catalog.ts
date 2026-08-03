@@ -2,13 +2,7 @@
 // picker di UI dan oleh server fn `listActivePaymentMethods`.
 // TIDAK berisi kredensial apa pun.
 
-export type MethodKind =
-  | "qris"
-  | "va"
-  | "ewallet"
-  | "card"
-  | "convenience"
-  | "direct_debit";
+export type MethodKind = "qris" | "va" | "ewallet" | "card" | "convenience" | "direct_debit";
 
 export type MethodDef = {
   code: string; // dikirim ke provider (mis. DOKU payment_method_types)

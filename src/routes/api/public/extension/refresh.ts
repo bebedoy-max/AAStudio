@@ -9,7 +9,9 @@ function cors(res: Response) {
   return new Response(res.body, { status: res.status, headers: h });
 }
 const json = (data: unknown, status = 200) =>
-  cors(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+  cors(
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }),
+  );
 
 export const Route = createFileRoute("/api/public/extension/refresh")({
   server: {
@@ -23,11 +25,16 @@ export const Route = createFileRoute("/api/public/extension/refresh")({
         if (!body?.refresh_token) return json({ error: "refresh_token required" }, 400);
         const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", apikey: ANON, Authorization: `Bearer ${ANON}` },
+          headers: {
+            "Content-Type": "application/json",
+            apikey: ANON,
+            Authorization: `Bearer ${ANON}`,
+          },
           body: JSON.stringify({ refresh_token: body.refresh_token }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) return json({ error: data?.error_description || "refresh_failed" }, res.status);
+        if (!res.ok)
+          return json({ error: data?.error_description || "refresh_failed" }, res.status);
         return json({
           access_token: data.access_token,
           refresh_token: data.refresh_token,

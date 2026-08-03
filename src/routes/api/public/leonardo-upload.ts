@@ -39,15 +39,17 @@ export const Route = createFileRoute("/api/public/leonardo-upload")({
         }),
       POST: async ({ request }) => {
         const token =
-          request.headers.get("X-Leonardo-Token") ||
-          request.headers.get("x-leonardo-token") ||
-          "";
+          request.headers.get("X-Leonardo-Token") || request.headers.get("x-leonardo-token") || "";
         if (!token) return json({ ok: false, error: "X-Leonardo-Token required" }, 200);
 
         const body = (await request.json().catch(() => null)) as Body | null;
         if (!body?.b64) return json({ ok: false, error: "b64 required" }, 200);
-        const ext = body.ext === "png" || body.ext === "webp" || body.ext === "jpeg" || body.ext === "jpg" ? body.ext : "png";
-        const mime = body.mime || (ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg");
+        const ext =
+          body.ext === "png" || body.ext === "webp" || body.ext === "jpeg" || body.ext === "jpg"
+            ? body.ext
+            : "png";
+        const mime =
+          body.mime || (ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg");
 
         // Step 1: init-image
         let initRes: Response;
@@ -78,7 +80,10 @@ export const Route = createFileRoute("/api/public/leonardo-upload")({
         } | null;
         const info = initData?.uploadInitImage;
         if (!info?.id || !info?.url || !info?.fields) {
-          return json({ ok: false, error: `init-image response invalid: ${JSON.stringify(initData).slice(0, 300)}` });
+          return json({
+            ok: false,
+            error: `init-image response invalid: ${JSON.stringify(initData).slice(0, 300)}`,
+          });
         }
         let fields: Record<string, string>;
         try {
@@ -91,7 +96,10 @@ export const Route = createFileRoute("/api/public/leonardo-upload")({
         const form = new FormData();
         for (const [k, v] of Object.entries(fields)) form.append(k, v);
         const bytes = b64ToBytes(body.b64);
-        const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+        const ab = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        ) as ArrayBuffer;
         form.append("file", new Blob([ab], { type: mime }), `ref.${ext}`);
 
         let s3Res: Response;

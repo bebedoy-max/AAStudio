@@ -5,7 +5,13 @@
 // When the extension is installed it relays the call from the user's own
 // browser (ideally from an open firefly.adobe.com tab), which succeeds.
 
-export type RelayResult<T> = { ok: boolean; status: number; data: T | null; raw?: string; error?: string };
+export type RelayResult<T> = {
+  ok: boolean;
+  status: number;
+  data: T | null;
+  raw?: string;
+  error?: string;
+};
 
 export type RelayRequest = {
   url: string;
@@ -35,7 +41,8 @@ function waitFor<T>(id: string, type: string, timeoutMs: number): Promise<T | nu
     }, timeoutMs);
     function onMsg(ev: MessageEvent) {
       const d = ev.data as { channel?: string; type?: string; id?: string; res?: T };
-      if (ev.source !== window || d?.channel !== CHANNEL || d?.id !== id || d?.type !== type) return;
+      if (ev.source !== window || d?.channel !== CHANNEL || d?.id !== id || d?.type !== type)
+        return;
       window.clearTimeout(timer);
       window.removeEventListener("message", onMsg);
       resolve((d.res ?? (true as unknown)) as T);

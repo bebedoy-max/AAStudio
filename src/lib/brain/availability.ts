@@ -17,7 +17,9 @@ function readArray(key: string): string[] {
         .filter((s): s is string => typeof s === "string" && s.trim().length > 0);
     }
     if (parsed?.keys && Array.isArray(parsed.keys)) {
-      return parsed.keys.filter((k: unknown): k is string => typeof k === "string" && k.trim().length > 0);
+      return parsed.keys.filter(
+        (k: unknown): k is string => typeof k === "string" && k.trim().length > 0,
+      );
     }
     if (typeof parsed === "string" && parsed.trim().length > 0) return [parsed];
     if (typeof parsed?.key === "string" && parsed.key.trim().length > 0) return [parsed.key];

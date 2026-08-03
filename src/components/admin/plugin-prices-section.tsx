@@ -13,7 +13,11 @@ import { toast } from "sonner";
 import { useDirty } from "@/lib/hooks/use-dirty";
 
 function formatRupiah(n: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n || 0);
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(n || 0);
 }
 
 export function PluginPricesSection() {
@@ -71,8 +75,9 @@ export function PluginPricesSection() {
         <div className="p-4 flex items-start gap-3 text-xs text-muted-foreground">
           <Info className="h-4 w-4 mt-[1px] text-primary shrink-0" />
           <p>
-            Hanya plug-in dengan status <span className="text-foreground">Premium</span> di Admin → Plug-IN Config yang
-            bisa diberi harga. Ubah statusnya di sana bila plug-in tidak muncul di daftar ini.
+            Hanya plug-in dengan status <span className="text-foreground">Premium</span> di Admin →
+            Plug-IN Config yang bisa diberi harga. Ubah statusnya di sana bila plug-in tidak muncul
+            di daftar ini.
           </p>
         </div>
       </Card>

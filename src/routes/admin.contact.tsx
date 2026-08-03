@@ -11,7 +11,10 @@ export const Route = createFileRoute("/admin/contact")({
   head: () => ({
     meta: [
       { title: "Kontak Support — Admin" },
-      { name: "description", content: "Atur email, no telepon, dan WhatsApp support yang tampil di Pusat Bantuan." },
+      {
+        name: "description",
+        content: "Atur email, no telepon, dan WhatsApp support yang tampil di Pusat Bantuan.",
+      },
     ],
   }),
   component: AdminContactPage,
@@ -43,15 +46,13 @@ function AdminContactPage() {
 
   async function save() {
     setSaving(true);
-    const { error } = await (supabase as any)
-      .from("app_settings")
-      .upsert({
-        id: 1,
-        support_email: email.trim() || null,
-        support_phone: phone.trim() || null,
-        support_whatsapp: whatsapp.trim() || null,
-        updated_at: new Date().toISOString(),
-      });
+    const { error } = await (supabase as any).from("app_settings").upsert({
+      id: 1,
+      support_email: email.trim() || null,
+      support_phone: phone.trim() || null,
+      support_whatsapp: whatsapp.trim() || null,
+      updated_at: new Date().toISOString(),
+    });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Kontak support tersimpan");
@@ -74,29 +75,52 @@ function AdminContactPage() {
         </Card>
       ) : !isAdmin ? (
         <Card>
-          <div className="p-8 text-center text-sm text-muted-foreground">Hanya admin yang dapat mengubah kontak support.</div>
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            Hanya admin yang dapat mengubah kontak support.
+          </div>
         </Card>
       ) : (
         <Card>
           <div className="p-5 space-y-4 max-w-xl">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0" style={{ background: "var(--gradient-neon)" }}>
+              <div
+                className="h-10 w-10 rounded-xl grid place-items-center text-primary-foreground shrink-0"
+                style={{ background: "var(--gradient-neon)" }}
+              >
                 <LifeBuoy className="h-5 w-5" />
               </div>
               <div>
                 <div className="font-display text-sm">Kontak Support</div>
-                <div className="text-[11px] text-muted-foreground">Kosongkan field yang tidak ingin ditampilkan.</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Kosongkan field yang tidak ingin ditampilkan.
+                </div>
               </div>
             </div>
 
             <Field label="Email">
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="support@domain.com" className={inputCls} />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="support@domain.com"
+                className={inputCls}
+              />
             </Field>
             <Field label="Nomor Telepon">
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+62 ..." className={inputCls} />
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+62 ..."
+                className={inputCls}
+              />
             </Field>
             <Field label="Nomor WhatsApp">
-              <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+62 812xxxx (tanpa spasi untuk link wa.me)" className={inputCls} />
+              <input
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="+62 812xxxx (tanpa spasi untuk link wa.me)"
+                className={inputCls}
+              />
             </Field>
 
             <button
@@ -121,7 +145,9 @@ const inputCls =
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">{label}</div>
+      <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
+        {label}
+      </div>
       {children}
     </label>
   );

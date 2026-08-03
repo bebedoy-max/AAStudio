@@ -12,7 +12,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // callback menyelesaikan exchange lalu redirect sendiri.
   if (pathname.startsWith("/auth/")) return <>{children}</>;
 
-
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center">

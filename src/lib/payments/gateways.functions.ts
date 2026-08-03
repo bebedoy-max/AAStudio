@@ -45,7 +45,9 @@ export const listPaymentGateways = createServerFn({ method: "GET" })
     const db = context.supabase as unknown as LooseClient;
     const { data, error } = await db
       .from("payment_gateways")
-      .select("id, provider, label, environment, is_active, masked_hint, last_test_at, last_test_status, last_test_message, created_at, updated_at")
+      .select(
+        "id, provider, label, environment, is_active, masked_hint, last_test_at, last_test_status, last_test_message, created_at, updated_at",
+      )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []) as GatewayListItem[];
@@ -66,23 +68,25 @@ function buildMaskedHint(provider: string, config: Record<string, string>): Reco
 
 export const upsertPaymentGateway = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: {
-    id?: string;
-    provider: string;
-    label: string;
-    environment: "sandbox" | "production";
-    is_active?: boolean;
-    config: Record<string, string>;
-  }) => {
-    if (!data.provider) throw new Error("provider required");
-    if (!getProviderDef(data.provider)) throw new Error(`Unknown provider: ${data.provider}`);
-    if (!data.label || data.label.length > 120) throw new Error("label required (<=120 chars)");
-    if (data.environment !== "sandbox" && data.environment !== "production") {
-      throw new Error("environment must be sandbox|production");
-    }
-    if (!data.config || typeof data.config !== "object") throw new Error("config required");
-    return data;
-  })
+  .inputValidator(
+    (data: {
+      id?: string;
+      provider: string;
+      label: string;
+      environment: "sandbox" | "production";
+      is_active?: boolean;
+      config: Record<string, string>;
+    }) => {
+      if (!data.provider) throw new Error("provider required");
+      if (!getProviderDef(data.provider)) throw new Error(`Unknown provider: ${data.provider}`);
+      if (!data.label || data.label.length > 120) throw new Error("label required (<=120 chars)");
+      if (data.environment !== "sandbox" && data.environment !== "production") {
+        throw new Error("environment must be sandbox|production");
+      }
+      if (!data.config || typeof data.config !== "object") throw new Error("config required");
+      return data;
+    },
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const def = getProviderDef(data.provider)!;
@@ -101,7 +105,10 @@ export const upsertPaymentGateway = createServerFn({ method: "POST" })
       if (existingRow?.config_ciphertext) {
         const { decryptString } = await import("@/lib/tokens/crypto.server");
         try {
-          mergedConfig = JSON.parse(await decryptString(existingRow.config_ciphertext)) as Record<string, string>;
+          mergedConfig = JSON.parse(await decryptString(existingRow.config_ciphertext)) as Record<
+            string,
+            string
+          >;
         } catch {
           mergedConfig = {};
         }
@@ -194,10 +201,14 @@ export const togglePaymentGateway = createServerFn({ method: "POST" })
 
 export type GatewayTestResult = { ok: boolean; message: string };
 
-async function testMidtrans(config: Record<string, string>, env: "sandbox" | "production"): Promise<GatewayTestResult> {
+async function testMidtrans(
+  config: Record<string, string>,
+  env: "sandbox" | "production",
+): Promise<GatewayTestResult> {
   const serverKey = config.server_key;
   if (!serverKey) return { ok: false, message: "server_key kosong" };
-  const base = env === "production" ? "https://api.midtrans.com" : "https://api.sandbox.midtrans.com";
+  const base =
+    env === "production" ? "https://api.midtrans.com" : "https://api.sandbox.midtrans.com";
   const b64 = btoa(serverKey + ":");
   const url = `${base}/v2/aa-test-nonexistent-${Date.now()}/status`;
   const res = await fetch(url, {
@@ -213,7 +224,10 @@ async function testMidtrans(config: Record<string, string>, env: "sandbox" | "pr
   return { ok: false, message: `Midtrans HTTP ${res.status}: ${body.slice(0, 160)}` };
 }
 
-async function testDoku(config: Record<string, string>, env: "sandbox" | "production"): Promise<GatewayTestResult> {
+async function testDoku(
+  config: Record<string, string>,
+  env: "sandbox" | "production",
+): Promise<GatewayTestResult> {
   const clientId = config.client_id;
   const secretKey = config.secret_key;
   if (!clientId || !secretKey) return { ok: false, message: "client_id / secret_key kosong" };
@@ -229,7 +243,10 @@ async function testTemanQris(config: Record<string, string>): Promise<GatewayTes
   const r = await pingTemanQris({
     apiKey,
     webhookSecret: config.webhook_secret || undefined,
-    autoVerify: String(config.auto_verify ?? "").trim().toLowerCase() === "on",
+    autoVerify:
+      String(config.auto_verify ?? "")
+        .trim()
+        .toLowerCase() === "on",
     qrisId: config.qris_id ? Number(config.qris_id) || undefined : undefined,
   });
   return r;
@@ -266,7 +283,8 @@ export const testPaymentGateway = createServerFn({ method: "POST" })
         result = await testTemanQris(config);
       } else {
         const def = getProviderDef(row.provider);
-        const missing = def?.fields.filter((f) => f.required && !config[f.key]).map((f) => f.label) ?? [];
+        const missing =
+          def?.fields.filter((f) => f.required && !config[f.key]).map((f) => f.label) ?? [];
         if (missing.length > 0) {
           result = { ok: false, message: `Field belum diisi: ${missing.join(", ")}` };
         } else {

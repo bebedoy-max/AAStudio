@@ -133,9 +133,7 @@ export const saveQueueBatch = createServerFn({ method: "POST" })
 
 export const updateQueueItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (d: { id: string; patch: Partial<QueueItemInput> & { status?: string } }) => d,
-  )
+  .inputValidator((d: { id: string; patch: Partial<QueueItemInput> & { status?: string } }) => d)
   .handler(async ({ data, context }) => {
     const patch = { ...data.patch, payload: data.patch.payload as Json | undefined };
     const { error } = await context.supabase
@@ -150,10 +148,7 @@ export const deleteQueueItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("ai_influencer_queue")
-      .delete()
-      .eq("id", data.id);
+    const { error } = await context.supabase.from("ai_influencer_queue").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

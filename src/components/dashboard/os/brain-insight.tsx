@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
-import { Brain, Flame, Lightbulb, Newspaper, Target, RefreshCw, Loader2, ExternalLink, X, Loader } from "lucide-react";
+import {
+  Brain,
+  Flame,
+  Lightbulb,
+  Newspaper,
+  Target,
+  RefreshCw,
+  Loader2,
+  ExternalLink,
+  X,
+  Loader,
+} from "lucide-react";
 import { getCreativeKeys, headersFor } from "@/lib/creative/keys";
 import { ensureBrainAccess } from "@/lib/brain/availability";
 import { setHandoff } from "@/lib/creative/handoff";
@@ -38,7 +49,9 @@ function loadCached(): { data: Insight; at: number } | null {
 function lastScheduledSlot(now = new Date()): number {
   const h = now.getHours();
   const passed = SCHEDULED_HOURS.filter((x) => x <= h);
-  const slotHour = passed.length ? passed[passed.length - 1] : SCHEDULED_HOURS[SCHEDULED_HOURS.length - 1];
+  const slotHour = passed.length
+    ? passed[passed.length - 1]
+    : SCHEDULED_HOURS[SCHEDULED_HOURS.length - 1];
   const d = new Date(now);
   if (!passed.length) d.setDate(d.getDate() - 1); // yesterday's 18:00
   d.setHours(slotHour, 0, 0, 0);
@@ -47,7 +60,16 @@ function lastScheduledSlot(now = new Date()): number {
 
 type ReaderState =
   | { open: false }
-  | { open: true; title: string; url?: string; loading: boolean; body?: string; hero?: string; error?: string; refined?: string };
+  | {
+      open: true;
+      title: string;
+      url?: string;
+      loading: boolean;
+      body?: string;
+      hero?: string;
+      error?: string;
+      refined?: string;
+    };
 
 export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void }) {
   const [insight, setInsight] = useState<Insight | null>(null);
@@ -58,21 +80,20 @@ export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void })
   useEffect(() => {
     const cached = loadCached();
     const slotTs = lastScheduledSlot();
-    const stale =
-      !cached ||
-      Date.now() - cached.at > TTL_MS ||
-      cached.at < slotTs; // cache older than most recent scheduled slot
+    const stale = !cached || Date.now() - cached.at > TTL_MS || cached.at < slotTs; // cache older than most recent scheduled slot
     if (cached) setInsight(cached.data);
     if (stale) fetchInsight();
 
     // Poll every 5 min: if we've crossed into a new scheduled slot since last fetch, refresh
-    const iv = window.setInterval(() => {
-      const c = loadCached();
-      const s = lastScheduledSlot();
-      if (!c || c.at < s) fetchInsight();
-    }, 5 * 60 * 1000);
+    const iv = window.setInterval(
+      () => {
+        const c = loadCached();
+        const s = lastScheduledSlot();
+        if (!c || c.at < s) fetchInsight();
+      },
+      5 * 60 * 1000,
+    );
     return () => window.clearInterval(iv);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function fetchInsight(opts?: { fresh?: boolean }) {
@@ -87,7 +108,9 @@ export function BrainInsight({ onKeyword }: { onKeyword: (kw: string) => void })
       try {
         // fresh=true → bypass server cache + shuffle rotasi berita agar setiap
         // klik Refresh menampilkan berita berbeda.
-        const nr = await fetch(`/api/public/news-feed?limit=6${fresh ? "&nocache=1" : "&shuffle=1"}`);
+        const nr = await fetch(
+          `/api/public/news-feed?limit=6${fresh ? "&nocache=1" : "&shuffle=1"}`,
+        );
         const nj = await nr.json();
         if (nr.ok && Array.isArray(nj.items)) {
           realNews = (nj.items as { title: string; url: string; description?: string }[])
@@ -133,7 +156,7 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
       const merged: Insight = {
         greeting: parsed.greeting || "Selamat datang kembali!",
         viral_keywords: parsed.viral_keywords || [],
-        news: realNews.length > 0 ? realNews : (parsed.news || []),
+        news: realNews.length > 0 ? realNews : parsed.news || [],
         opportunities: parsed.opportunities || [],
         niche_ideas: parsed.niche_ideas || [],
       };
@@ -154,7 +177,6 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
     }
   }
 
-
   return (
     <div className="neumorph p-5">
       <div className="flex items-start justify-between gap-3">
@@ -167,7 +189,9 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
           </div>
           <div>
             <div className="font-display text-base">AI Brain — Briefing Harian</div>
-            <div className="text-[11px] text-muted-foreground">Insight otomatis berdasarkan tren & niche kamu</div>
+            <div className="text-[11px] text-muted-foreground">
+              Insight otomatis berdasarkan tren & niche kamu
+            </div>
           </div>
         </div>
         <button
@@ -175,14 +199,19 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
           disabled={loading}
           className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
-          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          {loading ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
           Refresh
         </button>
       </div>
 
       {!insight && !loading && (
         <div className="mt-4 text-xs text-muted-foreground">
-          Belum ada briefing. Klik <span className="text-foreground">Refresh</span> untuk mengaktifkan AI Brain.
+          Belum ada briefing. Klik <span className="text-foreground">Refresh</span> untuk
+          mengaktifkan AI Brain.
         </div>
       )}
 
@@ -219,8 +248,7 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
                     title,
                     url: rawUrl,
                     loading: false,
-                    body:
-                      "AI Brain tidak menyertakan URL artikel asli untuk berita ini. Coba refresh briefing, atau klik 'Buka di web' untuk mencari di Google.",
+                    body: "AI Brain tidak menyertakan URL artikel asli untuk berita ini. Coba refresh briefing, atau klik 'Buka di web' untuk mencari di Google.",
                   });
                   return;
                 }
@@ -290,7 +318,9 @@ ${wantNews ? '  "news": [{"title": string, "url": string}] x2 (berita AI/creator
           onGenerate={() => {
             if (!reader.open) return;
             const scrapable =
-              reader.url && /^https?:\/\//i.test(reader.url) && !reader.url.includes("google.com/search");
+              reader.url &&
+              /^https?:\/\//i.test(reader.url) &&
+              !reader.url.includes("google.com/search");
             setHandoff({
               workflow: "narrative-video",
               title: reader.title,
@@ -365,7 +395,9 @@ function NewsReaderModal({
               </div>
               {state.refined && state.body && (
                 <details className="mt-4 text-[11px] text-muted-foreground">
-                  <summary className="cursor-pointer hover:text-foreground">Lihat teks mentah</summary>
+                  <summary className="cursor-pointer hover:text-foreground">
+                    Lihat teks mentah
+                  </summary>
                   <div className="mt-2 whitespace-pre-wrap text-foreground/60">{state.body}</div>
                 </details>
               )}
@@ -432,7 +464,9 @@ function Block({
               disabled={!onClick}
               className={
                 "text-xs text-left w-full line-clamp-2 " +
-                (onClick ? "hover:text-primary text-foreground/85 cursor-pointer" : "text-foreground/75")
+                (onClick
+                  ? "hover:text-primary text-foreground/85 cursor-pointer"
+                  : "text-foreground/75")
               }
             >
               • {it}
@@ -466,8 +500,7 @@ function NewsBlock({
       <ul className="mt-2 space-y-1.5">
         {items.slice(0, 5).map((it, i) => {
           const title = typeof it === "string" ? it : it.title;
-          const hasUrl =
-            typeof it !== "string" && !!it.url && /^https?:\/\//i.test(it.url || "");
+          const hasUrl = typeof it !== "string" && !!it.url && /^https?:\/\//i.test(it.url || "");
           return (
             <li key={i} className="group">
               <div className="flex items-start gap-1.5">

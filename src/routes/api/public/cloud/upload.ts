@@ -29,7 +29,8 @@ export const Route = createFileRoute("/api/public/cloud/upload")({
           return json({ error: "Form upload tidak valid" }, { status: 400 });
         }
         const file = form.get("file");
-        if (!(file instanceof File)) return json({ error: "File tidak ditemukan" }, { status: 400 });
+        if (!(file instanceof File))
+          return json({ error: "File tidak ditemukan" }, { status: 400 });
 
         const origin = String(form.get("origin") || "upload");
         const source = form.get("source") ? String(form.get("source")) : null;
@@ -45,7 +46,11 @@ export const Route = createFileRoute("/api/public/cloud/upload")({
             source,
           });
           const base = new URL(request.url).origin;
-          return json({ id: row.id, url: `${base}/api/public/cloud/file/${row.id}`, storage: row.storage_mode });
+          return json({
+            id: row.id,
+            url: `${base}/api/public/cloud/file/${row.id}`,
+            storage: row.storage_mode,
+          });
         } catch (error) {
           console.error("[cloud/upload]", error);
           return json(

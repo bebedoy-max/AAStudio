@@ -12,14 +12,23 @@ export type ClaimResult = "claimed" | "blocked" | "error";
 type DbError = { message: string };
 type ActiveSessionRow = { session_id: string; updated_at: string | null };
 type ActiveSessionTable = {
-  upsert: (value: Record<string, unknown>, options: { onConflict: string }) => Promise<{ error: DbError | null }>;
+  upsert: (
+    value: Record<string, unknown>,
+    options: { onConflict: string },
+  ) => Promise<{ error: DbError | null }>;
   update: (value: Record<string, unknown>) => {
-    eq: (column: string, value: string) => {
+    eq: (
+      column: string,
+      value: string,
+    ) => {
       eq: (column: string, value: string) => Promise<{ error: DbError | null }>;
     };
   };
   select: (columns: string) => {
-    eq: (column: string, value: string) => {
+    eq: (
+      column: string,
+      value: string,
+    ) => {
       maybeSingle: () => Promise<{ data: ActiveSessionRow | null; error: DbError | null }>;
     };
   };
@@ -34,7 +43,9 @@ type ActiveSessionTable = {
 };
 
 function activeSessionsTable(): ActiveSessionTable {
-  return (supabase as unknown as { from: (table: string) => ActiveSessionTable }).from("user_active_sessions");
+  return (supabase as unknown as { from: (table: string) => ActiveSessionTable }).from(
+    "user_active_sessions",
+  );
 }
 
 function storageKey(userId: string) {
@@ -94,7 +105,9 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
 
   if (readError) {
     if (isMissingTable(readError)) {
-      console.warn("[auth] user_active_sessions table is missing; single-session enforcement is disabled.");
+      console.warn(
+        "[auth] user_active_sessions table is missing; single-session enforcement is disabled.",
+      );
       return "claimed";
     }
     // Jangan blokir login karena masalah infrastruktur single-session
@@ -104,7 +117,8 @@ export async function claimExclusiveSession(userId: string): Promise<ClaimResult
   }
 
   const localSessionId = localStorage.getItem(storageKey(userId));
-  const existingIsMine = existing?.session_id && localSessionId && existing.session_id === localSessionId;
+  const existingIsMine =
+    existing?.session_id && localSessionId && existing.session_id === localSessionId;
 
   // Fresh sign-in di perangkat ini selalu menang. Sesi lain (kalau masih
   // terbuka) akan mendeteksi session_id mismatch pada heartbeat berikutnya
@@ -180,7 +194,10 @@ export async function endExclusiveSession(userId: string): Promise<void> {
   const localSessionId = localStorage.getItem(storageKey(userId));
   clearLocalExclusiveSession(userId);
   if (!localSessionId) return;
-  const { error } = await activeSessionsTable().delete().eq("user_id", userId).eq("session_id", localSessionId);
+  const { error } = await activeSessionsTable()
+    .delete()
+    .eq("user_id", userId)
+    .eq("session_id", localSessionId);
   if (error && !isMissingTable(error)) {
     console.warn("[auth] failed to release active session", error.message);
   }

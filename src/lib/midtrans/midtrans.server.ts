@@ -186,7 +186,12 @@ export async function verifyNotificationSignature(payload: {
   gross_amount?: string;
   signature_key?: string;
 }): Promise<boolean> {
-  if (!payload.signature_key || !payload.order_id || !payload.status_code || !payload.gross_amount) {
+  if (
+    !payload.signature_key ||
+    !payload.order_id ||
+    !payload.status_code ||
+    !payload.gross_amount
+  ) {
     return false;
   }
   const cfg = await getMidtransConfig();

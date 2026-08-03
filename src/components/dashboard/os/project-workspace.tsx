@@ -1,6 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import { Pin, Star, ArrowRight, FolderKanban, BookText, Package, Move3d, Shirt, ImagePlay, Search as SearchIcon } from "lucide-react";
-import { useProjects, pinProject, favoriteProject, type Project, type ProjectKind } from "@/lib/dashboard/projects";
+import {
+  Pin,
+  Star,
+  ArrowRight,
+  FolderKanban,
+  BookText,
+  Package,
+  Move3d,
+  Shirt,
+  ImagePlay,
+  Search as SearchIcon,
+} from "lucide-react";
+import {
+  useProjects,
+  pinProject,
+  favoriteProject,
+  type Project,
+  type ProjectKind,
+} from "@/lib/dashboard/projects";
 import { Chip } from "./section";
 
 const KIND_ICON: Record<ProjectKind, React.ComponentType<{ className?: string }>> = {
@@ -23,7 +40,10 @@ function ago(t: number): string {
 export function ProjectWorkspace() {
   const all = useProjects();
   const pinned = all.filter((p) => p.pinned);
-  const recent = all.filter((p) => !p.pinned).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 6);
+  const recent = all
+    .filter((p) => !p.pinned)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 6);
 
   return (
     <div className="neumorph p-5">
@@ -33,12 +53,16 @@ export function ProjectWorkspace() {
           <div className="font-display text-base">Project Workspace</div>
           <Chip>{all.length} project</Chip>
         </div>
-        <div className="text-[11px] text-muted-foreground">Lanjutkan project · pin favorit · lihat progress</div>
+        <div className="text-[11px] text-muted-foreground">
+          Lanjutkan project · pin favorit · lihat progress
+        </div>
       </div>
 
       {pinned.length > 0 && (
         <>
-          <div className="mt-4 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Pinned</div>
+          <div className="mt-4 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+            Pinned
+          </div>
           <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {pinned.map((p) => (
               <ProjectCard key={p.id} project={p} featured />
@@ -47,7 +71,9 @@ export function ProjectWorkspace() {
         </>
       )}
 
-      <div className="mt-5 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">Recent</div>
+      <div className="mt-5 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground">
+        Recent
+      </div>
       <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {recent.map((p) => (
           <ProjectCard key={p.id} project={p} />
@@ -83,19 +109,25 @@ function ProjectCard({ project, featured }: { project: Project; featured?: boole
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-display text-sm text-foreground truncate">{project.title}</div>
-          <div className="text-[11px] text-muted-foreground truncate">{project.niche || project.kind}</div>
+          <div className="text-[11px] text-muted-foreground truncate">
+            {project.niche || project.kind}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => favoriteProject(project.id, !project.favorite)}
-            className={project.favorite ? "text-amber-300" : "text-muted-foreground/60 hover:text-foreground"}
+            className={
+              project.favorite ? "text-amber-300" : "text-muted-foreground/60 hover:text-foreground"
+            }
             aria-label="Favorite"
           >
             <Star className="h-3.5 w-3.5" fill={project.favorite ? "currentColor" : "none"} />
           </button>
           <button
             onClick={() => pinProject(project.id, !project.pinned)}
-            className={project.pinned ? "text-primary" : "text-muted-foreground/60 hover:text-foreground"}
+            className={
+              project.pinned ? "text-primary" : "text-muted-foreground/60 hover:text-foreground"
+            }
             aria-label="Pin"
           >
             <Pin className="h-3.5 w-3.5" fill={project.pinned ? "currentColor" : "none"} />

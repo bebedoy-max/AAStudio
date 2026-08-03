@@ -36,7 +36,10 @@ export function getFirstDolaCookie(): string | null {
   return getAllDolaCookies()[0] || null;
 }
 
-export function removeDolaKeyFromManager(cookie: string, reason?: string): { removed: boolean; remaining: number } {
+export function removeDolaKeyFromManager(
+  cookie: string,
+  reason?: string,
+): { removed: boolean; remaining: number } {
   if (typeof window === "undefined") return { removed: false, remaining: 0 };
   try {
     const raw = localStorage.getItem(LS_DOLA_KEYS);
@@ -47,7 +50,9 @@ export function removeDolaKeyFromManager(cookie: string, reason?: string): { rem
     localStorage.setItem(LS_DOLA_KEYS, value);
     pushTokenAsync(LS_DOLA_KEYS, value);
     window.dispatchEvent(
-      new CustomEvent("aatools:tokens-synced", { detail: { provider: "dola", action: "removed", reason } }),
+      new CustomEvent("aatools:tokens-synced", {
+        detail: { provider: "dola", action: "removed", reason },
+      }),
     );
     window.dispatchEvent(new Event("storage"));
     return { removed: true, remaining: next.length };
@@ -86,8 +91,15 @@ async function call(cookie: string, body: Record<string, unknown>): Promise<Prox
     const hint =
       res.status === 502 || res.status === 413
         ? "gateway upload Dola gagal sebelum respons API diterima"
-        : text.slice(0, 120).replace(/<[^>]*>/g, " ").trim();
-    return { ok: false, status: res.status, error: `Dola proxy error ${res.status}: ${hint || "respons bukan JSON"}` };
+        : text
+            .slice(0, 120)
+            .replace(/<[^>]*>/g, " ")
+            .trim();
+    return {
+      ok: false,
+      status: res.status,
+      error: `Dola proxy error ${res.status}: ${hint || "respons bukan JSON"}`,
+    };
   }
 }
 
@@ -103,7 +115,12 @@ export async function checkDolaCookie(cookie: string): Promise<boolean> {
 
 export async function uploadDolaImage(cookie: string, file: File | Blob): Promise<string> {
   const type = file.type || "image/png";
-  const ext = type.includes("jpeg") || type.includes("jpg") ? ".jpeg" : type.includes("webp") ? ".webp" : ".png";
+  const ext =
+    type.includes("jpeg") || type.includes("jpg")
+      ? ".jpeg"
+      : type.includes("webp")
+        ? ".webp"
+        : ".png";
   const authorization = await call(cookie, {
     action: "authorize-upload",
     ext,
@@ -117,7 +134,7 @@ export async function uploadDolaImage(cookie: string, file: File | Blob): Promis
   const putRes = await fetch(
     `https://${authorization.upload.host}/upload/v1/${authorization.upload.uri}`,
     {
-    method: "POST",
+      method: "POST",
       headers: {
         Authorization: authorization.upload.auth,
         "Content-Type": "application/octet-stream",
@@ -209,7 +226,9 @@ export async function runDolaVideo(cookie: string, opts: DolaVideoOpts): Promise
 export async function runDolaWithRotation(opts: DolaVideoOpts): Promise<string> {
   const cookies = getAllDolaCookies();
   if (cookies.length === 0) {
-    throw new Error("Belum ada cookie Dola. Tambahkan di Token Manager → Dola atau ambil via extension.");
+    throw new Error(
+      "Belum ada cookie Dola. Tambahkan di Token Manager → Dola atau ambil via extension.",
+    );
   }
   let lastError: Error | null = null;
   for (const cookie of cookies) {

@@ -3,8 +3,18 @@ import { withKeyGuard } from "@/components/brain/key-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Plus, Loader2, Trash2, ImagePlus, Upload, Link2, Wand2, Sparkles,
-  RefreshCw, CheckCircle2, UserPlus, Camera,
+  Plus,
+  Loader2,
+  Trash2,
+  ImagePlus,
+  Upload,
+  Link2,
+  Wand2,
+  Sparkles,
+  RefreshCw,
+  CheckCircle2,
+  UserPlus,
+  Camera,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -13,12 +23,22 @@ import { Chip } from "@/components/dashboard/os/section";
 import { Combobox } from "@/components/ai-influencer/combobox";
 import { openPrompt, openConfirm } from "@/components/ai-influencer/dialogs";
 import {
-  listCharacters, createCharacter, updateCharacter, deleteCharacter,
-  listReferences, addReference, removeReference, type Character,
+  listCharacters,
+  createCharacter,
+  updateCharacter,
+  deleteCharacter,
+  listReferences,
+  addReference,
+  removeReference,
+  type Character,
 } from "@/lib/ai-influencer/service";
 import {
-  REFERENCE_SLOTS, SOCIAL_PLATFORMS, ANALYSIS_DIMENSIONS,
-  NATIONALITY_PRESETS, LANGUAGE_PRESETS, NICHE_PRESETS,
+  REFERENCE_SLOTS,
+  SOCIAL_PLATFORMS,
+  ANALYSIS_DIMENSIONS,
+  NATIONALITY_PRESETS,
+  LANGUAGE_PRESETS,
+  NICHE_PRESETS,
 } from "@/lib/ai-influencer/catalog";
 import { useActiveCharacterId } from "@/lib/ai-influencer/active-character";
 import {
@@ -82,17 +102,22 @@ function CharacterPage() {
   }, []);
   const active = useMemo(() => items?.find((c) => c.id === activeId) ?? null, [items, activeId]);
 
-
-
   const reload = async () => {
     const data = await listCharacters();
     setItems(data);
     if (!activeId && data[0]) setActiveId(data[0].id);
   };
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, []);
   useEffect(() => {
-    if (!active) { setRefs([]); return; }
-    listReferences(active.id).then(setRefs).catch(() => setRefs([]));
+    reload(); /* eslint-disable-next-line */
+  }, []);
+  useEffect(() => {
+    if (!active) {
+      setRefs([]);
+      return;
+    }
+    listReferences(active.id)
+      .then(setRefs)
+      .catch(() => setRefs([]));
   }, [active]);
 
   const refetchRefs = () => active && listReferences(active.id).then(setRefs);
@@ -111,7 +136,9 @@ function CharacterPage() {
       setActiveId(c.id);
       reload();
       toast.success(`Karakter "${c.name}" dibuat`);
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const onDelete = async (id: string, label: string) => {
@@ -132,12 +159,18 @@ function CharacterPage() {
   const onFieldChange = async (patch: Partial<Character>) => {
     if (!active) return;
     setItems((prev) => prev?.map((c) => (c.id === active.id ? { ...c, ...patch } : c)) ?? prev);
-    try { await updateCharacter(active.id, patch); }
-    catch (e) { toast.error((e as Error).message); }
+    try {
+      await updateCharacter(active.id, patch);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const imageRefs = useMemo(
-    () => Object.fromEntries(refs.filter((r) => r.platform.startsWith("ref_")).map((r) => [r.platform.slice(4), r])),
+    () =>
+      Object.fromEntries(
+        refs.filter((r) => r.platform.startsWith("ref_")).map((r) => [r.platform.slice(4), r]),
+      ),
     [refs],
   );
   const socialRefs = useMemo(() => refs.filter((r) => r.platform.startsWith("social_")), [refs]);
@@ -166,7 +199,9 @@ function CharacterPage() {
           meta: { slot_key: slotKey },
         },
       });
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   };
 
   const onUploadFront = () => fileInputRef.current?.click();
@@ -193,7 +228,8 @@ function CharacterPage() {
   const onFrontFromUrl = async () => {
     const url = await openPrompt({
       title: "Front Photo (URL)",
-      description: "Paste URL foto tampak depan. AI akan menggunakannya sebagai basis semua slot lain.",
+      description:
+        "Paste URL foto tampak depan. AI akan menggunakannya sebagai basis semua slot lain.",
       placeholder: "https://…",
       icon: <Camera className="h-5 w-5" />,
     });
@@ -226,12 +262,17 @@ function CharacterPage() {
       toast.success(`Slot "${slotKey}" berhasil digenerate.`);
     } catch (e) {
       toast.error(`Generate ${slotKey} gagal: ${(e as Error).message}`);
-    } finally { setBusySlot(null); }
+    } finally {
+      setBusySlot(null);
+    }
   };
 
   const regenerateAllSlots = async (onlyMissing = false) => {
     if (!active) return;
-    if (!frontRef) { toast.error("Upload front photo dulu."); return; }
+    if (!frontRef) {
+      toast.error("Upload front photo dulu.");
+      return;
+    }
     setBulkBusy(true);
     // Generate SEMUA slot (wajib + optional), skip front photo itu sendiri.
     // Kalau onlyMissing=true, skip slot yang sudah terisi.
@@ -240,7 +281,11 @@ function CharacterPage() {
       if (onlyMissing && imageRefs[x.key]) return false;
       return true;
     });
-    if (slots.length === 0) { toast.info("Semua slot sudah terisi."); setBulkBusy(false); return; }
+    if (slots.length === 0) {
+      toast.info("Semua slot sudah terisi.");
+      setBulkBusy(false);
+      return;
+    }
     let ok = 0;
     let fail = 0;
     try {
@@ -253,7 +298,12 @@ function CharacterPage() {
           setBusySlot(s.key);
           try {
             const url = await generateCharacterSlot({
-              provider, modelKey, quality, ratio, slotKey: s.key, frontUrl: frontRef.url,
+              provider,
+              modelKey,
+              quality,
+              ratio,
+              slotKey: s.key,
+              frontUrl: frontRef.url,
             });
             await setSlot(s.key, url);
             ok += 1;
@@ -267,9 +317,11 @@ function CharacterPage() {
       await refetchRefs();
       if (fail === 0) toast.success(`${ok} slot digenerate dari front photo.`);
       else toast.warning(`${ok} sukses, ${fail} gagal — coba regenerate manual.`);
-    } finally { setBusySlot(null); setBulkBusy(false); }
+    } finally {
+      setBusySlot(null);
+      setBulkBusy(false);
+    }
   };
-
 
   const generateFullCharacterByAI = async () => {
     const ok = await openConfirm({
@@ -299,11 +351,14 @@ function CharacterPage() {
       await reload();
       await new Promise((r) => setTimeout(r, 100));
       listReferences(c.id).then(setRefs);
-      toast.success("Karakter draft dibuat. Ganti front photo atau langsung klik 'Generate semua slot'.");
-
+      toast.success(
+        "Karakter draft dibuat. Ganti front photo atau langsung klik 'Generate semua slot'.",
+      );
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setFullAiBusy(false); }
+    } finally {
+      setFullAiBusy(false);
+    }
   };
 
   const onAddSocial = async (platform: string, label: string) => {
@@ -326,13 +381,18 @@ function CharacterPage() {
 
   const onAnalyze = async () => {
     if (!active) return;
-    if (socialRefs.length === 0) { toast.error("Tambahkan minimal 1 reference social media."); return; }
+    if (socialRefs.length === 0) {
+      toast.error("Tambahkan minimal 1 reference social media.");
+      return;
+    }
     setAnalyzing(true);
     try {
       toast.info("AI sedang menganalisa referensi… (hasil akan muncul di Brain)");
       await new Promise((r) => setTimeout(r, 1200));
       toast.success("Analisa awal disimpan. Buka menu Brain untuk detail.");
-    } finally { setAnalyzing(false); }
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const approveAll = async () => {
@@ -352,7 +412,11 @@ function CharacterPage() {
         action={
           <div className="flex gap-2">
             <GhostButton onClick={generateFullCharacterByAI} disabled={fullAiBusy}>
-              {fullAiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {fullAiBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
               Generate karakter by AI
             </GhostButton>
             <PrimaryButton onClick={onCreate}>
@@ -368,7 +432,8 @@ function CharacterPage() {
           <div className="text-sm text-muted-foreground">Memuat…</div>
         ) : items.length === 0 ? (
           <div className="text-sm text-muted-foreground">
-            Belum ada karakter. Klik <b>Karakter Baru</b> atau <b>Generate karakter by AI</b> untuk mulai.
+            Belum ada karakter. Klik <b>Karakter Baru</b> atau <b>Generate karakter by AI</b> untuk
+            mulai.
           </div>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -387,7 +452,11 @@ function CharacterPage() {
                   style={on ? { background: "var(--gradient-neon)" } : undefined}
                 >
                   {c.avatar_url ? (
-                    <img src={c.avatar_url} alt={c.name} className="h-6 w-6 rounded-full object-cover" />
+                    <img
+                      src={c.avatar_url}
+                      alt={c.name}
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
                   ) : (
                     <span className="h-6 w-6 rounded-full bg-black/25 grid place-items-center text-[10px] font-mono">
                       {c.name[0]?.toUpperCase()}
@@ -397,7 +466,10 @@ function CharacterPage() {
                   <span
                     role="button"
                     tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); onDelete(c.id, c.name); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(c.id, c.name);
+                    }}
                     className="opacity-60 hover:opacity-100"
                     title="Hapus"
                   >
@@ -417,10 +489,16 @@ function CharacterPage() {
       ) : (
         <>
           {/* Profile */}
-          <Card title="Character Profile" sub="Field inti karakter. Dropdown menyediakan parameter umum + opsi custom.">
+          <Card
+            title="Character Profile"
+            sub="Field inti karakter. Dropdown menyediakan parameter umum + opsi custom."
+          >
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Character Name">
-                <Input value={active.name} onChange={(e) => onFieldChange({ name: e.target.value })} />
+                <Input
+                  value={active.name}
+                  onChange={(e) => onFieldChange({ name: e.target.value })}
+                />
               </Field>
               <Field label="Gender">
                 <Select
@@ -438,7 +516,9 @@ function CharacterPage() {
                 <Input
                   type="number"
                   value={active.age ?? ""}
-                  onChange={(e) => onFieldChange({ age: e.target.value ? Number(e.target.value) : null })}
+                  onChange={(e) =>
+                    onFieldChange({ age: e.target.value ? Number(e.target.value) : null })
+                  }
                 />
               </Field>
               <Field label="Nationality">
@@ -530,7 +610,11 @@ function CharacterPage() {
                     disabled={!frontRef || bulkBusy}
                     title="Generate slot yang masih kosong"
                   >
-                    {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                    {bulkBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-4 w-4" />
+                    )}
                     Isi slot kosong
                   </GhostButton>
                   <GhostButton
@@ -588,26 +672,40 @@ function CharacterPage() {
                 </div>
 
                 <div className="rounded-xl border border-border/60 bg-card/30 p-3 text-xs text-muted-foreground">
-                  Alur: <span className="text-foreground/90">Upload front → AI generate multi-angle (recipe sama dengan Bulk Fashion, multi-image reference NB2 / GPT-Image-2) → Review per slot → Approve / Regenerate</span>.
+                  Alur:{" "}
+                  <span className="text-foreground/90">
+                    Upload front → AI generate multi-angle (recipe sama dengan Bulk Fashion,
+                    multi-image reference NB2 / GPT-Image-2) → Review per slot → Approve /
+                    Regenerate
+                  </span>
+                  .
                 </div>
               </div>
             </div>
           </Card>
 
-
           {/* Reference images grid */}
           <Card
             title="Reference Slots"
             sub="Hover setiap kartu untuk approve atau regenerate. Semua image dipakai sebagai permanent reference oleh AI Generator."
-            right={<Chip tone="primary">{filledCount}/{REFERENCE_SLOTS.length} total</Chip>}
+            right={
+              <Chip tone="primary">
+                {filledCount}/{REFERENCE_SLOTS.length} total
+              </Chip>
+            }
           >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {REFERENCE_SLOTS.map((slot) => {
                 const ref = imageRefs[slot.key];
                 const busy = busySlot === slot.key;
                 return (
-                  <div key={slot.key} className="rounded-2xl border border-border bg-card/40 overflow-hidden flex flex-col group">
-                    <div className={`relative bg-black/40 grid place-items-center ${ref ? "" : "aspect-square"}`}>
+                  <div
+                    key={slot.key}
+                    className="rounded-2xl border border-border bg-card/40 overflow-hidden flex flex-col group"
+                  >
+                    <div
+                      className={`relative bg-black/40 grid place-items-center ${ref ? "" : "aspect-square"}`}
+                    >
                       {ref ? (
                         <img
                           src={ref.url}
@@ -677,10 +775,19 @@ function CharacterPage() {
                 {socialRefs.map((r) => (
                   <li key={r.id} className="flex items-center gap-3 py-2 text-sm">
                     <Chip tone="primary">{r.platform.replace("social_", "")}</Chip>
-                    <a href={r.url} target="_blank" rel="noreferrer" className="flex-1 truncate text-foreground/90 hover:text-foreground">
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 truncate text-foreground/90 hover:text-foreground"
+                    >
                       {r.url}
                     </a>
-                    <button onClick={() => onRemoveRef(r.id)} className="text-muted-foreground hover:text-rose-300" title="Hapus">
+                    <button
+                      onClick={() => onRemoveRef(r.id)}
+                      className="text-muted-foreground hover:text-rose-300"
+                      title="Hapus"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </li>
@@ -690,7 +797,11 @@ function CharacterPage() {
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <PrimaryButton onClick={onAnalyze} disabled={analyzing}>
-                {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                {analyzing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Wand2 className="h-4 w-4" />
+                )}
                 Analyze Reference
               </PrimaryButton>
               <Link to="/ai-influencer/brain" className="text-xs text-primary hover:underline">
@@ -703,7 +814,9 @@ function CharacterPage() {
                 AI Analysis akan mengekstrak
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {ANALYSIS_DIMENSIONS.map((d) => (<Chip key={d}>{d}</Chip>))}
+                {ANALYSIS_DIMENSIONS.map((d) => (
+                  <Chip key={d}>{d}</Chip>
+                ))}
               </div>
             </div>
           </Card>

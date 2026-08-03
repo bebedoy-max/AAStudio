@@ -14,8 +14,7 @@ export const Route = createFileRoute("/api/public/midtrans/notification")({
   server: {
     handlers: {
       // Beberapa dashboard/monitoring melakukan GET untuk cek reachability.
-      GET: async () =>
-        OK({ ok: true, endpoint: "midtrans-notification", method: "GET" }),
+      GET: async () => OK({ ok: true, endpoint: "midtrans-notification", method: "GET" }),
 
       POST: async ({ request }) => {
         let payload: {
@@ -40,9 +39,8 @@ export const Route = createFileRoute("/api/public/midtrans/notification")({
           return OK({ ok: true, note: "test ping accepted" });
         }
 
-        const { verifyNotificationSignature, midtransStatusToInternal } = await import(
-          "@/lib/midtrans/midtrans.server"
-        );
+        const { verifyNotificationSignature, midtransStatusToInternal } =
+          await import("@/lib/midtrans/midtrans.server");
         if (!(await verifyNotificationSignature(payload))) {
           console.warn("[midtrans-webhook] invalid signature", { order_id: payload.order_id });
           // Tetap balas 200 supaya Midtrans dashboard tidak menandai URL down.

@@ -10,12 +10,18 @@ export const APP_FOLDER_NAME = "AA Creative Studio";
 export type DriveCtx = { mode: StorageMode; connectionKey?: string | null };
 
 /** Panggil Google Drive API langsung memakai OAuth refresh token (self-hosted friendly). */
-async function directDriveFetch(refreshToken: string, path: string, init?: RequestInit): Promise<Response> {
+async function directDriveFetch(
+  refreshToken: string,
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
   const { accessTokenFromRefresh } = await import("./google-oauth.server");
   const accessToken = await accessTokenFromRefresh(refreshToken);
   const headers = new Headers(init?.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
-  const base = path.startsWith("/upload/") ? "https://www.googleapis.com" : "https://www.googleapis.com";
+  const base = path.startsWith("/upload/")
+    ? "https://www.googleapis.com"
+    : "https://www.googleapis.com";
   return fetch(`${base}${path}`, { ...init, headers });
 }
 
@@ -110,7 +116,6 @@ async function getOrCreateFolder(ctx: DriveCtx, name: string, parentId?: string)
   return winner;
 }
 
-
 const folderCache = new Map<string, Promise<string>>();
 
 /** Label folder user di Global Cloud: "@displayname" (fallback ke email/user id). */
@@ -126,7 +131,10 @@ export async function userFolderLabel(userId: string): Promise<string> {
       (data?.display_name as string | null)?.trim() ||
       ((data?.email as string | null) ?? "").split("@")[0] ||
       userId;
-    const clean = raw.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim();
+    const clean = raw
+      .replace(/[\\/:*?"<>|]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
     return `@${clean || userId}`;
   } catch {
     return `@${userId}`;
@@ -160,12 +168,14 @@ export function menuFolderName(source?: string | null): string {
   if (!key) return "Lainnya";
   const mapped = MENU_FOLDERS[key];
   if (mapped) return mapped;
-  return key
-    .replace(/[\\/:*?"<>|]/g, "")
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ") || "Lainnya";
+  return (
+    key
+      .replace(/[\\/:*?"<>|]/g, "")
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ") || "Lainnya"
+  );
 }
 
 /** Folder kategori berdasarkan asal file. */
@@ -196,12 +206,12 @@ export async function ensureFolder(
     if (ctx.mode === "global") {
       const label = await userFolderLabel(userId);
       // Migrasi: folder lama bernama userId dipakai ulang bila ada.
-      rootId = (await findFolder(ctx, userId, rootId)) ?? (await getOrCreateFolder(ctx, label, rootId));
+      rootId =
+        (await findFolder(ctx, userId, rootId)) ?? (await getOrCreateFolder(ctx, label, rootId));
     }
     const bucketId = await getOrCreateFolder(ctx, bucket, rootId);
     return getOrCreateFolder(ctx, menu, bucketId);
   })();
-
 
   folderCache.set(cacheKey, task);
   try {
@@ -233,7 +243,6 @@ async function uniqueFileName(ctx: DriveCtx, parentId: string, name: string): Pr
   return `${base} (${Date.now()})${ext}`;
 }
 
-
 export type UploadedDriveFile = { id: string; name: string; size: number; mimeType: string };
 
 export async function uploadToDrive(
@@ -255,13 +264,22 @@ export async function uploadToDrive(
     `\r\n--${boundary}--\r\n`,
   ]);
 
-  const res = await driveFetch(ctx, "/upload/drive/v3/files?uploadType=multipart&fields=id,name,size,mimeType", {
-    method: "POST",
-    headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
-    body,
-  });
+  const res = await driveFetch(
+    ctx,
+    "/upload/drive/v3/files?uploadType=multipart&fields=id,name,size,mimeType",
+    {
+      method: "POST",
+      headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
+      body,
+    },
+  );
   if (!res.ok) await readError(res, "Upload ke Google Drive");
-  const data = (await res.json()) as { id: string; name?: string; size?: string; mimeType?: string };
+  const data = (await res.json()) as {
+    id: string;
+    name?: string;
+    size?: string;
+    mimeType?: string;
+  };
   return {
     id: data.id,
     name: data.name ?? file.name,
@@ -289,15 +307,19 @@ export async function createResumableSession(
   const finalName = await uniqueFileName(ctx, parent, file.name);
   const mime = file.type || "application/octet-stream";
 
-  const res = await driveFetch(ctx, "/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json; charset=UTF-8",
-      "X-Upload-Content-Type": mime,
-      ...(file.size > 0 ? { "X-Upload-Content-Length": String(file.size) } : {}),
+  const res = await driveFetch(
+    ctx,
+    "/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": mime,
+        ...(file.size > 0 ? { "X-Upload-Content-Length": String(file.size) } : {}),
+      },
+      body: JSON.stringify({ name: finalName, parents: [parent], mimeType: mime }),
     },
-    body: JSON.stringify({ name: finalName, parents: [parent], mimeType: mime }),
-  });
+  );
   if (!res.ok) await readError(res, "Membuat sesi upload Drive");
   const uploadUrl = res.headers.get("location") || res.headers.get("Location");
   if (!uploadUrl) throw new Error("Google tidak mengembalikan URL sesi upload.");
@@ -314,9 +336,12 @@ export async function driveFileMeta(
     `/drive/v3/files/${encodeURIComponent(driveFileId)}?fields=id,name,size,mimeType,parents`,
   );
   if (!res.ok) return null;
-  const data = (await res.json().catch(() => null)) as
-    | { id: string; name?: string; size?: string; mimeType?: string }
-    | null;
+  const data = (await res.json().catch(() => null)) as {
+    id: string;
+    name?: string;
+    size?: string;
+    mimeType?: string;
+  } | null;
   if (!data?.id) return null;
   return {
     id: data.id,
@@ -349,7 +374,9 @@ export async function ensureAnyoneWithLink(ctx: DriveCtx, driveFileId: string): 
 }
 
 export async function deleteFromDrive(ctx: DriveCtx, driveFileId: string): Promise<void> {
-  const res = await driveFetch(ctx, `/drive/v3/files/${encodeURIComponent(driveFileId)}`, { method: "DELETE" });
+  const res = await driveFetch(ctx, `/drive/v3/files/${encodeURIComponent(driveFileId)}`, {
+    method: "DELETE",
+  });
   if (!res.ok && res.status !== 404) await readError(res, "Hapus file Drive");
 }
 

@@ -16,7 +16,12 @@ export type MenuCatalogEntry = {
 
 export const MENU_CATALOG: MenuCatalogEntry[] = [
   // AI Influencer
-  { key: "ai-influencer.studio", label: "AI Influencer Studio", group: "AI Influencer", url: "/ai-influencer" },
+  {
+    key: "ai-influencer.studio",
+    label: "AI Influencer Studio",
+    group: "AI Influencer",
+    url: "/ai-influencer",
+  },
 
   // Clip nMix
   { key: "mixing.clipper", label: "AI Clipper", group: "Clip nMix", url: "/mixing/clipper" },
@@ -24,21 +29,76 @@ export const MENU_CATALOG: MenuCatalogEntry[] = [
 
   // Generate
   { key: "generate.motion", label: "Motion Control", group: "Generate", url: "/generate/motion" },
-  { key: "generate.bulk-fashion", label: "Bulk Fashion Generator", group: "Generate", url: "/generate/bulk-fashion" },
-  { key: "generate.image-to-video", label: "Image To Video", group: "Generate", url: "/generate/image-to-video" },
-  { key: "generate.upscaler", label: "Upscaler / Enhance", group: "Generate", url: "/generate/upscaler" },
-  { key: "generate.leonardo", label: "Text to Image", group: "Generate", url: "/generate/leonardo" },
-  { key: "generate.text-to-video", label: "Text to Video", group: "Generate", url: "/generate/text-to-video" },
+  {
+    key: "generate.bulk-fashion",
+    label: "Bulk Fashion Generator",
+    group: "Generate",
+    url: "/generate/bulk-fashion",
+  },
+  {
+    key: "generate.image-to-video",
+    label: "Image To Video",
+    group: "Generate",
+    url: "/generate/image-to-video",
+  },
+  {
+    key: "generate.upscaler",
+    label: "Upscaler / Enhance",
+    group: "Generate",
+    url: "/generate/upscaler",
+  },
+  {
+    key: "generate.leonardo",
+    label: "Text to Image",
+    group: "Generate",
+    url: "/generate/leonardo",
+  },
+  {
+    key: "generate.text-to-video",
+    label: "Text to Video",
+    group: "Generate",
+    url: "/generate/text-to-video",
+  },
 
   // Storyboard
-  { key: "generate.storyboard", label: "Produk Storyboard", group: "Storyboard", url: "/generate/storyboard" },
-  { key: "generate.naratif", label: "Naratif Video Maker", group: "Storyboard", url: "/generate/naratif" },
+  {
+    key: "generate.storyboard",
+    label: "Produk Storyboard",
+    group: "Storyboard",
+    url: "/generate/storyboard",
+  },
+  {
+    key: "generate.naratif",
+    label: "Naratif Video Maker",
+    group: "Storyboard",
+    url: "/generate/naratif",
+  },
 
   // Reff EDIT
-  { key: "reff-edit.image", label: "Image Reference Edit", group: "Reff EDIT", url: "/reff-edit/image" },
-  { key: "reff-edit.video", label: "Video Reference Edit", group: "Reff EDIT", url: "/reff-edit/video" },
-  { key: "reff-edit.library", label: "Reference Library", group: "Reff EDIT", url: "/reff-edit/library" },
-  { key: "reff-edit.history", label: "Edit History", group: "Reff EDIT", url: "/reff-edit/history" },
+  {
+    key: "reff-edit.image",
+    label: "Image Reference Edit",
+    group: "Reff EDIT",
+    url: "/reff-edit/image",
+  },
+  {
+    key: "reff-edit.video",
+    label: "Video Reference Edit",
+    group: "Reff EDIT",
+    url: "/reff-edit/video",
+  },
+  {
+    key: "reff-edit.library",
+    label: "Reference Library",
+    group: "Reff EDIT",
+    url: "/reff-edit/library",
+  },
+  {
+    key: "reff-edit.history",
+    label: "Edit History",
+    group: "Reff EDIT",
+    url: "/reff-edit/history",
+  },
 
   // Plug-IN
   { key: "plugins.hub", label: "AA Plug-IN", group: "Plug-IN", url: "/plugins" },

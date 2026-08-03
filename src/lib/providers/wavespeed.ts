@@ -3,9 +3,13 @@
 export const WAVESPEED_API = "https://api.wavespeed.ai/api/v3";
 export const LS_WAVESPEED_KEYS = "aatools.wavespeed.keys";
 
-export async function checkWavespeedBalance(apiKey: string): Promise<{ ok: boolean; balance: number | null }> {
+export async function checkWavespeedBalance(
+  apiKey: string,
+): Promise<{ ok: boolean; balance: number | null }> {
   try {
-    const r = await fetch(`${WAVESPEED_API}/balance`, { headers: { Authorization: `Bearer ${apiKey}` } });
+    const r = await fetch(`${WAVESPEED_API}/balance`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
     const j = await r.json();
     const ok = r.ok && (j.code === 200 || j.code === undefined);
     const balance = ok ? Number(j?.data?.balance ?? j?.balance ?? 0) : null;
@@ -33,11 +37,17 @@ export function getFirstWavespeedKey(): string | null {
 
 /** Detect if an error message looks like a credit / quota / auth failure that rotating keys can fix. */
 export function isWavespeedRotatableError(msg: string): boolean {
-  return /insufficient|credits?|quota|balance|402|401|403|not enough|cukup|unauthori[sz]ed|payment/i.test(msg);
+  return /insufficient|credits?|quota|balance|402|401|403|not enough|cukup|unauthori[sz]ed|payment/i.test(
+    msg,
+  );
 }
 
 /** Upload arbitrary media, returns public URL usable as image/video input. */
-export async function wsUploadMedia(fileOrBlob: File | Blob, filename: string, apiKey: string): Promise<string> {
+export async function wsUploadMedia(
+  fileOrBlob: File | Blob,
+  filename: string,
+  apiKey: string,
+): Promise<string> {
   const form = new FormData();
   form.append("file", fileOrBlob, filename);
   const r = await fetch(`${WAVESPEED_API}/media/upload/binary`, {
@@ -51,7 +61,8 @@ export async function wsUploadMedia(fileOrBlob: File | Blob, filename: string, a
     error?: string;
     data?: { download_url?: string; url?: string };
   };
-  if (!r.ok || (j.code && j.code !== 200)) throw new Error("Wavespeed upload: " + (j.message || j.error || r.status));
+  if (!r.ok || (j.code && j.code !== 200))
+    throw new Error("Wavespeed upload: " + (j.message || j.error || r.status));
   const url = j.data?.download_url || j.data?.url;
   if (!url) throw new Error("Wavespeed upload: no URL returned");
   return url;
@@ -73,7 +84,8 @@ export async function wsPost<T = unknown>(
     error?: string;
     data?: T & { id?: string; urls?: { get?: string } };
   };
-  if (!r.ok || (j.code && j.code !== 200)) throw new Error("Wavespeed: " + (j.message || j.error || r.status));
+  if (!r.ok || (j.code && j.code !== 200))
+    throw new Error("Wavespeed: " + (j.message || j.error || r.status));
   return j.data as T & { id?: string; urls?: { get?: string } };
 }
 
@@ -89,12 +101,28 @@ export async function wsPoll(
     opts.onProgress?.(Math.min(94, 30 + Math.round(((Date.now() - start) / tm) * 64)));
     const r = await fetch(getUrl, { headers: { Authorization: `Bearer ${apiKey}` } });
     const j = (await r.json().catch(() => ({}))) as {
-      data?: { status?: string; outputs?: string[]; output?: string; video?: string; video_url?: string; url?: string; result?: string; error?: string; message?: string };
+      data?: {
+        status?: string;
+        outputs?: string[];
+        output?: string;
+        video?: string;
+        video_url?: string;
+        url?: string;
+        result?: string;
+        error?: string;
+        message?: string;
+      };
     };
     const d = j.data || {};
     const st = String(d.status || "").toLowerCase();
     if (["completed", "succeeded", "success", "done", "finished"].includes(st)) {
-      const out = (Array.isArray(d.outputs) && d.outputs[0]) || d.output || d.video || d.video_url || d.url || d.result;
+      const out =
+        (Array.isArray(d.outputs) && d.outputs[0]) ||
+        d.output ||
+        d.video ||
+        d.video_url ||
+        d.url ||
+        d.result;
       if (out) return out;
       throw new Error("Wavespeed: completed but no output");
     }

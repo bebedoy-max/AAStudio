@@ -28,14 +28,54 @@ export type LeonardoVideoSizeTier = {
   long: number;
 };
 
-const TIER_STANDARD_496: LeonardoVideoSizeTier = { id: "standard", label: "Standard 496×864", short: 496, long: 864 };
-const TIER_STANDARD_400: LeonardoVideoSizeTier = { id: "standard", label: "Standard 400×736", short: 400, long: 736 };
-const TIER_QUALITY_720:  LeonardoVideoSizeTier = { id: "quality",  label: "Quality 720×1280",  short: 720, long: 1280 };
-const TIER_HIGH_1080:    LeonardoVideoSizeTier = { id: "highQuality", label: "High Quality 1080×1920", short: 1080, long: 1920 };
-const TIER_HD_720:       LeonardoVideoSizeTier = { id: "hd",       label: "HD 720×1280",       short: 720, long: 1280 };
-const TIER_HD_1072:      LeonardoVideoSizeTier = { id: "hd",       label: "HD 1072×1888",      short: 1072, long: 1888 };
-const TIER_FULL_1080:    LeonardoVideoSizeTier = { id: "fullHd",   label: "Full HD 1080×1920", short: 1080, long: 1920 };
-const TIER_4K_2160:      LeonardoVideoSizeTier = { id: "4k",       label: "4K 2160×3840",      short: 2160, long: 3840 };
+const TIER_STANDARD_496: LeonardoVideoSizeTier = {
+  id: "standard",
+  label: "Standard 496×864",
+  short: 496,
+  long: 864,
+};
+const TIER_STANDARD_400: LeonardoVideoSizeTier = {
+  id: "standard",
+  label: "Standard 400×736",
+  short: 400,
+  long: 736,
+};
+const TIER_QUALITY_720: LeonardoVideoSizeTier = {
+  id: "quality",
+  label: "Quality 720×1280",
+  short: 720,
+  long: 1280,
+};
+const TIER_HIGH_1080: LeonardoVideoSizeTier = {
+  id: "highQuality",
+  label: "High Quality 1080×1920",
+  short: 1080,
+  long: 1920,
+};
+const TIER_HD_720: LeonardoVideoSizeTier = {
+  id: "hd",
+  label: "HD 720×1280",
+  short: 720,
+  long: 1280,
+};
+const TIER_HD_1072: LeonardoVideoSizeTier = {
+  id: "hd",
+  label: "HD 1072×1888",
+  short: 1072,
+  long: 1888,
+};
+const TIER_FULL_1080: LeonardoVideoSizeTier = {
+  id: "fullHd",
+  label: "Full HD 1080×1920",
+  short: 1080,
+  long: 1920,
+};
+const TIER_4K_2160: LeonardoVideoSizeTier = {
+  id: "4k",
+  label: "4K 2160×3840",
+  short: 2160,
+  long: 3840,
+};
 
 export type LeonardoVideoModel = {
   id: string;
@@ -265,9 +305,7 @@ export function leonardoVideoQualityOptions(
           new Set(
             [5, 8, 10, 12, 15]
               .filter(
-                (s) =>
-                  s >= model.durations[0] &&
-                  s <= model.durations[model.durations.length - 1],
+                (s) => s >= model.durations[0] && s <= model.durations[model.durations.length - 1],
               )
               .concat(model.durations[model.durations.length - 1]),
           ),
@@ -276,7 +314,10 @@ export function leonardoVideoQualityOptions(
   const opts: LeonardoVideoQualityOption[] = [];
   for (const tier of model.sizeTiers) {
     for (const s of seconds) {
-      const dims = computeDims(model.aspectRatios.includes(aspect) ? aspect : model.aspectRatios[0], tier);
+      const dims = computeDims(
+        model.aspectRatios.includes(aspect) ? aspect : model.aspectRatios[0],
+        tier,
+      );
       opts.push({
         value: `${tier.id}-${s}s`,
         label: `${tier.label} - ${s}s${model.audio ? " - Audio" : ""}`,
@@ -300,11 +341,16 @@ function computeDims(
 ): { width: number; height: number } {
   const { short, long } = tier;
   switch (aspect) {
-    case "9:16": return { width: short, height: long };
-    case "16:9": return { width: long, height: short };
-    case "1:1":  return { width: short, height: short };
-    case "3:4":  return { width: short, height: Math.round((short * 4) / 3) };
-    case "4:3":  return { width: Math.round((short * 4) / 3), height: short };
+    case "9:16":
+      return { width: short, height: long };
+    case "16:9":
+      return { width: long, height: short };
+    case "1:1":
+      return { width: short, height: short };
+    case "3:4":
+      return { width: short, height: Math.round((short * 4) / 3) };
+    case "4:3":
+      return { width: Math.round((short * 4) / 3), height: short };
   }
 }
 
@@ -349,7 +395,11 @@ function extractGenerationId(res: unknown): string | null {
 }
 
 function preview(res: unknown, limit = 400): string {
-  try { return JSON.stringify(res).slice(0, limit); } catch { return String(res).slice(0, limit); }
+  try {
+    return JSON.stringify(res).slice(0, limit);
+  } catch {
+    return String(res).slice(0, limit);
+  }
 }
 
 export type LeonardoVideoInput = {
@@ -377,7 +427,9 @@ async function submitLeonardoVideo(
     const { blob, ext } = await fetchAsBlob(input.imageUrl);
     promptIds.push(await uploadLeonardoInitImage(token, blob, ext));
   } else if (input.imageBlob) {
-    promptIds.push(await uploadLeonardoInitImage(token, input.imageBlob.blob, input.imageBlob.ext ?? "png"));
+    promptIds.push(
+      await uploadLeonardoInitImage(token, input.imageBlob.blob, input.imageBlob.ext ?? "png"),
+    );
   }
 
   const qty = Math.max(1, Math.min(4, input.quantity ?? 1));
@@ -404,7 +456,11 @@ async function submitLeonardoVideo(
   };
 
   const res = await leonardoFetch<unknown>({
-    token, base: "api", path: "/v1/graphql", method: "POST", body,
+    token,
+    base: "api",
+    path: "/v1/graphql",
+    method: "POST",
+    body,
   });
 
   if (res && typeof res === "object" && Array.isArray((res as { errors?: unknown[] }).errors)) {
@@ -422,7 +478,10 @@ type VideoGenerationRow = {
   status: "PENDING" | "COMPLETE" | "FAILED";
   motionMP4URL?: string | null;
   generated_images?: Array<{
-    id?: string; url?: string; motionMP4URL?: string | null; videoUrl?: string | null;
+    id?: string;
+    url?: string;
+    motionMP4URL?: string | null;
+    videoUrl?: string | null;
   }>;
 };
 
@@ -440,7 +499,10 @@ function pickVideoUrl(g: VideoGenerationRow | null): string | null {
 
 async function pollVideoGeneration(token: string, id: string): Promise<VideoGenerationRow | null> {
   const res = await leonardoFetch<{ generations_by_pk?: VideoGenerationRow }>({
-    token, base: "api", path: `/api/rest/v1/generations/${encodeURIComponent(id)}`, method: "GET",
+    token,
+    base: "api",
+    path: `/api/rest/v1/generations/${encodeURIComponent(id)}`,
+    method: "GET",
   });
   return res.generations_by_pk ?? null;
 }
@@ -508,7 +570,9 @@ export async function runLeonardoVideo(opts: RunLeonardoVideoOpts): Promise<stri
       const { generationId } = await submitLeonardoVideo(token, {
         slug: model.slug,
         prompt: opts.prompt,
-        width, height, duration,
+        width,
+        height,
+        duration,
         quantity: opts.quantity ?? 1,
         imageUrl: opts.imageUrl,
         imageBlob,
@@ -527,7 +591,10 @@ export async function runLeonardoVideo(opts: RunLeonardoVideoOpts): Promise<stri
         }
         if (g.status === "COMPLETE") {
           const url = pickVideoUrl(g);
-          if (!url) throw new Error(`Leonardo video: status COMPLETE tapi URL tidak ditemukan. ${preview(g, 400)}`);
+          if (!url)
+            throw new Error(
+              `Leonardo video: status COMPLETE tapi URL tidak ditemukan. ${preview(g, 400)}`,
+            );
           opts.onProgress?.(`Leonardo: selesai`, 100);
           return url;
         }

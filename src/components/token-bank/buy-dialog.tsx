@@ -4,15 +4,7 @@
 // settlement, the Midtrans webhook auto-fulfills the order and pushes keys
 // to Token Manager without any admin approval.
 import { useEffect, useMemo, useState } from "react";
-import {
-  X,
-  Loader2,
-  CircleCheck,
-  ShoppingBag,
-  Plus,
-  Minus,
-  Trash2,
-} from "lucide-react";
+import { X, Loader2, CircleCheck, ShoppingBag, Plus, Minus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -67,7 +59,9 @@ export function decodeCartFromNote(note: string | null | undefined): CartItem[] 
 export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [prices, setPrices] = useState<Record<string, { price_idr: number; is_active: boolean }>>({});
+  const [prices, setPrices] = useState<Record<string, { price_idr: number; is_active: boolean }>>(
+    {},
+  );
   const [stock, setStock] = useState<Record<string, number>>({});
   const [cart, setCart] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -83,7 +77,8 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
           listBankStock().catch(() => ({}) as Record<string, number>),
         ]);
         const priceMap: Record<string, { price_idr: number; is_active: boolean }> = {};
-        for (const p of prSettled) priceMap[p.provider] = { price_idr: p.price_idr, is_active: p.is_active };
+        for (const p of prSettled)
+          priceMap[p.provider] = { price_idr: p.price_idr, is_active: p.is_active };
         setPrices(priceMap);
         setStock(stSettled);
       } catch (e) {
@@ -144,9 +139,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     try {
       const primary = cartItems[0];
-      const label = cartItems
-        .map((c) => `${c.qty}× ${PROVIDER_LABELS[c.provider]}`)
-        .join(", ");
+      const label = cartItems.map((c) => `${c.qty}× ${PROVIDER_LABELS[c.provider]}`).join(", ");
       const row = {
         user_id: user.id,
         route_key: `token_bank.cart`,
@@ -253,9 +246,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                       key={p}
                       className={[
                         "rounded-xl border px-3 py-2.5 transition",
-                        q > 0
-                          ? "border-primary/60 bg-primary/[0.08]"
-                          : "border-border bg-card/40",
+                        q > 0 ? "border-primary/60 bg-primary/[0.08]" : "border-border bg-card/40",
                         disabled ? "opacity-60" : "",
                       ].join(" ")}
                     >
@@ -265,7 +256,11 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                           <div className="text-sm font-medium">{PROVIDER_LABELS[p]}</div>
                           <div className="text-[11px] text-muted-foreground font-mono">
                             {rupiah(price)} / key ·{" "}
-                            {s > 0 ? `stok ${s}` : <span className="text-rose-300">stok habis</span>}
+                            {s > 0 ? (
+                              `stok ${s}`
+                            ) : (
+                              <span className="text-rose-300">stok habis</span>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
@@ -306,7 +301,9 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                       <div className="sm:hidden flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-semibold truncate">{PROVIDER_LABELS[p]}</div>
+                            <div className="text-sm font-semibold truncate">
+                              {PROVIDER_LABELS[p]}
+                            </div>
                             <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
                               {rupiah(price)}/key ·{" "}
                               {s > 0 ? `stok ${s}` : <span className="text-rose-300">habis</span>}
@@ -314,7 +311,9 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                           </div>
                           <div className="text-right font-mono text-[11px] shrink-0">
                             {q > 0 ? (
-                              <span className="text-primary font-semibold">{rupiah(price * q)}</span>
+                              <span className="text-primary font-semibold">
+                                {rupiah(price * q)}
+                              </span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
@@ -397,8 +396,6 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-
-
             <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
               <button
                 onClick={createOrder}
@@ -442,7 +439,6 @@ function OrderStatusView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paid]);
   return (
-
     <div className="mt-5 flex flex-col gap-4">
       <div className="rounded-2xl border border-border bg-card/40 p-4">
         <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
@@ -469,7 +465,6 @@ function OrderStatusView({
           <span className="font-mono">{order.id.slice(0, 8)}…</span>
         </div>
       </div>
-
 
       {paid ? (
         <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/5 p-6 flex flex-col items-center gap-2 text-emerald-200">

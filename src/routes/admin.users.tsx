@@ -156,7 +156,14 @@ function AdminBody() {
     });
     const statsByUser: Record<
       string,
-      { t: number; b: number; total: number; last: string | null; tags: UserTag[]; is_paid: boolean }
+      {
+        t: number;
+        b: number;
+        total: number;
+        last: string | null;
+        tags: UserTag[];
+        is_paid: boolean;
+      }
     > = {};
     ((statsRes ?? []) as any[]).forEach((r) => {
       statsByUser[r.id] = {
@@ -176,8 +183,7 @@ function AdminBody() {
         tokens_count: statsByUser[p.id]?.t ?? 0,
         bank_keys_count: statsByUser[p.id]?.b ?? 0,
         total_active_keys:
-          statsByUser[p.id]?.total ??
-          (statsByUser[p.id]?.t ?? 0) + (statsByUser[p.id]?.b ?? 0),
+          statsByUser[p.id]?.total ?? (statsByUser[p.id]?.t ?? 0) + (statsByUser[p.id]?.b ?? 0),
         last_sign_in_at: statsByUser[p.id]?.last ?? null,
         tags: statsByUser[p.id]?.tags ?? [],
         is_paid: statsByUser[p.id]?.is_paid ?? false,
@@ -198,9 +204,14 @@ function AdminBody() {
     const loginFromMs = filterLoginFrom ? new Date(filterLoginFrom).getTime() : null;
     const loginToMs = filterLoginTo ? new Date(filterLoginTo).getTime() + 86_400_000 : null;
     return users.filter((u) => {
-      if (q && !(u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q))) return false;
+      if (q && !(u.email?.toLowerCase().includes(q) || u.display_name?.toLowerCase().includes(q)))
+        return false;
       if (filterRole !== "all") {
-        if (filterRole === "user" ? u.roles.length > 0 && !u.roles.includes("user") : !u.roles.includes(filterRole))
+        if (
+          filterRole === "user"
+            ? u.roles.length > 0 && !u.roles.includes("user")
+            : !u.roles.includes(filterRole)
+        )
           return false;
       }
       const featCount = u.roles.includes("admin") ? ALL_ROUTE_KEYS.length : u.route_keys.length;
@@ -220,7 +231,17 @@ function AdminBody() {
       if (filterStatus === "free" && u.is_paid) return false;
       return true;
     });
-  }, [users, query, filterRole, filterFeatureMin, filterKeyMin, filterLoginFrom, filterLoginTo, filterAgeMin, filterStatus]);
+  }, [
+    users,
+    query,
+    filterRole,
+    filterFeatureMin,
+    filterKeyMin,
+    filterLoginFrom,
+    filterLoginTo,
+    filterAgeMin,
+    filterStatus,
+  ]);
 
   const resetFilters = () => {
     setQuery("");
@@ -292,7 +313,9 @@ function AdminBody() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-xs">
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Role</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Role
+              </span>
               <select
                 value={filterRole}
                 onChange={(e) => setFilterRole(e.target.value as "all" | Role)}
@@ -305,7 +328,9 @@ function AdminBody() {
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Fitur min.</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Fitur min.
+              </span>
               <input
                 type="number"
                 min={0}
@@ -316,7 +341,9 @@ function AdminBody() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Total key min.</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Total key min.
+              </span>
               <input
                 type="number"
                 min={0}
@@ -327,7 +354,9 @@ function AdminBody() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login dari</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Login dari
+              </span>
               <input
                 type="date"
                 value={filterLoginFrom}
@@ -336,7 +365,9 @@ function AdminBody() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login s/d</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Login s/d
+              </span>
               <input
                 type="date"
                 value={filterLoginTo}
@@ -345,7 +376,9 @@ function AdminBody() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Usia (hari) min.</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Usia (hari) min.
+              </span>
               <input
                 type="number"
                 min={0}
@@ -356,7 +389,9 @@ function AdminBody() {
               />
             </label>
             <label className="flex flex-col gap-1 col-span-2 md:col-span-1">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Status</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Status
+              </span>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as "all" | "free" | "paid")}
@@ -372,151 +407,158 @@ function AdminBody() {
       </Card>
 
       <div className="hidden lg:block">
-      <Card>
-        {loading ? (
-          <div className="p-8 flex items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                <tr className="border-b border-border/60">
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Akses fitur</th>
-                  <th className="px-4 py-3">Total Token/API Key</th>
-                  <th className="px-4 py-3">Login terakhir</th>
-                  <th className="px-4 py-3">Usia Akun</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-border/40 hover:bg-sidebar-accent/20">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover" />
-                        ) : (
-                          <span
-                            className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm"
-                            style={{ background: "var(--gradient-neon)" }}
-                          >
-                            {(u.display_name || u.email || "U")[0]?.toUpperCase()}
-                          </span>
-                        )}
-                        <div className="min-w-0">
-                          <div className="font-medium truncate flex items-center gap-1.5">
-                            <span className="truncate">{u.display_name || "—"}</span>
-                            {u.tags.map((t) => (
-                              <TagBadge key={t} tag={t} />
-                            ))}
+        <Card>
+          {loading ? (
+            <div className="p-8 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  <tr className="border-b border-border/60">
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Akses fitur</th>
+                    <th className="px-4 py-3">Total Token/API Key</th>
+                    <th className="px-4 py-3">Login terakhir</th>
+                    <th className="px-4 py-3">Usia Akun</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((u) => (
+                    <tr key={u.id} className="border-b border-border/40 hover:bg-sidebar-accent/20">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          {u.avatar_url ? (
+                            <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover" />
+                          ) : (
+                            <span
+                              className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm"
+                              style={{ background: "var(--gradient-neon)" }}
+                            >
+                              {(u.display_name || u.email || "U")[0]?.toUpperCase()}
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <div className="font-medium truncate flex items-center gap-1.5">
+                              <span className="truncate">{u.display_name || "—"}</span>
+                              {u.tags.map((t) => (
+                                <TagBadge key={t} tag={t} />
+                              ))}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {u.roles.length === 0 && (
-                          <span className="text-xs text-muted-foreground">—</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles.length === 0 && (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                          {u.roles.map((r) => (
+                            <span
+                              key={r}
+                              className={[
+                                "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                                r === "admin"
+                                  ? "border-primary/50 text-primary bg-primary/10"
+                                  : r === "editor"
+                                    ? "border-accent/50 text-accent bg-accent/10"
+                                    : "border-border text-muted-foreground",
+                              ].join(" ")}
+                            >
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {u.roles.includes("admin") ? (
+                          <span className="text-primary">Semua fitur</span>
+                        ) : (
+                          `${u.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
                         )}
-                        {u.roles.map((r) => (
-                          <span
-                            key={r}
-                            className={[
-                              "text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                              r === "admin"
-                                ? "border-primary/50 text-primary bg-primary/10"
-                                : r === "editor"
-                                  ? "border-accent/50 text-accent bg-accent/10"
-                                  : "border-border text-muted-foreground",
-                            ].join(" ")}
-                          >
-                            {r}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        <div className="flex flex-col leading-tight">
+                          <span className="font-mono text-sm">
+                            <span className="text-primary text-base font-semibold">
+                              {u.total_active_keys}
+                            </span>{" "}
+                            <span className="text-muted-foreground">Token/API Key</span>
                           </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {u.roles.includes("admin") ? (
-                        <span className="text-primary">Semua fitur</span>
-                      ) : (
-                        `${u.route_keys.length} / ${ALL_ROUTE_KEYS.length} fitur`
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      <div className="flex flex-col leading-tight">
-                        <span className="font-mono text-sm">
-                          <span className="text-primary text-base font-semibold">
-                            {u.total_active_keys}
-                          </span>{" "}
-                          <span className="text-muted-foreground">Token/API Key</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {relativeTime(u.last_sign_in_at)}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {relativeTime(u.last_sign_in_at)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                      {accountAge(u.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={[
-                          "inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border w-fit",
-                          u.is_paid
-                            ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
-                            : "border-border text-muted-foreground bg-card/40",
-                        ].join(" ")}
-                        title={u.is_paid ? "User pernah membayar & masa aktif fitur premium masih tersedia" : "Belum ada pembayaran aktif"}
-                      >
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">
+                        {accountAge(u.created_at)}
+                      </td>
+                      <td className="px-4 py-3">
                         <span
                           className={[
-                            "h-2.5 w-2.5 rounded-full border",
+                            "inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest px-2 py-1 rounded-full border w-fit",
                             u.is_paid
-                              ? "bg-amber-300 border-amber-200 shadow-[0_0_8px_rgba(252,211,77,0.7)]"
-                              : "bg-white border-white/70",
+                              ? "border-amber-300/60 text-amber-200 bg-amber-400/10"
+                              : "border-border text-muted-foreground bg-card/40",
                           ].join(" ")}
-                        />
-                        {u.is_paid ? "Paid User" : "Free User"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button
-                          onClick={() => setEditing(u)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-card"
+                          title={
+                            u.is_paid
+                              ? "User pernah membayar & masa aktif fitur premium masih tersedia"
+                              : "Belum ada pembayaran aktif"
+                          }
                         >
-                          <UserCog className="h-3.5 w-3.5" /> Kelola
-                        </button>
-                        <button
-                          onClick={() => removeUser(u)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/40 text-rose-300 px-3 py-1.5 text-xs hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                      Tidak ada user.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                          <span
+                            className={[
+                              "h-2.5 w-2.5 rounded-full border",
+                              u.is_paid
+                                ? "bg-amber-300 border-amber-200 shadow-[0_0_8px_rgba(252,211,77,0.7)]"
+                                : "bg-white border-white/70",
+                            ].join(" ")}
+                          />
+                          {u.is_paid ? "Paid User" : "Free User"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => setEditing(u)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs hover:bg-card"
+                          >
+                            <UserCog className="h-3.5 w-3.5" /> Kelola
+                          </button>
+                          <button
+                            onClick={() => removeUser(u)}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/40 text-rose-300 px-3 py-1.5 text-xs hover:bg-rose-500/10"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-4 py-10 text-center text-sm text-muted-foreground"
+                      >
+                        Tidak ada user.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
       </div>
 
       {/* Mobile & tablet compact user list. Detail info is dibuka via modal saat nama diklik. */}
@@ -527,7 +569,9 @@ function AdminBody() {
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Tidak ada user.</div>
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              Tidak ada user.
+            </div>
           ) : (
             <ul className="divide-y divide-border/50">
               {filtered.map((u) => (
@@ -538,7 +582,10 @@ function AdminBody() {
                     title="Lihat detail user"
                   >
                     {u.avatar_url ? (
-                      <img src={u.avatar_url} className="h-9 w-9 rounded-full object-cover shrink-0" />
+                      <img
+                        src={u.avatar_url}
+                        className="h-9 w-9 rounded-full object-cover shrink-0"
+                      />
                     ) : (
                       <span
                         className="h-9 w-9 rounded-full grid place-items-center text-primary-foreground font-display text-sm shrink-0"
@@ -560,11 +607,17 @@ function AdminBody() {
                   {/* Tablet-only extra columns */}
                   <div className="hidden md:flex items-center gap-4 shrink-0 pr-2">
                     <div className="text-right leading-tight">
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Token/Key</div>
-                      <div className="text-sm font-semibold text-primary">{u.total_active_keys}</div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                        Token/Key
+                      </div>
+                      <div className="text-sm font-semibold text-primary">
+                        {u.total_active_keys}
+                      </div>
                     </div>
                     <div className="text-right leading-tight min-w-[7rem]">
-                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Login terakhir</div>
+                      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                        Login terakhir
+                      </div>
                       <div className="text-xs font-mono text-muted-foreground inline-flex items-center gap-1 justify-end">
                         <Clock className="h-3 w-3" />
                         {relativeTime(u.last_sign_in_at)}
@@ -593,9 +646,11 @@ function AdminBody() {
         </div>
       </Card>
 
-
       {mobileDetail && (
-        <Modal title={mobileDetail.email || mobileDetail.display_name || "Detail user"} onClose={() => setMobileDetail(null)}>
+        <Modal
+          title={mobileDetail.email || mobileDetail.display_name || "Detail user"}
+          onClose={() => setMobileDetail(null)}
+        >
           <div className="p-5 space-y-3 text-sm">
             <DetailRow label="Nama" value={mobileDetail.display_name || "—"} />
             <DetailRow label="Email" value={mobileDetail.email || "—"} />
@@ -662,13 +717,24 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
+function Modal({
+  title,
+  children,
+  onClose,
+}: {
+  title: string;
+  children: ReactNode;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4">
       <div className="neumorph w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
           <div className="font-display text-lg">{title}</div>
-          <button onClick={onClose} className="h-8 w-8 grid place-items-center rounded-full border border-border">
+          <button
+            onClick={onClose}
+            className="h-8 w-8 grid place-items-center rounded-full border border-border"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -719,13 +785,30 @@ function CreateUserModal({
     <Modal title="Tambah user baru" onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Email">
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Nama tampilan">
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Password sementara">
-          <input type="text" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
+          <input
+            type="text"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Role">
           <RoleSelect value={role} onChange={setRole} />
@@ -789,7 +872,9 @@ function EditUserModal({
       // Update role: delete existing, insert new
       const { error: dRoleErr } = await supabase.from("user_roles").delete().eq("user_id", user.id);
       if (dRoleErr) throw dRoleErr;
-      const { error: iRoleErr } = await supabase.from("user_roles").insert({ user_id: user.id, role });
+      const { error: iRoleErr } = await supabase
+        .from("user_roles")
+        .insert({ user_id: user.id, role });
       if (iRoleErr) throw iRoleErr;
 
       // Update route permissions
@@ -831,7 +916,11 @@ function EditUserModal({
     <Modal title={`Kelola ${user.email}`} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-3">
         <Field label="Nama tampilan">
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
+          <input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className={inputCls}
+          />
         </Field>
         <Field label="Role">
           <RoleSelect value={role} onChange={setRole} />
@@ -909,9 +998,7 @@ function TagPicker({ value, onChange }: { value: UserTag[]; onChange: (v: UserTa
             onClick={() => toggle(o.v)}
             className={[
               "text-left rounded-2xl border px-3 py-2.5 transition flex items-center gap-2",
-              on
-                ? "border-primary/60 bg-primary/10"
-                : "border-border bg-card/40 hover:bg-card/70",
+              on ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:bg-card/70",
             ].join(" ")}
           >
             <Crown className={on ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
@@ -929,7 +1016,9 @@ function TagPicker({ value, onChange }: { value: UserTag[]; onChange: (v: UserTa
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{label}</span>
+      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -997,7 +1086,9 @@ function RoutePermissionsPicker({
       </div>
       {Object.entries(groups).map(([g, items]) => (
         <div key={g} className="flex flex-col gap-1.5">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">{g}</div>
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            {g}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
             {items.map((it) => {
               const on = value.includes(it.key);
@@ -1008,7 +1099,9 @@ function RoutePermissionsPicker({
                   onClick={() => toggle(it.key)}
                   className={[
                     "flex items-center gap-2 rounded-xl border px-3 py-2 text-sm text-left transition",
-                    on ? "border-primary/60 bg-primary/10" : "border-border bg-card/40 hover:bg-card/70",
+                    on
+                      ? "border-primary/60 bg-primary/10"
+                      : "border-border bg-card/40 hover:bg-card/70",
                   ].join(" ")}
                 >
                   <span

@@ -17,7 +17,11 @@ async function probeSubscription(key: string) {
     headers: { "xi-api-key": key },
   });
   if (!response.ok) {
-    return { ok: false as const, status: response.status, error: (await response.text().catch(() => "")).slice(0, 300) };
+    return {
+      ok: false as const,
+      status: response.status,
+      error: (await response.text().catch(() => "")).slice(0, 300),
+    };
   }
 
   const data = (await response.json()) as {
@@ -67,7 +71,11 @@ async function probeTinyTts(key: string, body: Body) {
   );
 
   if (!response.ok) {
-    return { ok: false as const, status: response.status, error: (await response.text().catch(() => "")).slice(0, 300) };
+    return {
+      ok: false as const,
+      status: response.status,
+      error: (await response.text().catch(() => "")).slice(0, 300),
+    };
   }
 
   const audio = await response.arrayBuffer();
@@ -90,7 +98,8 @@ export const Route = createFileRoute("/api/public/elevenlabs-validate")({
           },
         }),
       POST: async ({ request }) => {
-        const key = request.headers.get("X-Eleven-Key") || request.headers.get("x-eleven-key") || "";
+        const key =
+          request.headers.get("X-Eleven-Key") || request.headers.get("x-eleven-key") || "";
         if (!key) return json({ ok: false, error: "X-Eleven-Key required" }, 400);
 
         const body = (await request.json().catch(() => ({}))) as Body;
@@ -142,7 +151,10 @@ export const Route = createFileRoute("/api/public/elevenlabs-validate")({
             note: "Valid via tiny voice probe; saldo tidak tersedia.",
           });
         }
-        return json({ ok: false, method: "tts-probe", error: tts.error || `ElevenLabs ${tts.status}` }, 401);
+        return json(
+          { ok: false, method: "tts-probe", error: tts.error || `ElevenLabs ${tts.status}` },
+          401,
+        );
       },
     },
   },

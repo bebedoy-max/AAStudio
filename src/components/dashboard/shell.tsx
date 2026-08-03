@@ -299,7 +299,9 @@ function AccountMenu() {
             {initial}
           </span>
         )}
-        <span className="hidden md:inline text-xs text-foreground/90 max-w-[8rem] truncate">{name}</span>
+        <span className="hidden md:inline text-xs text-foreground/90 max-w-[8rem] truncate">
+          {name}
+        </span>
         <ChevronDown className="hidden md:inline h-3.5 w-3.5 text-muted-foreground" />
       </button>
       {open && (
@@ -346,7 +348,6 @@ function AccountMenu() {
   );
 }
 
-
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isHome = pathname === "/";
@@ -357,7 +358,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { items: notifs } = useNotifications();
   const { items: allPurchases } = usePurchaseFeed();
-  const [dismissedPurchases, setDismissedPurchases] = useState<Set<string>>(() => loadDismissedPurchases());
+  const [dismissedPurchases, setDismissedPurchases] = useState<Set<string>>(() =>
+    loadDismissedPurchases(),
+  );
   useEffect(() => {
     const sync = () => setDismissedPurchases(loadDismissedPurchases());
     window.addEventListener("aatools:purchases-dismissed-changed", sync);
@@ -502,7 +505,6 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
             {/* Account */}
             <AccountMenu />
-
           </div>
         </header>
         {/* Spacer for the fixed mobile header */}
@@ -510,10 +512,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <div className="w-full max-w-full min-w-0 p-4 sm:p-6 flex flex-col gap-6">{children}</div>
       </main>
       {pickedPurchase && (
-        <PurchaseDetailDialog
-          purchase={pickedPurchase}
-          onClose={() => setPickedPurchase(null)}
-        />
+        <PurchaseDetailDialog purchase={pickedPurchase} onClose={() => setPickedPurchase(null)} />
       )}
       <UpgradeDialogHost />
     </div>

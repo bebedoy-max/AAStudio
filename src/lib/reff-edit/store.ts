@@ -1,13 +1,7 @@
 // Local storage for Reff EDIT: references library + edit history.
 // MVP: localStorage-scoped, keyed by user id.
 
-export type RefRole =
-  | "style"
-  | "camera"
-  | "lighting"
-  | "color"
-  | "motion"
-  | "composition";
+export type RefRole = "style" | "camera" | "lighting" | "color" | "motion" | "composition";
 
 export const REF_ROLES: { value: RefRole; label: string }[] = [
   { value: "style", label: "Style Reference" },
@@ -91,8 +85,7 @@ export type HistoryItem = {
 const LS_REFS = "aatools.reff-edit.refs";
 const LS_HIST = "aatools.reff-edit.history";
 
-const keyOf = (base: string, uid: string | null) =>
-  uid ? `${base}.${uid}` : `${base}.anon`;
+const keyOf = (base: string, uid: string | null) => (uid ? `${base}.${uid}` : `${base}.anon`);
 
 export function loadRefs(uid: string | null): ReferenceItem[] {
   if (typeof window === "undefined") return [];

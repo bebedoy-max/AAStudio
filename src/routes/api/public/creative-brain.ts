@@ -27,7 +27,10 @@ function json(data: unknown, status = 200): Response {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\n,]/g).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\n,]/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 // ---- cache ----

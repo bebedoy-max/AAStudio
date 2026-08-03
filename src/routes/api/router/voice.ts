@@ -13,7 +13,10 @@ function json(data: unknown, status = 200): Response {
 
 function parseKeys(header: string | null): string[] {
   if (!header) return [];
-  return header.split(/[\s,;\n]+/).map((s) => s.trim()).filter(Boolean);
+  return header
+    .split(/[\s,;\n]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function isRotatable(s: number): boolean {
@@ -45,7 +48,11 @@ async function callEleven(key: string, text: string, voiceId: string) {
     }),
   });
   if (!res.ok) {
-    return { ok: false as const, status: res.status, body: `eleven: ${(await res.text()).slice(0, 400)}` };
+    return {
+      ok: false as const,
+      status: res.status,
+      body: `eleven: ${(await res.text()).slice(0, 400)}`,
+    };
   }
   const buf = new Uint8Array(await res.arrayBuffer());
   let bin = "";
@@ -68,7 +75,11 @@ async function callOpenAI(key: string, text: string, voice: string) {
     }),
   });
   if (!res.ok) {
-    return { ok: false as const, status: res.status, body: `openai: ${(await res.text()).slice(0, 400)}` };
+    return {
+      ok: false as const,
+      status: res.status,
+      body: `openai: ${(await res.text()).slice(0, 400)}`,
+    };
   }
   const buf = new Uint8Array(await res.arrayBuffer());
   let bin = "";
@@ -114,7 +125,9 @@ export const Route = createFileRoute("/api/router/voice")({
           if (text.length > 4500) return json({ error: "text too long (>4500 chars)" }, 400);
 
           const eleven = parseKeys(request.headers.get("x-user-elevenlabs-keys"));
-          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) => k.startsWith("sk-"));
+          const openai = parseKeys(request.headers.get("x-user-openai-keys")).filter((k) =>
+            k.startsWith("sk-"),
+          );
           if (eleven.length === 0 && openai.length === 0) {
             return json({ error: "No voice keys configured. Add ElevenLabs or OpenAI key." }, 400);
           }

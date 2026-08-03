@@ -34,16 +34,13 @@ import { confirmDialog } from "@/components/ui-confirm";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { useCloudGallery } from "@/lib/cloud/gallery";
 
-
-
 export const Route = createFileRoute("/generate/storyboard")({
   head: () => ({
     meta: [
       { title: "Produk Storyboard — AA Creative Studio" },
       {
         name: "description",
-        content:
-          "Link produk → scrape info → ChatGPT brain → 1 gambar grid storyboard.",
+        content: "Link produk → scrape info → ChatGPT brain → 1 gambar grid storyboard.",
       },
     ],
   }),
@@ -72,32 +69,30 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
       label: "ChatGPT Images 2.0 Edit (Weavy)",
       qualities: [
         // Aspect ratio dropdown decides the actual WxH; quality only picks density tier × fidelity.
-        { v: "low@1K",    label: "1K · Low (1 cr)",         cr: 1 },
-        { v: "medium@1K", label: "1K · Medium (4 cr)",      cr: 4, default: true },
-        { v: "high@1K",   label: "1K · High (17 cr)",       cr: 17 },
-        { v: "low@2K",    label: "2K · Low (1 cr)",         cr: 1 },
-        { v: "medium@2K", label: "2K · Medium (7 cr)",      cr: 7 },
-        { v: "high@2K",   label: "2K · High (28 cr)",       cr: 28 },
-        { v: "low@4K",    label: "4K · Low (1 cr)",         cr: 1 },
-        { v: "medium@4K", label: "4K · Medium (9 cr)",      cr: 9 },
-        { v: "high@4K",   label: "4K · High (37 cr)",       cr: 37 },
-
+        { v: "low@1K", label: "1K · Low (1 cr)", cr: 1 },
+        { v: "medium@1K", label: "1K · Medium (4 cr)", cr: 4, default: true },
+        { v: "high@1K", label: "1K · High (17 cr)", cr: 17 },
+        { v: "low@2K", label: "2K · Low (1 cr)", cr: 1 },
+        { v: "medium@2K", label: "2K · Medium (7 cr)", cr: 7 },
+        { v: "high@2K", label: "2K · High (28 cr)", cr: 28 },
+        { v: "low@4K", label: "4K · Low (1 cr)", cr: 1 },
+        { v: "medium@4K", label: "4K · Medium (9 cr)", cr: 9 },
+        { v: "high@4K", label: "4K · High (37 cr)", cr: 37 },
       ],
     },
     {
       key: "seedream-v50-pro",
       label: "Seedream V5.0 Pro Edit (Weavy)",
       qualities: [
-        { v: "match_input",     label: "Match Input (12 cr)", cr: 12, default: true },
-        { v: "square_hd",       label: "Square HD (12 cr)", cr: 12 },
-        { v: "square",          label: "Square (12 cr)", cr: 12 },
-        { v: "portrait",        label: "Portrait (12 cr)", cr: 12 },
-        { v: "landscape",       label: "Landscape (12 cr)", cr: 12 },
-        { v: "auto_2K",         label: "Auto 2K (12 cr)", cr: 12 },
-        { v: "auto_3K",         label: "Auto 3K (12 cr)", cr: 12 },
+        { v: "match_input", label: "Match Input (12 cr)", cr: 12, default: true },
+        { v: "square_hd", label: "Square HD (12 cr)", cr: 12 },
+        { v: "square", label: "Square (12 cr)", cr: 12 },
+        { v: "portrait", label: "Portrait (12 cr)", cr: 12 },
+        { v: "landscape", label: "Landscape (12 cr)", cr: 12 },
+        { v: "auto_2K", label: "Auto 2K (12 cr)", cr: 12 },
+        { v: "auto_3K", label: "Auto 3K (12 cr)", cr: 12 },
       ],
     },
-
   ],
   wavespeed: [
     {
@@ -222,7 +217,6 @@ const SB_MODELS: Record<Provider, SbModel[]> = {
   ],
   leonardo: LEONARDO_MODEL_CATALOG.map((m) => ({ ...m, qualities: [...m.qualities] })),
 };
-
 
 const PROVIDER_LABEL: Record<Provider, string> = {
   weavy: "Weavy",
@@ -361,7 +355,6 @@ function ratioToAspect(r: string | undefined): string {
 }
 
 function StoryboardPage() {
-  
   const navigate = useNavigate();
   // Provider — same localStorage key as legacy (arkx_activeProvider) so it stays in sync
   const [provider, setProvider] = useSticky<Provider>("sb.provider", "weavy");
@@ -537,9 +530,15 @@ function StoryboardPage() {
   const runState = sbRunStore.use();
   const { results, logs, busy } = runState;
   const setResults = (rs: GenResult[] | ((prev: GenResult[]) => GenResult[])) =>
-    sbRunStore.set((s) => ({ ...s, results: typeof rs === "function" ? (rs as (p: GenResult[]) => GenResult[])(s.results) : rs }));
+    sbRunStore.set((s) => ({
+      ...s,
+      results: typeof rs === "function" ? (rs as (p: GenResult[]) => GenResult[])(s.results) : rs,
+    }));
   const setLogs = (ls: string[] | ((prev: string[]) => string[])) =>
-    sbRunStore.set((s) => ({ ...s, logs: typeof ls === "function" ? (ls as (p: string[]) => string[])(s.logs) : ls }));
+    sbRunStore.set((s) => ({
+      ...s,
+      logs: typeof ls === "function" ? (ls as (p: string[]) => string[])(s.logs) : ls,
+    }));
   const setBusy = (b: boolean) => sbRunStore.set((s) => ({ ...s, busy: b }));
   const pushLog = (s: string) =>
     setLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${s}`, ...prev].slice(0, 200));
@@ -562,7 +561,6 @@ function StoryboardPage() {
         }));
       return hydrated.length ? [...prev, ...hydrated] : prev;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gallery.loading, gallery.items]);
 
   const patchResult = (resultId: string, patch: Partial<GenResult>) => {
@@ -596,8 +594,14 @@ function StoryboardPage() {
     try {
       const { trackGeneration } = await import("@/lib/dashboard/projects");
       const firstTitle = ok[0]?.info?.title || `Storyboard · ${ok.length} produk`;
-      trackGeneration({ kind: "storyboard", title: firstTitle, counts: { storyboards: ok.length } });
-    } catch { /* ignore */ }
+      trackGeneration({
+        kind: "storyboard",
+        title: firstTitle,
+        counts: { storyboards: ok.length },
+      });
+    } catch {
+      /* ignore */
+    }
     setBusy(true);
     // JANGAN clear logs & results lama — biar history di gallery tetap ada.
     const batchStamp = Date.now();
@@ -609,7 +613,9 @@ function StoryboardPage() {
       ratio,
     }));
     setResults((prev) => [...newResults, ...prev]);
-    pushLog(`🚀 Mulai generate ${ok.length} storyboard via ${PROVIDER_LABEL[provider]} · ${modelKey} · ${ratio}`);
+    pushLog(
+      `🚀 Mulai generate ${ok.length} storyboard via ${PROVIDER_LABEL[provider]} · ${modelKey} · ${ratio}`,
+    );
 
     // Load gemini keys once
     let geminiKeys = "";
@@ -665,7 +671,9 @@ function StoryboardPage() {
         const finalPrompt = brainJson.prompt as string;
         const guardedPrompt = finalPrompt;
         patchResult(resultId, { prompt: guardedPrompt });
-        pushLog(`✅ [${title.slice(0, 40)}] Prompt siap (${guardedPrompt.length} chars) via ${brainJson.provider || "gemini"}`);
+        pushLog(
+          `✅ [${title.slice(0, 40)}] Prompt siap (${guardedPrompt.length} chars) via ${brainJson.provider || "gemini"}`,
+        );
 
         // --- 2. Image gen ---
         patchResult(resultId, { status: "image" });
@@ -673,10 +681,15 @@ function StoryboardPage() {
         let imgUrl: string;
         const refUrls = (row.selectedImages || []).slice(0, 6);
         if (provider === "weavy") {
-          const isEditModel = modelKey === "nanobanana2" || modelKey === "gptimage2" || modelKey.startsWith("seedream-");
+          const isEditModel =
+            modelKey === "nanobanana2" ||
+            modelKey === "gptimage2" ||
+            modelKey.startsWith("seedream-");
           if (refUrls.length > 0 && isEditModel) {
             const { generateWeavyStoryboard } = await import("@/lib/providers/weavy-storyboard");
-            pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy multi-ref)`);
+            pushLog(
+              `🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Weavy multi-ref)`,
+            );
             imgUrl = await generateWeavyStoryboard({
               modelKey,
               prompt: guardedPrompt,
@@ -695,9 +708,8 @@ function StoryboardPage() {
             });
           }
         } else if (provider === "wavespeed") {
-          const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } = await import(
-            "@/lib/providers/wavespeed"
-          );
+          const { getFirstWavespeedKey, wsPost, wsPoll, WAVESPEED_API } =
+            await import("@/lib/providers/wavespeed");
           const key = getFirstWavespeedKey();
           if (!key) throw new Error("Belum ada Wavespeed API key di Kelola Token");
           const wsRefs = refUrls;
@@ -710,13 +722,19 @@ function StoryboardPage() {
           if (hasRef) payload.images = wsRefs;
           if (/gpt-image/.test(modelId)) payload.quality = qualityV;
           else if (/nano-banana/.test(modelId)) payload.resolution = qualityV;
-          if (hasRef) pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${wsRefs.length} gambar produk sebagai referensi (Wavespeed edit)`);
+          if (hasRef)
+            pushLog(
+              `🖼️ [${title.slice(0, 40)}] Pakai ${wsRefs.length} gambar produk sebagai referensi (Wavespeed edit)`,
+            );
           const data = await wsPost(modelId, payload, key);
           const getUrl = data.urls?.get || `${WAVESPEED_API}/predictions/${data.id}/result`;
           imgUrl = await wsPoll(getUrl, key, { timeoutMs: 300000 });
         } else if (provider === "framia") {
           const { generateFramiaImage } = await import("@/lib/providers/framia-image");
-          if (refUrls.length) pushLog(`🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Framia)`);
+          if (refUrls.length)
+            pushLog(
+              `🖼️ [${title.slice(0, 40)}] Pakai ${refUrls.length} gambar produk sebagai referensi (Framia)`,
+            );
           imgUrl = await generateFramiaImage({
             modelKey,
             prompt: guardedPrompt,
@@ -724,7 +742,9 @@ function StoryboardPage() {
             resolution: qualityV,
             referenceUrls: refUrls,
             onRotate: (next, total, reason) =>
-              pushLog(`🔄 [${title.slice(0, 40)}] Token Framia habis/invalid (${reason}) → pindah ke token #${next + 1}/${total}`),
+              pushLog(
+                `🔄 [${title.slice(0, 40)}] Token Framia habis/invalid (${reason}) → pindah ke token #${next + 1}/${total}`,
+              ),
             onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
           });
         } else if (provider === "leonardo") {
@@ -737,7 +757,9 @@ function StoryboardPage() {
             referenceUrls: refUrls,
             onProgress: (msg) => pushLog(`⏳ [${title.slice(0, 40)}] ${msg}`),
             onRotate: (next, total, reason) =>
-              pushLog(`🔄 [${title.slice(0, 40)}] Token Leonardo (${reason}) → #${next + 1}/${total}`),
+              pushLog(
+                `🔄 [${title.slice(0, 40)}] Token Leonardo (${reason}) → #${next + 1}/${total}`,
+              ),
           });
         } else {
           throw new Error(`Provider ${provider} belum di-wire untuk storyboard`);
@@ -756,9 +778,11 @@ function StoryboardPage() {
     }
     pushLog("🏁 Semua produk selesai diproses");
     logGenerate("storyboard", {
-      provider, modelKey,
+      provider,
+      modelKey,
       status: errorCount === 0 ? "success" : successCount === 0 ? "error" : "partial",
-      success: successCount, failed: errorCount,
+      success: successCount,
+      failed: errorCount,
     });
     setBusy(false);
   }
@@ -800,7 +824,6 @@ function StoryboardPage() {
       pushLog(`❌ Gagal kirim ke Image→Video: ${(e as Error).message}`);
     }
   }
-
 
   return (
     <DashboardShell>
@@ -849,20 +872,20 @@ function StoryboardPage() {
                 .filter(Boolean)
                 .join(" ");
               return (
-            <div className={`grid gap-3 ${colsClass}`}>
-              {rows.map((r, idx) => (
-                <ProductRowCard
-                  key={r.rowId}
-                  index={idx}
-                  row={r}
-                  canRemove={rows.length > 1}
-                  onUrl={(v) => patchRow(r.rowId, { url: v })}
-                  onPaste={() => pasteAndFetchRow(r.rowId)}
-                  onRemove={() => removeRow(r.rowId)}
-                  onToggleImage={(u) => toggleRowImage(r.rowId, u)}
-                />
-              ))}
-            </div>
+                <div className={`grid gap-3 ${colsClass}`}>
+                  {rows.map((r, idx) => (
+                    <ProductRowCard
+                      key={r.rowId}
+                      index={idx}
+                      row={r}
+                      canRemove={rows.length > 1}
+                      onUrl={(v) => patchRow(r.rowId, { url: v })}
+                      onPaste={() => pasteAndFetchRow(r.rowId)}
+                      onRemove={() => removeRow(r.rowId)}
+                      onToggleImage={(u) => toggleRowImage(r.rowId, u)}
+                    />
+                  ))}
+                </div>
               );
             })()}
           </Card>
@@ -892,7 +915,6 @@ function StoryboardPage() {
                 )}
               </div>
 
-
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Jumlah Panel">
                   <Select
@@ -919,7 +941,6 @@ function StoryboardPage() {
                 </Field>
               </div>
 
-
               <Field label="Kualitas">
                 {activeModel && activeModel.qualities.length ? (
                   <Select
@@ -935,7 +956,6 @@ function StoryboardPage() {
                 )}
               </Field>
 
-
               <Field label="Framing / Pengambilan Gambar">
                 <Select
                   value={framing}
@@ -943,7 +963,8 @@ function StoryboardPage() {
                   options={FRAMING_OPTS.map((f) => ({ value: f.value, label: f.label }))}
                 />
                 <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                  Pilih "Tanpa kepala" / "Zoom produk" agar hasil aman untuk model Image-to-Video (Seedance, Kling, dll) yang sering menolak subjek manusia.
+                  Pilih "Tanpa kepala" / "Zoom produk" agar hasil aman untuk model Image-to-Video
+                  (Seedance, Kling, dll) yang sering menolak subjek manusia.
                 </div>
               </Field>
 
@@ -962,13 +983,11 @@ function StoryboardPage() {
                   />
                 ) : (
                   <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                    Brain akan menulis CTA panel terakhir sesuai platform (mis. TikTok → "cek keranjang kuning", Facebook→Shopee → "klik link Shopee di bawah").
+                    Brain akan menulis CTA panel terakhir sesuai platform (mis. TikTok → "cek
+                    keranjang kuning", Facebook→Shopee → "klik link Shopee di bawah").
                   </div>
                 )}
               </Field>
-
-
-
 
               <Field label="Prompt Tambahan (opsional)">
                 <Textarea
@@ -1023,7 +1042,8 @@ function StoryboardPage() {
                   }}
                   disabled={!results.some((r) => r.imgUrl)}
                 >
-                  <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Download ZIP</span>
+                  <Download className="h-3.5 w-3.5" />{" "}
+                  <span className="hidden sm:inline">Download ZIP</span>
                 </GhostButton>
                 <GhostButton
                   onClick={clearResults}
@@ -1031,9 +1051,9 @@ function StoryboardPage() {
                   className="text-destructive hover:text-destructive"
                   title="Hapus All"
                 >
-                  <Trash2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Hapus All</span>
+                  <Trash2 className="h-3.5 w-3.5" />{" "}
+                  <span className="hidden sm:inline">Hapus All</span>
                 </GhostButton>
-
               </div>
             }
           >
@@ -1049,7 +1069,10 @@ function StoryboardPage() {
             {results.length ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {results.map((r) => (
-                  <div key={r.resultId} className="rounded-2xl border border-border/70 bg-card/30 p-2.5 flex flex-col gap-2">
+                  <div
+                    key={r.resultId}
+                    className="rounded-2xl border border-border/70 bg-card/30 p-2.5 flex flex-col gap-2"
+                  >
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground truncate flex-1">
                         {r.title}
@@ -1070,7 +1093,10 @@ function StoryboardPage() {
                         </span>
                       )}
                       {r.status === "err" && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-destructive" title={r.error}>
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] text-destructive"
+                          title={r.error}
+                        >
                           <AlertCircle className="h-3 w-3" /> error
                         </span>
                       )}
@@ -1080,9 +1106,15 @@ function StoryboardPage() {
                       style={{ aspectRatio: ratioToAspect(r.ratio ?? ratio) }}
                     >
                       {r.imgUrl ? (
-                        <img src={r.imgUrl} alt={r.title} className="max-h-full max-w-full object-contain" />
+                        <img
+                          src={r.imgUrl}
+                          alt={r.title}
+                          className="max-h-full max-w-full object-contain"
+                        />
                       ) : r.status === "err" ? (
-                        <div className="text-[11px] text-destructive p-3 text-center">{r.error}</div>
+                        <div className="text-[11px] text-destructive p-3 text-center">
+                          {r.error}
+                        </div>
                       ) : (
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                       )}
@@ -1107,7 +1139,6 @@ function StoryboardPage() {
                       </div>
                     )}
                   </div>
-
                 ))}
               </div>
             ) : (
@@ -1115,7 +1146,6 @@ function StoryboardPage() {
             )}
           </Card>
         </div>
-
       </div>
     </DashboardShell>
   );
@@ -1169,7 +1199,6 @@ function ProductRowCard({
           title="Hapus baris"
         >
           <X className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Hapus</span>
-
         </button>
       </div>
 
@@ -1214,8 +1243,10 @@ function ProductRowCard({
                       className="h-full w-full object-cover"
                     />
                     {sel && (
-                      <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full grid place-items-center text-[8px] font-bold text-primary-foreground"
-                        style={{ background: "var(--gradient-neon)" }}>
+                      <span
+                        className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full grid place-items-center text-[8px] font-bold text-primary-foreground"
+                        style={{ background: "var(--gradient-neon)" }}
+                      >
                         <CheckIcon className="h-2.5 w-2.5" />
                       </span>
                     )}
@@ -1224,15 +1255,11 @@ function ProductRowCard({
               })}
             </div>
           ) : (
-            <div className="text-[11px] text-muted-foreground mt-1.5">
-              (tidak ada gambar)
-            </div>
+            <div className="text-[11px] text-muted-foreground mt-1.5">(tidak ada gambar)</div>
           )}
         </div>
       ) : (
-        <div className="text-[11px] text-muted-foreground text-center py-2">
-          Belum di-scrape
-        </div>
+        <div className="text-[11px] text-muted-foreground text-center py-2">Belum di-scrape</div>
       )}
     </div>
   );
@@ -1249,10 +1276,7 @@ function StatusBadge({ status, error }: { status: ProductRow["status"]; error: s
 
   if (status === "err")
     return (
-      <span
-        className="inline-flex items-center gap-1 text-[10px] text-destructive"
-        title={error}
-      >
+      <span className="inline-flex items-center gap-1 text-[10px] text-destructive" title={error}>
         <AlertCircle className="h-3 w-3" /> error
       </span>
     );

@@ -1,10 +1,35 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { flushSync } from "react-dom";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  RefreshCw,
+  Upload,
+  FileText,
+  X,
+  ExternalLink,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  ShoppingCart,
+  ChevronDown,
+} from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
-import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
-import { checkWeavyToken, rotateWeavyToken, getActiveWeavyAccessToken } from "@/lib/providers/weavy";
+import {
+  Card,
+  Field,
+  Input,
+  Textarea,
+  Select,
+  PrimaryButton,
+  GhostButton,
+} from "@/components/dashboard/ui";
+import {
+  checkWeavyToken,
+  rotateWeavyToken,
+  getActiveWeavyAccessToken,
+} from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
 import { checkMagnificKey } from "@/lib/providers/magnific";
 import { fetchRoboneoBalance } from "@/lib/providers/roboneo";
@@ -20,7 +45,11 @@ import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
 import { confirmDialog } from "@/components/ui-confirm";
 
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
-export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
+export type SummaryRow = {
+  label: string;
+  value: string | number;
+  tone?: "ok" | "warn" | "bad" | "muted";
+};
 export type SummaryPayload = { title: string; rows: SummaryRow[]; footer?: string };
 const SummaryCtx = createContext<(p: SummaryPayload) => void>(() => {});
 const useSummaryDialog = () => useContext(SummaryCtx);
@@ -47,7 +76,10 @@ function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose:
         </div>
         <div className="rounded-xl border border-border/60 bg-card/40 divide-y divide-border/50">
           {payload.rows.map((r, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 px-3.5 py-2 text-[12.5px]">
+            <div
+              key={i}
+              className="flex items-center justify-between gap-3 px-3.5 py-2 text-[12.5px]"
+            >
               <span className="text-muted-foreground">{r.label}</span>
               <span
                 className={[
@@ -69,7 +101,9 @@ function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose:
           ))}
         </div>
         {payload.footer && (
-          <div className="mt-3 text-[11px] text-muted-foreground text-center leading-relaxed">{payload.footer}</div>
+          <div className="mt-3 text-[11px] text-muted-foreground text-center leading-relaxed">
+            {payload.footer}
+          </div>
         )}
         <div className="mt-5 flex justify-center">
           <PrimaryButton onClick={onClose} className="min-w-[120px] justify-center">
@@ -85,13 +119,28 @@ export const Route = createFileRoute("/manage/tokens")({
   head: () => ({
     meta: [
       { title: "Token / API Manager — AA Creative Studio" },
-      { name: "description", content: "Kelola API key semua provider AI — Brain, Weavy, Wavespeed, Magnific, ElevenLabs." },
+      {
+        name: "description",
+        content:
+          "Kelola API key semua provider AI — Brain, Weavy, Wavespeed, Magnific, ElevenLabs.",
+      },
     ],
   }),
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola" | "eleven" | "render";
+type ProviderKey =
+  | "brain"
+  | "weavy"
+  | "wavespeed"
+  | "magnific"
+  | "roboneo"
+  | "framia"
+  | "leonardo"
+  | "firefly"
+  | "dola"
+  | "eleven"
+  | "render";
 
 const PROVIDER_GLOW: Record<ProviderKey, string> = {
   brain: "#f472b6",
@@ -108,23 +157,75 @@ const PROVIDER_GLOW: Record<ProviderKey, string> = {
 };
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
-  { key: "brain", label: "Brain (Gemini)", desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429." },
-  { key: "weavy", label: "Weavy", desc: "Provider utama Kling Motion Control, Wan, Sora, Seedance." },
-  { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
-  { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
-  { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
-  { key: "framia", label: "Framia", desc: "Canvas workflow — semua node & recipe: image, video, avatar, garment, storyboard." },
-  { key: "leonardo", label: "Leonardo.ai", desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision)." },
-  { key: "firefly", label: "Adobe Firefly", desc: "Firefly image (Image 3/4) & video (Veo) via session token firefly.adobe.com." },
-  { key: "dola", label: "Dola", desc: "Video (Text-to-Video & Image-to-Video) via sesi web dola.com — auth pakai cookie session." },
+  {
+    key: "brain",
+    label: "Brain (Gemini)",
+    desc: "Dipakai Produk Storyboard & Naratif Video Maker. Multi-key auto-rotate saat kena limit/429.",
+  },
+  {
+    key: "weavy",
+    label: "Weavy",
+    desc: "Provider utama Kling Motion Control, Wan, Sora, Seedance.",
+  },
+  {
+    key: "wavespeed",
+    label: "Wavespeed",
+    desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance.",
+  },
+  {
+    key: "magnific",
+    label: "Magnific",
+    desc: "Hanya dipakai untuk Motion Control (Kling motion transfer).",
+  },
+  {
+    key: "roboneo",
+    label: "Roboneo",
+    desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard.",
+  },
+  {
+    key: "framia",
+    label: "Framia",
+    desc: "Canvas workflow — semua node & recipe: image, video, avatar, garment, storyboard.",
+  },
+  {
+    key: "leonardo",
+    label: "Leonardo.ai",
+    desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision).",
+  },
+  {
+    key: "firefly",
+    label: "Adobe Firefly",
+    desc: "Firefly image (Image 3/4) & video (Veo) via session token firefly.adobe.com.",
+  },
+  {
+    key: "dola",
+    label: "Dola",
+    desc: "Video (Text-to-Video & Image-to-Video) via sesi web dola.com — auth pakai cookie session.",
+  },
   { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
-  { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
+  {
+    key: "render",
+    label: "Render (Shotstack/Creatomate)",
+    desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB).",
+  },
 ];
 
-
 // ---- localStorage helpers ----
-type WeavyTok = { id: string; token: string; user?: string; email?: string; credits: number | null; status: "active" | "empty" | "pending" | "failed" };
-type SimpleKey = { id: string; key: string; balance: number | null; status: "active" | "empty" | "pending" | "failed"; note?: string };
+type WeavyTok = {
+  id: string;
+  token: string;
+  user?: string;
+  email?: string;
+  credits: number | null;
+  status: "active" | "empty" | "pending" | "failed";
+};
+type SimpleKey = {
+  id: string;
+  key: string;
+  balance: number | null;
+  status: "active" | "empty" | "pending" | "failed";
+  note?: string;
+};
 const MIN_WEAVY_CREDITS = 5;
 const MIN_ELEVEN_CREDITS = 50;
 
@@ -167,15 +268,15 @@ function extractKeyValues(raw: string | null): string[] {
     const arr: unknown[] = Array.isArray(parsed)
       ? parsed
       : Array.isArray((parsed as { keys?: unknown[] })?.keys)
-        ? ((parsed as { keys: unknown[] }).keys)
+        ? (parsed as { keys: unknown[] }).keys
         : [];
     return arr
       .map((x) =>
         typeof x === "string"
           ? x
           : ((x as { key?: string; token?: string })?.key ??
-             (x as { key?: string; token?: string })?.token ??
-             ""),
+            (x as { key?: string; token?: string })?.token ??
+            ""),
       )
       .filter((v): v is string => typeof v === "string" && v.length > 0);
   } catch {
@@ -264,7 +365,6 @@ function TokensPage() {
     };
   }, []);
 
-
   // On tab change: collapse only when the current tab has more than 10 keys.
   useEffect(() => {
     let n = 0;
@@ -285,12 +385,12 @@ function TokensPage() {
                     : tab === "leonardo"
                       ? LS.leonardo
                       : tab === "firefly"
-                      ? LS.firefly
-                      : tab === "dola"
-                      ? LS.dola
-                      : tab === "eleven"
-                        ? LS.eleven
-                        : LS.shotstack;
+                        ? LS.firefly
+                        : tab === "dola"
+                          ? LS.dola
+                          : tab === "eleven"
+                            ? LS.eleven
+                            : LS.shotstack;
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -306,7 +406,6 @@ function TokensPage() {
       /* ignore */
     }
     setShowKeys(n <= 10);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
   useEffect(() => {
@@ -323,7 +422,6 @@ function TokensPage() {
   // freshly pasted keys to "disappear". `keyEpoch` hanya berubah ketika ada
   // key BARU dari cloud (mis. pembelian token), jadi remount-nya aman.
   const paneKey = `${tab}:${keyEpoch}`;
-
 
   return (
     <SummaryCtx.Provider value={setSummary}>
@@ -358,19 +456,32 @@ function TokensPage() {
                   style={{ boxShadow: `inset 0 0 40px ${PROVIDER_GLOW[tab]}22` }}
                 >
                   <span className="min-w-0">
-                    <span className="block truncate font-display text-2xl md:text-3xl font-black tracking-wide" style={{ color: PROVIDER_GLOW[tab], textShadow: `0 0 18px ${PROVIDER_GLOW[tab]}88` }}>
+                    <span
+                      className="block truncate font-display text-2xl md:text-3xl font-black tracking-wide"
+                      style={{
+                        color: PROVIDER_GLOW[tab],
+                        textShadow: `0 0 18px ${PROVIDER_GLOW[tab]}88`,
+                      }}
+                    >
                       {active.label}
                     </span>
                   </span>
                   <ChevronDown
-                    className={["h-5 w-5 shrink-0 text-muted-foreground transition-transform", tabOpen ? "rotate-180" : ""].join(" ")}
+                    className={[
+                      "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+                      tabOpen ? "rotate-180" : "",
+                    ].join(" ")}
                   />
                 </span>
               </button>
 
               {tabOpen && (
                 <>
-                  <div className="fixed inset-0 z-30" onClick={() => setTabOpen(false)} aria-hidden="true" />
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setTabOpen(false)}
+                    aria-hidden="true"
+                  />
                   <ul
                     role="listbox"
                     className="absolute left-0 right-0 top-full mt-2 z-40 grid grid-cols-1 md:grid-cols-2 gap-2 rounded-2xl border border-border bg-[oklch(0.19_0.055_275)] p-2 shadow-2xl max-h-[60vh] overflow-y-auto"
@@ -389,7 +500,9 @@ function TokensPage() {
                             className="w-full text-left rounded-xl border px-4 py-3 transition hover:bg-sidebar-accent/30"
                             style={{
                               borderColor: isActive ? glow : "transparent",
-                              boxShadow: isActive ? `0 0 18px ${glow}55` : `inset 0 0 0 1px ${glow}22`,
+                              boxShadow: isActive
+                                ? `0 0 18px ${glow}55`
+                                : `inset 0 0 0 1px ${glow}22`,
                             }}
                           >
                             <span className="flex items-center gap-2">
@@ -407,7 +520,6 @@ function TokensPage() {
                 </>
               )}
             </div>
-
 
             <div className="ml-auto flex items-center gap-2 w-full md:w-auto justify-end">
               <button
@@ -430,7 +542,6 @@ function TokensPage() {
             </div>
           </div>
 
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 flex flex-col gap-4">
               {!showKeys ? (
@@ -438,7 +549,9 @@ function TokensPage() {
               ) : (
                 <>
                   {tab === "brain" && <BrainPane key={paneKey} />}
-                  {tab === "weavy" && <WeavyPane key={paneKey} onOpenImport={() => setShowImport(true)} />}
+                  {tab === "weavy" && (
+                    <WeavyPane key={paneKey} onOpenImport={() => setShowImport(true)} />
+                  )}
                   {tab === "wavespeed" && (
                     <ProviderKeyPane
                       key={paneKey}
@@ -475,7 +588,9 @@ function TokensPage() {
                       provider="dola"
                       lsKey={LS.dola}
                       singlePlaceholder="i18next=en-GB; sessionid=...; sid_guard=...; msToken=... (cookie penuh dola.com)"
-                      bulkPlaceholder={"sessionid=aaa...; sid_guard=...\nsessionid=bbb...; sid_guard=..."}
+                      bulkPlaceholder={
+                        "sessionid=aaa...; sid_guard=...\nsessionid=bbb...; sid_guard=..."
+                      }
                       helper="Dola memakai cookie session (bukan API key). Cara termudah: pakai extension AA Creative — login di www.dola.com lalu klik Ambil Token, cookie tersinkron otomatis ke akunmu. Manual: DevTools → Network → request ke www.dola.com → copy seluruh header Cookie. Multi-cookie (multi akun) auto-rotate saat expired."
                     />
                   )}
@@ -516,11 +631,14 @@ function TokensPage() {
             </div>
 
             <div className="neumorph p-4 h-fit">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Info</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                Info
+              </div>
               <div className="mt-1 font-display text-base text-foreground">{active.label}</div>
               <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{active.desc}</p>
               <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                🔒 Key dienkripsi (AES-GCM) di database akunmu & cache browser dipisahkan per akun. Otomatis tersinkron ketika kamu login di perangkat lain.
+                🔒 Key dienkripsi (AES-GCM) di database akunmu & cache browser dipisahkan per akun.
+                Otomatis tersinkron ketika kamu login di perangkat lain.
               </div>
               <HowToGet provider={tab} />
             </div>
@@ -566,12 +684,12 @@ function CompactSummary({
                     : provider === "leonardo"
                       ? LS.leonardo
                       : provider === "firefly"
-                      ? LS.firefly
-                      : provider === "dola"
-                      ? LS.dola
-                      : provider === "eleven"
-                        ? LS.eleven
-                        : LS.shotstack,
+                        ? LS.firefly
+                        : provider === "dola"
+                          ? LS.dola
+                          : provider === "eleven"
+                            ? LS.eleven
+                            : LS.shotstack,
       );
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -613,8 +731,6 @@ function CompactSummary({
   );
 }
 
-
-
 /* ============ How to get API keys — per provider ============ */
 type GuideStep = { text: string; code?: string; link?: { url: string; label: string } };
 type Guide = {
@@ -635,14 +751,16 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: 'Klik tombol "Create API key" (pojok kanan atas).' },
       { text: 'Pilih project Google Cloud (atau "Create API key in new project").' },
       { text: "Copy key yang muncul — bisa diawali AIza… (legacy) atau AQ… (auth key baru)." },
-      { text: "Paste ke textarea di sebelah. Boleh tambah banyak key sekaligus (1 per baris) untuk auto-rotate saat kena limit gratis." },
+      {
+        text: "Paste ke textarea di sebelah. Boleh tambah banyak key sekaligus (1 per baris) untuk auto-rotate saat kena limit gratis.",
+      },
     ],
     tip: "Free tier Gemini: 15 request/menit, 1 juta token/hari untuk gemini-2.5-flash. Format AQ… adalah auth key baru Gemini dan tetap valid sebagai API key.",
   },
   weavy: {
     url: "https://drive.google.com/file/d/1xJEUv31VdzF8FVXPzfcpRcnq8ahV3_8w/view?usp=sharing",
     urlLabel: "Weavy Token Extractor",
-    
+
     steps: [
       { text: "Download Weavy Token Extractor (klik link di atas)." },
       { text: "Ekstrak / unzip file yang sudah di-download." },
@@ -651,9 +769,15 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Klik tombol Load unpacked." },
       { text: "Cari folder Weavy Token Extension yang sudah di-ekstrak tadi, lalu Select Folder." },
       { text: "Pin Weavy Token Extension agar muncul di taskbar atas browser." },
-      { text: "Buka ", link: { url: "https://app.weavy.ai", label: "app.weavy.ai" }, code: undefined },
+      {
+        text: "Buka ",
+        link: { url: "https://app.weavy.ai", label: "app.weavy.ai" },
+        code: undefined,
+      },
       { text: "Klik icon Weavy Token di taskbar → klik Extract Token, lalu klik Copy Token." },
-      { text: "Paste token ke Bulk Input di sebelah dan simpan. Ulangi untuk tiap akun Weavy — makin banyak, makin besar credit pool." },
+      {
+        text: "Paste token ke Bulk Input di sebelah dan simpan. Ulangi untuk tiap akun Weavy — makin banyak, makin besar credit pool.",
+      },
     ],
     tip: "Refresh token Weavy berumur panjang. Bila expired, ulangi langkah Extract Token dari extension.",
   },
@@ -676,12 +800,24 @@ const GUIDES: Record<ProviderKey, Guide> = {
     urlLabel: "roboneo.com/cli",
     prefix: "_v2… (ROBONEO_ACCESS_KEY dari CLI — long-lived)",
     steps: [
-      { text: "REKOMENDASI: pakai access-key dari Roboneo CLI supaya token tetap hidup meski browser di-logout." },
-      { text: "Install CLI di terminal: `npm install -g roboneo-cli` lalu jalankan `roboneo login` (browser akan terbuka untuk otorisasi)." },
-      { text: "Setelah login sukses, CLI menampilkan `export ROBONEO_ACCESS_KEY=_v2…` — copy string setelah `=` (tanpa tanda kutip)." },
-      { text: "Paste ke input di sebelah. Key ini long-lived (bulan+), tidak mati saat kamu logout dari roboneo.com di browser." },
-      { text: "Simpan beberapa key sekaligus (multi-akun) → auto-rotate saat rate-limit / credit habis. Token tersimpan di akunmu, sinkron antar device, dan bisa di-transfer via Token Bank." },
-      { text: "Alternatif (session token, cepat expired): DevTools → Application → Local Storage → https://www.roboneo.com → copy value `access-token`." },
+      {
+        text: "REKOMENDASI: pakai access-key dari Roboneo CLI supaya token tetap hidup meski browser di-logout.",
+      },
+      {
+        text: "Install CLI di terminal: `npm install -g roboneo-cli` lalu jalankan `roboneo login` (browser akan terbuka untuk otorisasi).",
+      },
+      {
+        text: "Setelah login sukses, CLI menampilkan `export ROBONEO_ACCESS_KEY=_v2…` — copy string setelah `=` (tanpa tanda kutip).",
+      },
+      {
+        text: "Paste ke input di sebelah. Key ini long-lived (bulan+), tidak mati saat kamu logout dari roboneo.com di browser.",
+      },
+      {
+        text: "Simpan beberapa key sekaligus (multi-akun) → auto-rotate saat rate-limit / credit habis. Token tersimpan di akunmu, sinkron antar device, dan bisa di-transfer via Token Bank.",
+      },
+      {
+        text: "Alternatif (session token, cepat expired): DevTools → Application → Local Storage → https://www.roboneo.com → copy value `access-token`.",
+      },
     ],
     tip: "Model yang didukung: Kling 2.6 Std (motion control + i2v), Seedance Pro, Google Omni. Panduan resmi: roboneo.com/cli/en.",
   },
@@ -690,10 +826,16 @@ const GUIDES: Record<ProviderKey, Guide> = {
     urlLabel: "dola.com",
     prefix: "sessionid=…; sid_guard=… (cookie session penuh)",
     steps: [
-      { text: "REKOMENDASI: install extension AA Creative, login di www.dola.com, lalu klik Ambil Token — cookie tersinkron otomatis." },
+      {
+        text: "REKOMENDASI: install extension AA Creative, login di www.dola.com, lalu klik Ambil Token — cookie tersinkron otomatis.",
+      },
       { text: "Manual: login di www.dola.com, buka DevTools (F12) → tab Network." },
-      { text: "Klik salah satu request ke www.dola.com → bagian Request Headers → copy seluruh nilai header 'Cookie'." },
-      { text: "Paste ke input di sebelah (harus mengandung sessionid). Simpan beberapa cookie akun berbeda untuk auto-rotate." },
+      {
+        text: "Klik salah satu request ke www.dola.com → bagian Request Headers → copy seluruh nilai header 'Cookie'.",
+      },
+      {
+        text: "Paste ke input di sebelah (harus mengandung sessionid). Simpan beberapa cookie akun berbeda untuk auto-rotate.",
+      },
     ],
     tip: "Cookie Dola bisa expired saat kamu logout di browser — ambil ulang lewat extension bila generate gagal 401.",
   },
@@ -704,8 +846,12 @@ const GUIDES: Record<ProviderKey, Guide> = {
     steps: [
       { text: "Login di firefly.adobe.com dengan Adobe ID." },
       { text: "Buka DevTools (F12) → tab Network → filter 'firefly.adobe.io'." },
-      { text: "Klik salah satu request (mis. credits/balance) → Headers → copy value header `authorization` TANPA kata 'Bearer '." },
-      { text: "Paste ke input di sebelah lalu simpan — sisa credit langsung dicek via /v1/credits/balance." },
+      {
+        text: "Klik salah satu request (mis. credits/balance) → Headers → copy value header `authorization` TANPA kata 'Bearer '.",
+      },
+      {
+        text: "Paste ke input di sebelah lalu simpan — sisa credit langsung dicek via /v1/credits/balance.",
+      },
       { text: "Simpan beberapa token (multi-akun) → auto-rotate saat 401 / credit habis." },
     ],
     tip: "Firefly dipakai untuk Image (Firefly Image 3/4) dan Video (Veo 3.1 via Firefly). Token IMS berumur ±24 jam; kalau expired ulangi langkah copy token.",
@@ -717,10 +863,18 @@ const GUIDES: Record<ProviderKey, Guide> = {
     steps: [
       { text: "Login di framia.converge.ai (Google / email — akun Framia)." },
       { text: "Buka DevTools (F12) → tab Network → filter 'api.framia.pro'." },
-      { text: "Klik salah satu request (mis. /video/api/v1/user/credits) → Headers → Request Headers." },
-      { text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).' },
-      { text: "Paste ke input di sebelah. Token JWT berumur ~24 jam; setelah expired, ambil ulang dari Network tab." },
-      { text: "Multi-token akan auto-rotate saat quota / expiry habis. Token tersimpan permanen di akunmu dan sinkron antar device." },
+      {
+        text: "Klik salah satu request (mis. /video/api/v1/user/credits) → Headers → Request Headers.",
+      },
+      {
+        text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).',
+      },
+      {
+        text: "Paste ke input di sebelah. Token JWT berumur ~24 jam; setelah expired, ambil ulang dari Network tab.",
+      },
+      {
+        text: "Multi-token akan auto-rotate saat quota / expiry habis. Token tersimpan permanen di akunmu dan sinkron antar device.",
+      },
     ],
     tip: "Framia = platform canvas. Semua node (skills) dan recipe (templates) muncul otomatis di halaman Generate → Framia begitu token tersimpan.",
   },
@@ -732,8 +886,12 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Login di app.leonardo.ai (Google / email)." },
       { text: "Buka DevTools (F12) → tab Network → filter 'api.leonardo.ai'." },
       { text: "Klik salah satu request GraphQL → Headers → Request Headers." },
-      { text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).' },
-      { text: "Paste ke input di sebelah. Token Cognito berumur ~1 jam; setelah expired, ambil ulang dari Network tab (multi-token akan auto-rotate)." },
+      {
+        text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).',
+      },
+      {
+        text: "Paste ke input di sebelah. Token Cognito berumur ~1 jam; setelah expired, ambil ulang dari Network tab (multi-token akan auto-rotate).",
+      },
     ],
     tip: "Model default: Phoenix, Leonardo Diffusion XL, Kino XL, Anime XL, Vision XL — semua otomatis muncul di halaman Generate → Leonardo.",
   },
@@ -745,7 +903,9 @@ const GUIDES: Record<ProviderKey, Guide> = {
       { text: "Magnific sekarang bagian dari Freepik — daftar / login di freepik.com." },
       { text: "Buka Freepik API dashboard (link di samping)." },
       { text: 'Aktifkan API access, lalu klik "Generate API Key". Format key: FPSX-XXXX…' },
-      { text: "Beli/aktifkan plan Freepik AI yang include Magnific credits (Motion Control butuh video credits)." },
+      {
+        text: "Beli/aktifkan plan Freepik AI yang include Magnific credits (Motion Control butuh video credits).",
+      },
       { text: "Paste key ke input di sebelah." },
     ],
     tip: "Motion Control (Kling motion transfer) ≈ 50 Freepik cr per klip 5 detik.",
@@ -768,10 +928,18 @@ const GUIDES: Record<ProviderKey, Guide> = {
     urlLabel: "shotstack.io / creatomate.com",
     prefix: "shotstack: … | creatomate: …",
     steps: [
-      { text: "Default render pakai FFmpeg WASM di browser (gratis, tanpa key). Cloud render hanya perlu bila video > 400 MB." },
-      { text: "Shotstack: register di shotstack.io → Dashboard → API Keys. Free tier 20 menit/bulan." },
-      { text: "Creatomate: register di creatomate.com → Project Settings → API. Free tier 50 render/bulan." },
-      { text: "Paste key di panel Shotstack / Creatomate di sebelah. Bila kosong, dropdown Render engine akan disabled." },
+      {
+        text: "Default render pakai FFmpeg WASM di browser (gratis, tanpa key). Cloud render hanya perlu bila video > 400 MB.",
+      },
+      {
+        text: "Shotstack: register di shotstack.io → Dashboard → API Keys. Free tier 20 menit/bulan.",
+      },
+      {
+        text: "Creatomate: register di creatomate.com → Project Settings → API. Free tier 50 render/bulan.",
+      },
+      {
+        text: "Paste key di panel Shotstack / Creatomate di sebelah. Bila kosong, dropdown Render engine akan disabled.",
+      },
     ],
     tip: "FFmpeg = default, gratis, di device kamu. Cloud = fallback untuk file besar / batch panjang.",
   },
@@ -781,7 +949,9 @@ function HowToGet({ provider }: { provider: ProviderKey }) {
   const g = GUIDES[provider];
   return (
     <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-3">
-      <div className="text-[10px] font-mono uppercase tracking-widest text-primary/80">Cara Dapat Token</div>
+      <div className="text-[10px] font-mono uppercase tracking-widest text-primary/80">
+        Cara Dapat Token
+      </div>
       <a
         href={g.url}
         target="_blank"
@@ -838,10 +1008,9 @@ type BrainKeyStatus = {
 async function checkGeminiKey(key: string): Promise<BrainKeyStatus> {
   // Cheap probe: list models. 200 = valid; 400/401/403 = invalid; 429 = rate-limited.
   try {
-    const r = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1",
-      { headers: { "x-goog-api-key": key } },
-    );
+    const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", {
+      headers: { "x-goog-api-key": key },
+    });
     if (r.ok) {
       const data = (await r.json().catch(() => ({}))) as { models?: unknown[] };
       const n = Array.isArray(data.models) ? data.models.length : 0;
@@ -862,14 +1031,20 @@ function BrainPane() {
   const [status, setStatus] = useState("");
   const [checks, setChecks] = useState<BrainKeyStatus[]>([]);
   const [stored, setStored] = useState<string[]>([]);
-  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({
+    show: false,
+    pct: 0,
+    text: "",
+  });
   const [busy, setBusy] = useState(false);
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
     const keys = readJSON<string[]>(LS.brain, []);
     setStored(keys);
-    const savedChecks = readJSON<BrainKeyStatus[]>(LS.brainChecks, []).filter((c) => keys.includes(c.key));
+    const savedChecks = readJSON<BrainKeyStatus[]>(LS.brainChecks, []).filter((c) =>
+      keys.includes(c.key),
+    );
     setChecks(savedChecks);
     setStatus(keys.length ? `${keys.length} key tersimpan` : "Belum ada key");
     // Auto-check key yang belum punya status (mis. baru saja ditransfer dari
@@ -907,7 +1082,8 @@ function BrainPane() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-  const isValidFormat = (k: string) => /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k);
+  const isValidFormat = (k: string) =>
+    /^AIza[A-Za-z0-9_-]{20,}$/.test(k) || /^AQ[.A-Za-z0-9_-]{20,}$/.test(k);
 
   const tambah = async () => {
     const raw = parse(bulk);
@@ -930,7 +1106,13 @@ function BrainPane() {
       const r = await checkGeminiKey(goodFormat[i]);
       results.push(r);
       if (r.state === "active" || r.state === "limited") accepted.push(goodFormat[i]);
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / goodFormat.length) * 100), text: `Cek ${i + 1}/${goodFormat.length}` }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / goodFormat.length) * 100),
+          text: `Cek ${i + 1}/${goodFormat.length}`,
+        }),
+      );
       await new Promise((res) => setTimeout(res, 15));
     }
     const merged = Array.from(new Set([...stored, ...accepted]));
@@ -949,14 +1131,20 @@ function BrainPane() {
     const invalid = results.filter((r) => r.state === "invalid").length;
     const failed = results.filter((r) => r.state === "failed").length;
     const dup = raw.length - toCheck.length;
-    setStatus(`Total tersimpan: ${merged.length} · ✅ ${a} aktif · ⏳ ${l} limit · ❌ ${invalid + failed + badFormat.length} ditolak`);
+    setStatus(
+      `Total tersimpan: ${merged.length} · ✅ ${a} aktif · ⏳ ${l} limit · ❌ ${invalid + failed + badFormat.length} ditolak`,
+    );
     setBusy(false);
     showSummary({
       title: "Ringkasan Import Gemini Key",
       rows: [
         { label: "Total input", value: raw.length },
         { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
-        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        {
+          label: "Format salah",
+          value: badFormat.length,
+          tone: badFormat.length ? "bad" : "muted",
+        },
         { label: "Berhasil ditambahkan", value: accepted.length, tone: "ok" },
         { label: "  – Aktif", value: a, tone: "ok" },
         { label: "  – Rate-limited (tetap disimpan)", value: l, tone: "warn" },
@@ -984,8 +1172,17 @@ function BrainPane() {
     for (let i = 0; i < stored.length; i++) {
       const r = await checkGeminiKey(stored[i]);
       results.push(r);
-      saveChecks([...results, ...stored.slice(i + 1).map((k) => ({ key: k, state: "checking" as const }))]);
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / stored.length) * 100), text: `Cek ${i + 1}/${stored.length}` }));
+      saveChecks([
+        ...results,
+        ...stored.slice(i + 1).map((k) => ({ key: k, state: "checking" as const })),
+      ]);
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / stored.length) * 100),
+          text: `Cek ${i + 1}/${stored.length}`,
+        }),
+      );
       await new Promise((res) => setTimeout(res, 15));
     }
     saveChecks(results);
@@ -994,7 +1191,9 @@ function BrainPane() {
     const l = results.filter((r) => r.state === "limited").length;
     const invalid = results.filter((r) => r.state === "invalid").length;
     const failed = results.filter((r) => r.state === "failed").length;
-    setStatus(`✅ ${a} aktif · ⏳ ${l} limit · ❌ ${invalid + failed} bermasalah (dari ${stored.length})`);
+    setStatus(
+      `✅ ${a} aktif · ⏳ ${l} limit · ❌ ${invalid + failed} bermasalah (dari ${stored.length})`,
+    );
     setBusy(false);
     showSummary({
       title: "Ringkasan Cek Gemini Key",
@@ -1011,16 +1210,28 @@ function BrainPane() {
   const mask = (k: string) => (k.length <= 12 ? k : `${k.slice(0, 6)}…${k.slice(-4)}`);
   const badge = (s: BrainKeyStatus["state"]) => {
     switch (s) {
-      case "active": return "text-emerald-300 bg-emerald-500/10 border-emerald-500/30";
-      case "limited": return "text-amber-300 bg-amber-500/10 border-amber-500/30";
+      case "active":
+        return "text-emerald-300 bg-emerald-500/10 border-emerald-500/30";
+      case "limited":
+        return "text-amber-300 bg-amber-500/10 border-amber-500/30";
       case "invalid":
-      case "failed": return "text-rose-300 bg-rose-500/10 border-rose-500/30";
-      case "checking": return "text-sky-300 bg-sky-500/10 border-sky-500/30";
-      default: return "text-muted-foreground bg-muted/30 border-border";
+      case "failed":
+        return "text-rose-300 bg-rose-500/10 border-rose-500/30";
+      case "checking":
+        return "text-sky-300 bg-sky-500/10 border-sky-500/30";
+      default:
+        return "text-muted-foreground bg-muted/30 border-border";
     }
   };
   const label = (s: BrainKeyStatus["state"]) =>
-    ({ active: "Active", limited: "Rate-limited", invalid: "Invalid", failed: "Failed", checking: "Checking…", unknown: "—" }[s]);
+    ({
+      active: "Active",
+      limited: "Rate-limited",
+      invalid: "Invalid",
+      failed: "Failed",
+      checking: "Checking…",
+      unknown: "—",
+    })[s];
 
   const canAdd = bulk.trim().length > 0 && !busy;
   const hasStored = stored.length > 0;
@@ -1042,7 +1253,11 @@ function BrainPane() {
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
           <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} /> Cek Limit & Status
         </GhostButton>
-        <GhostButton onClick={clear} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+        <GhostButton
+          onClick={clear}
+          disabled={!hasStored}
+          className="text-destructive hover:text-destructive disabled:opacity-40"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
@@ -1050,30 +1265,46 @@ function BrainPane() {
       {progress.show && (
         <div className="rounded-md border border-border bg-card/40 p-2">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${progress.pct}%` }}
+            />
           </div>
           <div className="mt-1 text-[10px] text-muted-foreground">{progress.text}</div>
         </div>
       )}
       {stored.length > 0 && (
         <div className="mt-1 space-y-1.5">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Key tersimpan ({stored.length})</div>
+          <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            Key tersimpan ({stored.length})
+          </div>
           {stored.map((k, i) => {
             const c = checks.find((x) => x.key === k);
             const state = c?.state ?? "unknown";
             return (
-              <div key={i} className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-card/40 px-2.5 py-1.5">
+              <div
+                key={i}
+                className="flex items-center justify-between gap-2 rounded-md border border-border/60 bg-card/40 px-2.5 py-1.5"
+              >
                 <code className="text-[11px] font-mono text-foreground/85 truncate">{mask(k)}</code>
                 <div className="flex items-center gap-2 shrink-0">
-                  {c?.detail && <span className="text-[10px] text-muted-foreground truncate max-w-[220px]">{c.detail}</span>}
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge(state)}`}>{label(state)}</span>
+                  {c?.detail && (
+                    <span className="text-[10px] text-muted-foreground truncate max-w-[220px]">
+                      {c.detail}
+                    </span>
+                  )}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badge(state)}`}>
+                    {label(state)}
+                  </span>
                   <button
                     onClick={() => {
                       const next = stored.filter((x) => x !== k);
                       writeJSON(LS.brain, next);
                       setStored(next);
                       saveChecks(checks.filter((x) => x.key !== k));
-                      setStatus(next.length ? `${next.length} key tersimpan` : "🗑 Semua key dihapus");
+                      setStatus(
+                        next.length ? `${next.length} key tersimpan` : "🗑 Semua key dihapus",
+                      );
                     }}
                     className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition"
                     title="Hapus key ini"
@@ -1095,7 +1326,11 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
   const [bulkTokenText, setBulkTokenText] = useState("");
   const [list, setList] = useState<WeavyTok[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({
+    show: false,
+    pct: 0,
+    text: "",
+  });
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
@@ -1165,7 +1400,12 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
                 ...t,
                 email: res.email ?? t.email,
                 credits: res.credits,
-                status: res.credits === null ? "pending" : res.credits >= MIN_WEAVY_CREDITS ? "active" : "empty",
+                status:
+                  res.credits === null
+                    ? "pending"
+                    : res.credits >= MIN_WEAVY_CREDITS
+                      ? "active"
+                      : "empty",
               }
             : { ...t, status: "failed", credits: null };
           if (JSON.stringify(updated) !== JSON.stringify(t)) {
@@ -1196,7 +1436,6 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
     return () => clearInterval(iv);
   }, []);
 
-
   const persist = (next: WeavyTok[]) => {
     setList(next);
     writeJSON(LS.weavy, next);
@@ -1215,7 +1454,8 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const isValidFormat = (t: string) => /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t) || /^[A-Za-z0-9_-]{40,}$/.test(t);
+  const isValidFormat = (t: string) =>
+    /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t) || /^[A-Za-z0-9_-]{40,}$/.test(t);
 
   const tambahTokens = async (rawList: string[]) => {
     if (rawList.length === 0) return;
@@ -1249,7 +1489,13 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       } else {
         invalidToken++;
       }
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / good.length) * 100),
+          text: `Cek ${i + 1}/${good.length}`,
+        }),
+      );
       await new Promise((r) => setTimeout(r, 150));
     }
     const merged = [...list, ...added];
@@ -1261,17 +1507,31 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
     setProgress({ show: false, pct: 0, text: "" });
     const totalCr = added.reduce((a, x) => a + (x.credits ?? 0), 0);
     const dup = rawList.length - dedup.length;
-    setStatus(`✅ ${added.length} token ditambahkan · ❌ ${badFormat.length + lowCredit + invalidToken} ditolak · +${totalCr} cr`);
+    setStatus(
+      `✅ ${added.length} token ditambahkan · ❌ ${badFormat.length + lowCredit + invalidToken} ditolak · +${totalCr} cr`,
+    );
     setBusy(false);
     showSummary({
       title: "Ringkasan Import Weavy Token",
       rows: [
         { label: "Total input", value: rawList.length },
         { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
-        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        {
+          label: "Format salah",
+          value: badFormat.length,
+          tone: badFormat.length ? "bad" : "muted",
+        },
         { label: "Berhasil ditambahkan", value: `${added.length}  (+${totalCr} cr)`, tone: "ok" },
-        { label: `Credit habis / < ${MIN_WEAVY_CREDITS}`, value: lowCredit, tone: lowCredit ? "warn" : "muted" },
-        { label: "Token invalid / expired", value: invalidToken, tone: invalidToken ? "bad" : "muted" },
+        {
+          label: `Credit habis / < ${MIN_WEAVY_CREDITS}`,
+          value: lowCredit,
+          tone: lowCredit ? "warn" : "muted",
+        },
+        {
+          label: "Token invalid / expired",
+          value: invalidToken,
+          tone: invalidToken ? "bad" : "muted",
+        },
       ],
       footer: `Total token tersimpan sekarang: ${merged.length}`,
     });
@@ -1283,7 +1543,6 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
     await tambahTokens(tokens);
     setBulkTokenText("");
   };
-
 
   const remove = (id: string) => {
     const next = list.filter((t) => t.id !== id);
@@ -1318,28 +1577,39 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
             ...t,
             email: res.email ?? t.email,
             credits: res.credits,
-            status: res.credits === null ? "pending" : res.credits >= MIN_WEAVY_CREDITS ? "active" : "empty",
+            status:
+              res.credits === null
+                ? "pending"
+                : res.credits >= MIN_WEAVY_CREDITS
+                  ? "active"
+                  : "empty",
           }
         : { ...t, status: "failed", credits: null };
       working = working.map((x) => (x.id === t.id ? updated : x));
       persist(working);
-      flushSync(() => setProgress({
-        show: true,
-        pct: Math.round(((i + 1) / working.length) * 100),
-        text: `Checking ${i + 1}/${working.length} — ${res.ok ? (res.credits ?? "?") + " cr" : "gagal"}`,
-      }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / working.length) * 100),
+          text: `Checking ${i + 1}/${working.length} — ${res.ok ? (res.credits ?? "?") + " cr" : "gagal"}`,
+        }),
+      );
       // small delay to avoid hammering Firebase
       await new Promise((r) => setTimeout(r, 150));
     }
-    const usable = working.filter((t) => t.status === "active" && t.credits !== null && t.credits >= MIN_WEAVY_CREDITS);
+    const usable = working.filter(
+      (t) => t.status === "active" && t.credits !== null && t.credits >= MIN_WEAVY_CREDITS,
+    );
     const empty = working.filter((t) => t.status === "empty").length;
     const failed = working.filter((t) => t.status === "failed").length;
     if (usable.length !== working.length) {
       persist(usable);
-      const nextActive = usable.some((t) => t.id === activeId) ? activeId : usable[0]?.id ?? null;
+      const nextActive = usable.some((t) => t.id === activeId) ? activeId : (usable[0]?.id ?? null);
       setActiveId(nextActive);
       writeJSON(LS.active, nextActive);
-      setStatus(`✅ ${usable.length} token valid tersimpan · 🧹 ${working.length - usable.length} token dibuang (gagal/credit < ${MIN_WEAVY_CREDITS})`);
+      setStatus(
+        `✅ ${usable.length} token valid tersimpan · 🧹 ${working.length - usable.length} token dibuang (gagal/credit < ${MIN_WEAVY_CREDITS})`,
+      );
     } else {
       setStatus(`✅ ${usable.length} token valid tersimpan`);
     }
@@ -1350,14 +1620,21 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       title: "Ringkasan Cek Weavy Token",
       rows: [
         { label: "Total token dicek", value: working.length },
-        { label: `Aktif (credit ≥ ${MIN_WEAVY_CREDITS})`, value: `${usable.length}  (${totalCr} cr)`, tone: "ok" },
-        { label: `Credit habis / < ${MIN_WEAVY_CREDITS}`, value: empty, tone: empty ? "warn" : "muted" },
+        {
+          label: `Aktif (credit ≥ ${MIN_WEAVY_CREDITS})`,
+          value: `${usable.length}  (${totalCr} cr)`,
+          tone: "ok",
+        },
+        {
+          label: `Credit habis / < ${MIN_WEAVY_CREDITS}`,
+          value: empty,
+          tone: empty ? "warn" : "muted",
+        },
         { label: "Invalid / gagal refresh", value: failed, tone: failed ? "bad" : "muted" },
       ],
       footer: `Token tersimpan sekarang: ${usable.length}`,
     });
   };
-
 
   return (
     <>
@@ -1369,27 +1646,35 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
         className="font-mono text-xs"
       />
 
-
       <div className="flex gap-2 flex-wrap">
         <PrimaryButton onClick={importBulkInline} disabled={!bulkTokenText.trim() || busy}>
           <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
 
-        <GhostButton onClick={onOpenImport} className="w-full sm:w-auto"><Upload className="h-3.5 w-3.5" /> Import dari File</GhostButton>
-        <GhostButton onClick={checkAll} disabled={list.length === 0 || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
+        <GhostButton onClick={onOpenImport} className="w-full sm:w-auto">
+          <Upload className="h-3.5 w-3.5" /> Import dari File
         </GhostButton>
-        <GhostButton onClick={clearAll} disabled={list.length === 0} className="text-destructive hover:text-destructive disabled:opacity-40">
+        <GhostButton onClick={checkAll} disabled={list.length === 0 || busy}>
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit
+          & Status
+        </GhostButton>
+        <GhostButton
+          onClick={clearAll}
+          disabled={list.length === 0}
+          className="text-destructive hover:text-destructive disabled:opacity-40"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
-
 
       {progress.show && (
         <div>
           <div className="text-[10px] text-muted-foreground mb-1">{progress.text}</div>
           <div className="h-1 rounded-full bg-border overflow-hidden">
-            <div className="h-full transition-all" style={{ width: `${progress.pct}%`, background: "var(--gradient-neon)" }} />
+            <div
+              className="h-full transition-all"
+              style={{ width: `${progress.pct}%`, background: "var(--gradient-neon)" }}
+            />
           </div>
         </div>
       )}
@@ -1397,12 +1682,20 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
       {list.length > 0 && (
         <div className="rounded-xl border border-border/70 bg-card/40 p-3 flex flex-col gap-2">
           <div className="flex items-center gap-3 flex-wrap text-xs">
-            <span className="text-muted-foreground">💰 Total: <b className="text-emerald-400">{totalCredits}</b> cr</span>
+            <span className="text-muted-foreground">
+              💰 Total: <b className="text-emerald-400">{totalCredits}</b> cr
+            </span>
             <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">👤 <b className="text-fuchsia-300">{activeTok?.user || activeTok?.token.slice(0, 8) || "-"}</b></span>
+            <span className="text-muted-foreground">
+              👤{" "}
+              <b className="text-fuchsia-300">
+                {activeTok?.user || activeTok?.token.slice(0, 8) || "-"}
+              </b>
+            </span>
             <span className="text-muted-foreground">·</span>
             <span>
-              <b className="text-emerald-400">{activeCount}</b> active <b className="text-rose-400 ml-1">{emptyCount}</b> empty
+              <b className="text-emerald-400">{activeCount}</b> active{" "}
+              <b className="text-rose-400 ml-1">{emptyCount}</b> empty
             </span>
           </div>
         </div>
@@ -1420,14 +1713,29 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
             <span
               className={[
                 "h-2.5 w-2.5 shrink-0 rounded-full",
-                t.status === "active" ? "bg-emerald-400" : t.status === "empty" ? "bg-rose-400" : t.status === "failed" ? "bg-red-500" : "bg-amber-400",
+                t.status === "active"
+                  ? "bg-emerald-400"
+                  : t.status === "empty"
+                    ? "bg-rose-400"
+                    : t.status === "failed"
+                      ? "bg-red-500"
+                      : "bg-amber-400",
               ].join(" ")}
               title={t.id === activeId ? "Aktif (auto)" : t.status}
             />
-            <div className="font-mono truncate text-muted-foreground flex-1" title={t.email || t.token}>
-              {t.email ? <span className="text-foreground/80">{t.email}</span> : `${t.token.slice(0, 32)}…`}
+            <div
+              className="font-mono truncate text-muted-foreground flex-1"
+              title={t.email || t.token}
+            >
+              {t.email ? (
+                <span className="text-foreground/80">{t.email}</span>
+              ) : (
+                `${t.token.slice(0, 32)}…`
+              )}
             </div>
-            <div className="text-emerald-400 font-semibold whitespace-nowrap">{t.credits == null ? "— cr" : `${t.credits} cr`}</div>
+            <div className="text-emerald-400 font-semibold whitespace-nowrap">
+              {t.credits == null ? "— cr" : `${t.credits} cr`}
+            </div>
             <button
               onClick={() => remove(t.id)}
               className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition"
@@ -1438,11 +1746,11 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
           </div>
         ))}
         {list.length === 0 && (
-          <div className="text-[11px] text-muted-foreground italic px-1">Belum ada token. Paste bulk token di atas, import dari file, atau pakai Single Token.</div>
+          <div className="text-[11px] text-muted-foreground italic px-1">
+            Belum ada token. Paste bulk token di atas, import dari file, atau pakai Single Token.
+          </div>
         )}
       </div>
-
-
     </>
   );
 }
@@ -1464,25 +1772,32 @@ function ProviderKeyPane({
   const [list, setList] = useState<SimpleKey[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
-  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({
+    show: false,
+    pct: 0,
+    text: "",
+  });
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
     const rawInitial = readJSON<SimpleKey[]>(lsKey, []);
-    const initial = provider === "roboneo"
-      ? rawInitial.map((x) =>
-          x.note && /struktur|payload berisi uid|format resmi/i.test(x.note)
-            ? { ...x, note: undefined }
-            : x,
-        )
-      : rawInitial;
+    const initial =
+      provider === "roboneo"
+        ? rawInitial.map((x) =>
+            x.note && /struktur|payload berisi uid|format resmi/i.test(x.note)
+              ? { ...x, note: undefined }
+              : x,
+          )
+        : rawInitial;
     setList(initial);
     if (provider === "roboneo" && JSON.stringify(initial) !== JSON.stringify(rawInitial)) {
       writeJSON(lsKey, initial);
     }
     // Auto-probe key yang balance null / status pending (mis. baru saja
     // ditransfer oleh admin dari Token Bank) supaya sisa saldo langsung tampil.
-    const pending = initial.filter((x) => provider === "roboneo" || x.balance == null || x.status === "pending");
+    const pending = initial.filter(
+      (x) => provider === "roboneo" || x.balance == null || x.status === "pending",
+    );
     if (pending.length === 0) return;
     let cancelled = false;
     (async () => {
@@ -1503,7 +1818,11 @@ function ProviderKeyPane({
             updated = {
               ...x,
               balance: bal.balance,
-              status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+              status: bal.ok
+                ? bal.balance != null && bal.balance <= 0
+                  ? "empty"
+                  : "active"
+                : "failed",
               note: bal.ok ? undefined : bal.message,
             };
           } else if (provider === "framia") {
@@ -1515,7 +1834,11 @@ function ProviderKeyPane({
               updated = {
                 ...x,
                 balance: bal.balance,
-                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+                status: bal.ok
+                  ? bal.balance != null && bal.balance <= 0
+                    ? "empty"
+                    : "active"
+                  : "active",
                 note: bal.ok ? chk.email || chk.plan : bal.message,
               };
             }
@@ -1524,7 +1847,11 @@ function ProviderKeyPane({
             updated = {
               ...x,
               balance: bal.balance,
-              status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+              status: bal.ok
+                ? bal.balance != null && bal.balance <= 0
+                  ? "empty"
+                  : "active"
+                : "failed",
               note: bal.ok ? bal.plan : bal.message,
             };
           } else if (provider === "leonardo") {
@@ -1539,13 +1866,22 @@ function ProviderKeyPane({
               updated = {
                 ...x,
                 balance: bal.balance,
-                status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+                status: bal.ok
+                  ? bal.balance != null && bal.balance <= 0
+                    ? "empty"
+                    : "active"
+                  : "active",
                 note: breakdown,
               };
             }
           } else {
             const res = await checkMagnificKey(x.key);
-            updated = { ...x, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
+            updated = {
+              ...x,
+              balance: null,
+              status: res.ok ? "active" : "failed",
+              note: res.balance,
+            };
           }
           working = working.map((y) => (y.id === x.id ? updated : y));
           if (!cancelled) {
@@ -1567,7 +1903,10 @@ function ProviderKeyPane({
   };
   const parseBulk = (raw: string) =>
     // Cookie Dola boleh mengandung koma (mis. Expires) → pisah per baris saja.
-    raw.split(provider === "dola" ? /\n/ : /[\n,]/).map((s) => s.trim()).filter(Boolean);
+    raw
+      .split(provider === "dola" ? /\n/ : /[\n,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
 
   const isValidFormat = (key: string) =>
     provider === "wavespeed"
@@ -1578,7 +1917,9 @@ function ProviderKeyPane({
           ? /^eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)
           : provider === "dola"
             ? // Dola = cookie session penuh, bukan JWT. Cukup ada salah satu cookie sesi.
-              /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token|passport_auth_status)=/i.test(key)
+              /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token|passport_auth_status)=/i.test(
+                key,
+              )
             : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
   const probe = async (key: string): Promise<SimpleKey> => {
@@ -1652,7 +1993,13 @@ function ProviderKeyPane({
     }
 
     const res = await checkMagnificKey(key);
-    return { id: uid(), key, balance: null, status: res.ok ? "active" : "failed", note: res.balance };
+    return {
+      id: uid(),
+      key,
+      balance: null,
+      status: res.ok ? "active" : "failed",
+      note: res.balance,
+    };
   };
 
   const tambah = async () => {
@@ -1663,7 +2010,8 @@ function ProviderKeyPane({
     const dedup = Array.from(new Set(raw)).filter((key) => !existing.has(key));
     if (dedup.length === 0) {
       setStatus("Semua key sudah tersimpan");
-      setBulk(""); setBusy(false);
+      setBulk("");
+      setBusy(false);
       return;
     }
     const badFormat = dedup.filter((key) => !isValidFormat(key));
@@ -1675,9 +2023,17 @@ function ProviderKeyPane({
     for (let i = 0; i < good.length; i++) {
       const item = await probe(good[i]);
       if (item.status === "active") added.push(item);
-      else if (item.status === "empty") { empty++; added.push(item); }
-      else failed++;
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
+      else if (item.status === "empty") {
+        empty++;
+        added.push(item);
+      } else failed++;
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / good.length) * 100),
+          text: `Cek ${i + 1}/${good.length}`,
+        }),
+      );
       await new Promise((r) => setTimeout(r, 120));
     }
     const merged = [...list, ...added];
@@ -1685,21 +2041,43 @@ function ProviderKeyPane({
     setProgress({ show: false, pct: 0, text: "" });
     setBulk("");
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const summary = provider === "wavespeed"
-      ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
-      : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
-        ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
-      : `${merged.length} key tersimpan`;
+    const summary =
+      provider === "wavespeed"
+        ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
+        : provider === "roboneo" ||
+            provider === "framia" ||
+            provider === "leonardo" ||
+            provider === "firefly" ||
+            provider === "dola"
+          ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
+          : `${merged.length} key tersimpan`;
     void summary;
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : provider === "dola" ? "Dola" : "Magnific";
+    const label =
+      provider === "wavespeed"
+        ? "Wavespeed"
+        : provider === "roboneo"
+          ? "Roboneo"
+          : provider === "framia"
+            ? "Framia"
+            : provider === "leonardo"
+              ? "Leonardo"
+              : provider === "firefly"
+                ? "Adobe Firefly"
+                : provider === "dola"
+                  ? "Dola"
+                  : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
         { label: "Total input", value: raw.length },
         { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
-        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        {
+          label: "Format salah",
+          value: badFormat.length,
+          tone: badFormat.length ? "bad" : "muted",
+        },
         { label: "Berhasil ditambahkan", value: added.length, tone: "ok" },
         { label: "Aktif (saldo tersedia)", value: added.length - empty, tone: "ok" },
         { label: "Saldo kosong (tetap disimpan)", value: empty, tone: empty ? "warn" : "muted" },
@@ -1707,7 +2085,11 @@ function ProviderKeyPane({
       ],
       footer:
         `Total key tersimpan sekarang: ${merged.length}` +
-        (provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
+        (provider === "roboneo" ||
+        provider === "framia" ||
+        provider === "leonardo" ||
+        provider === "firefly" ||
+        provider === "dola"
           ? ` · Total credit: ${total.toLocaleString()} cr`
           : ""),
     });
@@ -1728,13 +2110,21 @@ function ProviderKeyPane({
       let updated: SimpleKey;
       if (provider === "wavespeed") {
         const res = await checkWavespeedBalance(x.key);
-        updated = { ...x, balance: res.balance, status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed" };
+        updated = {
+          ...x,
+          balance: res.balance,
+          status: res.ok ? (res.balance && res.balance > 0 ? "active" : "empty") : "failed",
+        };
       } else if (provider === "roboneo") {
         const bal = await fetchRoboneoBalance(x.key);
         updated = {
           ...x,
           balance: bal.balance,
-          status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+          status: bal.ok
+            ? bal.balance != null && bal.balance <= 0
+              ? "empty"
+              : "active"
+            : "failed",
           note: bal.ok ? undefined : bal.message,
         };
       } else if (provider === "framia") {
@@ -1746,7 +2136,11 @@ function ProviderKeyPane({
           updated = {
             ...x,
             balance: bal.balance,
-            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+            status: bal.ok
+              ? bal.balance != null && bal.balance <= 0
+                ? "empty"
+                : "active"
+              : "active",
             note: chk.email || chk.plan || bal.message,
           };
         }
@@ -1755,7 +2149,11 @@ function ProviderKeyPane({
         updated = {
           ...x,
           balance: bal.balance,
-          status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "failed",
+          status: bal.ok
+            ? bal.balance != null && bal.balance <= 0
+              ? "empty"
+              : "active"
+            : "failed",
           note: bal.ok ? bal.plan : bal.message,
         };
       } else if (provider === "leonardo") {
@@ -1767,7 +2165,11 @@ function ProviderKeyPane({
           updated = {
             ...x,
             balance: bal.balance,
-            status: bal.ok ? (bal.balance != null && bal.balance <= 0 ? "empty" : "active") : "active",
+            status: bal.ok
+              ? bal.balance != null && bal.balance <= 0
+                ? "empty"
+                : "active"
+              : "active",
             note: bal.ok
               ? `Subscription ${bal.fastTokens ?? 0} · Rollover ${bal.rolloverTokens ?? 0} · GPT ${bal.gptTokens ?? 0} · Model ${bal.modelTokens ?? 0} · Paid ${bal.paidTokens ?? 0}${bal.apiCredit != null ? ` · API ${bal.apiCredit}` : ""}${chk.email || bal.email ? ` · ${chk.email || bal.email}` : ""}`
               : bal.message,
@@ -1797,7 +2199,20 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : provider === "dola" ? "Dola" : "Magnific";
+    const label =
+      provider === "wavespeed"
+        ? "Wavespeed"
+        : provider === "roboneo"
+          ? "Roboneo"
+          : provider === "framia"
+            ? "Framia"
+            : provider === "leonardo"
+              ? "Leonardo"
+              : provider === "firefly"
+                ? "Adobe Firefly"
+                : provider === "dola"
+                  ? "Dola"
+                  : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
@@ -1807,7 +2222,11 @@ function ProviderKeyPane({
           value:
             provider === "wavespeed"
               ? `${active}  ($${totBal.toFixed(2)})`
-              : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
+              : provider === "roboneo" ||
+                  provider === "framia" ||
+                  provider === "leonardo" ||
+                  provider === "firefly" ||
+                  provider === "dola"
                 ? `${active}  (${totBal} credit)`
                 : active,
           tone: "ok",
@@ -1834,16 +2253,20 @@ function ProviderKeyPane({
         className="font-mono text-xs"
       />
 
-
       <div className="flex gap-2 flex-wrap">
         <PrimaryButton onClick={tambah} disabled={!canAdd}>
           <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
 
         <GhostButton onClick={checkAll} disabled={!hasStored || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit
+          & Status
         </GhostButton>
-        <GhostButton onClick={clearAll} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+        <GhostButton
+          onClick={clearAll}
+          disabled={!hasStored}
+          className="text-destructive hover:text-destructive disabled:opacity-40"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
@@ -1855,7 +2278,6 @@ function ProviderKeyPane({
       )}
       {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
 
-
       {progress.show && (
         <div className="rounded-lg border border-border bg-card/40 p-2 text-[11px]">
           <div className="flex justify-between text-muted-foreground mb-1">
@@ -1863,37 +2285,66 @@ function ProviderKeyPane({
             <span>{progress.pct}%</span>
           </div>
           <div className="h-1.5 rounded-full bg-black/40 overflow-hidden">
-            <div className="h-full" style={{ width: `${progress.pct}%`, background: "var(--gradient-neon)" }} />
+            <div
+              className="h-full"
+              style={{ width: `${progress.pct}%`, background: "var(--gradient-neon)" }}
+            />
           </div>
         </div>
       )}
 
       <div className="flex flex-col gap-2">
         {list.map((x) => (
-            <div key={x.id} className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
+          <div
+            key={x.id}
+            className="flex flex-col gap-1 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs"
+          >
             <div className="flex items-center gap-2">
               <span
                 className={[
                   "h-2.5 w-2.5 rounded-full shrink-0",
-                  x.status === "active" ? "bg-emerald-400" : x.status === "empty" ? "bg-rose-400" : x.status === "failed" ? "bg-red-500" : "bg-amber-400",
+                  x.status === "active"
+                    ? "bg-emerald-400"
+                    : x.status === "empty"
+                      ? "bg-rose-400"
+                      : x.status === "failed"
+                        ? "bg-red-500"
+                        : "bg-amber-400",
                 ].join(" ")}
                 title={x.status}
               />
-              <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 12)}…{x.key.slice(-4)}</div>
+              <div className="font-mono truncate text-muted-foreground flex-1">
+                {x.key.slice(0, 12)}…{x.key.slice(-4)}
+              </div>
               <div className="text-emerald-400 font-semibold whitespace-nowrap tabular-nums">
                 {provider === "wavespeed"
-                  ? x.balance == null ? "—" : `$${x.balance.toFixed(2)}`
+                  ? x.balance == null
+                    ? "—"
+                    : `$${x.balance.toFixed(2)}`
                   : provider === "roboneo"
                     ? x.balance == null
-                      ? x.status === "failed" ? "❌" : "— cr"
+                      ? x.status === "failed"
+                        ? "❌"
+                        : "— cr"
                       : `${x.balance.toLocaleString()} cr`
-                  : provider === "framia" || provider === "leonardo" || provider === "firefly"
-                    ? x.balance == null
-                      ? x.status === "failed" ? "❌" : x.status === "active" ? "OK" : "…"
-                      : `${x.balance.toLocaleString()} cr`
-                    : x.status === "active" ? "OK" : x.status === "failed" ? "❌" : "…"}
+                    : provider === "framia" || provider === "leonardo" || provider === "firefly"
+                      ? x.balance == null
+                        ? x.status === "failed"
+                          ? "❌"
+                          : x.status === "active"
+                            ? "OK"
+                            : "…"
+                        : `${x.balance.toLocaleString()} cr`
+                      : x.status === "active"
+                        ? "OK"
+                        : x.status === "failed"
+                          ? "❌"
+                          : "…"}
               </div>
-              <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
+              <button
+                onClick={() => remove(x.id)}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50 transition"
+              >
                 <Trash2 className="h-3.5 w-3.5" /> Hapus
               </button>
             </div>
@@ -1904,7 +2355,9 @@ function ProviderKeyPane({
             )}
           </div>
         ))}
-        {list.length === 0 && <div className="text-[11px] text-muted-foreground italic px-1">Belum ada key.</div>}
+        {list.length === 0 && (
+          <div className="text-[11px] text-muted-foreground italic px-1">Belum ada key.</div>
+        )}
       </div>
       <div className="text-[11px] text-muted-foreground leading-relaxed">{helper}</div>
     </>
@@ -1925,7 +2378,16 @@ const voices = [
 ];
 const emptyEleven: ElevenCfg = { keys: [], voice: voices[0].value, customVoice: "" };
 
-type ElevenKeyStatus = { key: string; ok: boolean; remaining: number | null; limit: number; tier?: string; method?: string; note?: string; reason?: string };
+type ElevenKeyStatus = {
+  key: string;
+  ok: boolean;
+  remaining: number | null;
+  limit: number;
+  tier?: string;
+  method?: string;
+  note?: string;
+  reason?: string;
+};
 
 function ElevenPane() {
   const [cfg, setCfg] = useState<ElevenCfg>(emptyEleven);
@@ -1933,21 +2395,32 @@ function ElevenPane() {
   const [status, setStatus] = useState("");
   const [keyStatuses, setKeyStatuses] = useState<ElevenKeyStatus[]>([]);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({ show: false, pct: 0, text: "" });
+  const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({
+    show: false,
+    pct: 0,
+    text: "",
+  });
   const showSummary = useSummaryDialog();
 
   useEffect(() => {
-    const stored = readJSON<ElevenCfg | { apiKey?: string; voice?: string; customVoice?: string }>(LS.eleven, emptyEleven);
+    const stored = readJSON<ElevenCfg | { apiKey?: string; voice?: string; customVoice?: string }>(
+      LS.eleven,
+      emptyEleven,
+    );
     const migrated: ElevenCfg =
       "keys" in stored && Array.isArray((stored as ElevenCfg).keys)
         ? (stored as ElevenCfg)
         : {
-            keys: (stored as { apiKey?: string }).apiKey ? [(stored as { apiKey?: string }).apiKey!] : [],
+            keys: (stored as { apiKey?: string }).apiKey
+              ? [(stored as { apiKey?: string }).apiKey!]
+              : [],
             voice: (stored as { voice?: string }).voice || voices[0].value,
             customVoice: (stored as { customVoice?: string }).customVoice || "",
           };
     setCfg(migrated);
-    const savedStatuses = readJSON<ElevenKeyStatus[]>(LS.elevenChecks, []).filter((s) => migrated.keys.includes(s.key));
+    const savedStatuses = readJSON<ElevenKeyStatus[]>(LS.elevenChecks, []).filter((s) =>
+      migrated.keys.includes(s.key),
+    );
     setKeyStatuses(savedStatuses);
     // Auto-check key yang belum punya status tersimpan (mis. baru dikirim
     // admin) — jalankan tes suara 1 kata via checkElevenKey.
@@ -1968,7 +2441,11 @@ function ElevenPane() {
           tier: r.tier,
           method: r.method,
           note: r.note,
-          reason: !r.ok ? "tes suara gagal" : !canUse ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
+          reason: !r.ok
+            ? "tes suara gagal"
+            : !canUse
+              ? `credit < ${MIN_ELEVEN_CREDITS}`
+              : undefined,
         });
         if (!cancelled) {
           writeJSON(LS.elevenChecks, results);
@@ -1987,8 +2464,13 @@ function ElevenPane() {
     writeJSON(LS.elevenChecks, next);
   };
 
-  const parse = (raw: string) => raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
-  const isValidFormat = (k: string) => /^sk_[A-Za-z0-9_-]{20,}$/.test(k) || /^xi-[A-Za-z0-9-]{20,}$/.test(k);
+  const parse = (raw: string) =>
+    raw
+      .split(/[\n,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  const isValidFormat = (k: string) =>
+    /^sk_[A-Za-z0-9_-]{20,}$/.test(k) || /^xi-[A-Za-z0-9-]{20,}$/.test(k);
 
   const tambah = async () => {
     const raw = parse(bulk);
@@ -1998,7 +2480,8 @@ function ElevenPane() {
     const dedup = Array.from(new Set(raw)).filter((k) => !existing.has(k));
     if (dedup.length === 0) {
       setStatus("Semua key sudah tersimpan");
-      setBulk(""); setBusy(false);
+      setBulk("");
+      setBusy(false);
       return;
     }
     const badFormat = dedup.filter((k) => !isValidFormat(k));
@@ -2021,7 +2504,13 @@ function ElevenPane() {
         reason: !r.ok ? "tes suara gagal" : !canSave ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
       });
       if (canSave) accepted.push(k);
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / good.length) * 100), text: `Cek ${i + 1}/${good.length}` }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / good.length) * 100),
+          text: `Cek ${i + 1}/${good.length}`,
+        }),
+      );
       await new Promise((res) => setTimeout(res, 15));
     }
     const merged = Array.from(new Set([...cfg.keys, ...accepted]));
@@ -2040,12 +2529,15 @@ function ElevenPane() {
     const readableResults = okResults.filter((r) => r.remaining !== null);
     const totalRem = readableResults.reduce((a, r) => a + (r.remaining ?? 0), 0);
     const totalLim = okResults.reduce((a, r) => a + r.limit, 0);
-    const info = readableResults.length > 0
-      ? `Sisa credit ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
-      : okResults.length > 0
-        ? "valid via tes suara 1 kata; saldo tidak terbaca"
-        : "tidak ada key yang lolos tes suara/saldo";
-    setStatus(`✅ ${accepted.length} tersimpan · ❌ ${badFormat.length + (good.length - accepted.length)} ditolak/credit < ${MIN_ELEVEN_CREDITS} · ${info}`);
+    const info =
+      readableResults.length > 0
+        ? `Sisa credit ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
+        : okResults.length > 0
+          ? "valid via tes suara 1 kata; saldo tidak terbaca"
+          : "tidak ada key yang lolos tes suara/saldo";
+    setStatus(
+      `✅ ${accepted.length} tersimpan · ❌ ${badFormat.length + (good.length - accepted.length)} ditolak/credit < ${MIN_ELEVEN_CREDITS} · ${info}`,
+    );
     setBusy(false);
     const dup = raw.length - dedup.length;
     const lowCredit = results.filter((r) => !r.ok && r.reason?.startsWith("credit")).length;
@@ -2055,14 +2547,28 @@ function ElevenPane() {
       rows: [
         { label: "Total input", value: raw.length },
         { label: "Duplikat (sudah tersimpan)", value: dup, tone: "muted" },
-        { label: "Format salah", value: badFormat.length, tone: badFormat.length ? "bad" : "muted" },
+        {
+          label: "Format salah",
+          value: badFormat.length,
+          tone: badFormat.length ? "bad" : "muted",
+        },
         { label: "Berhasil ditambahkan", value: accepted.length, tone: "ok" },
-        { label: `Credit habis / < ${MIN_ELEVEN_CREDITS}`, value: lowCredit, tone: lowCredit ? "warn" : "muted" },
-        { label: "Invalid / tes suara gagal", value: testFailed, tone: testFailed ? "bad" : "muted" },
+        {
+          label: `Credit habis / < ${MIN_ELEVEN_CREDITS}`,
+          value: lowCredit,
+          tone: lowCredit ? "warn" : "muted",
+        },
+        {
+          label: "Invalid / tes suara gagal",
+          value: testFailed,
+          tone: testFailed ? "bad" : "muted",
+        },
       ],
       footer:
         `Total key tersimpan sekarang: ${merged.length}` +
-        (totalLim > 0 ? ` · Saldo agregat: ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars` : ""),
+        (totalLim > 0
+          ? ` · Saldo agregat: ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
+          : ""),
     });
   };
 
@@ -2071,15 +2577,24 @@ function ElevenPane() {
     setStatus("💾 Voice tersimpan");
   };
   const test = async () => {
-    if (!cfg.keys.length) { setStatus("❌ Paste API key dulu"); return; }
+    if (!cfg.keys.length) {
+      setStatus("❌ Paste API key dulu");
+      return;
+    }
     setStatus("🔊 Generate sample voice...");
     try {
       const r = await fetch("/api/public/elevenlabs-tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Eleven-Key": cfg.keys[0] },
-        body: JSON.stringify({ text: "Halo, ini adalah test suara dari AA Creative Studio.", voiceId: cfg.voice }),
+        body: JSON.stringify({
+          text: "Halo, ini adalah test suara dari AA Creative Studio.",
+          voiceId: cfg.voice,
+        }),
       });
-      if (!r.ok) { const j = await r.json().catch(() => ({} as { error?: string })); throw new Error(j.error || `HTTP ${r.status}`); }
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}) as { error?: string });
+        throw new Error(j.error || `HTTP ${r.status}`);
+      }
       const buf = await r.arrayBuffer();
       const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
       new Audio(url).play().catch(() => {});
@@ -2116,11 +2631,19 @@ function ElevenPane() {
         reason: !r.ok ? "tes suara gagal" : !canUse ? `credit < ${MIN_ELEVEN_CREDITS}` : undefined,
       });
       saveStatuses([...results]);
-      flushSync(() => setProgress({ show: true, pct: Math.round(((i + 1) / cfg.keys.length) * 100), text: `Cek ${i + 1}/${cfg.keys.length}` }));
+      flushSync(() =>
+        setProgress({
+          show: true,
+          pct: Math.round(((i + 1) / cfg.keys.length) * 100),
+          text: `Cek ${i + 1}/${cfg.keys.length}`,
+        }),
+      );
       await new Promise((r) => setTimeout(r, 120));
     }
     const okCount = results.filter((r) => r.ok).length;
-    const totalRem = results.filter((r) => r.ok && r.remaining !== null).reduce((a, r) => a + (r.remaining ?? 0), 0);
+    const totalRem = results
+      .filter((r) => r.ok && r.remaining !== null)
+      .reduce((a, r) => a + (r.remaining ?? 0), 0);
     const totalLim = results.filter((r) => r.ok).reduce((a, r) => a + r.limit, 0);
     const usableKeys = results.filter((r) => r.ok).map((r) => r.key);
     const next = { ...cfg, keys: usableKeys };
@@ -2128,10 +2651,13 @@ function ElevenPane() {
     writeJSON(LS.eleven, next);
     saveStatuses(results.filter((r) => r.ok));
     const removed = results.length - okCount;
-    const saldoInfo = totalLim > 0
-      ? `Sisa credit ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
-      : "valid via tes suara; saldo tidak terbaca";
-    setStatus(`✅ ${okCount}/${results.length} key aktif tersimpan · 🧹 ${removed} dibuang · ${saldoInfo}`);
+    const saldoInfo =
+      totalLim > 0
+        ? `Sisa credit ${totalRem.toLocaleString()}/${totalLim.toLocaleString()} chars`
+        : "valid via tes suara; saldo tidak terbaca";
+    setStatus(
+      `✅ ${okCount}/${results.length} key aktif tersimpan · 🧹 ${removed} dibuang · ${saldoInfo}`,
+    );
     setProgress({ show: false, pct: 0, text: "" });
     setBusy(false);
     const lowCredit = results.filter((r) => !r.ok && r.reason?.startsWith("credit")).length;
@@ -2141,8 +2667,16 @@ function ElevenPane() {
       rows: [
         { label: "Total key dicek", value: results.length },
         { label: "Aktif & tersimpan", value: okCount, tone: "ok" },
-        { label: `Credit habis / < ${MIN_ELEVEN_CREDITS}`, value: lowCredit, tone: lowCredit ? "warn" : "muted" },
-        { label: "Invalid / tes suara gagal", value: testFailed, tone: testFailed ? "bad" : "muted" },
+        {
+          label: `Credit habis / < ${MIN_ELEVEN_CREDITS}`,
+          value: lowCredit,
+          tone: lowCredit ? "warn" : "muted",
+        },
+        {
+          label: "Invalid / tes suara gagal",
+          value: testFailed,
+          tone: testFailed ? "bad" : "muted",
+        },
         { label: "Dibuang", value: removed, tone: removed ? "warn" : "muted" },
       ],
       footer:
@@ -2169,9 +2703,14 @@ function ElevenPane() {
           <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
         <GhostButton onClick={checkAllKeys} disabled={!hasStored || busy}>
-          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit & Status
+          <RefreshCw className={["h-3.5 w-3.5", busy ? "animate-spin" : ""].join(" ")} /> Cek Limit
+          & Status
         </GhostButton>
-        <GhostButton onClick={clear} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+        <GhostButton
+          onClick={clear}
+          disabled={!hasStored}
+          className="text-destructive hover:text-destructive disabled:opacity-40"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
@@ -2181,18 +2720,30 @@ function ElevenPane() {
         </div>
       )}
 
-
       {cfg.keys.length > 0 && (
         <div className="flex flex-col gap-1">
           {cfg.keys.map((k, i) => {
             const s = keyStatuses.find((x) => x.key === k);
             return (
-              <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card/40 px-3 py-1.5 text-[11px]">
-                <span className={["h-2 w-2 rounded-full shrink-0", s?.ok ? "bg-emerald-400" : s ? "bg-red-500" : "bg-amber-400"].join(" ")} />
-                <span className="font-mono truncate text-muted-foreground flex-1">{k.slice(0, 10)}…{k.slice(-4)}</span>
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded-lg border border-border bg-card/40 px-3 py-1.5 text-[11px]"
+              >
+                <span
+                  className={[
+                    "h-2 w-2 rounded-full shrink-0",
+                    s?.ok ? "bg-emerald-400" : s ? "bg-red-500" : "bg-amber-400",
+                  ].join(" ")}
+                />
+                <span className="font-mono truncate text-muted-foreground flex-1">
+                  {k.slice(0, 10)}…{k.slice(-4)}
+                </span>
                 {s?.ok ? (
                   <span className="text-emerald-400 font-semibold whitespace-nowrap">
-                    {s.remaining === null ? "Valid via tes suara" : `${s.remaining.toLocaleString()} / ${s.limit.toLocaleString()} chars`}{s.tier ? ` · ${s.tier}` : ""}
+                    {s.remaining === null
+                      ? "Valid via tes suara"
+                      : `${s.remaining.toLocaleString()} / ${s.limit.toLocaleString()} chars`}
+                    {s.tier ? ` · ${s.tier}` : ""}
                   </span>
                 ) : s ? (
                   <span className="text-red-400 font-semibold">{s.reason || "Ditolak"}</span>
@@ -2218,7 +2769,11 @@ function ElevenPane() {
       )}
 
       <Field label="Voice">
-        <Select options={voices} value={cfg.voice} onChange={(e) => setCfg({ ...cfg, voice: e.target.value })} />
+        <Select
+          options={voices}
+          value={cfg.voice}
+          onChange={(e) => setCfg({ ...cfg, voice: e.target.value })}
+        />
       </Field>
       <Field label="Custom Voice ID (opsional — override dropdown)">
         <Input
@@ -2228,20 +2783,28 @@ function ElevenPane() {
         />
       </Field>
       <div className="flex gap-2">
-        <GhostButton onClick={saveVoice} className="flex-1">💾 Simpan Voice</GhostButton>
-        <GhostButton onClick={test} className="flex-1" disabled={!hasStored}>🔊 Test</GhostButton>
+        <GhostButton onClick={saveVoice} className="flex-1">
+          💾 Simpan Voice
+        </GhostButton>
+        <GhostButton onClick={test} className="flex-1" disabled={!hasStored}>
+          🔊 Test
+        </GhostButton>
       </div>
       {progress.show && (
         <div className="rounded-md border border-border bg-card/40 p-2">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${progress.pct}%` }}
+            />
           </div>
           <div className="mt-1 text-[10px] text-muted-foreground">{progress.text}</div>
         </div>
       )}
       {status && <div className="text-[11px] text-muted-foreground">{status}</div>}
       <div className="text-[11px] text-muted-foreground leading-relaxed">
-        {cfg.keys.length} key aktif · dienkripsi di database akun dan hanya di-cache sementara per akun pada browser ini.
+        {cfg.keys.length} key aktif · dienkripsi di database akun dan hanya di-cache sementara per
+        akun pada browser ini.
       </div>
     </>
   );
@@ -2266,7 +2829,8 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     reader.readAsText(f);
   };
 
-  const isValidFormat = (t: string) => /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t) || /^[A-Za-z0-9_-]{40,}$/.test(t);
+  const isValidFormat = (t: string) =>
+    /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t) || /^[A-Za-z0-9_-]{40,}$/.test(t);
 
   const doImport = async () => {
     const tokens = parse(text);
@@ -2281,7 +2845,13 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     for (const t of good) {
       const res = await checkWeavyToken(t);
       if (res.ok && res.credits !== null && res.credits >= MIN_WEAVY_CREDITS) {
-        added.push({ id: uid(), token: t, email: res.email, credits: res.credits, status: "active" });
+        added.push({
+          id: uid(),
+          token: t,
+          email: res.email,
+          credits: res.credits,
+          status: "active",
+        });
       }
       await new Promise((r) => setTimeout(r, 150));
     }
@@ -2290,24 +2860,36 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     if (!readJSON<string | null>(LS.active, null) && added[0]) writeJSON(LS.active, added[0].id);
     window.dispatchEvent(new Event("storage"));
     setBusy(false);
-    setStatus(`✅ ${added.length} token diimport · ❌ ${badFormat.length + (good.length - added.length)} ditolak/credit < ${MIN_WEAVY_CREDITS}`);
+    setStatus(
+      `✅ ${added.length} token diimport · ❌ ${badFormat.length + (good.length - added.length)} ditolak/credit < ${MIN_WEAVY_CREDITS}`,
+    );
     if (added.length > 0) onClose();
   };
 
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 backdrop-blur-sm p-4">
       <div className="neumorph w-full max-w-lg p-5 relative">
-        <button onClick={onClose} className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+        >
           <X className="h-3.5 w-3.5" /> Tutup
         </button>
         <div className="font-display text-lg mb-1">📋 Import Tokens</div>
-        <div className="text-xs text-muted-foreground mb-4">1 token per baris. Duplikat otomatis di-skip, credit wajib minimal {MIN_WEAVY_CREDITS}.</div>
+        <div className="text-xs text-muted-foreground mb-4">
+          1 token per baris. Duplikat otomatis di-skip, credit wajib minimal {MIN_WEAVY_CREDITS}.
+        </div>
 
         <label className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border/80 bg-card/30 px-4 py-6 text-center cursor-pointer hover:border-primary/60 transition mb-3">
           <FileText className="h-5 w-5 text-muted-foreground" />
           <div className="text-sm font-medium">Klik atau drag file .txt</div>
           <div className="text-[11px] text-muted-foreground">1 token per baris</div>
-          <input type="file" accept=".txt,.csv" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+          <input
+            type="file"
+            accept=".txt,.csv"
+            className="hidden"
+            onChange={(e) => onFile(e.target.files?.[0])}
+          />
         </label>
 
         <Textarea
@@ -2319,7 +2901,9 @@ function ImportModal({ onClose }: { onClose: () => void }) {
         />
         <div className="flex gap-2 justify-end mt-3">
           <GhostButton onClick={onClose}>Batal</GhostButton>
-          <PrimaryButton onClick={doImport} disabled={!text.trim() || busy}>{busy ? "Checking…" : "Import"}</PrimaryButton>
+          <PrimaryButton onClick={doImport} disabled={!text.trim() || busy}>
+            {busy ? "Checking…" : "Import"}
+          </PrimaryButton>
         </div>
         {status && <div className="mt-2 text-[11px] text-muted-foreground">{status}</div>}
       </div>
@@ -2332,8 +2916,9 @@ function RenderPane() {
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-[11.5px] text-muted-foreground leading-relaxed">
-        🎬 <b className="text-foreground">Default render = FFmpeg WASM di browser</b> (gratis, tanpa key, ≤ 400 MB).
-        Isi key di bawah <b>hanya bila</b> ingin fallback ke cloud render untuk file besar / batch panjang.
+        🎬 <b className="text-foreground">Default render = FFmpeg WASM di browser</b> (gratis, tanpa
+        key, ≤ 400 MB). Isi key di bawah <b>hanya bila</b> ingin fallback ke cloud render untuk file
+        besar / batch panjang.
       </div>
       <MiniKeyPane
         title="Shotstack"
@@ -2356,21 +2941,41 @@ function RenderPane() {
 }
 
 function MiniKeyPane({
-  title, lsKey, placeholder, docHref, docLabel, note,
+  title,
+  lsKey,
+  placeholder,
+  docHref,
+  docLabel,
+  note,
 }: {
-  title: string; lsKey: string; placeholder: string; docHref: string; docLabel: string; note: string;
+  title: string;
+  lsKey: string;
+  placeholder: string;
+  docHref: string;
+  docLabel: string;
+  note: string;
 }) {
   const [k, setK] = useState("");
   const [list, setList] = useState<SimpleKey[]>([]);
   const [status, setStatus] = useState("");
   useEffect(() => setList(readJSON<SimpleKey[]>(lsKey, [])), [lsKey]);
-  const persist = (next: SimpleKey[]) => { setList(next); writeJSON(lsKey, next); };
+  const persist = (next: SimpleKey[]) => {
+    setList(next);
+    writeJSON(lsKey, next);
+  };
   const isValidFormat = (s: string) => /^[A-Za-z0-9._-]{16,}$/.test(s);
   const add = () => {
     const key = k.trim();
     if (!key) return;
-    if (list.some((x) => x.key === key)) { setStatus("Key sudah tersimpan"); setK(""); return; }
-    if (!isValidFormat(key)) { setStatus("❌ Format key tidak valid (min 16 karakter alfanumerik)"); return; }
+    if (list.some((x) => x.key === key)) {
+      setStatus("Key sudah tersimpan");
+      setK("");
+      return;
+    }
+    if (!isValidFormat(key)) {
+      setStatus("❌ Format key tidak valid (min 16 karakter alfanumerik)");
+      return;
+    }
     persist([...list, { id: uid(), key, balance: null, status: "active" }]);
     setStatus(`✅ Ditambahkan · ${list.length + 1} key tersimpan`);
     setK("");
@@ -2398,23 +3003,34 @@ function MiniKeyPane({
     <div className="neumorph p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="font-display text-base">{title}</div>
-        <div className={[
-          "text-[11px] font-medium px-2 py-0.5 rounded-full",
-          activeCount > 0
-            ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-            : "bg-amber-500/15 text-amber-300 border border-amber-500/30",
-        ].join(" ")}>
+        <div
+          className={[
+            "text-[11px] font-medium px-2 py-0.5 rounded-full",
+            activeCount > 0
+              ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+              : "bg-amber-500/15 text-amber-300 border border-amber-500/30",
+          ].join(" ")}
+        >
           {activeCount > 0 ? `✅ ${activeCount} key aktif` : "⚠️ Belum ada key"}
         </div>
       </div>
       <div className="flex gap-2">
-        <Input type="password" placeholder={placeholder} value={k} onChange={(e) => setK(e.target.value)} />
+        <Input
+          type="password"
+          placeholder={placeholder}
+          value={k}
+          onChange={(e) => setK(e.target.value)}
+        />
         <PrimaryButton onClick={add} disabled={!canAdd}>
           <Plus className="h-3.5 w-3.5" /> Tambah
         </PrimaryButton>
       </div>
       <div className="flex gap-2">
-        <GhostButton onClick={clearAll} disabled={!hasStored} className="text-destructive hover:text-destructive disabled:opacity-40">
+        <GhostButton
+          onClick={clearAll}
+          disabled={!hasStored}
+          className="text-destructive hover:text-destructive disabled:opacity-40"
+        >
           <Trash2 className="h-3.5 w-3.5" /> Hapus Semua
         </GhostButton>
       </div>
@@ -2422,17 +3038,32 @@ function MiniKeyPane({
 
       <div className="flex flex-col gap-1.5">
         {list.map((x) => (
-          <div key={x.id} className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs">
+          <div
+            key={x.id}
+            className="flex items-center gap-2 rounded-xl border border-border bg-card/40 px-3 py-2 text-xs"
+          >
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shrink-0" />
-            <div className="font-mono truncate text-muted-foreground flex-1">{x.key.slice(0, 10)}…{x.key.slice(-4)}</div>
-            <button onClick={() => remove(x.id)} className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50">
+            <div className="font-mono truncate text-muted-foreground flex-1">
+              {x.key.slice(0, 10)}…{x.key.slice(-4)}
+            </div>
+            <button
+              onClick={() => remove(x.id)}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive/50"
+            >
               <Trash2 className="h-3.5 w-3.5" /> Hapus
             </button>
           </div>
         ))}
-        {list.length === 0 && <div className="text-[11px] text-muted-foreground italic px-1">Belum ada key.</div>}
+        {list.length === 0 && (
+          <div className="text-[11px] text-muted-foreground italic px-1">Belum ada key.</div>
+        )}
       </div>
-      <a href={docHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline w-fit">
+      <a
+        href={docHref}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline w-fit"
+      >
         <ExternalLink className="h-3 w-3" /> {docLabel}
       </a>
       <div className="text-[11px] text-muted-foreground leading-relaxed">{note}</div>

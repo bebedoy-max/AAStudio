@@ -93,7 +93,9 @@ chrome.storage.local.get(["autoSync"]).then((r) => {
 
 // Re-detect when the user switches tabs while the popup is open.
 chrome.tabs?.onActivated?.addListener?.(() => refreshProviderUI());
-chrome.tabs?.onUpdated?.addListener?.((_id, info) => { if (info.url) refreshProviderUI(); });
+chrome.tabs?.onUpdated?.addListener?.((_id, info) => {
+  if (info.url) refreshProviderUI();
+});
 
 $("auto").addEventListener("change", () => {
   chrome.storage.local.set({ autoSync: $("auto").checked });
@@ -134,7 +136,9 @@ function extractToken(scoreKeysStr) {
       if (!v) continue;
       const boost = scoreKeys.test(k) ? 40 : 0;
       if (looksJwt(v)) candidates.push({ key: "ls:" + k, token: v, score: 60 + boost });
-      try { walk(JSON.parse(v), "ls:" + k, 50 + boost); } catch {}
+      try {
+        walk(JSON.parse(v), "ls:" + k, 50 + boost);
+      } catch {}
     }
   } catch {}
   try {
@@ -143,7 +147,9 @@ function extractToken(scoreKeysStr) {
       const v = sessionStorage.getItem(k);
       if (!v) continue;
       if (looksJwt(v)) candidates.push({ key: "ss:" + k, token: v, score: 55 });
-      try { walk(JSON.parse(v), "ss:" + k, 45); } catch {}
+      try {
+        walk(JSON.parse(v), "ss:" + k, 45);
+      } catch {}
     }
   } catch {}
   document.cookie.split(";").forEach((c) => {
@@ -154,12 +160,19 @@ function extractToken(scoreKeysStr) {
   const scanIDB = async () => {
     if (!indexedDB.databases) return;
     let dbs = [];
-    try { dbs = await indexedDB.databases(); } catch {}
+    try {
+      dbs = await indexedDB.databases();
+    } catch {}
     for (const info of dbs) {
       if (!info?.name) continue;
       await new Promise((resolve) => {
         let done = false;
-        const finish = () => { if (!done) { done = true; resolve(); } };
+        const finish = () => {
+          if (!done) {
+            done = true;
+            resolve();
+          }
+        };
         setTimeout(finish, 1500);
         try {
           const req = indexedDB.open(info.name);
@@ -167,11 +180,20 @@ function extractToken(scoreKeysStr) {
           req.onsuccess = () => {
             const db = req.result;
             const stores = Array.from(db.objectStoreNames || []);
-            if (!stores.length) { db.close(); finish(); return; }
+            if (!stores.length) {
+              db.close();
+              finish();
+              return;
+            }
             try {
               const tx = db.transaction(stores, "readonly");
               let pending = stores.length;
-              const doneOne = () => { if (--pending <= 0) { db.close(); finish(); } };
+              const doneOne = () => {
+                if (--pending <= 0) {
+                  db.close();
+                  finish();
+                }
+              };
               stores.forEach((sn) => {
                 try {
                   const g = tx.objectStore(sn).getAll();
@@ -183,17 +205,24 @@ function extractToken(scoreKeysStr) {
                     });
                     doneOne();
                   };
-                } catch { doneOne(); }
+                } catch {
+                  doneOne();
+                }
               });
-            } catch { db.close(); finish(); }
+            } catch {
+              db.close();
+              finish();
+            }
           };
-        } catch { finish(); }
+        } catch {
+          finish();
+        }
       });
     }
   };
   return scanIDB().then(() => {
     if (!candidates.length) return { ok: false, error: "Tidak menemukan JWT di halaman ini." };
-    candidates.sort((a, b) => (b.score - a.score) || (b.token.length - a.token.length));
+    candidates.sort((a, b) => b.score - a.score || b.token.length - a.token.length);
     const best = candidates[0];
     return { ok: true, token: best.token, source: best.key, all: candidates.length };
   });
@@ -201,7 +230,10 @@ function extractToken(scoreKeysStr) {
 
 $("grab").addEventListener("click", async () => {
   const p = currentProvider();
-  if (!p) { setStatus("Provider tidak terdeteksi dari tab aktif.", "err"); return; }
+  if (!p) {
+    setStatus("Provider tidak terdeteksi dari tab aktif.", "err");
+    return;
+  }
   setStatus("Membaca token...");
   const cap = (await chrome.storage.local.get(`captured::${p.id}`))[`captured::${p.id}`];
   if (cap?.token && Date.now() - cap.at < 30 * 60 * 1000) {
@@ -210,7 +242,9 @@ $("grab").addEventListener("click", async () => {
   }
   // Provider berbasis cookie (Dola): baca cookie jar, bukan localStorage.
   if (p.cookieCapture) {
-    const r = await chrome.runtime.sendMessage({ kind: "AA_GRAB_COOKIES", providerId: p.id }).catch(() => null);
+    const r = await chrome.runtime
+      .sendMessage({ kind: "AA_GRAB_COOKIES", providerId: p.id })
+      .catch(() => null);
     if (!r?.ok) {
       setStatus(
         r?.error === "no-session"
@@ -221,14 +255,19 @@ $("grab").addEventListener("click", async () => {
       return;
     }
     const jar = r.jar;
-    await chrome.storage.local.set({ [`captured::${p.id}`]: { token: jar, source: "cookies", at: Date.now() } });
+    await chrome.storage.local.set({
+      [`captured::${p.id}`]: { token: jar, source: "cookies", at: Date.now() },
+    });
     await onGrabbed(p.id, jar, "cookies");
     return;
   }
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.url || !p.hostMatch.test(tab.url)) {
-      setStatus(`Buka tab ${p.openUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")} dulu.`, "err");
+      setStatus(
+        `Buka tab ${p.openUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")} dulu.`,
+        "err",
+      );
       return;
     }
     const results = await chrome.scripting.executeScript({
@@ -238,8 +277,13 @@ $("grab").addEventListener("click", async () => {
       args: [p.scoreKeys.source],
     });
     const r = results?.[0]?.result;
-    if (!r?.ok) { setStatus(r?.error || "Gagal.", "err"); return; }
-    await chrome.storage.local.set({ [`captured::${p.id}`]: { token: r.token, source: r.source, at: Date.now() } });
+    if (!r?.ok) {
+      setStatus(r?.error || "Gagal.", "err");
+      return;
+    }
+    await chrome.storage.local.set({
+      [`captured::${p.id}`]: { token: r.token, source: r.source, at: Date.now() },
+    });
     await onGrabbed(p.id, r.token, r.source);
   } catch (e) {
     setStatus("Error: " + (e?.message || e), "err");
@@ -258,8 +302,12 @@ async function onGrabbed(providerId, token, source) {
 
 /* ------------------------------- copy / push ------------------------------ */
 $("copy").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("token").value); setStatus("Disalin ke clipboard.", "ok"); }
-  catch { setStatus("Gagal copy.", "err"); }
+  try {
+    await navigator.clipboard.writeText($("token").value);
+    setStatus("Disalin ke clipboard.", "ok");
+  } catch {
+    setStatus("Gagal copy.", "err");
+  }
 });
 
 $("push").addEventListener("click", () => {
@@ -277,7 +325,10 @@ async function pushToApp(providerId, token, silent = false) {
   try {
     const res = await fetch(appUrl.replace(/\/+$/, "") + "/api/public/extension/push-token", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + session.access_token,
+      },
       body: JSON.stringify({ provider: providerId, token }),
     });
     const data = await res.json().catch(() => ({}));
@@ -290,7 +341,12 @@ async function pushToApp(providerId, token, silent = false) {
       return;
     }
     await chrome.storage.local.set({ [`synced::${providerId}`]: { at: Date.now(), ok: true } });
-    setStatus(data?.added ? "Token baru ditambahkan ke Token Manager." : "Token sudah ada — tidak duplikat.", "ok");
+    setStatus(
+      data?.added
+        ? "Token baru ditambahkan ke Token Manager."
+        : "Token sudah ada — tidak duplikat.",
+      "ok",
+    );
   } catch (e) {
     setStatus("Error: " + (e?.message || e), "err");
   }
@@ -308,14 +364,20 @@ async function refreshSession(appUrl, refreshToken) {
     if (!data?.access_token) return null;
     await chrome.storage.local.set({ session: data });
     return data;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /* --------------------------------- account -------------------------------- */
 const DEFAULT_APP_URL = AA_CONFIG.appUrl || "https://aacreative.vercel.app/";
 
 async function renderAccount() {
-  const { appUrl, session, savedAccounts } = await chrome.storage.local.get(["appUrl", "session", "savedAccounts"]);
+  const { appUrl, session, savedAccounts } = await chrome.storage.local.get([
+    "appUrl",
+    "session",
+    "savedAccounts",
+  ]);
   // URL hasil auto-sync dari Plug-IN Config menang atas nilai bawaan build.
   const effectiveUrl = appUrl || AA_CONFIG.appUrl || DEFAULT_APP_URL;
   if ($("appUrl")) $("appUrl").value = effectiveUrl;
@@ -357,7 +419,10 @@ function renderSavedAccounts(accounts) {
   const wrap = $("saved-wrap");
   const list = $("saved-list");
   if (!wrap || !list) return;
-  if (!accounts.length) { wrap.style.display = "none"; return; }
+  if (!accounts.length) {
+    wrap.style.display = "none";
+    return;
+  }
   wrap.style.display = "block";
   list.innerHTML = "";
   accounts.forEach((acc, idx) => {
@@ -395,14 +460,21 @@ $("appUrl")?.addEventListener("change", () => {
 
 $("login").addEventListener("click", async () => {
   const stored = (await chrome.storage.local.get("appUrl")).appUrl;
-  const appUrl = stored || AA_CONFIG.appUrl || ($("appUrl")?.value.trim() || DEFAULT_APP_URL);
+  const appUrl = stored || AA_CONFIG.appUrl || $("appUrl")?.value.trim() || DEFAULT_APP_URL;
   const email = $("email").value.trim();
   const password = $("password").value;
   const remember = $("remember")?.checked;
-  if (!appUrl || !email || !password) { setStatus("Isi email dan password.", "err", "auth-status"); return; }
+  if (!appUrl || !email || !password) {
+    setStatus("Isi email dan password.", "err", "auth-status");
+    return;
+  }
   const { boundEmail } = await chrome.storage.local.get("boundEmail");
   if (boundEmail && boundEmail.toLowerCase() !== email.toLowerCase()) {
-    setStatus(`Extension ini terikat ke akun ${boundEmail}. Tidak bisa dipakai akun lain.`, "err", "auth-status");
+    setStatus(
+      `Extension ini terikat ke akun ${boundEmail}. Tidak bisa dipakai akun lain.`,
+      "err",
+      "auth-status",
+    );
     return;
   }
   await chrome.storage.local.set({ appUrl });
@@ -492,16 +564,19 @@ async function refreshRelayStatus() {
     const log = res.relayLog || [];
     if (!log.length) {
       box.innerHTML = '<div style="font-size:11px;color:#8a8aa0;">Belum ada request relay.</div>';
-      $("relay-status").textContent = "Saat dipakai, log akan menampilkan via firefly-tab / background dan status HTTP.";
+      $("relay-status").textContent =
+        "Saat dipakai, log akan menampilkan via firefly-tab / background dan status HTTP.";
       return;
     }
     const latest = log[0];
     if (latest?.via === "firefly-tab" && latest?.status === 408) {
-      $("relay-status").textContent = "Relay aktif: request sudah lewat tab Firefly. HTTP 408 berarti Adobe/model sedang menolak sementara.";
+      $("relay-status").textContent =
+        "Relay aktif: request sudah lewat tab Firefly. HTTP 408 berarti Adobe/model sedang menolak sementara.";
     } else if (latest?.via === "firefly-tab") {
       $("relay-status").textContent = "Relay aktif: request terakhir dikirim dari tab Firefly.";
     } else {
-      $("relay-status").textContent = "Relay belum memakai tab Firefly. Pastikan firefly.adobe.com terbuka dan login.";
+      $("relay-status").textContent =
+        "Relay belum memakai tab Firefly. Pastikan firefly.adobe.com terbuka dan login.";
     }
     for (const e of log) {
       const row = document.createElement("div");

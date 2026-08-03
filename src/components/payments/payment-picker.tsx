@@ -10,12 +10,14 @@ import {
   Store,
   ExternalLink,
   CircleCheck,
-  
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { listActivePaymentMethods, type ActivePaymentMethod } from "@/lib/payments/methods.functions";
+import {
+  listActivePaymentMethods,
+  type ActivePaymentMethod,
+} from "@/lib/payments/methods.functions";
 import { createPayment, pollPurchaseStatus } from "@/lib/payments/charge.functions";
 import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
 import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
@@ -273,7 +275,6 @@ export function PaymentPicker({
     return null;
   }
 
-
   // Single-method: tampilkan loader saja sementara payment dibuat otomatis.
   if (methods.length === 1 && !autoFailed) {
     return (
@@ -327,7 +328,9 @@ export function PaymentPicker({
                     <span
                       className={[
                         "h-8 w-8 grid place-items-center rounded-lg shrink-0",
-                        active ? "bg-primary/20 text-primary" : "bg-sidebar-accent/60 border border-border",
+                        active
+                          ? "bg-primary/20 text-primary"
+                          : "bg-sidebar-accent/60 border border-border",
                       ].join(" ")}
                     >
                       {creating && active ? (
@@ -337,7 +340,9 @@ export function PaymentPicker({
                       )}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium leading-tight truncate">{m.methodLabel}</div>
+                      <div className="text-sm font-medium leading-tight truncate">
+                        {m.methodLabel}
+                      </div>
                       <div className="text-[10px] text-muted-foreground/70 font-mono truncate">
                         {m.methodCode}
                       </div>

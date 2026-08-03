@@ -78,8 +78,13 @@ export const Route = createFileRoute("/api/public/validate-media")({
           const contentType = (response.headers.get("content-type") || "").toLowerCase();
           const finalUrl = response.url || parsed.data.url;
           const bytes = new Uint8Array(await response.arrayBuffer());
-          const okKind = parsed.data.kind === "image" ? looksLikeImage(bytes, contentType) : looksLikeVideo(bytes, contentType);
-          const looksHtml = contentType.includes("text/html") || /^\s*</.test(new TextDecoder().decode(bytes.slice(0, 128)));
+          const okKind =
+            parsed.data.kind === "image"
+              ? looksLikeImage(bytes, contentType)
+              : looksLikeVideo(bytes, contentType);
+          const looksHtml =
+            contentType.includes("text/html") ||
+            /^\s*</.test(new TextDecoder().decode(bytes.slice(0, 128)));
 
           if (!response.ok || !okKind || looksHtml) {
             return json(
@@ -97,7 +102,10 @@ export const Route = createFileRoute("/api/public/validate-media")({
           return json({ ok: true, status: response.status, contentType, finalUrl });
         } catch (error) {
           return json(
-            { ok: false, error: error instanceof Error ? error.message : "Gagal membaca URL media" },
+            {
+              ok: false,
+              error: error instanceof Error ? error.message : "Gagal membaca URL media",
+            },
             { status: 502 },
           );
         }

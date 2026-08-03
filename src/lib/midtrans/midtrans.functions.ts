@@ -30,21 +30,19 @@ export const createMidtransQris = createServerFn({ method: "POST" })
       .eq("id", data.purchaseRequestId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    const pr = prRaw as
-      | {
-          id: string;
-          user_id: string;
-          price_idr: number;
-          status: string;
-          note: string | null;
-          route_key: string;
-          payment_provider: string | null;
-          temanqris_order_id: string | null;
-          midtrans_order_id: string | null;
-          midtrans_qr_url: string | null;
-          midtrans_expires_at: string | null;
-        }
-      | null;
+    const pr = prRaw as {
+      id: string;
+      user_id: string;
+      price_idr: number;
+      status: string;
+      note: string | null;
+      route_key: string;
+      payment_provider: string | null;
+      temanqris_order_id: string | null;
+      midtrans_order_id: string | null;
+      midtrans_qr_url: string | null;
+      midtrans_expires_at: string | null;
+    } | null;
     if (!pr) throw new Error("Purchase request not found");
     if (pr.user_id !== context.userId) throw new Error("Forbidden");
     if (pr.status !== "pending") throw new Error(`Purchase is already ${pr.status}`);
@@ -135,16 +133,14 @@ export const checkMidtransStatus = createServerFn({ method: "POST" })
     if (pr.status === "approved") return { status: "approved" as const };
     if (!pr.midtrans_order_id) return { status: pr.status };
 
-    const { fetchTransactionStatus, midtransStatusToInternal } = await import(
-      "@/lib/midtrans/midtrans.server"
-    );
+    const { fetchTransactionStatus, midtransStatusToInternal } =
+      await import("@/lib/midtrans/midtrans.server");
     const st = await fetchTransactionStatus(pr.midtrans_order_id);
     const internal = midtransStatusToInternal(st.transaction_status, st.fraud_status);
 
     // Auto-cancel jika sudah lewat waktu kadaluarsa dan belum dibayar.
     const isExpired =
-      pr.midtrans_expires_at != null &&
-      new Date(pr.midtrans_expires_at).getTime() < Date.now();
+      pr.midtrans_expires_at != null && new Date(pr.midtrans_expires_at).getTime() < Date.now();
     if (isExpired && internal !== "paid") {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       await (supabaseAdmin as unknown as LooseClient)

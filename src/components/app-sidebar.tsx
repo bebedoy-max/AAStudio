@@ -68,23 +68,73 @@ const LOGO_URL = "https://drive.google.com/thumbnail?id=1X9sHtl0_OwVYcZIXwPmreKi
 
 type Item = { title: string; url: string; icon: LucideIcon; permKey?: string };
 type NavEntry =
-  | { kind: "link"; key: string; label: string; url: string; icon: LucideIcon; permKey?: string; requireAdmin?: boolean; alwaysVisible?: boolean; premium?: boolean }
-  | { kind: "group"; key: string; label: string; icon: LucideIcon; items: Item[]; requireAdmin?: boolean; requirePremium?: boolean };
+  | {
+      kind: "link";
+      key: string;
+      label: string;
+      url: string;
+      icon: LucideIcon;
+      permKey?: string;
+      requireAdmin?: boolean;
+      alwaysVisible?: boolean;
+      premium?: boolean;
+    }
+  | {
+      kind: "group";
+      key: string;
+      label: string;
+      icon: LucideIcon;
+      items: Item[];
+      requireAdmin?: boolean;
+      requirePremium?: boolean;
+    };
 
 const DEFAULT_NAV: NavEntry[] = [
-  { kind: "link", key: "dashboard", label: "Creative Dashboard", url: "/", icon: Lightbulb, alwaysVisible: true },
+  {
+    kind: "link",
+    key: "dashboard",
+    label: "Creative Dashboard",
+    url: "/",
+    icon: Lightbulb,
+    alwaysVisible: true,
+  },
   {
     kind: "group",
     key: "ai-influencer",
     label: "AI Influencer",
     icon: UserCircle2,
     items: [
-      { title: "Character", url: "/ai-influencer/character", icon: UserCircle2, permKey: "ai-influencer.studio" },
+      {
+        title: "Character",
+        url: "/ai-influencer/character",
+        icon: UserCircle2,
+        permKey: "ai-influencer.studio",
+      },
       { title: "Brain", url: "/ai-influencer/brain", icon: Brain, permKey: "ai-influencer.studio" },
-      { title: "Content Planner", url: "/ai-influencer/planner", icon: CalendarRange, permKey: "ai-influencer.studio" },
-      { title: "Content Library", url: "/ai-influencer/library", icon: FolderOpen, permKey: "ai-influencer.studio" },
-      { title: "Auto Publisher", url: "/ai-influencer/publisher", icon: Send, permKey: "ai-influencer.studio" },
-      { title: "Analytics", url: "/ai-influencer/analytics", icon: LineChart, permKey: "ai-influencer.studio" },
+      {
+        title: "Content Planner",
+        url: "/ai-influencer/planner",
+        icon: CalendarRange,
+        permKey: "ai-influencer.studio",
+      },
+      {
+        title: "Content Library",
+        url: "/ai-influencer/library",
+        icon: FolderOpen,
+        permKey: "ai-influencer.studio",
+      },
+      {
+        title: "Auto Publisher",
+        url: "/ai-influencer/publisher",
+        icon: Send,
+        permKey: "ai-influencer.studio",
+      },
+      {
+        title: "Analytics",
+        url: "/ai-influencer/analytics",
+        icon: LineChart,
+        permKey: "ai-influencer.studio",
+      },
     ],
   },
   {
@@ -103,12 +153,42 @@ const DEFAULT_NAV: NavEntry[] = [
     label: "Generate",
     icon: Sparkles,
     items: [
-      { title: "Motion Control", url: "/generate/motion", icon: Move3d, permKey: "generate.motion" },
-      { title: "Bulk Fashion Generator", url: "/generate/bulk-fashion", icon: Shirt, permKey: "generate.bulk-fashion" },
-      { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
-      { title: "Text to Video", url: "/generate/text-to-video", icon: ImagePlay, permKey: "generate.text-to-video" },
-      { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
-      { title: "Image Upscaler", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
+      {
+        title: "Motion Control",
+        url: "/generate/motion",
+        icon: Move3d,
+        permKey: "generate.motion",
+      },
+      {
+        title: "Bulk Fashion Generator",
+        url: "/generate/bulk-fashion",
+        icon: Shirt,
+        permKey: "generate.bulk-fashion",
+      },
+      {
+        title: "Image To Video",
+        url: "/generate/image-to-video",
+        icon: ImagePlay,
+        permKey: "generate.image-to-video",
+      },
+      {
+        title: "Text to Video",
+        url: "/generate/text-to-video",
+        icon: ImagePlay,
+        permKey: "generate.text-to-video",
+      },
+      {
+        title: "Text to Image",
+        url: "/generate/leonardo",
+        icon: Sparkles,
+        permKey: "generate.leonardo",
+      },
+      {
+        title: "Image Upscaler",
+        url: "/generate/upscaler",
+        icon: Wand2,
+        permKey: "generate.upscaler",
+      },
     ],
   },
   {
@@ -117,8 +197,18 @@ const DEFAULT_NAV: NavEntry[] = [
     label: "Storyboard",
     icon: BookText,
     items: [
-      { title: "Produk Storyboard", url: "/generate/storyboard", icon: Package, permKey: "generate.storyboard" },
-      { title: "Naratif Video Maker", url: "/generate/naratif", icon: BookText, permKey: "generate.naratif" },
+      {
+        title: "Produk Storyboard",
+        url: "/generate/storyboard",
+        icon: Package,
+        permKey: "generate.storyboard",
+      },
+      {
+        title: "Naratif Video Maker",
+        url: "/generate/naratif",
+        icon: BookText,
+        permKey: "generate.naratif",
+      },
     ],
   },
 
@@ -128,10 +218,30 @@ const DEFAULT_NAV: NavEntry[] = [
     label: "Reff EDIT",
     icon: Palette,
     items: [
-      { title: "Image Reference Edit", url: "/reff-edit/image", icon: ImageIcon, permKey: "reff-edit.image" },
-      { title: "Video Reference Edit", url: "/reff-edit/video", icon: Clapperboard, permKey: "reff-edit.video" },
-      { title: "Reference Library", url: "/reff-edit/library", icon: Library, permKey: "reff-edit.library" },
-      { title: "Edit History", url: "/reff-edit/history", icon: History, permKey: "reff-edit.history" },
+      {
+        title: "Image Reference Edit",
+        url: "/reff-edit/image",
+        icon: ImageIcon,
+        permKey: "reff-edit.image",
+      },
+      {
+        title: "Video Reference Edit",
+        url: "/reff-edit/video",
+        icon: Clapperboard,
+        permKey: "reff-edit.video",
+      },
+      {
+        title: "Reference Library",
+        url: "/reff-edit/library",
+        icon: Library,
+        permKey: "reff-edit.library",
+      },
+      {
+        title: "Edit History",
+        url: "/reff-edit/history",
+        icon: History,
+        permKey: "reff-edit.history",
+      },
     ],
   },
   {
@@ -140,8 +250,18 @@ const DEFAULT_NAV: NavEntry[] = [
     label: "Manage",
     icon: Layers,
     items: [
-      { title: "Token / API Manager", url: "/manage/tokens", icon: KeyRound, permKey: "manage.tokens" },
-      { title: "Routing Provider", url: "/manage/routing", icon: RouteIcon, permKey: "manage.routing" },
+      {
+        title: "Token / API Manager",
+        url: "/manage/tokens",
+        icon: KeyRound,
+        permKey: "manage.tokens",
+      },
+      {
+        title: "Routing Provider",
+        url: "/manage/routing",
+        icon: RouteIcon,
+        permKey: "manage.routing",
+      },
       { title: "Account", url: "/manage/accounts", icon: UserCircle2, permKey: "manage.accounts" },
     ],
   },
@@ -216,7 +336,8 @@ function HoverFlyout({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } =
+    useAuth();
   if (!open) return null;
   return (
     <div
@@ -276,7 +397,6 @@ function HoverFlyout({
             );
           }
 
-
           return (
             <Link
               key={item.url}
@@ -329,7 +449,8 @@ function InlineSubmenu({
   currentPath: string;
   onNavigate?: () => void;
 }) {
-  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } = useAuth();
+  const { isFeatureEnabled, featureAccess, hasRoutePermission, isAdmin, getFeatureMode } =
+    useAuth();
   return (
     <div className="mt-1 ml-9 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
       {items.map((item) => {
@@ -377,7 +498,6 @@ function InlineSubmenu({
           );
         }
 
-
         return (
           <Link
             key={item.url}
@@ -419,7 +539,6 @@ function InlineSubmenu({
   );
 }
 
-
 function SortableEntry({
   entry,
   currentPath,
@@ -435,7 +554,9 @@ function SortableEntry({
   openGroupKey?: string | null;
   setOpenGroupKey?: (k: string | null) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: entry.key });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: entry.key,
+  });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -461,7 +582,6 @@ function SortableEntry({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inline, entry.kind, activeUrl]);
-
 
   const scheduleClose = () => {
     if (closeTimer.current) window.clearTimeout(closeTimer.current);
@@ -548,7 +668,9 @@ function SortableEntry({
             aria-expanded={inlineOpen}
           >
             {iconBadge}
-            <span className="flex-1 min-w-0 font-medium text-left truncate text-[15px]">{entry.label}</span>
+            <span className="flex-1 min-w-0 font-medium text-left truncate text-[15px]">
+              {entry.label}
+            </span>
             <ChevronRight
               className={[
                 "h-4 w-4 transition-transform shrink-0",
@@ -563,8 +685,16 @@ function SortableEntry({
             style={activeUrl ? { background: "var(--gradient-neon)" } : undefined}
           >
             {iconBadge}
-            <span className="flex-1 min-w-0 font-medium text-left truncate text-[15px]">{entry.label}</span>
-            <ChevronRight className={["h-4 w-4 transition-transform shrink-0", hoverOpen ? "translate-x-0.5" : "", activeUrl ? "opacity-90" : "opacity-50"].join(" ")} />
+            <span className="flex-1 min-w-0 font-medium text-left truncate text-[15px]">
+              {entry.label}
+            </span>
+            <ChevronRight
+              className={[
+                "h-4 w-4 transition-transform shrink-0",
+                hoverOpen ? "translate-x-0.5" : "",
+                activeUrl ? "opacity-90" : "opacity-50",
+              ].join(" ")}
+            />
           </div>
         )}
       </div>
@@ -591,7 +721,6 @@ function SortableEntry({
   );
 }
 
-
 export function AppSidebar({
   inline = false,
   onNavigate,
@@ -603,8 +732,7 @@ export function AppSidebar({
   // Sembunyikan item yang mode-nya "hide" atau belum di-set (default hide).
   // Item dengan mode lock/premium tetap tampil (di-render sebagai locked oleh
   // isFeatureEnabled).
-  const filterItems = (its: Item[]) =>
-    its.filter((i) => !i.permKey || isFeatureVisible(i.permKey));
+  const filterItems = (its: Item[]) => its.filter((i) => !i.permKey || isFeatureVisible(i.permKey));
   const allEntries: NavEntry[] = [...DEFAULT_NAV];
   if (isAdmin) allEntries.push(ADMIN_GROUP);
 
@@ -628,7 +756,6 @@ export function AppSidebar({
   const defaultOrder = visible.map((e) => e.key);
   const [order, setOrder] = useState<string[]>(defaultOrder);
   const [openGroupKey, setOpenGroupKey] = useState<string | null>(null);
-
 
   useEffect(() => {
     setOrder(loadOrder(defaultOrder));
@@ -657,7 +784,6 @@ export function AppSidebar({
   const outerClass = inline
     ? "flex flex-col w-full p-4 gap-1"
     : "hidden lg:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 h-screen overflow-y-auto z-40";
-
 
   return (
     <aside className={outerClass}>
@@ -690,7 +816,10 @@ export function AppSidebar({
             }}
           />
         </div>
-        <div className="leading-[1.05] font-display font-black tracking-tight min-w-0" style={{ letterSpacing: "-0.025em" }}>
+        <div
+          className="leading-[1.05] font-display font-black tracking-tight min-w-0"
+          style={{ letterSpacing: "-0.025em" }}
+        >
           <div className="text-[44px] text-gradient">Creative</div>
           <div className="text-[44px] text-gradient">Studio</div>
         </div>
@@ -700,7 +829,15 @@ export function AppSidebar({
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             {ordered.map((e) => (
-              <SortableEntry key={e.key} entry={e} currentPath={currentPath} onNavigate={onNavigate} inline={inline} openGroupKey={openGroupKey} setOpenGroupKey={setOpenGroupKey} />
+              <SortableEntry
+                key={e.key}
+                entry={e}
+                currentPath={currentPath}
+                onNavigate={onNavigate}
+                inline={inline}
+                openGroupKey={openGroupKey}
+                setOpenGroupKey={setOpenGroupKey}
+              />
             ))}
           </SortableContext>
         </DndContext>

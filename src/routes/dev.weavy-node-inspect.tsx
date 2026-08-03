@@ -13,7 +13,10 @@ export const Route = createFileRoute("/dev/weavy-node-inspect")({
   head: () => ({
     meta: [
       { title: "Weavy Node Inspector" },
-      { name: "description", content: "Dump JSON node natif dari canvas Weavy untuk mencocokkan recipe builder." },
+      {
+        name: "description",
+        content: "Dump JSON node natif dari canvas Weavy untuk mencocokkan recipe builder.",
+      },
     ],
   }),
   component: Inspector,
@@ -54,7 +57,9 @@ function Inspector() {
       };
       const nodes = Array.isArray(data?.nodes) ? data.nodes : [];
       const picked = modelOnly ? nodes.filter((n) => (n as { isModel?: boolean }).isModel) : nodes;
-      setJson(JSON.stringify(modelOnly ? { nodes: picked } : { nodes, edges: data?.edges }, null, 2));
+      setJson(
+        JSON.stringify(modelOnly ? { nodes: picked } : { nodes, edges: data?.edges }, null, 2),
+      );
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -76,7 +81,11 @@ function Inspector() {
               Muat daftar recipe
             </PrimaryButton>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
-              <input type="checkbox" checked={modelOnly} onChange={(e) => setModelOnly(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={modelOnly}
+                onChange={(e) => setModelOnly(e.target.checked)}
+              />
               Hanya node model
             </label>
           </div>
@@ -87,7 +96,10 @@ function Inspector() {
               value={manualId}
               onChange={(e) => setManualId(e.target.value)}
             />
-            <GhostButton onClick={() => manualId && dump(manualId.trim())} disabled={busy || !manualId}>
+            <GhostButton
+              onClick={() => manualId && dump(manualId.trim())}
+              disabled={busy || !manualId}
+            >
               Dump
             </GhostButton>
           </div>
@@ -118,16 +130,18 @@ function Inspector() {
 
       {json && (
         <div className="mt-4">
-        <Card>
-
-          <div className="mb-2 flex justify-end">
-            <GhostButton onClick={() => navigator.clipboard?.writeText(json)}>Copy JSON</GhostButton>
-          </div>
-          <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted/40 p-3 text-xs">{json}</pre>
-        </Card>
+          <Card>
+            <div className="mb-2 flex justify-end">
+              <GhostButton onClick={() => navigator.clipboard?.writeText(json)}>
+                Copy JSON
+              </GhostButton>
+            </div>
+            <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted/40 p-3 text-xs">
+              {json}
+            </pre>
+          </Card>
         </div>
       )}
-
     </DashboardShell>
   );
 }

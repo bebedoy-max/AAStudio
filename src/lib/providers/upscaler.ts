@@ -12,12 +12,7 @@ import {
   rotateWeavyToken,
   WEAVY_API,
 } from "./weavy";
-import {
-  uploadLeonardoInitImage,
-  leonardoFetch,
-  runLeonardoWithRotation,
-} from "./leonardo";
-
+import { uploadLeonardoInitImage, leonardoFetch, runLeonardoWithRotation } from "./leonardo";
 
 // ------------------------------------------------------------------
 // Catalog
@@ -39,7 +34,6 @@ export type LeonardoAuroraParams = {
   /** "Fix AI Image Artifacts" toggle. ON → clean, OFF → detailed. */
   fix_artifacts: boolean;
 };
-
 
 export type TopazParams = {
   model:
@@ -133,9 +127,34 @@ function buildTopazRecipe(imageUrl: string, p: TopazParams) {
       color: "Yambo_Blue",
       dark_color: "Yambo_Blue_Dark",
       border_color: "Yambo_Blue_Stroke",
-      files: [{ type: "image", url: imageUrl, publicId: "uploads/" + mkId(), id: mkId(), name: "image.jpg", insertionOrder: 0 }],
-      result: { type: "image", url: imageUrl, publicId: "uploads/" + mkId(), id: mkId(), name: "image.jpg", insertionOrder: 0 },
-      output: { file: { type: "image", url: imageUrl, publicId: "uploads/" + mkId(), id: mkId(), name: "image.jpg", insertionOrder: 0 } },
+      files: [
+        {
+          type: "image",
+          url: imageUrl,
+          publicId: "uploads/" + mkId(),
+          id: mkId(),
+          name: "image.jpg",
+          insertionOrder: 0,
+        },
+      ],
+      result: {
+        type: "image",
+        url: imageUrl,
+        publicId: "uploads/" + mkId(),
+        id: mkId(),
+        name: "image.jpg",
+        insertionOrder: 0,
+      },
+      output: {
+        file: {
+          type: "image",
+          url: imageUrl,
+          publicId: "uploads/" + mkId(),
+          id: mkId(),
+          name: "image.jpg",
+          insertionOrder: 0,
+        },
+      },
       version: 3,
     },
     position: { x: 80, y: 200 },
@@ -158,9 +177,17 @@ function buildTopazRecipe(imageUrl: string, p: TopazParams) {
     data: {
       handles: {
         input: {
-          image_url: { id: "input-image_url", type: "image", label: "image", format: "text", required: true },
+          image_url: {
+            id: "input-image_url",
+            type: "image",
+            label: "image",
+            format: "text",
+            required: true,
+          },
         },
-        output: { result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" } },
+        output: {
+          result: { id: "output-result", type: "image", label: "result", order: 0, format: "uri" },
+        },
       },
       name: "Topaz Upscale",
       color: "Red",
@@ -172,13 +199,48 @@ function buildTopazRecipe(imageUrl: string, p: TopazParams) {
         type: "wildcard",
         model: { type: "predefined", name: model, version: model, service: "fal_imported" },
         inputs: [
-          [{ id: "image_url", title: "image", validTypes: ["image"], required: true }, { nodeId: n1, outputId: "file" }],
+          [
+            { id: "image_url", title: "image", validTypes: ["image"], required: true },
+            { nodeId: n1, outputId: "file" },
+          ],
         ],
         parameters: [
-          [{ id: "model", title: "model", constraint: { type: "enum" }, defaultValue: { type: "string", value: "Standard V2" } }, { type: "value", data: { type: "string", value: p.model } }],
-          [{ id: "upscale_factor", title: "upscale_factor", constraint: { type: "number" }, defaultValue: { type: "number", value: 2 } }, { type: "value", data: { type: "number", value: p.upscale_factor } }],
-          [{ id: "output_format", title: "output_format", constraint: { type: "enum" }, defaultValue: { type: "string", value: "jpeg" } }, { type: "value", data: { type: "string", value: p.output_format } }],
-          [{ id: "crop_to_fill", title: "crop_to_fill", constraint: { type: "boolean" }, defaultValue: { type: "boolean", value: false } }, { type: "value", data: { type: "boolean", value: !!p.crop_to_fill } }],
+          [
+            {
+              id: "model",
+              title: "model",
+              constraint: { type: "enum" },
+              defaultValue: { type: "string", value: "Standard V2" },
+            },
+            { type: "value", data: { type: "string", value: p.model } },
+          ],
+          [
+            {
+              id: "upscale_factor",
+              title: "upscale_factor",
+              constraint: { type: "number" },
+              defaultValue: { type: "number", value: 2 },
+            },
+            { type: "value", data: { type: "number", value: p.upscale_factor } },
+          ],
+          [
+            {
+              id: "output_format",
+              title: "output_format",
+              constraint: { type: "enum" },
+              defaultValue: { type: "string", value: "jpeg" },
+            },
+            { type: "value", data: { type: "string", value: p.output_format } },
+          ],
+          [
+            {
+              id: "crop_to_fill",
+              title: "crop_to_fill",
+              constraint: { type: "boolean" },
+              defaultValue: { type: "boolean", value: false },
+            },
+            { type: "value", data: { type: "boolean", value: !!p.crop_to_fill } },
+          ],
         ],
         outputs: [{ id: "result", title: "result", dataType: "image" }],
       },
@@ -193,26 +255,42 @@ function buildTopazRecipe(imageUrl: string, p: TopazParams) {
     width: 460,
     height: 500,
   };
-  const edges = [{
-    id: "e-" + mkId(),
-    source: n1,
-    target: n2,
-    sourceHandle: `${n1}-output-file`,
-    targetHandle: `${n2}-input-image_url`,
-    type: "custom",
-    data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: "image" },
-  }];
+  const edges = [
+    {
+      id: "e-" + mkId(),
+      source: n1,
+      target: n2,
+      sourceHandle: `${n1}-output-file`,
+      targetHandle: `${n2}-input-image_url`,
+      type: "custom",
+      data: {
+        sourceColor: "Yambo_Blue",
+        targetColor: "Red",
+        sourceHandleType: "any",
+        targetHandleType: "image",
+      },
+    },
+  ];
   return { model, nodes: [imgNode, modelNode], edges };
 }
 
-async function pollWeavyImage(recipeId: string, batchId: string, accessToken: string, inputUrl: string, maxAttempts = 120): Promise<string> {
+async function pollWeavyImage(
+  recipeId: string,
+  batchId: string,
+  accessToken: string,
+  inputUrl: string,
+  maxAttempts = 120,
+): Promise<string> {
   for (let a = 0; a < maxAttempts; a++) {
     const delay = a < 20 ? 5000 : a < 40 ? 8000 : 12000;
     await new Promise((r) => setTimeout(r, delay));
     try {
-      const r = await fetch(`${WEAVY_API}/v1/batches/recipes/${recipeId}/batches/${batchId}/status`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const r = await fetch(
+        `${WEAVY_API}/v1/batches/recipes/${recipeId}/batches/${batchId}/status`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
       if (!r.ok) continue;
       const d = await r.json();
       const st = String(d.recipeRuns?.[0]?.status || d.status || "unknown");
@@ -223,19 +301,31 @@ async function pollWeavyImage(recipeId: string, batchId: string, accessToken: st
           let ro = nr.result;
           if (Array.isArray(ro) && ro.length > 0) ro = ro[0];
           const candidates = [
-            ro?.url, ro?.image_url,
-            nr.output?.file?.url, nr.output?.image_url, nr.output?.url,
-            ...((nr.generations || []) as { url?: string; image_url?: string }[]).map((g) => g.url || g.image_url),
-          ].filter((u): u is string => !!u && /\.(png|jpe?g|webp)(\?|$)/i.test(u)).filter((u) => u !== inputUrl);
+            ro?.url,
+            ro?.image_url,
+            nr.output?.file?.url,
+            nr.output?.image_url,
+            nr.output?.url,
+            ...((nr.generations || []) as { url?: string; image_url?: string }[]).map(
+              (g) => g.url || g.image_url,
+            ),
+          ]
+            .filter((u): u is string => !!u && /\.(png|jpe?g|webp)(\?|$)/i.test(u))
+            .filter((u) => u !== inputUrl);
           if (candidates.length > 0) return candidates[0];
         }
         throw new Error("Weavy: URL hasil tidak ditemukan");
       }
       if (["failed", "FAILED", "error"].includes(st)) {
         const ne = runs?.length
-          ? (d.recipeRuns[0].nodeRuns as { error?: string }[]).map((n) => n.error).filter(Boolean).join(" | ")
+          ? (d.recipeRuns[0].nodeRuns as { error?: string }[])
+              .map((n) => n.error)
+              .filter(Boolean)
+              .join(" | ")
           : "";
-        throw new Error((d.error || d.message || "Weavy generation failed") + (ne ? " | " + ne : ""));
+        throw new Error(
+          (d.error || d.message || "Weavy generation failed") + (ne ? " | " + ne : ""),
+        );
       }
     } catch (e) {
       if (a > 8) throw e;
@@ -244,7 +334,11 @@ async function pollWeavyImage(recipeId: string, batchId: string, accessToken: st
   throw new Error("Weavy timeout");
 }
 
-async function runTopazOne(file: File, params: TopazParams, onLog: (m: string) => void): Promise<string> {
+async function runTopazOne(
+  file: File,
+  params: TopazParams,
+  onLog: (m: string) => void,
+): Promise<string> {
   let lastErr: Error | null = null;
   const tried = new Set<string>();
   while (true) {
@@ -255,20 +349,35 @@ async function runTopazOne(file: File, params: TopazParams, onLog: (m: string) =
     try {
       onLog("Compress + upload ke Weavy...");
       const compressed = file.size > 8 * 1024 * 1024 ? await compressImage(file, 2048, 0.9) : file;
-      const uploaded = await uploadWeavyAssetWithRetry(compressed, compressed.name || "image.jpg", active.accessToken);
+      const uploaded = await uploadWeavyAssetWithRetry(
+        compressed,
+        compressed.name || "image.jpg",
+        active.accessToken,
+      );
       const imageUrl = resolveWeavyAssetUrl(uploaded, "image");
       const built = buildTopazRecipe(imageUrl, params);
       onLog("Create recipe...");
       const { id: recipeId, v3 } = await createWeavyRecipe(active.accessToken);
-      await saveWeavyRecipe(recipeId, { nodes: built.nodes, edges: built.edges, v3 }, active.accessToken);
+      await saveWeavyRecipe(
+        recipeId,
+        { nodes: built.nodes, edges: built.edges, v3 },
+        active.accessToken,
+      );
       await approveWeavyModel(built.model, active.accessToken);
       onLog("Execute batch...");
-      const { batchId } = await executeWeavyBatch(recipeId, built.nodes, built.edges, active.accessToken, built.model);
+      const { batchId } = await executeWeavyBatch(
+        recipeId,
+        built.nodes,
+        built.edges,
+        active.accessToken,
+        built.model,
+      );
       onLog("Menunggu hasil...");
       return await pollWeavyImage(recipeId, batchId, active.accessToken, imageUrl);
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
-      if (!/insufficient|credits?|quota|balance|402|not enough/i.test(lastErr.message)) throw lastErr;
+      if (!/insufficient|credits?|quota|balance|402|not enough/i.test(lastErr.message))
+        throw lastErr;
       onLog("Token kehabisan credit, rotate...");
       await rotateWeavyToken(active.id);
     }
@@ -286,7 +395,9 @@ function getFirstMagnificKey(): string | null {
     if (!raw) return null;
     const list = JSON.parse(raw) as { key: string }[];
     return list?.[0]?.key || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 async function fileToBase64(file: File): Promise<string> {
@@ -312,7 +423,12 @@ async function magnificCall(action: "submit" | "status", body: Record<string, un
   return j as Record<string, unknown>;
 }
 
-async function runMagnificOne(file: File, mode: UpscalerMode, params: MagnificParams, onLog: (m: string) => void): Promise<string> {
+async function runMagnificOne(
+  file: File,
+  mode: UpscalerMode,
+  params: MagnificParams,
+  onLog: (m: string) => void,
+): Promise<string> {
   const key = getFirstMagnificKey();
   if (!key) throw new Error("Belum ada Magnific API key di Kelola Token");
   const modelKey =
@@ -349,8 +465,11 @@ async function runMagnificOne(file: File, mode: UpscalerMode, params: MagnificPa
     onLog(`Poll: ${status || "unknown"}`);
     if (["COMPLETED", "SUCCESS", "SUCCEEDED", "DONE", "FINISHED"].includes(status)) {
       const gen = sd.generated;
-      if (Array.isArray(gen) && gen.length > 0 && typeof gen[0] === "string") return gen[0] as string;
-      const u = (sd.image_url || sd.output_url || (sd.result as { url?: string } | undefined)?.url) as string | undefined;
+      if (Array.isArray(gen) && gen.length > 0 && typeof gen[0] === "string")
+        return gen[0] as string;
+      const u = (sd.image_url ||
+        sd.output_url ||
+        (sd.result as { url?: string } | undefined)?.url) as string | undefined;
       if (u) return u;
       throw new Error("Magnific: URL hasil tidak ditemukan");
     }
@@ -458,13 +577,16 @@ type AuroraVariation = {
   id: string;
   status?: string;
   url?: string;
-  upscale_details?: Array<{
-    optional_metadata?: unknown;
-    generated_image_variation_generic?: { status?: string; url?: string } | null;
-  }> | {
-    optional_metadata?: unknown;
-    generated_image_variation_generic?: { status?: string; url?: string } | null;
-  } | null;
+  upscale_details?:
+    | Array<{
+        optional_metadata?: unknown;
+        generated_image_variation_generic?: { status?: string; url?: string } | null;
+      }>
+    | {
+        optional_metadata?: unknown;
+        generated_image_variation_generic?: { status?: string; url?: string } | null;
+      }
+    | null;
 };
 
 function firstAuroraUpscaleDetail(v: AuroraVariation) {
@@ -484,7 +606,9 @@ function stringifyAuroraDetail(value: unknown): string {
 }
 
 function readAuroraVariationStatus(v: AuroraVariation): string {
-  return String(firstAuroraUpscaleDetail(v)?.generated_image_variation_generic?.status || v.status || "").toUpperCase();
+  return String(
+    firstAuroraUpscaleDetail(v)?.generated_image_variation_generic?.status || v.status || "",
+  ).toUpperCase();
 }
 
 function readAuroraVariationUrl(v: AuroraVariation): string | null {
@@ -511,12 +635,17 @@ function unwrapRestGeneration(res: unknown): LeonardoRestGeneration | null {
   if (direct && typeof direct === "object") {
     const d = direct as Record<string, unknown>;
     const nested = d.generations_by_pk ?? d.generation;
-    return ((nested && typeof nested === "object" ? nested : direct) as LeonardoRestGeneration) ?? null;
+    return (
+      ((nested && typeof nested === "object" ? nested : direct) as LeonardoRestGeneration) ?? null
+    );
   }
   return r as LeonardoRestGeneration;
 }
 
-async function fetchAuroraRestGeneration(token: string, generationId: string): Promise<LeonardoRestGeneration | null> {
+async function fetchAuroraRestGeneration(
+  token: string,
+  generationId: string,
+): Promise<LeonardoRestGeneration | null> {
   const res = await leonardoFetch<unknown>({
     token,
     base: "api",
@@ -535,17 +664,34 @@ function resolveAuroraModel(params: LeonardoAuroraParams): string {
 const AURORA_MAX_OUTPUT_MEGAPIXELS = 105;
 const AURORA_FACTORS: LeonardoUpscaleMultiplier[] = [2, 3, 4, 5, 6, 8];
 
-function outputMegapixels(width: number, height: number, factor: LeonardoUpscaleMultiplier): number {
+function outputMegapixels(
+  width: number,
+  height: number,
+  factor: LeonardoUpscaleMultiplier,
+): number {
   return (width * height * factor * factor) / 1_000_000;
 }
 
-function getSafeAuroraFactor(width: number, height: number, requested: LeonardoUpscaleMultiplier): LeonardoUpscaleMultiplier {
+function getSafeAuroraFactor(
+  width: number,
+  height: number,
+  requested: LeonardoUpscaleMultiplier,
+): LeonardoUpscaleMultiplier {
   const requestedIndex = AURORA_FACTORS.indexOf(requested);
   const allowed = AURORA_FACTORS.slice(0, requestedIndex + 1).reverse();
-  return allowed.find((factor) => outputMegapixels(width, height, factor) <= AURORA_MAX_OUTPUT_MEGAPIXELS) ?? 2;
+  return (
+    allowed.find(
+      (factor) => outputMegapixels(width, height, factor) <= AURORA_MAX_OUTPUT_MEGAPIXELS,
+    ) ?? 2
+  );
 }
 
-function buildAuroraRequest(params: LeonardoAuroraParams, imageId: string, width: number, height: number) {
+function buildAuroraRequest(
+  params: LeonardoAuroraParams,
+  imageId: string,
+  width: number,
+  height: number,
+) {
   const model = resolveAuroraModel(params);
   const upscale_mode: "clean" | "detailed" = params.fix_artifacts ? "clean" : "detailed";
   const request = {
@@ -553,9 +699,7 @@ function buildAuroraRequest(params: LeonardoAuroraParams, imageId: string, width
     public: false,
     parameters: {
       guidances: {
-        image_reference: [
-          { image: { id: imageId, type: "UPLOADED" } },
-        ],
+        image_reference: [{ image: { id: imageId, type: "UPLOADED" } }],
       },
       upscale_factor: params.upscale_factor,
       width,
@@ -619,7 +763,10 @@ async function submitAuroraGeneration(
     throw new Error(restDetail || "response kosong");
   } catch (restError) {
     const restMessage = restError instanceof Error ? restError.message : String(restError);
-    const gen = await leonardoFetch<{ data?: { generate?: { generationId?: string } }; errors?: unknown }>({
+    const gen = await leonardoFetch<{
+      data?: { generate?: { generationId?: string } };
+      errors?: unknown;
+    }>({
       token,
       base: "api",
       path: "/v1/graphql",
@@ -633,13 +780,18 @@ async function submitAuroraGeneration(
     const generationId = gen?.data?.generate?.generationId;
     if (!generationId) {
       const detail = stringifyAuroraDetail(gen?.errors || gen);
-      throw new Error(`Leonardo: generationId tidak ditemukan — REST v2: ${restMessage}${detail ? `; GraphQL: ${detail}` : ""}`);
+      throw new Error(
+        `Leonardo: generationId tidak ditemukan — REST v2: ${restMessage}${detail ? `; GraphQL: ${detail}` : ""}`,
+      );
     }
     return generationId;
   }
 }
 
-async function fetchAuroraVariationDetail(token: string, variationId: string): Promise<AuroraVariation | null> {
+async function fetchAuroraVariationDetail(
+  token: string,
+  variationId: string,
+): Promise<AuroraVariation | null> {
   const info = await leonardoFetch<{
     data?: { generated_image_variation_generic?: AuroraVariation[] };
   }>({
@@ -695,10 +847,15 @@ async function waitForAuroraResult(
     for (const variation of variations) {
       const status = readAuroraVariationStatus(variation);
       const url = readAuroraVariationUrl(variation);
-      if (url && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(status)) return url;
+      if (url && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(status))
+        return url;
       if (["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(status)) {
-        const detailVariation = await fetchAuroraVariationDetail(token, variation.id).catch(() => variation);
-        const detail = stringifyAuroraDetail(firstAuroraUpscaleDetail(detailVariation ?? variation)?.optional_metadata);
+        const detailVariation = await fetchAuroraVariationDetail(token, variation.id).catch(
+          () => variation,
+        );
+        const detail = stringifyAuroraDetail(
+          firstAuroraUpscaleDetail(detailVariation ?? variation)?.optional_metadata,
+        );
         throw new Error(`Leonardo Aurora: ${status}${detail ? ` — ${detail}` : ""}`);
       }
       if (status && status !== lastStatus) {
@@ -710,9 +867,13 @@ async function waitForAuroraResult(
     const restGeneration = await fetchAuroraRestGeneration(token, generationId).catch(() => null);
     const restStatus = String(restGeneration?.status || "").toUpperCase();
     const restImages = restGeneration?.generated_images ?? [];
-    const restVariations = restImages.flatMap((image) => image.generated_image_variation_generics ?? []);
-    const restUrl = restVariations.map(readAuroraVariationUrl).find((url): url is string => !!url) ?? null;
-    if (restUrl && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(restStatus)) return restUrl;
+    const restVariations = restImages.flatMap(
+      (image) => image.generated_image_variation_generics ?? [],
+    );
+    const restUrl =
+      restVariations.map(readAuroraVariationUrl).find((url): url is string => !!url) ?? null;
+    if (restUrl && ["COMPLETE", "COMPLETED", "SUCCESS", "SUCCEEDED", "DONE"].includes(restStatus))
+      return restUrl;
     if (["FAILED", "ERROR", "CANCELED", "CANCELLED"].includes(restStatus)) {
       const detail = stringifyAuroraDetail(restGeneration?.failureReason ?? restGeneration?.error);
       throw new Error(`Leonardo Aurora: ${restStatus}${detail ? ` — ${detail}` : ""}`);
@@ -732,10 +893,13 @@ async function runLeonardoAuroraOne(
 ): Promise<string> {
   // Preflight + auto-rotate: token invalid/expired/habis credit dibersihkan
   // dulu, lalu job dijalankan dengan token pertama yang available.
-  return runLeonardoWithRotation((token) => runLeonardoAuroraWithToken(token, file, params, onLog), {
-    onRotate: (idx, total, reason) =>
-      onLog(total ? `↻ rotate token Leonardo #${idx}/${total}: ${reason}` : reason),
-  });
+  return runLeonardoWithRotation(
+    (token) => runLeonardoAuroraWithToken(token, file, params, onLog),
+    {
+      onRotate: (idx, total, reason) =>
+        onLog(total ? `↻ rotate token Leonardo #${idx}/${total}: ${reason}` : reason),
+    },
+  );
 }
 
 async function runLeonardoAuroraWithToken(
@@ -744,8 +908,6 @@ async function runLeonardoAuroraWithToken(
   params: LeonardoAuroraParams,
   onLog: (m: string) => void,
 ): Promise<string> {
-
-
   const source = file.size > 8 * 1024 * 1024 ? await compressImage(file, 2048, 0.92) : file;
   const { width, height } = await getImageDims(source);
   const mime = (source.type || "").toLowerCase();
@@ -763,7 +925,9 @@ async function runLeonardoAuroraWithToken(
   if (safeFactor !== params.upscale_factor) {
     const requestedMp = outputMegapixels(width, height, params.upscale_factor).toFixed(1);
     const safeMp = outputMegapixels(width, height, safeFactor).toFixed(1);
-    onLog(`Multiplier ${params.upscale_factor}x melebihi limit Aurora ±${AURORA_MAX_OUTPUT_MEGAPIXELS}MP (${requestedMp}MP), pakai ${safeFactor}x (${safeMp}MP)...`);
+    onLog(
+      `Multiplier ${params.upscale_factor}x melebihi limit Aurora ±${AURORA_MAX_OUTPUT_MEGAPIXELS}MP (${requestedMp}MP), pakai ${safeFactor}x (${safeMp}MP)...`,
+    );
   }
 
   const attempts: LeonardoAuroraParams[] = [primaryParams];
@@ -778,21 +942,24 @@ async function runLeonardoAuroraWithToken(
     const attempt = attempts[i];
     const request = buildAuroraRequest(attempt, imageId, width, height);
     const mode = attempt.fix_artifacts ? "clean" : "detailed";
-    onLog(`Generate ${request.model} (${attempt.upscale_factor}x · ${mode}${attempt.upscaler === "pro" ? ` · ${attempt.pro_type}` : ""})...`);
+    onLog(
+      `Generate ${request.model} (${attempt.upscale_factor}x · ${mode}${attempt.upscaler === "pro" ? ` · ${attempt.pro_type}` : ""})...`,
+    );
     try {
       const generationId = await submitAuroraGeneration(token, request);
       onLog("Menunggu hasil...");
       return await waitForAuroraResult(token, generationId, onLog);
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
-      const canFallback = i < attempts.length - 1 && /failed|error|invalid|upscale|resolution|size|too large|timeout/i.test(lastErr.message);
+      const canFallback =
+        i < attempts.length - 1 &&
+        /failed|error|invalid|upscale|resolution|size|too large|timeout/i.test(lastErr.message);
       if (!canFallback) break;
       onLog(`Aurora retry pakai 2x karena: ${lastErr.message}`);
     }
   }
   throw lastErr ?? new Error("Leonardo Aurora: gagal");
 }
-
 
 // Public API
 // ------------------------------------------------------------------
@@ -812,7 +979,10 @@ export type UpscaleOpts = {
   onLog?: (msg: string, level?: string) => void;
 };
 
-export async function runUpscale(jobs: UpscaleJob[], opts: UpscaleOpts): Promise<Array<{ index: number; url?: string; error?: string }>> {
+export async function runUpscale(
+  jobs: UpscaleJob[],
+  opts: UpscaleOpts,
+): Promise<Array<{ index: number; url?: string; error?: string }>> {
   const results: Array<{ index: number; url?: string; error?: string }> = [];
   const concurrency = Math.max(1, Math.min(opts.concurrency ?? 2, 4));
   let cursor = 0;
@@ -831,7 +1001,12 @@ export async function runUpscale(jobs: UpscaleJob[], opts: UpscaleOpts): Promise
             : opts.provider === "leonardo"
               ? await runLeonardoAuroraOne(
                   j.file,
-                  opts.leonardo ?? { upscaler: "pro", pro_type: "precise", upscale_factor: 2, fix_artifacts: true },
+                  opts.leonardo ?? {
+                    upscaler: "pro",
+                    pro_type: "precise",
+                    upscale_factor: 2,
+                    fix_artifacts: true,
+                  },
                   log,
                 )
               : await runMagnificOne(j.file, opts.mode, opts.magnific, log);

@@ -169,7 +169,6 @@ export function CompanionQrisCard() {
               </div>
             )}
 
-
             <div className="flex justify-end">
               <button
                 onClick={() => void save()}

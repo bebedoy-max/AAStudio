@@ -94,7 +94,11 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
           className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold text-primary-foreground glow-pink disabled:opacity-50"
           style={{ background: "var(--gradient-neon)" }}
         >
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+          {busy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Play className="h-3.5 w-3.5" />
+          )}
           Riset
         </button>
       </div>
@@ -114,13 +118,17 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
       {data && !busy && (
         <div className="mt-4 animate-fade-in">
           <div className="rounded-xl border border-border bg-card/30 p-3">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Audience</div>
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Audience
+            </div>
             <div className="text-xs text-foreground/85 mt-1 leading-relaxed">{data.audience}</div>
           </div>
 
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <div className="rounded-xl border border-border bg-card/30 p-3">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Trending Topics</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                Trending Topics
+              </div>
               <div className="flex flex-wrap gap-1">
                 {data.trending_topics.slice(0, 8).map((t, i) => (
                   <Chip key={i}>{t}</Chip>
@@ -128,7 +136,9 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card/30 p-3">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">Content Gap</div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+                Content Gap
+              </div>
               <ul className="space-y-1 text-xs text-foreground/80">
                 {data.content_gap.slice(0, 5).map((g, i) => (
                   <li key={i}>• {g}</li>
@@ -142,17 +152,30 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
           </div>
           <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3 max-h-[520px] overflow-y-auto pr-1">
             {data.ideas.map((idea, i) => (
-              <div key={i} className="rounded-xl border border-border bg-card/30 p-3 hover:border-primary/40 transition">
+              <div
+                key={i}
+                className="rounded-xl border border-border bg-card/30 p-3 hover:border-primary/40 transition"
+              >
                 <div className="flex items-start gap-2">
-                  <span className="text-[10px] font-mono text-muted-foreground shrink-0 mt-0.5">#{i + 1}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground shrink-0 mt-0.5">
+                    #{i + 1}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-foreground/95 line-clamp-1">{idea.title}</div>
-                    <div className="text-[11px] text-primary mt-0.5 italic line-clamp-2">"{idea.hook}"</div>
+                    <div className="text-sm font-medium text-foreground/95 line-clamp-1">
+                      {idea.title}
+                    </div>
+                    <div className="text-[11px] text-primary mt-0.5 italic line-clamp-2">
+                      "{idea.hook}"
+                    </div>
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  <Chip tone={idea.viral_score >= 70 ? "success" : "default"}>V {idea.viral_score}</Chip>
-                  <Chip tone={idea.affiliate_score >= 70 ? "primary" : "default"}>A {idea.affiliate_score}</Chip>
+                  <Chip tone={idea.viral_score >= 70 ? "success" : "default"}>
+                    V {idea.viral_score}
+                  </Chip>
+                  <Chip tone={idea.affiliate_score >= 70 ? "primary" : "default"}>
+                    A {idea.affiliate_score}
+                  </Chip>
                   <Chip>{idea.duration}</Chip>
                   <Chip>{idea.difficulty}</Chip>
                 </div>
@@ -160,7 +183,10 @@ export const ResearchPanel = forwardRef<ResearchPanelHandle>(function ResearchPa
                   onClick={() => {
                     // Safety net: only allow bulk-fashion when keyword clearly is apparel
                     const kwLower = (data.keyword + " " + idea.title).toLowerCase();
-                    const isFashion = /(fashion|apparel|outfit|dress|lookbook|baju|pakaian|busana|hijab|kaos|jaket|celana|gaun|kemeja|model wear)/i.test(kwLower);
+                    const isFashion =
+                      /(fashion|apparel|outfit|dress|lookbook|baju|pakaian|busana|hijab|kaos|jaket|celana|gaun|kemeja|model wear)/i.test(
+                        kwLower,
+                      );
                     let wf = idea.workflow;
                     if (wf === "bulk-fashion" && !isFashion) wf = "narrative-video";
                     setHandoff({

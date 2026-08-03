@@ -19,11 +19,17 @@ export function RunningTasks() {
   return (
     <div className="neumorph p-5 h-full flex flex-col">
       <div className="flex items-center gap-2">
-        <Activity className={"h-4 w-4 " + (running.length ? "text-primary animate-pulse" : "text-muted-foreground")} />
+        <Activity
+          className={
+            "h-4 w-4 " + (running.length ? "text-primary animate-pulse" : "text-muted-foreground")
+          }
+        />
         <div className="font-display text-base">Running Tasks</div>
         {running.length > 0 && <Chip tone="primary">{running.length} aktif</Chip>}
       </div>
-      <div className="text-[11px] text-muted-foreground mt-0.5">Realtime — semua job dari studio</div>
+      <div className="text-[11px] text-muted-foreground mt-0.5">
+        Realtime — semua job dari studio
+      </div>
 
       <div className="mt-4 flex-1 min-h-0 overflow-y-auto space-y-2">
         {running.length === 0 && recent.length === 0 && (
@@ -32,11 +38,16 @@ export function RunningTasks() {
           </div>
         )}
         {running.map((r) => (
-          <div key={r.id} className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 animate-fade-in">
+          <div
+            key={r.id}
+            className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 animate-fade-in"
+          >
             <div className="flex items-center gap-2">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
               <div className="text-sm text-foreground/95 truncate flex-1">{r.label}</div>
-              <span className="text-[10px] font-mono text-muted-foreground">{ago(r.startedAt)}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {ago(r.startedAt)}
+              </span>
             </div>
             {r.detail && (
               <div className="text-[11px] text-muted-foreground mt-1 truncate">{r.detail}</div>
@@ -72,7 +83,9 @@ export function RunningTasks() {
                   {ago(r.endedAt ?? r.startedAt)}
                 </span>
               </div>
-              {r.detail && <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{r.detail}</div>}
+              {r.detail && (
+                <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{r.detail}</div>
+              )}
             </div>
           );
         })}

@@ -52,11 +52,12 @@ export const Route = createFileRoute("/api/public/leonardo")({
         }),
       POST: async ({ request }) => {
         const token =
-          request.headers.get("X-Leonardo-Token") ||
-          request.headers.get("x-leonardo-token") ||
-          "";
+          request.headers.get("X-Leonardo-Token") || request.headers.get("x-leonardo-token") || "";
         if (!token) {
-          return json({ ok: false, status: 400, data: null, raw: "X-Leonardo-Token required" }, 200);
+          return json(
+            { ok: false, status: 400, data: null, raw: "X-Leonardo-Token required" },
+            200,
+          );
         }
 
         const body = (await request.json().catch(() => null)) as Body | null;
@@ -87,7 +88,10 @@ export const Route = createFileRoute("/api/public/leonardo")({
         try {
           upstream = await fetch(`${BASES[base]}${body.path}`, init);
         } catch (e) {
-          return json({ ok: false, status: 0, data: null, raw: `network: ${(e as Error).message}` }, 200);
+          return json(
+            { ok: false, status: 0, data: null, raw: `network: ${(e as Error).message}` },
+            200,
+          );
         }
         const text = await upstream.text();
         let parsed: unknown = null;

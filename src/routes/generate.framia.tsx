@@ -1,8 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Play, Loader2, Sparkles, Layers, Puzzle, ExternalLink, Copy, Check } from "lucide-react";
+import {
+  RefreshCw,
+  Play,
+  Loader2,
+  Sparkles,
+  Layers,
+  Puzzle,
+  ExternalLink,
+  Copy,
+  Check,
+} from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
-import { Card, Field, Input, Textarea, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
+import {
+  Card,
+  Field,
+  Input,
+  Textarea,
+  PrimaryButton,
+  GhostButton,
+} from "@/components/dashboard/ui";
 import {
   getAllFramiaKeys,
   getFirstFramiaKey,
@@ -45,7 +62,11 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 function FramiaPage() {
   const [token, setToken] = useState<string | null>(null);
   const [tokens, setTokens] = useState<string[]>([]);
-  const [profile, setProfile] = useState<{ email?: string; plan?: string; workspace?: string } | null>(null);
+  const [profile, setProfile] = useState<{
+    email?: string;
+    plan?: string;
+    workspace?: string;
+  } | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [skills, setSkills] = useState<FramiaSkill[]>([]);
   const [categories, setCategories] = useState<FramiaCategory[]>([]);
@@ -57,7 +78,7 @@ function FramiaPage() {
   const refreshTokens = () => {
     const all = getAllFramiaKeys();
     setTokens(all);
-    setToken((prev) => prev && all.includes(prev) ? prev : (all[0] ?? null));
+    setToken((prev) => (prev && all.includes(prev) ? prev : (all[0] ?? null)));
   };
 
   useEffect(() => {
@@ -166,7 +187,9 @@ function FramiaPage() {
           <Card>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Account</div>
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  Account
+                </div>
                 <div className="font-semibold text-foreground">{profile?.email ?? "—"}</div>
                 {profile?.plan && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full border border-primary/40 bg-primary/10 text-primary">
@@ -194,8 +217,15 @@ function FramiaPage() {
                     ))}
                   </select>
                 )}
-                <GhostButton onClick={() => token && loadAll(token)} disabled={status === "loading"}>
-                  <RefreshCw className={["h-3.5 w-3.5", status === "loading" ? "animate-spin" : ""].join(" ")} />
+                <GhostButton
+                  onClick={() => token && loadAll(token)}
+                  disabled={status === "loading"}
+                >
+                  <RefreshCw
+                    className={["h-3.5 w-3.5", status === "loading" ? "animate-spin" : ""].join(
+                      " ",
+                    )}
+                  />
                   Refresh
                 </GhostButton>
               </div>
@@ -222,7 +252,11 @@ function FramiaPage() {
                     ].join(" ")}
                     style={tab === t ? { background: "var(--gradient-neon)" } : undefined}
                   >
-                    {t === "skills" ? <Puzzle className="h-3.5 w-3.5" /> : <Layers className="h-3.5 w-3.5" />}
+                    {t === "skills" ? (
+                      <Puzzle className="h-3.5 w-3.5" />
+                    ) : (
+                      <Layers className="h-3.5 w-3.5" />
+                    )}
                     {t === "skills" ? `Nodes (${skills.length})` : `Recipes (${templates.length})`}
                   </button>
                 ))}
@@ -302,9 +336,16 @@ function FramiaPage() {
                 {filteredTemplates.map((t, i) => {
                   const id = t.template_id || t.id || String(i);
                   return (
-                    <div key={id} className="rounded-2xl border border-border bg-card/40 overflow-hidden group">
+                    <div
+                      key={id}
+                      className="rounded-2xl border border-border bg-card/40 overflow-hidden group"
+                    >
                       {t.cover_url ? (
-                        <img src={t.cover_url} alt={t.name ?? ""} className="w-full aspect-video object-cover" />
+                        <img
+                          src={t.cover_url}
+                          alt={t.name ?? ""}
+                          className="w-full aspect-video object-cover"
+                        />
                       ) : (
                         <div className="w-full aspect-video bg-muted/30 grid place-items-center text-muted-foreground text-xs">
                           {t._category ?? "—"}
@@ -323,7 +364,9 @@ function FramiaPage() {
                           )}
                           <button
                             disabled={!t.workflow_id}
-                            onClick={() => setRunOpen({ title: t.name ?? id, workflowId: t.workflow_id })}
+                            onClick={() =>
+                              setRunOpen({ title: t.name ?? id, workflowId: t.workflow_id })
+                            }
                             className="ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-primary-foreground disabled:opacity-40"
                             style={{ background: "var(--gradient-neon)" }}
                           >
@@ -335,7 +378,9 @@ function FramiaPage() {
                   );
                 })}
                 {filteredTemplates.length === 0 && (
-                  <div className="text-xs text-muted-foreground italic col-span-full">Tidak ada template.</div>
+                  <div className="text-xs text-muted-foreground italic col-span-full">
+                    Tidak ada template.
+                  </div>
                 )}
               </div>
             )}
@@ -401,9 +446,7 @@ function RunDialog({
 }) {
   const [projectId, setProjectId] = useState("");
   const [canvasId, setCanvasId] = useState("");
-  const [inputJson, setInputJson] = useState(
-    JSON.stringify({ nodes: {} }, null, 2),
-  );
+  const [inputJson, setInputJson] = useState(JSON.stringify({ nodes: {} }, null, 2));
   const [busy, setBusy] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
   const [nodes, setNodes] = useState<FramiaRunNode[]>([]);
@@ -443,7 +486,9 @@ function RunDialog({
         },
         {
           onRotate: (next, total, reason) =>
-            setErr(`Token #${next - 1}/${total} gagal (${reason.slice(0, 80)}) — rotate ke token berikutnya…`),
+            setErr(
+              `Token #${next - 1}/${total} gagal (${reason.slice(0, 80)}) — rotate ke token berikutnya…`,
+            ),
         },
       );
       setNodes(finalNodes);
@@ -536,7 +581,11 @@ function RunDialog({
             </div>
             <div className="flex gap-2">
               <PrimaryButton onClick={run} disabled={busy || !projectId || !canvasId}>
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                {busy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
                 {busy ? "Running…" : "Jalankan Workflow"}
               </PrimaryButton>
               <GhostButton onClick={onClose}>Tutup</GhostButton>
@@ -571,7 +620,9 @@ function RunDialog({
                         </span>
                         <span className="text-[10px] text-foreground/80">{n.status}</span>
                         {typeof n.progress === "number" && (
-                          <span className="text-[10px] text-muted-foreground">{Math.round(n.progress * 100)}%</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {Math.round(n.progress * 100)}%
+                          </span>
                         )}
                       </div>
                     ))}

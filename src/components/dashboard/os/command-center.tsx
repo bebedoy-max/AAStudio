@@ -74,7 +74,10 @@ Return JSON: { "workflow": string, "keyword": string (5-8 words topic), "title":
       if (!res.ok) throw new Error(data?.error || "AI gagal merespons");
       let parsed: OrchestratorResult;
       const raw = String(data.text || "");
-      const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const cleaned = raw
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
       try {
         parsed = JSON.parse(cleaned);
       } catch {
@@ -134,7 +137,8 @@ Return JSON: { "workflow": string, "keyword": string (5-8 words topic), "title":
         <div className="flex-1 min-w-0">
           <div className="font-display text-base md:text-lg">AI Command Center</div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Tulis apa yang mau kamu buat. AI memilih workflow, sumber, dan hand-off ke studio yang tepat.
+            Tulis apa yang mau kamu buat. AI memilih workflow, sumber, dan hand-off ke studio yang
+            tepat.
           </p>
         </div>
       </div>

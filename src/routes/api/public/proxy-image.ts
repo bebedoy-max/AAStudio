@@ -58,10 +58,11 @@ export const Route = createFileRoute("/api/public/proxy-image")({
 
         const authorization = request.headers.get("authorization");
         const headers: Record<string, string> = {
-            Accept: "*/*",
-            "User-Agent": "Mozilla/5.0",
+          Accept: "*/*",
+          "User-Agent": "Mozilla/5.0",
         };
-        if (authorization && new URL(url).hostname.endsWith(".weavy.ai")) headers.Authorization = authorization;
+        if (authorization && new URL(url).hostname.endsWith(".weavy.ai"))
+          headers.Authorization = authorization;
 
         const inm = request.headers.get("if-none-match");
         const ims = request.headers.get("if-modified-since");
@@ -72,7 +73,10 @@ export const Route = createFileRoute("/api/public/proxy-image")({
         if (upstream.status === 304) {
           return new Response(null, {
             status: 304,
-            headers: { "Cache-Control": "public, max-age=86400, immutable", "Access-Control-Allow-Origin": "*" },
+            headers: {
+              "Cache-Control": "public, max-age=86400, immutable",
+              "Access-Control-Allow-Origin": "*",
+            },
           });
         }
 

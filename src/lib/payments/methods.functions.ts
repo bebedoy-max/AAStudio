@@ -38,7 +38,13 @@ export const listActivePaymentMethods = createServerFn({ method: "GET" }).handle
     // Coba pakai publishable client + policy anon SELECT dulu; kalau gagal
     // (mis. policy belum ada), fallback ke admin client — nilai yang di-return
     // memang non-sensitif (label + environment + method code), jadi aman.
-    type Row = { id: string; provider: string; label: string; environment: string; is_active: boolean };
+    type Row = {
+      id: string;
+      provider: string;
+      label: string;
+      environment: string;
+      is_active: boolean;
+    };
     let rows: Row[] = [];
     try {
       const pub = publicClient();
@@ -59,7 +65,7 @@ export const listActivePaymentMethods = createServerFn({ method: "GET" }).handle
           .from("payment_gateways")
           .select("id, provider, label, environment, is_active")
           .eq("is_active", true);
-        rows = ((data as Row[] | null) ?? []);
+        rows = (data as Row[] | null) ?? [];
       } catch {
         rows = [];
       }

@@ -40,9 +40,13 @@ export function getFirstLeonardoKey(): string | null {
 
 /* ---------------------------- JWT / format ---------------------------- */
 
-export function decodeLeonardoJwt(
-  token: string,
-): { exp?: number; iat?: number; sub?: string; email?: string; "cognito:username"?: string } | null {
+export function decodeLeonardoJwt(token: string): {
+  exp?: number;
+  iat?: number;
+  sub?: string;
+  email?: string;
+  "cognito:username"?: string;
+} | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
@@ -121,7 +125,6 @@ export async function runLeonardoWithRotation<T>(
   }
   throw lastErr ?? new Error("Leonardo: semua token gagal / expired");
 }
-
 
 /* ---------------------------- low-level proxy ---------------------------- */
 
@@ -244,7 +247,8 @@ export async function checkLeonardoToken(
   token: string,
 ): Promise<{ ok: boolean; message?: string; expiresAt?: number; email?: string }> {
   const t = (token || "").trim();
-  if (!isLeonardoFormat(t)) return { ok: false, message: "Format token salah (harus JWT eyJ...eyJ...)" };
+  if (!isLeonardoFormat(t))
+    return { ok: false, message: "Format token salah (harus JWT eyJ...eyJ...)" };
   const p = decodeLeonardoJwt(t);
   if (!p?.exp) return { ok: false, message: "JWT tidak berisi exp" };
   const exp = p.exp * 1000;
@@ -254,9 +258,7 @@ export async function checkLeonardoToken(
   return { ok: true, expiresAt: exp, email: p.email || p["cognito:username"] };
 }
 
-export async function fetchLeonardoBalance(
-  token: string,
-): Promise<{
+export async function fetchLeonardoBalance(token: string): Promise<{
   ok: boolean;
   balance: number | null;
   fastTokens?: number | null;
@@ -355,11 +357,11 @@ export const LEONARDO_MODELS = [
  * availability, this queries productionApiAvailableModels via GraphQL and
  * intersects by name; otherwise returns the static list.
  */
-export async function fetchLeonardoPlatformModels(
-  token: string,
-): Promise<LeonardoPlatformModel[]> {
+export async function fetchLeonardoPlatformModels(token: string): Promise<LeonardoPlatformModel[]> {
   try {
-    const data = await leonardoFetch<{ data?: { productionApiAvailableModels?: Array<{ id: string; name: string }> } }>({
+    const data = await leonardoFetch<{
+      data?: { productionApiAvailableModels?: Array<{ id: string; name: string }> };
+    }>({
       token,
       base: "api",
       path: "/v1/graphql",
@@ -405,7 +407,11 @@ export async function uploadLeonardoInitImage(
     headers: { "Content-Type": "application/json", "X-Leonardo-Token": token },
     body: JSON.stringify({ b64, ext: extension, mime: blob.type || undefined }),
   });
-  const data = (await res.json().catch(() => null)) as { ok?: boolean; id?: string; error?: string } | null;
+  const data = (await res.json().catch(() => null)) as {
+    ok?: boolean;
+    id?: string;
+    error?: string;
+  } | null;
   if (!res.ok || !data?.ok || !data.id) {
     throw new Error(`Leonardo upload gagal: ${data?.error || res.status}`);
   }
@@ -413,7 +419,9 @@ export async function uploadLeonardoInitImage(
 }
 
 /** Fetch a remote URL → Blob (direct then proxy fallback). */
-export async function fetchAsBlob(url: string): Promise<{ blob: Blob; ext: "png" | "jpg" | "jpeg" | "webp" }> {
+export async function fetchAsBlob(
+  url: string,
+): Promise<{ blob: Blob; ext: "png" | "jpg" | "jpeg" | "webp" }> {
   let res: Response;
   try {
     res = await fetch(url);
@@ -492,7 +500,11 @@ function previewResponse(res: unknown, limit = 400): string {
 
 function isValidationResponse(res: unknown): boolean {
   const text = previewResponse(res, 1000).toLowerCase();
-  return text.includes("validation") || text.includes("badrequestexception") || text.includes("bad request");
+  return (
+    text.includes("validation") ||
+    text.includes("badrequestexception") ||
+    text.includes("bad request")
+  );
 }
 
 export async function createLeonardoGeneration(
@@ -515,9 +527,10 @@ export async function createLeonardoGeneration(
 
   if (isGptImage2) parameters.quality = (input.quality ?? "medium").toUpperCase();
 
-  const nativeSupportsNeg = /^(phoenix|lucid|kino-xl|anime-xl|lightning-xl|flux-dev|flux-schnell|portrait|stock|illustrative|concept|lifelike|graphic|krea|recraft)/i.test(
-    slug,
-  );
+  const nativeSupportsNeg =
+    /^(phoenix|lucid|kino-xl|anime-xl|lightning-xl|flux-dev|flux-schnell|portrait|stock|illustrative|concept|lifelike|graphic|krea|recraft)/i.test(
+      slug,
+    );
   if (input.negative_prompt && nativeSupportsNeg) {
     parameters.negative_prompt = input.negative_prompt;
   }
@@ -533,8 +546,7 @@ export async function createLeonardoGeneration(
       image: { id, type: "UPLOADED" as const },
       strength: "MID" as const,
     }));
-    const existingGuidances =
-      (parameters.guidances as Record<string, unknown> | undefined) ?? {};
+    const existingGuidances = (parameters.guidances as Record<string, unknown> | undefined) ?? {};
     parameters.guidances = { ...existingGuidances, image_reference: refs };
   }
 
@@ -544,8 +556,20 @@ export async function createLeonardoGeneration(
         // (LOW/MEDIUM/HIGH). Lowercase values validate on the UI but fail the v2 API.
         { base: "cloud", parameters, label: "cloud+quality+enhance" },
         { base: "api", parameters, label: "api+quality+enhance" },
-        { base: "cloud", parameters: { ...baseParameters, quality: parameters.quality, guidances: parameters.guidances }, label: "cloud+quality" },
-        { base: "cloud", parameters: { ...baseParameters, prompt_enhance: "OFF", guidances: parameters.guidances }, label: "cloud+enhance" },
+        {
+          base: "cloud",
+          parameters: {
+            ...baseParameters,
+            quality: parameters.quality,
+            guidances: parameters.guidances,
+          },
+          label: "cloud+quality",
+        },
+        {
+          base: "cloud",
+          parameters: { ...baseParameters, prompt_enhance: "OFF", guidances: parameters.guidances },
+          label: "cloud+enhance",
+        },
       ]
     : [{ base: "api", parameters, label: "api" }];
 
@@ -650,7 +674,10 @@ export async function generateLeonardoImages(
       }
 
       opts.onProgress?.(`Submit ke Leonardo v2 (model: ${input.modelId || "auto"})…`);
-      const { generationId } = await createLeonardoGeneration(token, { ...input, imagePromptIds: promptIds });
+      const { generationId } = await createLeonardoGeneration(token, {
+        ...input,
+        imagePromptIds: promptIds,
+      });
       opts.onProgress?.(`Generation ${generationId.slice(0, 8)}… menunggu render`);
 
       const started = Date.now();
@@ -675,4 +702,3 @@ export async function generateLeonardoImages(
     { onRotate: opts.onRotate },
   );
 }
-

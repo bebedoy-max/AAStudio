@@ -19,7 +19,9 @@ function renameKeepingBase(name: string, ext: string): string {
   return `${base}.${ext}`;
 }
 
-async function loadImageBitmap(file: File): Promise<{ width: number; height: number; draw: CanvasImageSource; cleanup: () => void }> {
+async function loadImageBitmap(
+  file: File,
+): Promise<{ width: number; height: number; draw: CanvasImageSource; cleanup: () => void }> {
   if (typeof createImageBitmap === "function") {
     const bmp = await createImageBitmap(file);
     return { width: bmp.width, height: bmp.height, draw: bmp, cleanup: () => bmp.close?.() };
@@ -31,12 +33,21 @@ async function loadImageBitmap(file: File): Promise<{ width: number; height: num
     img.onerror = () => rej(new Error("Gagal membaca gambar"));
     img.src = url;
   });
-  return { width: img.naturalWidth, height: img.naturalHeight, draw: img, cleanup: () => URL.revokeObjectURL(url) };
+  return {
+    width: img.naturalWidth,
+    height: img.naturalHeight,
+    draw: img,
+    cleanup: () => URL.revokeObjectURL(url),
+  };
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Gagal encode gambar"))), type, quality),
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Gagal encode gambar"))),
+      type,
+      quality,
+    ),
   );
 }
 
@@ -98,17 +109,29 @@ export async function compressVideoFile(
     for (let i = 0; i < attempts.length; i++) {
       const a = attempts[i];
       const outName = `out_${i}.mp4`;
-      onProgress?.(`Kompres video (pass ${i + 1}/${attempts.length}, ${a.height}p)…`, Math.round((i / attempts.length) * 100));
+      onProgress?.(
+        `Kompres video (pass ${i + 1}/${attempts.length}, ${a.height}p)…`,
+        Math.round((i / attempts.length) * 100),
+      );
       await ff.exec([
-        "-i", inName,
-        "-vf", `scale=-2:'min(${a.height},ih)'`,
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-crf", String(a.crf),
-        "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart",
-        "-c:a", "aac",
-        "-b:a", a.audio,
+        "-i",
+        inName,
+        "-vf",
+        `scale=-2:'min(${a.height},ih)'`,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        String(a.crf),
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "-c:a",
+        "aac",
+        "-b:a",
+        a.audio,
         outName,
       ]);
       const data = (await ff.readFile(outName)) as Uint8Array;
@@ -121,7 +144,9 @@ export async function compressVideoFile(
         return new File([buf], renameKeepingBase(file.name, "mp4"), { type: "video/mp4" });
       }
     }
-    throw new Error("Video tetap di atas 4MB setelah kompresi maksimum. Potong durasinya lalu upload ulang.");
+    throw new Error(
+      "Video tetap di atas 4MB setelah kompresi maksimum. Potong durasinya lalu upload ulang.",
+    );
   } finally {
     await ff.deleteFile(inName).catch(() => {});
   }

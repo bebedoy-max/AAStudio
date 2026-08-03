@@ -15,8 +15,13 @@ type Body = {
   niche?: string | null;
 };
 
-type Step =
-  | { step: string; status: "start" | "running" | "done" | "error"; label: string; progress: number; detail?: string | null };
+type Step = {
+  step: string;
+  status: "start" | "running" | "done" | "error";
+  label: string;
+  progress: number;
+  detail?: string | null;
+};
 
 function sseEvent(data: unknown): string {
   return `data: ${JSON.stringify(data)}\n\n`;
@@ -41,7 +46,9 @@ function extractJson(raw: string): Record<string, string> {
   if (start === -1 || end === -1) {
     const sample = (raw || "").trim().slice(0, 160).replace(/\s+/g, " ");
     throw new Error(
-      sample ? `AI tidak mengembalikan JSON. Cuplikan: "${sample}"` : "AI mengembalikan respon kosong",
+      sample
+        ? `AI tidak mengembalikan JSON. Cuplikan: "${sample}"`
+        : "AI mengembalikan respon kosong",
     );
   }
   s = s.substring(start, end + 1);
@@ -210,7 +217,9 @@ async function scrapeTikTok(
       const og =
         html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)?.[1] || "";
       const ogd =
-        html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1] || "";
+        html.match(
+          /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i,
+        )?.[1] || "";
       const usable = /Make Your Day/i.test(og) ? "" : og;
       if (usable || ogd) return { title: usable, desc: ogd };
     }
@@ -218,10 +227,10 @@ async function scrapeTikTok(
     // ignore, try oembed
   }
   try {
-    const oe = await fetch(
-      `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`,
-      { signal, headers: { "User-Agent": MOBILE_UA } },
-    );
+    const oe = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, {
+      signal,
+      headers: { "User-Agent": MOBILE_UA },
+    });
     if (oe.ok) {
       const j = (await oe.json()) as { title?: string; author_name?: string };
       if (j.title || j.author_name) {
@@ -257,7 +266,8 @@ export const Route = createFileRoute("/api/router/brain-analyze")({
         const { loadGlobalBrainKeys } = await import("./chat");
         const globalBrain = await loadGlobalBrainKeys();
         const hasBrainKey =
-          Boolean(geminiKeys || openaiKeys) || globalBrain.gemini.length + globalBrain.openai.length > 0;
+          Boolean(geminiKeys || openaiKeys) ||
+          globalBrain.gemini.length + globalBrain.openai.length > 0;
 
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
@@ -358,12 +368,18 @@ export const Route = createFileRoute("/api/router/brain-analyze")({
               });
               const sysPersona =
                 "Anda adalah analis brand influencer. Kembalikan JSON persis dengan key: " +
-                "Personality, \"Writing Style\", \"Speaking Style\", \"Visual Style\", " +
-                "\"Audience Target\", Tone, \"Brand Identity\". Nilai string singkat 1 kalimat. " +
+                'Personality, "Writing Style", "Speaking Style", "Visual Style", ' +
+                '"Audience Target", Tone, "Brand Identity". Nilai string singkat 1 kalimat. ' +
                 "Jawab HANYA JSON, tanpa prosa.";
               const userPersona = JSON.stringify({
-                name: body.name, niche: body.niche,
-                sources: scraped.map((s) => ({ platform: s.platform, url: s.url, title: s.title, desc: s.desc })),
+                name: body.name,
+                niche: body.niche,
+                sources: scraped.map((s) => ({
+                  platform: s.platform,
+                  url: s.url,
+                  title: s.title,
+                  desc: s.desc,
+                })),
                 reference_image_count: references.length,
               });
               const validOpenaiKeys = parseKeys(openaiKeys).filter((key) => key.startsWith("sk-"));
@@ -374,27 +390,41 @@ export const Route = createFileRoute("/api/router/brain-analyze")({
               let persona: Record<string, string> = {};
               let aiProvider: "openai" | "gemini" | null = null;
               try {
-                const r = await callJsonAI(validOpenaiKeys, validGeminiKeys, sysPersona, userPersona);
+                const r = await callJsonAI(
+                  validOpenaiKeys,
+                  validGeminiKeys,
+                  sysPersona,
+                  userPersona,
+                );
                 persona = r.data;
                 aiProvider = r.provider;
               } catch (err) {
                 send({
-                  step: "extract_persona", status: "error", progress: 60,
+                  step: "extract_persona",
+                  status: "error",
+                  progress: 60,
                   label: `Persona gagal: ${(err as Error).message}`,
                 });
                 return;
               }
               send({
-                step: "extract_persona", status: "done", progress: 78,
+                step: "extract_persona",
+                status: "done",
+                progress: 78,
                 label: `Persona ${Object.keys(persona).length} dimensi siap (AI)`,
               });
 
               // Step 4: extract_memory via AI.
-              send({ step: "extract_memory", status: "running", progress: 82, label: "AI menyusun Memory" });
+              send({
+                step: "extract_memory",
+                status: "running",
+                progress: 82,
+                label: "AI menyusun Memory",
+              });
               const sysMem =
-                "Kembalikan JSON dengan key: \"Scene yang sudah dibuat\", \"Outfit yang sering dipakai\", " +
-                "\"Background favorit\", \"Jam posting terbaik\", \"Caption terbaik\", \"Hook terbaik\", " +
-                "\"Prompt terbaik\", \"Affiliate berhasil\", \"Affiliate gagal\". Nilai string singkat. Jawab HANYA JSON.";
+                'Kembalikan JSON dengan key: "Scene yang sudah dibuat", "Outfit yang sering dipakai", ' +
+                '"Background favorit", "Jam posting terbaik", "Caption terbaik", "Hook terbaik", ' +
+                '"Prompt terbaik", "Affiliate berhasil", "Affiliate gagal". Nilai string singkat. Jawab HANYA JSON.';
               let memory: Record<string, string> = {};
               try {
                 const r = await callJsonAI(validOpenaiKeys, validGeminiKeys, sysMem, userPersona);
@@ -402,12 +432,19 @@ export const Route = createFileRoute("/api/router/brain-analyze")({
                 aiProvider = r.provider;
               } catch (err) {
                 send({
-                  step: "extract_memory", status: "error", progress: 82,
+                  step: "extract_memory",
+                  status: "error",
+                  progress: 82,
                   label: `Memory gagal: ${(err as Error).message}`,
                 });
                 return;
               }
-              send({ step: "extract_memory", status: "done", progress: 92, label: "Memory siap (AI)" });
+              send({
+                step: "extract_memory",
+                status: "done",
+                progress: 92,
+                label: "Memory siap (AI)",
+              });
 
               // Step 5: return final payload
               send({

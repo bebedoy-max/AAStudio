@@ -8,7 +8,10 @@ import { createRunStore, type RunStore } from "./run-store";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stickyStores = new Map<string, RunStore<{ value: any }>>();
 
-export function useSticky<T>(key: string, initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
+export function useSticky<T>(
+  key: string,
+  initial: T | (() => T),
+): [T, Dispatch<SetStateAction<T>>] {
   let store = stickyStores.get(key) as RunStore<{ value: T }> | undefined;
   if (!store) {
     const initValue = typeof initial === "function" ? (initial as () => T)() : initial;
@@ -20,10 +23,7 @@ export function useSticky<T>(key: string, initial: T | (() => T)): [T, Dispatch<
   const setValue = useCallback<Dispatch<SetStateAction<T>>>(
     (next) => {
       localStore.set((prev) => ({
-        value:
-          typeof next === "function"
-            ? (next as (p: T) => T)(prev.value)
-            : next,
+        value: typeof next === "function" ? (next as (p: T) => T)(prev.value) : next,
       }));
     },
     [localStore],

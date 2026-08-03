@@ -3,7 +3,20 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, PrimaryButton, GhostButton, Input } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Trash2, Send, RefreshCw, Search, X, KeyRound, ArrowLeft, Eye, EyeOff, Plus } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  Trash2,
+  Send,
+  RefreshCw,
+  Search,
+  X,
+  KeyRound,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/ui-confirm";
 import {
@@ -16,7 +29,6 @@ import {
   searchUsersForTransfer,
   addBankKeys,
   saveBankKeyChecks,
-
 } from "@/lib/token-bank/bank.functions";
 import { checkWeavyToken } from "@/lib/providers/weavy";
 import { checkWavespeedBalance } from "@/lib/providers/wavespeed";
@@ -31,7 +43,10 @@ export const Route = createFileRoute("/admin/token-bank")({
   head: () => ({
     meta: [
       { title: "Token Bank — Admin" },
-      { name: "description", content: "Kelola inventaris key Token Bank: pilih banyak untuk transfer atau hapus." },
+      {
+        name: "description",
+        content: "Kelola inventaris key Token Bank: pilih banyak untuk transfer atau hapus.",
+      },
     ],
   }),
   component: AdminTokenBankPage,
@@ -53,13 +68,20 @@ type Row = {
   credit_checked_at: string | null;
 };
 
-
 function AdminTokenBankPage() {
   return (
     <DashboardShell>
-      <PageHero eyebrow="Admin" title="Token" highlight="Bank" desc="Inventaris key semua provider — pilih beberapa untuk dikirim ke user atau dihapus sekaligus." />
+      <PageHero
+        eyebrow="Admin"
+        title="Token"
+        highlight="Bank"
+        desc="Inventaris key semua provider — pilih beberapa untuk dikirim ke user atau dihapus sekaligus."
+      />
       <div className="mb-3">
-        <Link to="/admin" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+        <Link
+          to="/admin"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> Kembali ke Dashboard
         </Link>
       </div>
@@ -70,16 +92,24 @@ function AdminTokenBankPage() {
 
 function Gate() {
   const { loading, isAdmin } = useAuth();
-  if (loading) return <Card><div className="p-8 grid place-items-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div></Card>;
-  if (!isAdmin) return (
-    <Card>
-      <div className="p-8 text-center">
-        <ShieldCheck className="h-8 w-8 text-muted-foreground mx-auto" />
-        <div className="mt-3 font-display text-lg">Akses ditolak</div>
-        <p className="mt-1 text-sm text-muted-foreground">Halaman ini hanya untuk admin.</p>
-      </div>
-    </Card>
-  );
+  if (loading)
+    return (
+      <Card>
+        <div className="p-8 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      </Card>
+    );
+  if (!isAdmin)
+    return (
+      <Card>
+        <div className="p-8 text-center">
+          <ShieldCheck className="h-8 w-8 text-muted-foreground mx-auto" />
+          <div className="mt-3 font-display text-lg">Akses ditolak</div>
+          <p className="mt-1 text-sm text-muted-foreground">Halaman ini hanya untuk admin.</p>
+        </div>
+      </Card>
+    );
   return <Body />;
 }
 
@@ -104,7 +134,8 @@ function Body() {
   function toggleReveal(id: string) {
     setRevealed((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   }
@@ -141,7 +172,9 @@ function Body() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -158,11 +191,15 @@ function Body() {
     });
   }, [rows, provider, status, q]);
 
-  const selectedRows = useMemo(() => filtered.filter((r) => selected.has(r.id)), [filtered, selected]);
+  const selectedRows = useMemo(
+    () => filtered.filter((r) => selected.has(r.id)),
+    [filtered, selected],
+  );
   const selectableIds = useMemo(() => filtered.map((r) => r.id), [filtered]);
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
   const someSelected = selected.size > 0;
-  const canTransfer = selectedRows.length > 0 && selectedRows.every((r) => r.status === "available");
+  const canTransfer =
+    selectedRows.length > 0 && selectedRows.every((r) => r.status === "available");
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -184,7 +221,9 @@ function Body() {
       return n;
     });
   }
-  function clearSelection() { setSelected(new Set()); }
+  function clearSelection() {
+    setSelected(new Set());
+  }
 
   async function bulkCheck() {
     if (selectedRows.length === 0) return;
@@ -227,12 +266,12 @@ function Body() {
     setChecking(false);
   }
 
-
   async function bulkDelete() {
     if (selected.size === 0) return;
     const ok = await confirmDialog({
       title: `Hapus ${selected.size} key?`,
-      description: "Key yang sudah di-assign ke user tetap aktif di token manager user. Aksi ini tidak bisa dibatalkan.",
+      description:
+        "Key yang sudah di-assign ke user tetap aktif di token manager user. Aksi ini tidak bisa dibatalkan.",
       confirmLabel: "Hapus",
       tone: "danger",
     });
@@ -273,7 +312,9 @@ function Body() {
           >
             <option value="">Semua provider</option>
             {BANK_PROVIDERS.map((p) => (
-              <option key={p} value={p}>{PROVIDER_LABELS[p]}</option>
+              <option key={p} value={p}>
+                {PROVIDER_LABELS[p]}
+              </option>
             ))}
           </select>
           <select
@@ -287,7 +328,12 @@ function Body() {
           </select>
           <div className="relative flex-1 min-w-[200px]">
             <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari key / label / user…" className="pl-8" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Cari key / label / user…"
+              className="pl-8"
+            />
           </div>
           <GhostButton onClick={load} disabled={loading || busy}>
             <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
@@ -315,7 +361,10 @@ function Body() {
                   }
                   title={`${s.available} available · ${s.assigned} assigned`}
                 >
-                  {PROVIDER_LABELS[p]} <span className="opacity-70">({s.available}/{s.total})</span>
+                  {PROVIDER_LABELS[p]}{" "}
+                  <span className="opacity-70">
+                    ({s.available}/{s.total})
+                  </span>
                 </button>
               );
             })}
@@ -336,7 +385,12 @@ function Body() {
             )}
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <GhostButton onClick={clearSelection} disabled={busy} aria-label="Batal" className="h-8 w-8 sm:h-9 sm:w-auto sm:px-2.5 inline-flex items-center justify-center">
+            <GhostButton
+              onClick={clearSelection}
+              disabled={busy}
+              aria-label="Batal"
+              className="h-8 w-8 sm:h-9 sm:w-auto sm:px-2.5 inline-flex items-center justify-center"
+            >
               <X className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Batal</span>
             </GhostButton>
             <button
@@ -346,7 +400,8 @@ function Body() {
               className="inline-flex items-center justify-center gap-1.5 rounded-lg h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs font-semibold text-primary-foreground disabled:opacity-50"
               style={{ background: "var(--gradient-neon)" }}
             >
-              <Send className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Kirim ke user</span>
+              <Send className="h-3.5 w-3.5" />{" "}
+              <span className="hidden sm:inline">Kirim ke user</span>
             </button>
             <button
               disabled={busy || checking || selectedRows.length === 0}
@@ -354,7 +409,12 @@ function Body() {
               aria-label="Cek"
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-primary/40 text-primary h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs hover:bg-primary/10 disabled:opacity-50"
             >
-              {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />} <span className="hidden sm:inline">Cek</span>
+              {checking ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Activity className="h-3.5 w-3.5" />
+              )}{" "}
+              <span className="hidden sm:inline">Cek</span>
             </button>
             <button
               disabled={busy}
@@ -362,7 +422,12 @@ function Body() {
               aria-label="Hapus"
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-400/40 text-rose-300 h-8 w-8 sm:h-9 sm:w-auto sm:px-3 text-xs hover:bg-rose-500/10 disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} <span className="hidden sm:inline">Hapus</span>
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}{" "}
+              <span className="hidden sm:inline">Hapus</span>
             </button>
           </div>
         </div>
@@ -371,7 +436,9 @@ function Body() {
       {/* Table */}
       <Card>
         {loading ? (
-          <div className="p-8 grid place-items-center"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          <div className="p-8 grid place-items-center">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">Tidak ada key.</div>
         ) : (
@@ -417,7 +484,10 @@ function Body() {
                         />
                       </td>
                       <td className="px-3 py-2 text-xs">{PROVIDER_LABELS[r.provider]}</td>
-                      <td className="px-3 py-2 font-mono text-xs" onClick={(e) => e.stopPropagation()}>
+                      <td
+                        className="px-3 py-2 font-mono text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="inline-flex items-center gap-1.5 max-w-[52vw] md:max-w-none">
                           <span className={revealed.has(r.id) ? "break-all" : ""}>
                             {revealed.has(r.id) ? r.key_value : mask(r.key_value)}
@@ -425,10 +495,16 @@ function Body() {
                           <button
                             type="button"
                             onClick={() => toggleReveal(r.id)}
-                            aria-label={revealed.has(r.id) ? "Sembunyikan token" : "Tampilkan token"}
+                            aria-label={
+                              revealed.has(r.id) ? "Sembunyikan token" : "Tampilkan token"
+                            }
                             className="shrink-0 h-6 w-6 grid place-items-center rounded-md border border-border/60 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/30"
                           >
-                            {revealed.has(r.id) ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            {revealed.has(r.id) ? (
+                              <EyeOff className="h-3.5 w-3.5" />
+                            ) : (
+                              <Eye className="h-3.5 w-3.5" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -496,9 +572,11 @@ function CreditCell({ state }: { state: CheckState | undefined }) {
     );
   if (state.status === "pending") return <span className="text-muted-foreground">—</span>;
   const color =
-    state.status === "ok" ? "text-emerald-300"
-    : state.status === "warn" ? "text-amber-300"
-    : "text-rose-300";
+    state.status === "ok"
+      ? "text-emerald-300"
+      : state.status === "warn"
+        ? "text-amber-300"
+        : "text-rose-300";
   const when = state.checkedAt ? new Date(state.checkedAt).toLocaleString("id-ID") : null;
   return (
     <span
@@ -512,7 +590,6 @@ function CreditCell({ state }: { state: CheckState | undefined }) {
       {when && <span className="text-[10px] text-muted-foreground">dicek {when}</span>}
     </span>
   );
-
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -522,7 +599,9 @@ function StatusPill({ status }: { status: string }) {
   };
   const cls = map[status] ?? "border-border text-muted-foreground bg-card/40";
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}
+    >
       {status}
     </span>
   );
@@ -538,33 +617,52 @@ function TransferDialog({
   onDone: () => void;
 }) {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<{ id: string; email: string | null; display_name: string | null }[]>([]);
-  const [target, setTarget] = useState<{ id: string; email: string | null; display_name: string | null } | null>(null);
+  const [results, setResults] = useState<
+    { id: string; email: string | null; display_name: string | null }[]
+  >([]);
+  const [target, setTarget] = useState<{
+    id: string;
+    email: string | null;
+    display_name: string | null;
+  } | null>(null);
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const term = q.trim();
-    if (term.length < 2) { setResults([]); return; }
+    if (term.length < 2) {
+      setResults([]);
+      return;
+    }
     let cancel = false;
     setSearching(true);
     const t = setTimeout(async () => {
       try {
         const r = (await searchUsersForTransfer({ data: { q: term } })) as unknown as {
-          id: string; email: string | null; display_name: string | null;
+          id: string;
+          email: string | null;
+          display_name: string | null;
         }[];
         if (!cancel) setResults(r);
-      } catch { /* ignore */ }
-      finally { if (!cancel) setSearching(false); }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancel) setSearching(false);
+      }
     }, 250);
-    return () => { cancel = true; clearTimeout(t); };
+    return () => {
+      cancel = true;
+      clearTimeout(t);
+    };
   }, [q]);
 
   async function send() {
     if (!target) return;
     setSending(true);
     try {
-      const r = (await transferBankKeysByIds({ data: { ids: selectedIds, targetUserId: target.id } })) as unknown as { delivered: number };
+      const r = (await transferBankKeysByIds({
+        data: { ids: selectedIds, targetUserId: target.id },
+      })) as unknown as { delivered: number };
       toast.success(`${r.delivered} key terkirim ke ${target.display_name || target.email}`);
       onDone();
     } catch (e) {
@@ -575,23 +673,46 @@ function TransferDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="neumorph w-full max-w-md p-5 relative" style={{ background: "var(--gradient-card, hsl(var(--card)))" }}>
-        <button onClick={onClose} className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full border border-border bg-card">
+    <div
+      className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="neumorph w-full max-w-md p-5 relative"
+        style={{ background: "var(--gradient-card, hsl(var(--card)))" }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 h-8 w-8 grid place-items-center rounded-full border border-border bg-card"
+        >
           <X className="h-4 w-4" />
         </button>
         <div className="font-display text-lg mb-1">Kirim {selectedIds.length} key</div>
-        <div className="text-xs text-muted-foreground mb-4">Cari user berdasarkan email atau nama.</div>
+        <div className="text-xs text-muted-foreground mb-4">
+          Cari user berdasarkan email atau nama.
+        </div>
 
         <div className="relative">
           <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input autoFocus value={q} onChange={(e) => { setQ(e.target.value); setTarget(null); }} placeholder="email@domain.com / nama…" className="pl-8" />
+          <Input
+            autoFocus
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setTarget(null);
+            }}
+            placeholder="email@domain.com / nama…"
+            className="pl-8"
+          />
         </div>
 
         {q.trim().length >= 2 && (
           <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-border/60 bg-card/40 divide-y divide-border/40">
             {searching ? (
-              <div className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" /> Mencari…</div>
+              <div className="p-3 text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Mencari…
+              </div>
             ) : results.length === 0 ? (
               <div className="p-3 text-xs text-muted-foreground">Tidak ada hasil.</div>
             ) : (
@@ -601,7 +722,9 @@ function TransferDialog({
                   onClick={() => setTarget(u)}
                   className={
                     "w-full text-left px-3 py-2 text-sm transition " +
-                    (target?.id === u.id ? "bg-primary/10 text-foreground" : "hover:bg-sidebar-accent/30")
+                    (target?.id === u.id
+                      ? "bg-primary/10 text-foreground"
+                      : "hover:bg-sidebar-accent/30")
                   }
                 >
                   <div className="font-medium">{u.display_name || "—"}</div>
@@ -619,9 +742,16 @@ function TransferDialog({
         )}
 
         <div className="mt-5 flex justify-end gap-2">
-          <GhostButton onClick={onClose} disabled={sending}>Batal</GhostButton>
+          <GhostButton onClick={onClose} disabled={sending}>
+            Batal
+          </GhostButton>
           <PrimaryButton onClick={send} disabled={!target || sending}>
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Kirim
+            {sending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}{" "}
+            Kirim
           </PrimaryButton>
         </div>
       </div>
@@ -635,7 +765,6 @@ type CheckState =
   | { status: "ok"; detail: string; checkedAt?: string | null }
   | { status: "warn"; detail: string; checkedAt?: string | null }
   | { status: "fail"; detail: string; checkedAt?: string | null };
-
 
 async function checkOne(provider: BankProvider, key: string): Promise<CheckState> {
   try {
@@ -680,7 +809,9 @@ async function checkOne(provider: BankProvider, key: string): Promise<CheckState
         const chk = await checkFramiaToken(key);
         if (!chk.ok) return { status: "fail", detail: chk.message || "Token tidak valid" };
         const bal = await fetchFramiaBalance(key).catch(() => null);
-        const exp = chk.expiresAt ? ` · exp ${new Date(chk.expiresAt).toLocaleDateString("id-ID")}` : "";
+        const exp = chk.expiresAt
+          ? ` · exp ${new Date(chk.expiresAt).toLocaleDateString("id-ID")}`
+          : "";
         const email = chk.email ? ` · ${chk.email}` : "";
         const b = bal && bal.ok ? ` · ${bal.balance ?? "—"} cr` : "";
         return { status: "ok", detail: `Valid${b}${email}${exp}` };
@@ -696,7 +827,8 @@ async function checkOne(provider: BankProvider, key: string): Promise<CheckState
       }
       case "firefly": {
         const r = await fetchFireflyBalance(key);
-        if (!r.ok) return { status: "fail", detail: r.message || "Token Firefly tidak valid / expired" };
+        if (!r.ok)
+          return { status: "fail", detail: r.message || "Token Firefly tidak valid / expired" };
         if (r.balance === null) return { status: "warn", detail: "Credit tidak terbaca" };
         return {
           status: r.balance > 0 ? "ok" : "warn",
@@ -725,7 +857,8 @@ function StatusIcon({ state }: { state: CheckState["status"] }) {
   if (state === "ok") return <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />;
   if (state === "warn") return <AlertTriangle className="h-4 w-4 text-amber-300 shrink-0" />;
   if (state === "fail") return <XCircle className="h-4 w-4 text-rose-400 shrink-0" />;
-  if (state === "checking") return <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />;
+  if (state === "checking")
+    return <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />;
   return <div className="h-4 w-4 rounded-full border border-border shrink-0" />;
 }
 
@@ -805,14 +938,20 @@ function AddKeysDialog({
     const seen = new Set<string>();
     for (const k of keys) {
       if (existingSet.has(k) || seen.has(k)) {
-        out.push({ key: k, state: { status: "dup", detail: "Duplikat · sudah ada di Token Bank" } });
+        out.push({
+          key: k,
+          state: { status: "dup", detail: "Duplikat · sudah ada di Token Bank" },
+        });
       } else {
         seen.add(k);
         const fmt = formatIssue(provider, k);
         if (fmt) {
           out.push({ key: k, state: { status: "fail", detail: fmt } });
         } else if (UNCHECKABLE_PROVIDERS.includes(provider)) {
-          out.push({ key: k, state: { status: "skip", detail: "Cek otomatis tidak tersedia · disimpan" } });
+          out.push({
+            key: k,
+            state: { status: "skip", detail: "Cek otomatis tidak tersedia · disimpan" },
+          });
         } else {
           out.push({ key: k, state: await checkOne(provider, k) });
         }
@@ -869,10 +1008,21 @@ function AddKeysDialog({
             : "text-rose-300 border-rose-400/40 bg-rose-400/10";
 
   const labelOf = (s: VerifyRow["state"]["status"]) =>
-    s === "ok" ? "Valid" : s === "skip" ? "Tanpa cek" : s === "warn" ? "Credit kosong" : s === "dup" ? "Duplikat" : "Gagal";
+    s === "ok"
+      ? "Valid"
+      : s === "skip"
+        ? "Tanpa cek"
+        : s === "warn"
+          ? "Credit kosong"
+          : s === "dup"
+            ? "Duplikat"
+            : "Gagal";
 
   return (
-    <div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
         className="neumorph w-full max-w-lg max-h-[90vh] overflow-y-auto p-5 relative"
@@ -969,10 +1119,10 @@ function AddKeysDialog({
                     {labelOf(r.state.status)}
                   </span>
                   <div className="min-w-0">
-                    <div className="font-mono text-[11px] text-muted-foreground truncate">{mask(r.key)}</div>
-                    <div className="text-[11px]">
-                      {"detail" in r.state ? r.state.detail : "—"}
+                    <div className="font-mono text-[11px] text-muted-foreground truncate">
+                      {mask(r.key)}
                     </div>
+                    <div className="text-[11px]">{"detail" in r.state ? r.state.detail : "—"}</div>
                   </div>
                 </div>
               ))}
@@ -985,11 +1135,22 @@ function AddKeysDialog({
             Tutup
           </GhostButton>
           <GhostButton onClick={verify} disabled={busy || verifying || keys.length === 0}>
-            {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Activity className="h-3.5 w-3.5" />}
+            {verifying ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Activity className="h-3.5 w-3.5" />
+            )}
             Cek {keys.length} key
           </GhostButton>
-          <PrimaryButton onClick={saveAccepted} disabled={busy || verifying || accepted.length === 0}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          <PrimaryButton
+            onClick={saveAccepted}
+            disabled={busy || verifying || accepted.length === 0}
+          >
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5" />
+            )}
             Simpan {accepted.length} valid
           </PrimaryButton>
         </div>

@@ -1,11 +1,28 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, type FeatureAccessMode, normalizeFeatureAccessMode as normalizeMode } from "@/lib/auth-context";
+import {
+  useAuth,
+  type FeatureAccessMode,
+  normalizeFeatureAccessMode as normalizeMode,
+} from "@/lib/auth-context";
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Trash2, RefreshCw, Cloud, ChevronDown } from "lucide-react";
+import {
+  Loader2,
+  ShieldCheck,
+  Save,
+  LifeBuoy,
+  Brain,
+  Plug,
+  LayoutList,
+  Plus,
+  Trash2,
+  RefreshCw,
+  Cloud,
+  ChevronDown,
+} from "lucide-react";
 import { GlobalCloudSection } from "@/components/admin/global-cloud-section";
 import { PROVIDER_FLAGS, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 import { toast } from "sonner";
@@ -132,11 +149,11 @@ function AccessBody() {
     ]);
 
     const settings: Record<string, Draft> = {};
-    ((access ?? []) as { route_key: string; access_mode: string; trial_until: string | null }[]).forEach(
-      (r) => {
-        settings[r.route_key] = { mode: normalizeMode(r.access_mode), trialUntil: r.trial_until };
-      },
-    );
+    (
+      (access ?? []) as { route_key: string; access_mode: string; trial_until: string | null }[]
+    ).forEach((r) => {
+      settings[r.route_key] = { mode: normalizeMode(r.access_mode), trialUntil: r.trial_until };
+    });
     // default menu yang belum di-set = "hide"
     const full: Record<string, Draft> = {};
     MENU_CATALOG.forEach((f) => {
@@ -144,9 +161,11 @@ function AccessBody() {
     });
 
     const priceMap: Record<string, number> = {};
-    ((priceRows ?? []) as { route_key: string; price_idr: number; is_active: boolean }[]).forEach((p) => {
-      priceMap[p.route_key] = p.price_idr;
-    });
+    ((priceRows ?? []) as { route_key: string; price_idr: number; is_active: boolean }[]).forEach(
+      (p) => {
+        priceMap[p.route_key] = p.price_idr;
+      },
+    );
 
     setDrafts(full);
     setSaved(JSON.parse(JSON.stringify(full)));
@@ -209,11 +228,36 @@ function AccessBody() {
     hint: string;
     cls: string;
   }[] = [
-    { value: "open", label: "Open", hint: "Gratis untuk semua user", cls: "border-emerald-400/60 bg-emerald-400/15 text-emerald-300" },
-    { value: "premium", label: "Premium", hint: "Berbayar / langganan", cls: "border-primary/60 bg-primary/15 text-primary" },
-    { value: "trial", label: "Trial", hint: "Uji coba sampai tanggal tertentu", cls: "border-amber-400/60 bg-amber-400/15 text-amber-300" },
-    { value: "lock", label: "Lock", hint: "Tampil tapi dinonaktifkan", cls: "border-rose-400/60 bg-rose-400/15 text-rose-300" },
-    { value: "hide", label: "Hide", hint: "Disembunyikan dari user", cls: "border-slate-400/50 bg-slate-400/10 text-slate-300" },
+    {
+      value: "open",
+      label: "Open",
+      hint: "Gratis untuk semua user",
+      cls: "border-emerald-400/60 bg-emerald-400/15 text-emerald-300",
+    },
+    {
+      value: "premium",
+      label: "Premium",
+      hint: "Berbayar / langganan",
+      cls: "border-primary/60 bg-primary/15 text-primary",
+    },
+    {
+      value: "trial",
+      label: "Trial",
+      hint: "Uji coba sampai tanggal tertentu",
+      cls: "border-amber-400/60 bg-amber-400/15 text-amber-300",
+    },
+    {
+      value: "lock",
+      label: "Lock",
+      hint: "Tampil tapi dinonaktifkan",
+      cls: "border-rose-400/60 bg-rose-400/15 text-rose-300",
+    },
+    {
+      value: "hide",
+      label: "Hide",
+      hint: "Disembunyikan dari user",
+      cls: "border-slate-400/50 bg-slate-400/10 text-slate-300",
+    },
   ];
 
   if (loading)
@@ -227,9 +271,7 @@ function AccessBody() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div
-        className="rounded-3xl border border-border/60 bg-card/60 px-6 py-5 flex flex-wrap items-center gap-3"
-      >
+      <div className="rounded-3xl border border-border/60 bg-card/60 px-6 py-5 flex flex-wrap items-center gap-3">
         <div
           className="font-display text-3xl sm:text-4xl uppercase tracking-wider bg-clip-text text-transparent"
           style={{ backgroundImage: "var(--gradient-neon)" }}
@@ -262,10 +304,10 @@ function AccessBody() {
       {Object.entries(groups)
         .filter(([groupName]) => groupName === activeGroup)
         .map(([groupName, features]) => (
-        <div
-          key={groupName}
-          className="rounded-3xl border border-border/60 bg-card/60 p-6 grid gap-8"
-        >
+          <div
+            key={groupName}
+            className="rounded-3xl border border-border/60 bg-card/60 p-6 grid gap-8"
+          >
             {features.map((f) => {
               const draft = drafts[f.key];
               const dirty = isDirty(f.key);
@@ -278,7 +320,9 @@ function AccessBody() {
                     </span>
                     {draft.mode === "trial" && (
                       <span className="inline-flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">Trial berlaku sampai</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Trial berlaku sampai
+                        </span>
                         <input
                           type="datetime-local"
                           value={toLocalInput(draft.trialUntil)}
@@ -331,12 +375,11 @@ function AccessBody() {
                 </div>
               );
             })}
-        </div>
-      ))}
+          </div>
+        ))}
     </div>
   );
 }
-
 
 function ContactSection() {
   const [loading, setLoading] = useState(true);
@@ -392,7 +435,8 @@ function ContactSection() {
         <div>
           <div className="font-display text-lg">Kontak Support</div>
           <div className="text-xs text-muted-foreground">
-            Informasi ini akan tampil di halaman Pusat Bantuan. Kosongkan field yang tidak ingin ditampilkan.
+            Informasi ini akan tampil di halaman Pusat Bantuan. Kosongkan field yang tidak ingin
+            ditampilkan.
           </div>
         </div>
       </div>
@@ -403,16 +447,38 @@ function ContactSection() {
       ) : (
         <div className="p-4 space-y-4 max-w-xl">
           <label className="block">
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">Email</div>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="support@domain.com" className={inputCls} />
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
+              Email
+            </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="support@domain.com"
+              className={inputCls}
+            />
           </label>
           <label className="block">
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">Nomor Telepon</div>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+62 ..." className={inputCls} />
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
+              Nomor Telepon
+            </div>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+62 ..."
+              className={inputCls}
+            />
           </label>
           <label className="block">
-            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">Nomor WhatsApp</div>
-            <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+62812xxxx (tanpa spasi untuk link wa.me)" className={inputCls} />
+            <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1.5">
+              Nomor WhatsApp
+            </div>
+            <input
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              placeholder="+62812xxxx (tanpa spasi untuk link wa.me)"
+              className={inputCls}
+            />
           </label>
           <button
             onClick={save}
@@ -428,7 +494,6 @@ function ContactSection() {
     </Card>
   );
 }
-
 
 // =============================================================================
 // Provider on/off — provider yang dimatikan hilang dari Token Manager & Routing
@@ -454,10 +519,11 @@ function ProviderSection() {
   async function toggle(id: string, label: string) {
     const next = !state[id];
     setSaving(id);
-    const { error } = await supabase.from("provider_settings" as never).upsert(
-      { id, enabled: next, updated_at: new Date().toISOString() } as never,
-      { onConflict: "id" },
-    );
+    const { error } = await supabase
+      .from("provider_settings" as never)
+      .upsert({ id, enabled: next, updated_at: new Date().toISOString() } as never, {
+        onConflict: "id",
+      });
     setSaving(null);
     if (error) return toast.error(error.message);
     setState((s) => ({ ...s, [id]: next }));
@@ -597,7 +663,8 @@ async function checkGlobalBrainKey(provider: BrainProviderId, key: string): Prom
       return { key, state: "active", detail: n > 0 ? `OK · ${n} model` : "OK" };
     }
     if (r.status === 429) return { key, state: "limited", detail: "429 · quota / credit habis" };
-    if (r.status === 401 || r.status === 403) return { key, state: "invalid", detail: `${r.status} · key ditolak` };
+    if (r.status === 401 || r.status === 403)
+      return { key, state: "invalid", detail: `${r.status} · key ditolak` };
     return { key, state: "failed", detail: `${r.status} · gagal` };
   } catch (e) {
     return { key, state: "failed", detail: (e as Error).message };
@@ -612,13 +679,20 @@ function GlobalBrainSection() {
   const [tab, setTab] = useState<BrainProviderId>("gemini");
   const [input, setInput] = useState("");
   const [keys, setKeys] = useState<Record<BrainProviderId, string[]>>({ gemini: [], openai: [] });
-  const [checks, setChecks] = useState<Record<BrainProviderId, BrainKeyCheck[]>>({ gemini: [], openai: [] });
+  const [checks, setChecks] = useState<Record<BrainProviderId, BrainKeyCheck[]>>({
+    gemini: [],
+    openai: [],
+  });
   const [progress, setProgress] = useState<{ show: boolean; pct: number; text: string }>({
     show: false,
     pct: 0,
     text: "",
   });
-  const [report, setReport] = useState<null | { title: string; ok: BrainKeyCheck[]; bad: { key: string; reason: string }[] }>(null);
+  const [report, setReport] = useState<null | {
+    title: string;
+    ok: BrainKeyCheck[];
+    bad: { key: string; reason: string }[];
+  }>(null);
 
   const provider = BRAIN_PROVIDERS.find((p) => p.id === tab)!;
 
@@ -629,9 +703,11 @@ function GlobalBrainSection() {
         .select("enabled, gemini_keys, openai_keys")
         .eq("id", 1)
         .maybeSingle();
-      const row = data as unknown as
-        | { enabled: boolean; gemini_keys: string[] | null; openai_keys: string[] | null }
-        | null;
+      const row = data as unknown as {
+        enabled: boolean;
+        gemini_keys: string[] | null;
+        openai_keys: string[] | null;
+      } | null;
       if (row) {
         setEnabled(!!row.enabled);
         setKeys({ gemini: row.gemini_keys ?? [], openai: row.openai_keys ?? [] });
@@ -717,7 +793,10 @@ function GlobalBrainSection() {
       const saved = await persist(next);
       if (saved) {
         setKeys(next);
-        setChecks((c) => ({ ...c, [tab]: [...c[tab].filter((x) => !ok.some((o) => o.key === x.key)), ...ok] }));
+        setChecks((c) => ({
+          ...c,
+          [tab]: [...c[tab].filter((x) => !ok.some((o) => o.key === x.key)), ...ok],
+        }));
       }
     }
     setInput("");
@@ -740,7 +819,11 @@ function GlobalBrainSection() {
     setBusy(true);
     const results: BrainKeyCheck[] = [];
     for (let i = 0; i < list.length; i++) {
-      setProgress({ show: true, pct: Math.round((i / list.length) * 100), text: `Cek ${i + 1}/${list.length}…` });
+      setProgress({
+        show: true,
+        pct: Math.round((i / list.length) * 100),
+        text: `Cek ${i + 1}/${list.length}…`,
+      });
       results.push(await checkGlobalBrainKey(tab, list[i]));
       setChecks((c) => ({ ...c, [tab]: [...results] }));
     }
@@ -765,7 +848,14 @@ function GlobalBrainSection() {
           ? "text-rose-300 bg-rose-500/10 border-rose-500/30"
           : "text-muted-foreground bg-muted/30 border-border";
   const badgeLabel = (s: BrainKeyCheck["state"] | "unknown") =>
-    ({ active: "Active", limited: "Rate-limited", invalid: "Invalid", failed: "Failed", checking: "Checking…", unknown: "—" })[s];
+    ({
+      active: "Active",
+      limited: "Rate-limited",
+      invalid: "Invalid",
+      failed: "Failed",
+      checking: "Checking…",
+      unknown: "—",
+    })[s];
 
   return (
     <Card>
@@ -779,8 +869,8 @@ function GlobalBrainSection() {
         <div className="min-w-0">
           <div className="font-display text-lg">Global Brain</div>
           <div className="text-xs text-muted-foreground">
-            Key Brain milik platform. Dipakai otomatis untuk user yang belum punya API Brain sendiri,
-            atau saat key user kena limit. Key global tidak pernah dikirim ke browser user.
+            Key Brain milik platform. Dipakai otomatis untuk user yang belum punya API Brain
+            sendiri, atau saat key user kena limit. Key global tidak pernah dikirim ke browser user.
           </div>
         </div>
       </div>
@@ -830,7 +920,9 @@ function GlobalBrainSection() {
                   style={active ? { background: "var(--gradient-neon)" } : undefined}
                 >
                   {p.label}
-                  <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">{keys[p.id].length}</span>
+                  <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-[10px]">
+                    {keys[p.id].length}
+                  </span>
                 </button>
               );
             })}
@@ -857,7 +949,11 @@ function GlobalBrainSection() {
                   className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                   style={{ background: "var(--gradient-neon)" }}
                 >
-                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                  {busy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
                   Tambah & Cek
                 </button>
                 <button
@@ -865,13 +961,17 @@ function GlobalBrainSection() {
                   disabled={busy || keys[tab].length === 0}
                   className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50"
                 >
-                  <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} /> Cek Ulang Status
+                  <RefreshCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} /> Cek Ulang
+                  Status
                 </button>
               </div>
               {progress.show && (
                 <div className="rounded-md border border-border bg-card/40 p-2">
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="h-full bg-primary transition-all" style={{ width: `${progress.pct}%` }} />
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${progress.pct}%` }}
+                    />
                   </div>
                   <div className="mt-1 text-[10px] text-muted-foreground">{progress.text}</div>
                 </div>
@@ -897,12 +997,18 @@ function GlobalBrainSection() {
                         key={k}
                         className="flex items-center justify-between gap-2 rounded-xl border border-border/60 bg-card/40 px-3 py-2"
                       >
-                        <code className="text-[11px] font-mono text-foreground/85 truncate">{mask(k)}</code>
+                        <code className="text-[11px] font-mono text-foreground/85 truncate">
+                          {mask(k)}
+                        </code>
                         <div className="flex items-center gap-2 shrink-0">
                           {c?.detail && (
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">{c.detail}</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[160px]">
+                              {c.detail}
+                            </span>
                           )}
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeCls(state)}`}>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeCls(state)}`}
+                          >
                             {badgeLabel(state)}
                           </span>
                           <button
@@ -944,7 +1050,9 @@ function GlobalBrainSection() {
                   className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2"
                 >
                   <code className="text-[11px] font-mono truncate">{mask(r.key)}</code>
-                  <span className="text-[10px] text-emerald-300 shrink-0">{r.detail || "Valid"}</span>
+                  <span className="text-[10px] text-emerald-300 shrink-0">
+                    {r.detail || "Valid"}
+                  </span>
                 </div>
               ))}
               {report.bad.map((r, i) => (
@@ -953,7 +1061,9 @@ function GlobalBrainSection() {
                   className="flex items-center justify-between gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2"
                 >
                   <code className="text-[11px] font-mono truncate">{mask(r.key)}</code>
-                  <span className="text-[10px] text-rose-300 shrink-0 truncate max-w-[200px]">{r.reason}</span>
+                  <span className="text-[10px] text-rose-300 shrink-0 truncate max-w-[200px]">
+                    {r.reason}
+                  </span>
                 </div>
               ))}
               {report.ok.length === 0 && report.bad.length === 0 && (

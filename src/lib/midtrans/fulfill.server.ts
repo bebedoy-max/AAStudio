@@ -91,17 +91,23 @@ function storedKeyValues(provider: BankProvider, currentJson: string | null): Se
   try {
     const parsed = JSON.parse(currentJson) as unknown;
     if (provider === "brain") {
-      return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
+      return new Set(
+        Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [],
+      );
     }
     if (provider === "eleven") {
       const keys = (parsed as { keys?: unknown })?.keys;
-      return new Set(Array.isArray(keys) ? keys.filter((v): v is string => typeof v === "string") : []);
+      return new Set(
+        Array.isArray(keys) ? keys.filter((v): v is string => typeof v === "string") : [],
+      );
     }
     if (!Array.isArray(parsed)) return new Set();
     const field = provider === "weavy" ? "token" : "key";
     return new Set(
       parsed
-        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>)[field] : null))
+        .map((item) =>
+          item && typeof item === "object" ? (item as Record<string, unknown>)[field] : null,
+        )
         .filter((v): v is string => typeof v === "string"),
     );
   } catch {
@@ -109,7 +115,9 @@ function storedKeyValues(provider: BankProvider, currentJson: string | null): Se
   }
 }
 
-function parseCartFromNote(note: string | null | undefined): { provider: BankProvider; qty: number }[] | null {
+function parseCartFromNote(
+  note: string | null | undefined,
+): { provider: BankProvider; qty: number }[] | null {
   if (!note) return null;
   const i = note.indexOf(CART_MARKER);
   if (i < 0) return null;
@@ -216,9 +224,7 @@ async function deliverKeysForItem(
   if (delErr) throw new Error(delErr.message);
 
   return { requested: params.qty, delivered: picked.length };
-
 }
-
 
 /**
  * Fulfill a purchase after payment confirmation. Idempotent — safe to call
@@ -229,7 +235,9 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
 
   const { data: prRaw, error } = await admin
     .from("purchase_requests")
-    .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note, route_key, admin_note")
+    .select(
+      "id, user_id, request_kind, token_provider, token_qty, price_idr, status, note, route_key, admin_note",
+    )
     .eq("id", purchaseRequestId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -259,9 +267,10 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
     })
     .eq("id", pr.id)
     .eq("status", "pending");
-  lockQuery = pr.admin_note === null
-    ? lockQuery.is("admin_note", null)
-    : lockQuery.eq("admin_note", pr.admin_note);
+  lockQuery =
+    pr.admin_note === null
+      ? lockQuery.is("admin_note", null)
+      : lockQuery.eq("admin_note", pr.admin_note);
   const { data: lockRows, error: lockErr } = await lockQuery.select("id");
   if (lockErr) throw new Error(lockErr.message);
   if (!Array.isArray(lockRows) || lockRows.length === 0) {

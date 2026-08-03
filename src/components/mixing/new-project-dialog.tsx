@@ -56,7 +56,10 @@ export function NewProjectDialog({
   return (
     <div
       className="fixed inset-0 z-[100] grid place-items-center p-4"
-      style={{ background: "color-mix(in oklab, black 65%, transparent)", backdropFilter: "blur(6px)" }}
+      style={{
+        background: "color-mix(in oklab, black 65%, transparent)",
+        backdropFilter: "blur(6px)",
+      }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

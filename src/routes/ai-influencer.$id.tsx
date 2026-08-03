@@ -202,11 +202,7 @@ function WorkspacePage() {
         <OverviewTab character={character} onChange={setCharacter} onSaved={load} />
       )}
       {tab === "personality" && (
-        <PersonalityTab
-          characterId={character.id}
-          values={personality}
-          onChange={setPersonality}
-        />
+        <PersonalityTab characterId={character.id} values={personality} onChange={setPersonality} />
       )}
       {tab === "reference" && (
         <ReferenceTab characterId={character.id} refs={references} reload={load} />
@@ -223,9 +219,7 @@ function WorkspacePage() {
         />
       )}
       {tab === "output" && <OutputTab value={output} onChange={setOutput} />}
-      {tab === "strategy" && (
-        <StrategyTab character={character} personality={personality} />
-      )}
+      {tab === "strategy" && <StrategyTab character={character} personality={personality} />}
       {tab === "schedule" && <ScheduleTab />}
       {tab === "assets" && <AssetsTab assets={assets} />}
       {tab === "memory" && <MemoryTab memory={memory} />}
@@ -389,7 +383,10 @@ function PersonalityTab({
   };
 
   return (
-    <Card title="Personality Engine" sub="Slider 0–100. Nilai ini dipakai AI ketika menulis prompt, caption, dan scenario.">
+    <Card
+      title="Personality Engine"
+      sub="Slider 0–100. Nilai ini dipakai AI ketika menulis prompt, caption, dan scenario."
+    >
       <div className="grid gap-4 sm:grid-cols-2">
         {PERSONALITY_DIMS.map((d) => (
           <div key={d.key} className="flex flex-col gap-1.5">
@@ -449,7 +446,10 @@ function ReferenceTab({
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="lg:col-span-1">
-        <Card title="Tambah Referensi" sub="URL disimpan sebagai style guidance — bukan untuk cloning.">
+        <Card
+          title="Tambah Referensi"
+          sub="URL disimpan sebagai style guidance — bukan untuk cloning."
+        >
           <div className="grid gap-3">
             <Field label="Platform">
               <Select
@@ -465,7 +465,11 @@ function ReferenceTab({
               />
             </Field>
             <Field label="URL">
-              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." />
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://..."
+              />
             </Field>
             <PrimaryButton onClick={add} disabled={saving || !url.trim()}>
               {saving ? "Menyimpan…" : "Tambah Referensi"}
@@ -648,7 +652,10 @@ function ScenarioTab({
       </div>
 
       <div className="lg:col-span-2">
-        <Card title="Preview" sub="Modular — pilih output di tab Content Output atau langsung kirim ke workflow.">
+        <Card
+          title="Preview"
+          sub="Modular — pilih output di tab Content Output atau langsung kirim ke workflow."
+        >
           {!preview ? (
             <div className="text-sm text-muted-foreground">
               Klik <b>Generate Scenario</b> untuk melihat prompt + caption. Hasil belum tersimpan
@@ -685,10 +692,14 @@ function ScenarioTab({
                   <Send className="h-4 w-4" /> Simpan Scenario
                 </PrimaryButton>
                 {output.motion && (
-                  <GhostButton onClick={() => sendTo("motion")}>Kirim ke Motion Control</GhostButton>
+                  <GhostButton onClick={() => sendTo("motion")}>
+                    Kirim ke Motion Control
+                  </GhostButton>
                 )}
                 {output.storyboard && (
-                  <GhostButton onClick={() => sendTo("storyboard")}>Kirim ke Storyboard</GhostButton>
+                  <GhostButton onClick={() => sendTo("storyboard")}>
+                    Kirim ke Storyboard
+                  </GhostButton>
                 )}
                 {output.full_narrative && (
                   <GhostButton onClick={() => sendTo("narrative-video")}>
@@ -776,9 +787,18 @@ function OutputChecklist({
   );
 }
 
-function OutputTab({ value, onChange }: { value: OutputConfig; onChange: (v: OutputConfig) => void }) {
+function OutputTab({
+  value,
+  onChange,
+}: {
+  value: OutputConfig;
+  onChange: (v: OutputConfig) => void;
+}) {
   return (
-    <Card title="Content Output" sub="Preset default untuk semua scenario yang Anda generate di tab Scenario.">
+    <Card
+      title="Content Output"
+      sub="Preset default untuk semua scenario yang Anda generate di tab Scenario."
+    >
       <OutputChecklist value={value} onChange={onChange} />
     </Card>
   );

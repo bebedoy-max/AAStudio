@@ -25,12 +25,12 @@ type ParamSpec = {
 };
 
 type ModelConfig = {
-  endpoint: string;              // fal endpoint id
+  endpoint: string; // fal endpoint id
   displayName: string;
-  imageHandleId: string;         // "image_url" atau "start_image_url"
-  imageValidType: string;        // biasanya "image"
+  imageHandleId: string; // "image_url" atau "start_image_url"
+  imageValidType: string; // biasanya "image"
   buildParams: (o: { prompt: string; duration: number; ratio: string }) => Record<string, unknown>;
-  paramSpecs: ParamSpec[];       // dipakai bikin kind.parameters yang valid
+  paramSpecs: ParamSpec[]; // dipakai bikin kind.parameters yang valid
 };
 
 /** helper: closest enum value */
@@ -39,7 +39,8 @@ function pickEnum<T extends string | number>(target: T, options: T[]): T {
   // numeric best-effort
   if (typeof target === "number") {
     const nums = options.filter((o) => typeof o === "number") as number[];
-    if (nums.length) return nums.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a)) as T;
+    if (nums.length)
+      return nums.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a)) as T;
   }
   if (typeof target === "string") {
     const asNum = Number(target);
@@ -123,7 +124,21 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     imageValidType: "image",
     buildParams: ({ prompt, duration, ratio }) => ({
       prompt,
-      duration: pickEnum(String(duration), ["3","4","5","6","7","8","9","10","11","12","13","14","15"]),
+      duration: pickEnum(String(duration), [
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+      ]),
       aspect_ratio: pickEnum(ratio, KLING_ASPECTS),
       generate_audio: true,
       cfg_scale: 0.5,
@@ -132,7 +147,12 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     }),
     paramSpecs: [
       { id: "prompt", type: "string" },
-      { id: "duration", type: "string", enum: ["3","4","5","6","7","8","9","10","11","12","13","14","15"], default: "5" },
+      {
+        id: "duration",
+        type: "string",
+        enum: ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"],
+        default: "5",
+      },
       { id: "aspect_ratio", type: "string", enum: KLING_ASPECTS, default: "16:9" },
       { id: "generate_audio", type: "boolean", default: true },
       { id: "cfg_scale", type: "number", default: 0.5 },
@@ -148,16 +168,33 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     imageValidType: "image",
     buildParams: ({ prompt, duration, ratio }) => ({
       prompt,
-      duration: pickEnum(String(duration), ["2","3","4","5","6","7","8","9","10","11","12"]),
+      duration: pickEnum(String(duration), [
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+      ]),
       aspect_ratio: pickEnum(ratio, SEEDANCE_ASPECTS),
       resolution: "1080p",
       camera_fixed: false,
     }),
     paramSpecs: [
       { id: "prompt", type: "string" },
-      { id: "duration", type: "string", enum: ["2","3","4","5","6","7","8","9","10","11","12"], default: "5" },
+      {
+        id: "duration",
+        type: "string",
+        enum: ["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
+        default: "5",
+      },
       { id: "aspect_ratio", type: "string", enum: SEEDANCE_ASPECTS, default: "auto" },
-      { id: "resolution", type: "string", enum: ["480p","720p","1080p"], default: "1080p" },
+      { id: "resolution", type: "string", enum: ["480p", "720p", "1080p"], default: "1080p" },
       { id: "camera_fixed", type: "boolean", default: false },
     ],
   },
@@ -169,16 +206,35 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     imageValidType: "image",
     buildParams: ({ prompt, duration, ratio }) => ({
       prompt,
-      duration: pickEnum(String(duration), ["auto","4","5","6","7","8","9","10","11","12","13","14","15"]),
+      duration: pickEnum(String(duration), [
+        "auto",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+      ]),
       aspect_ratio: pickEnum(ratio, SEEDANCE_ASPECTS),
       resolution: "720p",
       generate_audio: true,
     }),
     paramSpecs: [
       { id: "prompt", type: "string" },
-      { id: "duration", type: "string", enum: ["auto","4","5","6","7","8","9","10","11","12","13","14","15"], default: "auto" },
+      {
+        id: "duration",
+        type: "string",
+        enum: ["auto", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"],
+        default: "auto",
+      },
       { id: "aspect_ratio", type: "string", enum: SEEDANCE_ASPECTS, default: "auto" },
-      { id: "resolution", type: "string", enum: ["480p","720p","1080p","4k"], default: "720p" },
+      { id: "resolution", type: "string", enum: ["480p", "720p", "1080p", "4k"], default: "720p" },
       { id: "generate_audio", type: "boolean", default: true },
     ],
   },
@@ -196,7 +252,7 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     paramSpecs: [
       { id: "prompt", type: "string" },
       { id: "aspect_ratio", type: "string", enum: WAN_ASPECTS, default: "auto" },
-      { id: "resolution", type: "string", enum: ["480p","580p","720p"], default: "720p" },
+      { id: "resolution", type: "string", enum: ["480p", "580p", "720p"], default: "720p" },
     ],
   },
   // Veo 3 (fast)
@@ -207,16 +263,16 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     imageValidType: "image",
     buildParams: ({ prompt, duration, ratio }) => ({
       prompt,
-      duration: `${pickEnum(String(duration), ["4","6","8"])}s`,
+      duration: `${pickEnum(String(duration), ["4", "6", "8"])}s`,
       aspect_ratio: pickEnum(ratio, VEO_ASPECTS),
       resolution: "720p",
       generate_audio: true,
     }),
     paramSpecs: [
       { id: "prompt", type: "string" },
-      { id: "duration", type: "string", enum: ["4s","6s","8s"], default: "8s" },
+      { id: "duration", type: "string", enum: ["4s", "6s", "8s"], default: "8s" },
       { id: "aspect_ratio", type: "string", enum: VEO_ASPECTS, default: "auto" },
-      { id: "resolution", type: "string", enum: ["720p","1080p"], default: "720p" },
+      { id: "resolution", type: "string", enum: ["720p", "1080p"], default: "720p" },
       { id: "generate_audio", type: "boolean", default: true },
     ],
   },
@@ -228,16 +284,16 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
     imageValidType: "image",
     buildParams: ({ prompt, duration, ratio }) => ({
       prompt,
-      duration: `${pickEnum(String(duration), ["4","6","8"])}s`,
-      aspect_ratio: pickEnum(ratio, ["auto","16:9","9:16"]),
+      duration: `${pickEnum(String(duration), ["4", "6", "8"])}s`,
+      aspect_ratio: pickEnum(ratio, ["auto", "16:9", "9:16"]),
       resolution: "1080p",
       generate_audio: true,
     }),
     paramSpecs: [
       { id: "prompt", type: "string" },
-      { id: "duration", type: "string", enum: ["4s","6s","8s"], default: "8s" },
-      { id: "aspect_ratio", type: "string", enum: ["auto","16:9","9:16"], default: "auto" },
-      { id: "resolution", type: "string", enum: ["720p","1080p","4k"], default: "1080p" },
+      { id: "duration", type: "string", enum: ["4s", "6s", "8s"], default: "8s" },
+      { id: "aspect_ratio", type: "string", enum: ["auto", "16:9", "9:16"], default: "auto" },
+      { id: "resolution", type: "string", enum: ["720p", "1080p", "4k"], default: "1080p" },
       { id: "generate_audio", type: "boolean", default: true },
     ],
   },
@@ -257,7 +313,7 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
       { id: "prompt", type: "string" },
       { id: "duration", type: "integer", enum: [4, 8, 12, 16, 20], default: 4 },
       { id: "aspect_ratio", type: "string", enum: SORA_ASPECTS, default: "auto" },
-      { id: "resolution", type: "string", enum: ["auto","720p"], default: "auto" },
+      { id: "resolution", type: "string", enum: ["auto", "720p"], default: "auto" },
     ],
   },
   "sora-2": {
@@ -275,7 +331,7 @@ const WEAVY_I2V_MODELS: Record<string, ModelConfig> = {
       { id: "prompt", type: "string" },
       { id: "duration", type: "integer", enum: [4, 8, 12, 16, 20], default: 4 },
       { id: "aspect_ratio", type: "string", enum: SORA_ASPECTS, default: "auto" },
-      { id: "resolution", type: "string", enum: ["auto","720p"], default: "auto" },
+      { id: "resolution", type: "string", enum: ["auto", "720p"], default: "auto" },
     ],
   },
   // Minimax Hailuo 02 Pro — prompt + image only
@@ -298,17 +354,51 @@ export function getWeavyI2VModelKeys(): string[] {
 
 function mkImageImportNode(id: string, url: string) {
   return {
-    id, type: "import", dragHandle: ".node-header",
-    owner: null, visibility: null, isModel: false,
+    id,
+    type: "import",
+    dragHandle: ".node-header",
+    owner: null,
+    visibility: null,
+    isModel: false,
     data: {
       handles: { output: { file: { type: "any", label: "File", order: 0, format: "uri" } } },
-      name: "File", color: "Yambo_Blue", dark_color: "Yambo_Blue_Dark", border_color: "Yambo_Blue_Stroke",
-      files: [{ type: "image", url, publicId: "uploads/" + mkId(), id: mkId(), name: "image.jpg", insertionOrder: 0 }],
-      result: { type: "image", url, publicId: "uploads/" + mkId(), id: mkId(), name: "image.jpg", insertionOrder: 0 },
-      output: { file: { type: "image", url, publicId: "uploads/" + mkId(), id: mkId(), name: "image.jpg", insertionOrder: 0 } },
+      name: "File",
+      color: "Yambo_Blue",
+      dark_color: "Yambo_Blue_Dark",
+      border_color: "Yambo_Blue_Stroke",
+      files: [
+        {
+          type: "image",
+          url,
+          publicId: "uploads/" + mkId(),
+          id: mkId(),
+          name: "image.jpg",
+          insertionOrder: 0,
+        },
+      ],
+      result: {
+        type: "image",
+        url,
+        publicId: "uploads/" + mkId(),
+        id: mkId(),
+        name: "image.jpg",
+        insertionOrder: 0,
+      },
+      output: {
+        file: {
+          type: "image",
+          url,
+          publicId: "uploads/" + mkId(),
+          id: mkId(),
+          name: "image.jpg",
+          insertionOrder: 0,
+        },
+      },
       version: 3,
     },
-    position: { x: 80, y: 200 }, width: 460, height: 400,
+    position: { x: 80, y: 200 },
+    width: 460,
+    height: 400,
   };
 }
 
@@ -323,7 +413,13 @@ function toDataType(spec: ParamSpec): string {
   return spec.type;
 }
 
-function buildI2VRecipe(modelKey: string, imageUrl: string, prompt: string, duration: number, ratio: string) {
+function buildI2VRecipe(
+  modelKey: string,
+  imageUrl: string,
+  prompt: string,
+  duration: number,
+  ratio: string,
+) {
   const cfg = WEAVY_I2V_MODELS[modelKey] || WEAVY_I2V_MODELS["kling-2.1"];
   const model = cfg.endpoint;
   const now = Date.now();
@@ -360,14 +456,24 @@ function buildI2VRecipe(modelKey: string, imageUrl: string, prompt: string, dura
     id: n2,
     type: "custommodelV2",
     dragHandle: ".node-header",
-    owner: null, visibility: "private", isModel: true,
+    owner: null,
+    visibility: "private",
+    isModel: true,
     data: {
       handles: {
         input: {
-          prompt: { id: "input-prompt", type: "text", label: "prompt", format: "text", required: false },
+          prompt: {
+            id: "input-prompt",
+            type: "text",
+            label: "prompt",
+            format: "text",
+            required: false,
+          },
           ...inputHandle,
         },
-        output: { result: { id: "output-result", type: "video", label: "result", order: 0, format: "uri" } },
+        output: {
+          result: { id: "output-result", type: "video", label: "result", order: 0, format: "uri" },
+        },
       },
       name: cfg.displayName,
       color: "Red",
@@ -381,26 +487,46 @@ function buildI2VRecipe(modelKey: string, imageUrl: string, prompt: string, dura
         inputs: [
           [{ id: "prompt", title: "prompt", validTypes: ["text"], required: false }, null],
           [
-            { id: cfg.imageHandleId, title: "image", validTypes: [cfg.imageValidType], required: true },
+            {
+              id: cfg.imageHandleId,
+              title: "image",
+              validTypes: [cfg.imageValidType],
+              required: true,
+            },
             { nodeId: n1, outputId: "file" },
           ],
         ],
         parameters: kindParameters,
         outputs: [{ id: "result", title: "result", dataType: "video" }],
       },
-      generations: [], selectedIndex: 0, cameraLocked: false, result: [], output: {}, selectedOutput: 0,
+      generations: [],
+      selectedIndex: 0,
+      cameraLocked: false,
+      result: [],
+      output: {},
+      selectedOutput: 0,
     },
-    position: { x: 600, y: 300 }, width: 460, height: 560,
+    position: { x: 600, y: 300 },
+    width: 460,
+    height: 560,
   };
 
-  const edges = [{
-    id: "e-" + mkId(),
-    source: n1, target: n2,
-    sourceHandle: `${n1}-output-file`,
-    targetHandle: `${n2}-input-${cfg.imageHandleId}`,
-    type: "custom",
-    data: { sourceColor: "Yambo_Blue", targetColor: "Red", sourceHandleType: "any", targetHandleType: cfg.imageValidType },
-  }];
+  const edges = [
+    {
+      id: "e-" + mkId(),
+      source: n1,
+      target: n2,
+      sourceHandle: `${n1}-output-file`,
+      targetHandle: `${n2}-input-${cfg.imageHandleId}`,
+      type: "custom",
+      data: {
+        sourceColor: "Yambo_Blue",
+        targetColor: "Red",
+        sourceHandleType: "any",
+        targetHandleType: cfg.imageValidType,
+      },
+    },
+  ];
 
   return { model, nodes: [imgNode, modelNode], edges };
 }
@@ -418,9 +544,12 @@ async function pollWeavyVideo(
     await new Promise((r) => setTimeout(r, delay));
     onProgress?.(`Rendering... (${a + 1})`, Math.min(94, 30 + Math.round((a / maxAttempts) * 64)));
     try {
-      const r = await fetch(`${WEAVY_API}/v1/batches/recipes/${recipeId}/batches/${batchId}/status`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      const r = await fetch(
+        `${WEAVY_API}/v1/batches/recipes/${recipeId}/batches/${batchId}/status`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
       if (!r.ok) continue;
       const d = await r.json();
       const st = String(d.recipeRuns?.[0]?.status || d.status || d.state || "unknown");
@@ -431,9 +560,14 @@ async function pollWeavyVideo(
             let ro = nr.result;
             if (Array.isArray(ro) && ro.length > 0) ro = ro[0];
             const candidates = [
-              ro?.url, ro?.video_url,
-              nr.output?.file?.url, nr.output?.video_url, nr.output?.url,
-              ...((nr.generations || []) as { url?: string; video_url?: string }[]).map((g) => g.url || g.video_url),
+              ro?.url,
+              ro?.video_url,
+              nr.output?.file?.url,
+              nr.output?.video_url,
+              nr.output?.url,
+              ...((nr.generations || []) as { url?: string; video_url?: string }[]).map(
+                (g) => g.url || g.video_url,
+              ),
             ].filter((u): u is string => !!u && /\.mp4(\?|$)/i.test(u) && u !== inputImageUrl);
             if (candidates.length > 0) return candidates[0];
           }
@@ -445,8 +579,11 @@ async function pollWeavyVideo(
       if (["failed", "FAILED", "error"].includes(st)) {
         const ne = (d.recipeRuns?.[0]?.nodeRuns || [])
           .map((nr: { error?: string; errorMessage?: string }) => nr.error || nr.errorMessage)
-          .filter(Boolean).join(" | ");
-        throw new Error((d.error || d.message || "Weavy generation failed") + (ne ? " | " + ne : ""));
+          .filter(Boolean)
+          .join(" | ");
+        throw new Error(
+          (d.error || d.message || "Weavy generation failed") + (ne ? " | " + ne : ""),
+        );
       }
     } catch (e) {
       if (e instanceof Error && /Weavy generation failed|failed \|/i.test(e.message)) throw e;
@@ -472,7 +609,11 @@ export async function generateWeavyI2V(opts: WeavyI2VOpts): Promise<string> {
   opts.onProgress?.("Upload image ke Weavy...", 10);
 
   const attempt = async (accessToken: string): Promise<string> => {
-    const up = await uploadWeavyAssetWithRetry(opts.imageFile, `i2v_${Date.now()}.jpg`, accessToken);
+    const up = await uploadWeavyAssetWithRetry(
+      opts.imageFile,
+      `i2v_${Date.now()}.jpg`,
+      accessToken,
+    );
     const imageUrl = resolveWeavyAssetUrl(up, "image");
     const built = buildI2VRecipe(opts.modelKey, imageUrl, opts.prompt, opts.duration, opts.ratio);
     opts.onProgress?.("Menyusun recipe...", 20);
@@ -480,7 +621,13 @@ export async function generateWeavyI2V(opts: WeavyI2VOpts): Promise<string> {
     await saveWeavyRecipe(recipeId, { nodes: built.nodes, edges: built.edges, v3 }, accessToken);
     await approveWeavyModel(built.model, accessToken);
     opts.onProgress?.("Submit ke Weavy...", 30);
-    const { batchId } = await executeWeavyBatch(recipeId, built.nodes, built.edges, accessToken, built.model);
+    const { batchId } = await executeWeavyBatch(
+      recipeId,
+      built.nodes,
+      built.edges,
+      accessToken,
+      built.model,
+    );
     return await pollWeavyVideo(recipeId, batchId, accessToken, imageUrl, opts.onProgress);
   };
 

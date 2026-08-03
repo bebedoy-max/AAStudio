@@ -14,16 +14,89 @@ export type SearchItem = {
 };
 
 const STATIC: SearchItem[] = [
-  { id: "home", label: "Creative Dashboard", description: "Command center, riset, workflow, project memory", route: "/", group: "Dashboard", keywords: ["dashboard", "home", "beranda", "command", "brain"] },
-  { id: "profile", label: "Profil Saya", route: "/profile", group: "Akun", keywords: ["profile", "akun", "pengguna", "avatar"] },
-  { id: "tokens", label: "Token / API Manager", description: "Kelola API key Gemini, ElevenLabs, Weavy, dll.", route: "/manage/tokens", group: "Manage", keywords: ["api", "key", "token", "gemini", "openai", "elevenlabs", "wavespeed", "weavy", "magnific"] },
-  { id: "routing", label: "Routing Provider", description: "Pilih provider untuk image, video, voice, motion", route: "/manage/routing", group: "Manage", keywords: ["routing", "provider", "model", "image", "video", "voice", "motion"] },
-  { id: "analytic", label: "Analytic", route: "/system/analytic", group: "System", keywords: ["analytic", "stat", "statistik"] },
-  { id: "settings", label: "Pengaturan", route: "/system/settings", group: "System", keywords: ["setting", "pengaturan", "config"] },
-  { id: "help", label: "Help", route: "/system/help", group: "System", keywords: ["help", "bantuan", "faq"] },
-  { id: "admin-users", label: "Kelola User", route: "/admin", group: "Admin", keywords: ["admin", "user", "kelola", "pengguna", "role"] },
-  { id: "admin-requests", label: "Request Pembelian", route: "/admin/requests", group: "Admin", keywords: ["admin", "request", "pembelian", "verifikasi", "purchase"] },
-  { id: "admin-payments", label: "Metode Pembayaran & Harga", route: "/admin/payments", group: "Admin", keywords: ["admin", "pembayaran", "harga", "qris", "bank", "ewallet", "price"] },
+  {
+    id: "home",
+    label: "Creative Dashboard",
+    description: "Command center, riset, workflow, project memory",
+    route: "/",
+    group: "Dashboard",
+    keywords: ["dashboard", "home", "beranda", "command", "brain"],
+  },
+  {
+    id: "profile",
+    label: "Profil Saya",
+    route: "/profile",
+    group: "Akun",
+    keywords: ["profile", "akun", "pengguna", "avatar"],
+  },
+  {
+    id: "tokens",
+    label: "Token / API Manager",
+    description: "Kelola API key Gemini, ElevenLabs, Weavy, dll.",
+    route: "/manage/tokens",
+    group: "Manage",
+    keywords: [
+      "api",
+      "key",
+      "token",
+      "gemini",
+      "openai",
+      "elevenlabs",
+      "wavespeed",
+      "weavy",
+      "magnific",
+    ],
+  },
+  {
+    id: "routing",
+    label: "Routing Provider",
+    description: "Pilih provider untuk image, video, voice, motion",
+    route: "/manage/routing",
+    group: "Manage",
+    keywords: ["routing", "provider", "model", "image", "video", "voice", "motion"],
+  },
+  {
+    id: "analytic",
+    label: "Analytic",
+    route: "/system/analytic",
+    group: "System",
+    keywords: ["analytic", "stat", "statistik"],
+  },
+  {
+    id: "settings",
+    label: "Pengaturan",
+    route: "/system/settings",
+    group: "System",
+    keywords: ["setting", "pengaturan", "config"],
+  },
+  {
+    id: "help",
+    label: "Help",
+    route: "/system/help",
+    group: "System",
+    keywords: ["help", "bantuan", "faq"],
+  },
+  {
+    id: "admin-users",
+    label: "Kelola User",
+    route: "/admin",
+    group: "Admin",
+    keywords: ["admin", "user", "kelola", "pengguna", "role"],
+  },
+  {
+    id: "admin-requests",
+    label: "Request Pembelian",
+    route: "/admin/requests",
+    group: "Admin",
+    keywords: ["admin", "request", "pembelian", "verifikasi", "purchase"],
+  },
+  {
+    id: "admin-payments",
+    label: "Metode Pembayaran & Harga",
+    route: "/admin/payments",
+    group: "Admin",
+    keywords: ["admin", "pembayaran", "harga", "qris", "bank", "ewallet", "price"],
+  },
 ];
 
 const FEATURE_ROUTES: Record<string, string> = {
@@ -34,7 +107,10 @@ const FEATURE_ROUTES: Record<string, string> = {
   "generate.naratif": "/generate/naratif",
 };
 
-export function buildSearchIndex(projects: Project[], opts: { isAdmin: boolean; permissions: string[] }): SearchItem[] {
+export function buildSearchIndex(
+  projects: Project[],
+  opts: { isAdmin: boolean; permissions: string[] },
+): SearchItem[] {
   const items: SearchItem[] = [];
 
   for (const r of STATIC) {
@@ -62,7 +138,14 @@ export function buildSearchIndex(projects: Project[], opts: { isAdmin: boolean; 
       description: `Project · ${p.niche ?? p.kind}`,
       route: p.route ?? "/",
       group: "Project",
-      keywords: [p.title.toLowerCase(), p.kind, p.niche?.toLowerCase() ?? "", "project", "hasil", "generate"],
+      keywords: [
+        p.title.toLowerCase(),
+        p.kind,
+        p.niche?.toLowerCase() ?? "",
+        "project",
+        "hasil",
+        "generate",
+      ],
     });
   }
 
@@ -74,7 +157,15 @@ export function buildSearchIndex(projects: Project[], opts: { isAdmin: boolean; 
       route: "/system/help",
       hash: g.id,
       group: "Panduan",
-      keywords: [...g.tags, g.category, "help", "bantuan", "panduan", "dokumentasi", g.title.toLowerCase()],
+      keywords: [
+        ...g.tags,
+        g.category,
+        "help",
+        "bantuan",
+        "panduan",
+        "dokumentasi",
+        g.title.toLowerCase(),
+      ],
     });
   }
 
@@ -86,7 +177,15 @@ export function searchItems(items: SearchItem[], query: string, limit = 12): Sea
   if (!q) return [];
   const tokens = q.split(/\s+/);
   const scored = items.map((it) => {
-    const hay = (it.label + " " + (it.description ?? "") + " " + it.keywords.join(" ") + " " + it.group).toLowerCase();
+    const hay = (
+      it.label +
+      " " +
+      (it.description ?? "") +
+      " " +
+      it.keywords.join(" ") +
+      " " +
+      it.group
+    ).toLowerCase();
     let score = 0;
     for (const t of tokens) {
       if (!hay.includes(t)) return { it, score: -1 };

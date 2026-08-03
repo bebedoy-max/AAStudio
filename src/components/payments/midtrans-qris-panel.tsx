@@ -59,11 +59,7 @@ export function MidtransQrisPanel({
     const t = setInterval(() => {
       const cur = Date.now();
       setNow(cur);
-      if (
-        status === "pending" &&
-        expiresAt &&
-        new Date(expiresAt).getTime() <= cur
-      ) {
+      if (status === "pending" && expiresAt && new Date(expiresAt).getTime() <= cur) {
         finish("rejected");
       }
     }, 1000);
@@ -182,9 +178,7 @@ export function MidtransQrisPanel({
       )}
       <div className="text-center">
         <div className="font-display text-xl text-gradient">{rupiah(amount)}</div>
-        <div className="text-[11px] text-muted-foreground font-mono">
-          Order: {orderId}
-        </div>
+        <div className="text-[11px] text-muted-foreground font-mono">Order: {orderId}</div>
         {secondsLeft != null && secondsLeft > 0 && (
           <div className="mt-1 text-[11px] text-amber-300 font-mono">
             Kadaluarsa dalam {mm}:{ss}
