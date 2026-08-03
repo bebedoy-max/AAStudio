@@ -11,6 +11,7 @@ import { type ReactNode } from "react";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth/auth-gate";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import "../styles.css";
 
@@ -107,6 +108,7 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <SpeedInsights />
         <Scripts />
       </body>
     </html>

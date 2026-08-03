@@ -23,6 +23,7 @@ import { Route as SystemHelpRouteImport } from './routes/system.help'
 import { Route as SystemCloudRouteImport } from './routes/system.cloud'
 import { Route as SystemAnalyticRouteImport } from './routes/system.analytic'
 import { Route as ReffEditVideoRouteImport } from './routes/reff-edit.video'
+import { Route as ReffEditLibraryRouteImport } from './routes/reff-edit.library'
 import { Route as ReffEditImageRouteImport } from './routes/reff-edit.image'
 import { Route as ReffEditHistoryRouteImport } from './routes/reff-edit.history'
 import { Route as MixingDubbingRouteImport } from './routes/mixing.dubbing'
@@ -45,20 +46,24 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ApiProxyImageRouteImport } from './routes/api/proxy-image'
 import { Route as AiInfluencerPublisherRouteImport } from './routes/ai-influencer.publisher'
 import { Route as AiInfluencerPlannerRouteImport } from './routes/ai-influencer.planner'
+import { Route as AiInfluencerNewRouteImport } from './routes/ai-influencer.new'
 import { Route as AiInfluencerLibraryRouteImport } from './routes/ai-influencer.library'
 import { Route as AiInfluencerCharacterRouteImport } from './routes/ai-influencer.character'
 import { Route as AiInfluencerBrainRouteImport } from './routes/ai-influencer.brain'
 import { Route as AiInfluencerAnalyticsRouteImport } from './routes/ai-influencer.analytics'
+import { Route as AiInfluencerIdRouteImport } from './routes/ai-influencer.$id'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
 import { Route as AdminPluginConfigRouteImport } from './routes/admin.plugin-config'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
+import { Route as AdminContactRouteImport } from './routes/admin.contact'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
 import { Route as OauthGoogleDriveReturnRouteImport } from './routes/oauth.google-drive.return'
 import { Route as ApiRouterVoiceRouteImport } from './routes/api/router/voice'
+import { Route as ApiRouterVideoRouteImport } from './routes/api/router/video'
 import { Route as ApiRouterSubtitleRouteImport } from './routes/api/router/subtitle'
 import { Route as ApiRouterSttRouteImport } from './routes/api/router/stt'
 import { Route as ApiRouterRenderCloudRouteImport } from './routes/api/router/render-cloud'
@@ -177,6 +182,11 @@ const ReffEditVideoRoute = ReffEditVideoRouteImport.update({
   path: '/video',
   getParentRoute: () => ReffEditRoute,
 } as any)
+const ReffEditLibraryRoute = ReffEditLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => ReffEditRoute,
+} as any)
 const ReffEditImageRoute = ReffEditImageRouteImport.update({
   id: '/image',
   path: '/image',
@@ -287,6 +297,11 @@ const AiInfluencerPlannerRoute = AiInfluencerPlannerRouteImport.update({
   path: '/planner',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
+const AiInfluencerNewRoute = AiInfluencerNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
 const AiInfluencerLibraryRoute = AiInfluencerLibraryRouteImport.update({
   id: '/library',
   path: '/library',
@@ -305,6 +320,11 @@ const AiInfluencerBrainRoute = AiInfluencerBrainRouteImport.update({
 const AiInfluencerAnalyticsRoute = AiInfluencerAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => AiInfluencerRoute,
+} as any)
+const AiInfluencerIdRoute = AiInfluencerIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
   getParentRoute: () => AiInfluencerRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -337,6 +357,11 @@ const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   path: '/payments',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminContactRoute = AdminContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminActivityLogRoute = AdminActivityLogRouteImport.update({
   id: '/activity-log',
   path: '/activity-log',
@@ -355,6 +380,11 @@ const OauthGoogleDriveReturnRoute = OauthGoogleDriveReturnRouteImport.update({
 const ApiRouterVoiceRoute = ApiRouterVoiceRouteImport.update({
   id: '/api/router/voice',
   path: '/api/router/voice',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRouterVideoRoute = ApiRouterVideoRouteImport.update({
+  id: '/api/router/video',
+  path: '/api/router/video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiRouterSubtitleRoute = ApiRouterSubtitleRouteImport.update({
@@ -619,16 +649,19 @@ export interface FileRoutesByFullPath {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -651,6 +684,7 @@ export interface FileRoutesByFullPath {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -690,6 +724,7 @@ export interface FileRoutesByFullPath {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
@@ -716,16 +751,19 @@ export interface FileRoutesByTo {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -748,6 +786,7 @@ export interface FileRoutesByTo {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -787,6 +826,7 @@ export interface FileRoutesByTo {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
@@ -816,16 +856,19 @@ export interface FileRoutesById {
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/ai-influencer/$id': typeof AiInfluencerIdRoute
   '/ai-influencer/analytics': typeof AiInfluencerAnalyticsRoute
   '/ai-influencer/brain': typeof AiInfluencerBrainRoute
   '/ai-influencer/character': typeof AiInfluencerCharacterRoute
   '/ai-influencer/library': typeof AiInfluencerLibraryRoute
+  '/ai-influencer/new': typeof AiInfluencerNewRoute
   '/ai-influencer/planner': typeof AiInfluencerPlannerRoute
   '/ai-influencer/publisher': typeof AiInfluencerPublisherRoute
   '/api/proxy-image': typeof ApiProxyImageRoute
@@ -848,6 +891,7 @@ export interface FileRoutesById {
   '/mixing/dubbing': typeof MixingDubbingRoute
   '/reff-edit/history': typeof ReffEditHistoryRoute
   '/reff-edit/image': typeof ReffEditImageRoute
+  '/reff-edit/library': typeof ReffEditLibraryRoute
   '/reff-edit/video': typeof ReffEditVideoRoute
   '/system/analytic': typeof SystemAnalyticRoute
   '/system/cloud': typeof SystemCloudRoute
@@ -887,6 +931,7 @@ export interface FileRoutesById {
   '/api/router/render-cloud': typeof ApiRouterRenderCloudRoute
   '/api/router/stt': typeof ApiRouterSttRoute
   '/api/router/subtitle': typeof ApiRouterSubtitleRoute
+  '/api/router/video': typeof ApiRouterVideoRoute
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
@@ -917,16 +962,19 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
     | '/admin/users'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -949,6 +997,7 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
+    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -988,6 +1037,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
@@ -1014,16 +1064,19 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
     | '/admin/users'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -1046,6 +1099,7 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
+    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -1085,6 +1139,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
@@ -1113,16 +1168,19 @@ export interface FileRouteTypes {
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
+    | '/admin/contact'
     | '/admin/payments'
     | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
     | '/admin/users'
+    | '/ai-influencer/$id'
     | '/ai-influencer/analytics'
     | '/ai-influencer/brain'
     | '/ai-influencer/character'
     | '/ai-influencer/library'
+    | '/ai-influencer/new'
     | '/ai-influencer/planner'
     | '/ai-influencer/publisher'
     | '/api/proxy-image'
@@ -1145,6 +1203,7 @@ export interface FileRouteTypes {
     | '/mixing/dubbing'
     | '/reff-edit/history'
     | '/reff-edit/image'
+    | '/reff-edit/library'
     | '/reff-edit/video'
     | '/system/analytic'
     | '/system/cloud'
@@ -1184,6 +1243,7 @@ export interface FileRouteTypes {
     | '/api/router/render-cloud'
     | '/api/router/stt'
     | '/api/router/subtitle'
+    | '/api/router/video'
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
@@ -1263,6 +1323,7 @@ export interface RootRouteChildren {
   ApiRouterRenderCloudRoute: typeof ApiRouterRenderCloudRoute
   ApiRouterSttRoute: typeof ApiRouterSttRoute
   ApiRouterSubtitleRoute: typeof ApiRouterSubtitleRoute
+  ApiRouterVideoRoute: typeof ApiRouterVideoRoute
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
   ApiPublicCloudUploadRoute: typeof ApiPublicCloudUploadRoute
@@ -1380,6 +1441,13 @@ declare module '@tanstack/react-router' {
       path: '/video'
       fullPath: '/reff-edit/video'
       preLoaderRoute: typeof ReffEditVideoRouteImport
+      parentRoute: typeof ReffEditRoute
+    }
+    '/reff-edit/library': {
+      id: '/reff-edit/library'
+      path: '/library'
+      fullPath: '/reff-edit/library'
+      preLoaderRoute: typeof ReffEditLibraryRouteImport
       parentRoute: typeof ReffEditRoute
     }
     '/reff-edit/image': {
@@ -1536,6 +1604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiInfluencerPlannerRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
+    '/ai-influencer/new': {
+      id: '/ai-influencer/new'
+      path: '/new'
+      fullPath: '/ai-influencer/new'
+      preLoaderRoute: typeof AiInfluencerNewRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
     '/ai-influencer/library': {
       id: '/ai-influencer/library'
       path: '/library'
@@ -1562,6 +1637,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/ai-influencer/analytics'
       preLoaderRoute: typeof AiInfluencerAnalyticsRouteImport
+      parentRoute: typeof AiInfluencerRoute
+    }
+    '/ai-influencer/$id': {
+      id: '/ai-influencer/$id'
+      path: '/$id'
+      fullPath: '/ai-influencer/$id'
+      preLoaderRoute: typeof AiInfluencerIdRouteImport
       parentRoute: typeof AiInfluencerRoute
     }
     '/admin/users': {
@@ -1606,6 +1688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPaymentsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/contact': {
+      id: '/admin/contact'
+      path: '/contact'
+      fullPath: '/admin/contact'
+      preLoaderRoute: typeof AdminContactRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/activity-log': {
       id: '/admin/activity-log'
       path: '/activity-log'
@@ -1632,6 +1721,13 @@ declare module '@tanstack/react-router' {
       path: '/api/router/voice'
       fullPath: '/api/router/voice'
       preLoaderRoute: typeof ApiRouterVoiceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/router/video': {
+      id: '/api/router/video'
+      path: '/api/router/video'
+      fullPath: '/api/router/video'
+      preLoaderRoute: typeof ApiRouterVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/router/subtitle': {
@@ -1969,6 +2065,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminActivityLogRoute: typeof AdminActivityLogRoute
+  AdminContactRoute: typeof AdminContactRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminPluginConfigRoute: typeof AdminPluginConfigRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
@@ -1981,6 +2078,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminActivityLogRoute: AdminActivityLogRoute,
+  AdminContactRoute: AdminContactRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminPluginConfigRoute: AdminPluginConfigRoute,
   AdminRequestsRoute: AdminRequestsRoute,
@@ -1993,20 +2091,24 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface AiInfluencerRouteChildren {
+  AiInfluencerIdRoute: typeof AiInfluencerIdRoute
   AiInfluencerAnalyticsRoute: typeof AiInfluencerAnalyticsRoute
   AiInfluencerBrainRoute: typeof AiInfluencerBrainRoute
   AiInfluencerCharacterRoute: typeof AiInfluencerCharacterRoute
   AiInfluencerLibraryRoute: typeof AiInfluencerLibraryRoute
+  AiInfluencerNewRoute: typeof AiInfluencerNewRoute
   AiInfluencerPlannerRoute: typeof AiInfluencerPlannerRoute
   AiInfluencerPublisherRoute: typeof AiInfluencerPublisherRoute
   AiInfluencerIndexRoute: typeof AiInfluencerIndexRoute
 }
 
 const AiInfluencerRouteChildren: AiInfluencerRouteChildren = {
+  AiInfluencerIdRoute: AiInfluencerIdRoute,
   AiInfluencerAnalyticsRoute: AiInfluencerAnalyticsRoute,
   AiInfluencerBrainRoute: AiInfluencerBrainRoute,
   AiInfluencerCharacterRoute: AiInfluencerCharacterRoute,
   AiInfluencerLibraryRoute: AiInfluencerLibraryRoute,
+  AiInfluencerNewRoute: AiInfluencerNewRoute,
   AiInfluencerPlannerRoute: AiInfluencerPlannerRoute,
   AiInfluencerPublisherRoute: AiInfluencerPublisherRoute,
   AiInfluencerIndexRoute: AiInfluencerIndexRoute,
@@ -2032,12 +2134,14 @@ const MixingRouteWithChildren =
 interface ReffEditRouteChildren {
   ReffEditHistoryRoute: typeof ReffEditHistoryRoute
   ReffEditImageRoute: typeof ReffEditImageRoute
+  ReffEditLibraryRoute: typeof ReffEditLibraryRoute
   ReffEditVideoRoute: typeof ReffEditVideoRoute
 }
 
 const ReffEditRouteChildren: ReffEditRouteChildren = {
   ReffEditHistoryRoute: ReffEditHistoryRoute,
   ReffEditImageRoute: ReffEditImageRoute,
+  ReffEditLibraryRoute: ReffEditLibraryRoute,
   ReffEditVideoRoute: ReffEditVideoRoute,
 }
 
@@ -2105,6 +2209,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterRenderCloudRoute: ApiRouterRenderCloudRoute,
   ApiRouterSttRoute: ApiRouterSttRoute,
   ApiRouterSubtitleRoute: ApiRouterSubtitleRoute,
+  ApiRouterVideoRoute: ApiRouterVideoRoute,
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
   ApiPublicCloudUploadRoute: ApiPublicCloudUploadRoute,
