@@ -195,12 +195,16 @@ function MotionControl() {
   const activeModel = models.find((m) => m.key === modelKey) ?? models[0];
 
   const readySlots = slots.filter((s) => s.image && s.video).length;
+<<<<<<< HEAD
   const creditPerResult =
     provider === "framia"
       ? framiaResolution === "720p"
         ? 120
         : 60
       : activeModel.cr;
+=======
+  const creditPerResult = provider === "framia" ? (framiaResolution === "720p" ? 120 : 60) : activeModel.cr;
+>>>>>>> 085c2beabd52e9efb1255f384cd5cea439846693
   const totalCredits = readySlots * creditPerResult;
 
   const [generating, setGenerating] = useSticky<boolean>("motion.generating", false);
@@ -693,12 +697,22 @@ function MotionControl() {
                 )}
               </PrimaryButton>
 
+<<<<<<< HEAD
               <GenMetaBar
                 provider={provider}
                 cost={totalCredits}
                 status={generating ? "processing" : "idle"}
                 
               />
+=======
+              <div className="text-center text-xs text-muted-foreground">
+                Total:{" "}
+                <span className="text-foreground font-mono font-semibold">
+                  {totalCredits.toLocaleString()}
+                </span>{" "}
+                 credits ({readySlots} × {creditPerResult})
+              </div>
+>>>>>>> 085c2beabd52e9efb1255f384cd5cea439846693
 
             </div>
           </Card>
