@@ -1,13 +1,54 @@
 // Helper client-side: simpan setiap upload & hasil generate ke cloud (Google Drive).
 // Semua kegagalan bersifat non-fatal — alur generate existing tidak boleh terganggu.
 import { supabase } from "@/integrations/supabase/client";
-import { archiveGeneratedUrl } from "./cloud.functions";
+import { archiveGeneratedUrl, createCloudUploadTicket, finalizeCloudUpload } from "./cloud.functions";
 
 export type CloudMeta = { origin?: "upload" | "generate"; source?: string; name?: string };
 
 export type CloudUploadResult = { id: string; url: string; storage: "global" | "personal" };
 
 export async function uploadFileToCloud(file: File, meta: CloudMeta = {}): Promise<CloudUploadResult> {
+  // Jalur utama: browser -> Google Drive langsung (server hanya beri tiket + simpan metadata).
+  try {
+    return await directUploadToCloud(file, meta);
+  } catch (e) {
+    console.warn("[cloud] direct upload gagal, fallback lewat server", e);
+  }
+  return legacyUploadThroughServer(file, meta);
+}
+
+/** Upload langsung ke storage memakai resumable session URL. */
+async function directUploadToCloud(file: File, meta: CloudMeta): Promise<CloudUploadResult> {
+  const name = meta.name || file.name || "upload.bin";
+  const mimeType = file.type || "application/octet-stream";
+  const ticket = await createCloudUploadTicket({
+    data: { name, mimeType, size: file.size, source: meta.source ?? null, origin: meta.origin ?? "upload" },
+  });
+
+  const put = await fetch(ticket.uploadUrl, {
+    method: ticket.method,
+    headers: ticket.headers,
+    body: file,
+  });
+  if (!put.ok) throw new Error(`Upload langsung ke storage gagal (${put.status})`);
+  const uploaded = (await put.json().catch(() => ({}))) as { id?: string; name?: string; size?: string; mimeType?: string };
+  if (!uploaded.id) throw new Error("Storage tidak mengembalikan id file");
+
+  const row = await finalizeCloudUpload({
+    data: {
+      driveFileId: uploaded.id,
+      name: uploaded.name || ticket.name,
+      mimeType: uploaded.mimeType || mimeType,
+      size: Number(uploaded.size ?? file.size) || file.size,
+      source: meta.source ?? null,
+      origin: meta.origin ?? "upload",
+    },
+  });
+  return { id: row.id, url: row.url, storage: row.storage as "global" | "personal" };
+}
+
+/** Fallback lama: lewat server (dipakai hanya bila direct upload tidak tersedia). */
+async function legacyUploadThroughServer(file: File, meta: CloudMeta = {}): Promise<CloudUploadResult> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Sesi login tidak ditemukan.");

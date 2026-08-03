@@ -26,7 +26,7 @@ export const Route = createFileRoute("/generate/framia")({
       {
         name: "description",
         content:
-          "Jalankan semua node dan recipe Framia (Converge AI) langsung dari AA Creative Studio — image, video, avatar, garment, storyboard.",
+          "Jalankan semua node dan recipe Framia langsung dari AA Creative Studio — image, video, avatar, garment, storyboard.",
       },
       { property: "og:title", content: "Framia — Canvas Workflow" },
       {
@@ -144,7 +144,7 @@ function FramiaPage() {
   return (
     <DashboardShell>
       <PageHero
-        eyebrow="Framia · Converge AI"
+        eyebrow="Framia"
         title="Canvas Workflow"
         highlight="Runner"
         desc="Semua node (skills) dan recipe (templates) dari akun Framia kamu — image, video, avatar, garment, storyboard. Auto-load begitu token tersimpan di Token Manager."

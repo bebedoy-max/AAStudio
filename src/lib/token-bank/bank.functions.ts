@@ -108,12 +108,20 @@ export const listBankInventory = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const db = context.supabase as unknown as LooseClient;
-    const { data, error } = await db
+    const BASE = "id, provider, key_value, label, status, assigned_to, assigned_at, created_at";
+    // Credit columns are optional (added by a later manual migration).
+    let res = await db
       .from("token_bank_keys")
-      .select("id, provider, key_value, label, status, assigned_to, assigned_at, created_at")
+      .select(`${BASE}, credit_status, credit_detail, credit_checked_at`)
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as {
+    if (res.error) {
+      res = await db
+        .from("token_bank_keys")
+        .select(BASE)
+        .order("created_at", { ascending: false });
+    }
+    if (res.error) throw new Error(res.error.message);
+    const rows = (res.data ?? []) as {
       id: string;
       provider: BankProvider;
       key_value: string;
@@ -122,6 +130,9 @@ export const listBankInventory = createServerFn({ method: "GET" })
       assigned_to: string | null;
       assigned_at: string | null;
       created_at: string;
+      credit_status?: string | null;
+      credit_detail?: string | null;
+      credit_checked_at?: string | null;
     }[];
     // Attach assigned user info (email + display name) via a batched profiles lookup.
     const assignedIds = Array.from(
@@ -141,40 +152,97 @@ export const listBankInventory = createServerFn({ method: "GET" })
     }
     return rows.map((r) => ({
       ...r,
+      credit_status: r.credit_status ?? null,
+      credit_detail: r.credit_detail ?? null,
+      credit_checked_at: r.credit_checked_at ?? null,
       assigned_email: r.assigned_to ? byId[r.assigned_to]?.email ?? null : null,
       assigned_display_name: r.assigned_to ? byId[r.assigned_to]?.display_name ?? null : null,
     }));
   });
 
-export const addBankKeys = createServerFn({ method: "POST" })
+/** Persist the result of a credit/validity check so it survives reloads. */
+export const saveBankKeyChecks = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { provider: string; keys: string[]; label?: string }) => {
-    assertProvider(data.provider);
-    if (!Array.isArray(data.keys) || data.keys.length === 0) throw new Error("keys required");
-    const cleaned = Array.from(new Set(data.keys.map((k) => k.trim()).filter(Boolean)));
-    if (cleaned.length === 0) throw new Error("keys empty");
-    return { provider: data.provider as BankProvider, keys: cleaned, label: data.label ?? null };
+  .inputValidator((data: { items: { id: string; status: string; detail: string }[] }) => {
+    const items = (data.items ?? [])
+      .map((i) => ({
+        id: String(i.id ?? "").trim(),
+        status: String(i.status ?? "").slice(0, 20),
+        detail: String(i.detail ?? "").slice(0, 300),
+      }))
+      .filter((i) => i.id);
+    if (items.length === 0) throw new Error("items required");
+    return { items };
   })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const db = context.supabase as unknown as LooseClient;
-    const rows = data.keys.map((k) => ({
+    const now = new Date().toISOString();
+    for (const it of data.items) {
+      const { error } = await db
+        .from("token_bank_keys")
+        .update({ credit_status: it.status, credit_detail: it.detail, credit_checked_at: now })
+        .eq("id", it.id);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true, saved: data.items.length, checkedAt: now };
+  });
+
+export const addBankKeys = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      provider: string;
+      keys: string[];
+      label?: string;
+      checks?: { key: string; status: string; detail: string }[];
+    }) => {
+      assertProvider(data.provider);
+      if (!Array.isArray(data.keys) || data.keys.length === 0) throw new Error("keys required");
+      const cleaned = Array.from(new Set(data.keys.map((k) => k.trim()).filter(Boolean)));
+      if (cleaned.length === 0) throw new Error("keys empty");
+      return {
+        provider: data.provider as BankProvider,
+        keys: cleaned,
+        label: data.label ?? null,
+        checks: (data.checks ?? []).map((c) => ({
+          key: String(c.key ?? ""),
+          status: String(c.status ?? "").slice(0, 20),
+          detail: String(c.detail ?? "").slice(0, 300),
+        })),
+      };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const db = context.supabase as unknown as LooseClient;
+    const checkByKey = new Map(data.checks.map((c) => [c.key, c]));
+    const now = new Date().toISOString();
+    const base = data.keys.map((k) => ({
       provider: data.provider,
       key_value: k,
       label: data.label,
       created_by: context.userId,
     }));
-    const { data: inserted, error } = await db
-      .from("token_bank_keys")
-      .insert(rows)
-      .select("id, key_value");
-    if (error) throw new Error(error.message);
+    const withChecks = base.map((r) => {
+      const c = checkByKey.get(r.key_value);
+      return c
+        ? { ...r, credit_status: c.status, credit_detail: c.detail, credit_checked_at: now }
+        : r;
+    });
+    let res = await db.from("token_bank_keys").insert(withChecks).select("id, key_value");
+    if (res.error) {
+      // Credit columns not migrated yet — fall back to the plain insert.
+      res = await db.from("token_bank_keys").insert(base).select("id, key_value");
+    }
+    if (res.error) throw new Error(res.error.message);
     return {
       ok: true,
-      added: rows.length,
-      inserted: (inserted ?? []) as { id: string; key_value: string }[],
+      added: base.length,
+      inserted: (res.data ?? []) as { id: string; key_value: string }[],
     };
   });
+
 
 export const deleteBankKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -419,15 +487,6 @@ async function deliverKeysToUser(params: {
   if (upErr) throw new Error(upErr.message);
 
   const ids = picked.map((k) => k.id);
-  const { error: mkErr } = await adminDb
-    .from("token_bank_keys")
-    .update({
-      status: "assigned",
-      assigned_to: params.targetUserId,
-      assigned_at: new Date().toISOString(),
-    })
-    .in("id", ids);
-  if (mkErr) throw new Error(mkErr.message);
 
   const denom = params.ids && params.ids.length > 0 ? params.ids.length : params.qty;
   const perKeyPrice = denom > 0 ? Math.round(params.priceIdr / denom) : 0;
@@ -443,7 +502,13 @@ async function deliverKeysToUser(params: {
   const { error: txErr } = await adminDb.from("token_bank_transactions").insert(txRows);
   if (txErr) throw new Error(txErr.message);
 
+  // Key yang sudah dikirim langsung dihapus dari bank supaya tidak bisa
+  // dikirim / dibeli dua kali (transaksi tetap tercatat, key_id -> NULL).
+  const { error: delErr } = await adminDb.from("token_bank_keys").delete().in("id", ids);
+  if (delErr) throw new Error(delErr.message);
+
   return { delivered: picked.length };
+
 }
 
 export const transferBankKeys = createServerFn({ method: "POST" })
@@ -623,14 +688,22 @@ export const searchUsersForTransfer = createServerFn({ method: "POST" })
     return (rows ?? []) as { id: string; email: string | null; display_name: string | null }[];
   });
 
+/** Satu baris = satu transaksi (pembelian/transfer), bukan per key. */
 export type BankTxRow = {
   id: string;
   provider: BankProvider;
   kind: string;
+  /** Jumlah key dalam transaksi ini. */
+  qty: number;
+  /** Total harga key (tanpa kode unik). */
   price_idr: number;
+  /** Kode unik yang ditambahkan sistem pada nominal pembayaran. */
+  unique_code: number;
+  /** Yang benar-benar dibayar pembeli = price_idr + unique_code. */
+  total_idr: number;
   created_at: string;
   user_id: string;
-  key_id: string | null;
+  order_id: string | null;
   purchase_request_id: string | null;
   user_email: string | null;
   user_display_name: string | null;
@@ -660,7 +733,7 @@ export const listBankTransactions = createServerFn({ method: "POST" })
       .from("token_bank_transactions")
       .select("id, provider, kind, price_idr, created_at, user_id, key_id, purchase_request_id")
       .order("created_at", { ascending: false })
-      .limit(2000);
+      .limit(5000);
     if (data.provider) q = q.eq("provider", data.provider);
     if (data.kind) q = q.eq("kind", data.kind);
     if (data.userId) q = q.eq("user_id", data.userId);
@@ -668,7 +741,18 @@ export const listBankTransactions = createServerFn({ method: "POST" })
     if (data.dateTo) q = q.lte("created_at", data.dateTo);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const list = (rows ?? []) as Omit<BankTxRow, "user_email" | "user_display_name">[];
+    const list = (rows ?? []) as {
+      id: string;
+      provider: BankProvider;
+      kind: string;
+      price_idr: number;
+      created_at: string;
+      user_id: string;
+      key_id: string | null;
+      purchase_request_id: string | null;
+    }[];
+
+    // Profil pembeli
     const uids = Array.from(new Set(list.map((r) => r.user_id).filter(Boolean)));
     let byId: Record<string, { email: string | null; display_name: string | null }> = {};
     if (uids.length) {
@@ -682,12 +766,75 @@ export const listBankTransactions = createServerFn({ method: "POST" })
         ),
       );
     }
-    return list.map((r) => ({
-      ...r,
-      user_email: byId[r.user_id]?.email ?? null,
-      user_display_name: byId[r.user_id]?.display_name ?? null,
-    })) as BankTxRow[];
+
+    // Kode unik + order id dari purchase_requests
+    const prIds = Array.from(
+      new Set(list.map((r) => r.purchase_request_id).filter((v): v is string => !!v)),
+    );
+    let prById: Record<string, { code: number; orderId: string | null }> = {};
+    if (prIds.length) {
+      const { data: prs } = await db
+        .from("purchase_requests")
+        .select("id, price_idr, gopay_expected_amount, temanqris_order_id")
+        .in("id", prIds);
+      prById = Object.fromEntries(
+        (
+          (prs ?? []) as {
+            id: string;
+            price_idr: number | null;
+            gopay_expected_amount: number | null;
+            temanqris_order_id: string | null;
+          }[]
+        ).map((p) => {
+          const raw = Math.round((p.gopay_expected_amount ?? 0) - (p.price_idr ?? 0));
+          return [p.id, { code: raw > 0 ? raw : 0, orderId: p.temanqris_order_id ?? p.id }];
+        }),
+      );
+    }
+
+    // Gabungkan per transaksi: satu purchase_request (atau satu batch transfer).
+    const groups = new Map<string, BankTxRow>();
+    const codeCounted = new Set<string>();
+    for (const r of list) {
+      const batchKey = r.purchase_request_id
+        ? `pr:${r.purchase_request_id}:${r.provider}`
+        : `tr:${r.kind}:${r.provider}:${r.user_id}:${r.created_at.slice(0, 19)}`;
+      let g = groups.get(batchKey);
+      if (!g) {
+        const pr = r.purchase_request_id ? prById[r.purchase_request_id] : undefined;
+        let code = 0;
+        if (r.purchase_request_id && pr && !codeCounted.has(r.purchase_request_id)) {
+          code = pr.code;
+          codeCounted.add(r.purchase_request_id);
+        }
+        g = {
+          id: batchKey,
+          provider: r.provider,
+          kind: r.kind,
+          qty: 0,
+          price_idr: 0,
+          unique_code: code,
+          total_idr: 0,
+          created_at: r.created_at,
+          user_id: r.user_id,
+          order_id: pr?.orderId ?? null,
+          purchase_request_id: r.purchase_request_id,
+          user_email: byId[r.user_id]?.email ?? null,
+          user_display_name: byId[r.user_id]?.display_name ?? null,
+        };
+        groups.set(batchKey, g);
+      }
+      g.qty += 1;
+      g.price_idr += r.price_idr || 0;
+    }
+    const out = Array.from(groups.values()).map((g) => ({
+      ...g,
+      total_idr: g.price_idr + g.unique_code,
+    }));
+    out.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    return out as BankTxRow[];
   });
+
 
 export const resetBankTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

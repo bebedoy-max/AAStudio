@@ -7,7 +7,10 @@ import { X, Loader2, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
-import { PaymentPicker } from "@/components/payments/payment-picker";
+
+import { useServerFn } from "@tanstack/react-start";
+import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
+import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 
 type FeaturePrice = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
@@ -30,11 +33,13 @@ export function CheckoutDialog({
   onClose: () => void;
   onSubmitted?: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [prices, setPrices] = useState<FeaturePrice[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<Order | null>(null);
+  const [gopayAmount, setGopayAmount] = useState<number | null>(null);
+  const assignGopay = useServerFn(ensureGopayAmount);
 
   useEffect(() => {
     (async () => {
@@ -50,6 +55,16 @@ export function CheckoutDialog({
   const individualTotal = useMemo(() => prices.reduce((s, p) => s + p.price_idr, 0), [prices]);
   const isBundle = !!bundleLabel && typeof bundlePrice === "number" && bundlePrice > 0;
   const total = isBundle ? (bundlePrice as number) : individualTotal;
+
+  // Langsung buat pesanan + QRIS Companion begitu harga siap (tanpa langkah
+  // "Lanjut" terpisah).
+  useEffect(() => {
+    if (loading || order || submitting || total <= 0 || !user) return;
+    void submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, total, user?.id]);
+
+
 
   async function submit() {
     if (!user) return;
@@ -86,6 +101,13 @@ export function CheckoutDialog({
       if (error) throw error;
       const inserted = data as { id: string; status: Order["status"] };
       setOrder({ id: inserted.id, total, status: inserted.status });
+      // Nominal unik untuk pencocokan otomatis transfer GoPay Merchant.
+      try {
+        const unique = await assignGopay({ data: { purchaseId: inserted.id } });
+        setGopayAmount(unique?.amount ?? null);
+      } catch {
+        setGopayAmount(null);
+      }
       onSubmitted?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal membuat pesanan");
@@ -102,7 +124,19 @@ export function CheckoutDialog({
       .eq("id", order.id)
       .maybeSingle();
     const st = (data as { status?: Order["status"] } | null)?.status;
-    if (st && st !== order.status) setOrder({ ...order, status: st });
+    if (st && st !== order.status) {
+      setOrder({ ...order, status: st });
+      // Pembayaran terverifikasi → muat ulang izin rute agar fitur premium
+      // langsung terbuka tanpa reload manual.
+      if (st === "approved") {
+        try {
+          await refresh();
+        } catch {
+          /* non-fatal */
+        }
+        toast.success("Pembayaran terverifikasi — fitur premium aktif");
+      }
+    }
   }
 
   return (
@@ -188,41 +222,26 @@ export function CheckoutDialog({
                   <div className="font-semibold">Fitur aktif selama 30 hari</div>
                   <div className="text-xs opacity-80">Silakan tutup dialog dan gunakan fitur.</div>
                 </div>
-              ) : (
+              ) : gopayAmount !== null ? (
                 <div className="mt-5">
-                  <PaymentPicker
+                  <GopayQrisPanel
                     purchaseRequestId={order.id}
-                    amount={order.total}
+                    amount={gopayAmount}
                     onApproved={refreshStatus}
                   />
                 </div>
+              ) : (
+                <div className="py-12 grid place-items-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
               )
             ) : (
-              <>
-                <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-                  Klik <b className="text-foreground">Lanjut</b> untuk memilih metode pembayaran
-                  aktif (QRIS, Virtual Account, e-wallet, dsb.). Fitur langsung aktif begitu
-                  pembayaran terkonfirmasi.
-                </div>
-                <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
-                  <button
-                    onClick={onClose}
-                    className="rounded-full border border-border bg-card/50 px-4 py-2 text-sm hover:bg-sidebar-accent/60"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={submit}
-                    disabled={submitting || total <= 0}
-                    className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-                    style={{ background: "var(--gradient-neon)" }}
-                  >
-                    {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Lanjut · {rupiah(total)}
-                  </button>
-                </div>
-              </>
+              <div className="py-12 grid place-items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div className="text-xs text-muted-foreground">Menyiapkan pembayaran…</div>
+              </div>
             )}
+
 
             {order && (
               <div className="mt-5 flex justify-end">

@@ -17,9 +17,18 @@ import {
   Landmark,
   Wallet as WalletIcon,
   CircleDollarSign,
+  Tag,
+  Coins,
+  Smartphone,
+  Puzzle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
+import { TokenBankPricesSection } from "@/components/admin/token-bank-prices-section";
+import { CompanionSection } from "@/components/admin/companion-section";
+import { PluginPricesSection } from "@/components/admin/plugin-prices-section";
+import { MENU_CATALOG } from "@/lib/menu-catalog";
+
 import { confirmDialog } from "@/components/ui-confirm";
 
 export const Route = createFileRoute("/admin/payments")({
@@ -65,10 +74,48 @@ function Gate() {
         </div>
       </Card>
     );
+  return <PaymentsTabs />;
+}
+
+const TABS = [
+  { key: "prices", label: "Harga Fitur", icon: Tag },
+  { key: "tokens", label: "Harga Token", icon: Coins },
+  { key: "plugins", label: "Plug-IN", icon: Puzzle },
+  { key: "gateways", label: "Payment Gateway", icon: WalletIcon },
+  { key: "companion", label: "Companion Payment", icon: Smartphone },
+] as const;
+
+function PaymentsTabs() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("prices");
   return (
     <div className="flex flex-col gap-4">
-      <PricesSection />
-      <PaymentGatewaysSection />
+      <div className="flex flex-wrap gap-2">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={[
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition",
+                active
+                  ? "border-transparent text-primary-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground",
+              ].join(" ")}
+              style={active ? { background: "var(--gradient-neon)" } : undefined}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+      {tab === "prices" && <PricesSection />}
+      {tab === "tokens" && <TokenBankPricesSection />}
+      {tab === "plugins" && <PluginPricesSection />}
+      {tab === "gateways" && <PaymentGatewaysSection />}
+      {tab === "companion" && <CompanionSection />}
     </div>
   );
 }
@@ -77,7 +124,9 @@ function Gate() {
 
 type Price = { route_key: string; label: string; price_idr: number; is_active: boolean };
 
-type AccessRow = { route_key: string; access_mode: "public" | "subscription" | "trial"; trial_until: string | null };
+type AccessRow = { route_key: string; access_mode: string; trial_until: string | null };
+
+const DEFAULT_FEATURE_PRICE = 50000;
 
 function PricesSection() {
   const [rows, setRows] = useState<Price[]>([]);
@@ -86,12 +135,6 @@ function PricesSection() {
   const [drafts, setDrafts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState<string | null>(null);
 
-  const DEFAULT_ROWS: { route_key: string; label: string; price_idr: number }[] = [
-    { route_key: "ai-influencer", label: "AI Influencer Studio", price_idr: 50000 },
-    { route_key: "mixing.clipper", label: "AI Clipper", price_idr: 50000 },
-    { route_key: "mixing.dubbing", label: "AI Dubber", price_idr: 50000 },
-  ];
-
   async function load() {
     setLoading(true);
     const [{ data }, { data: accessData }] = await Promise.all([
@@ -99,22 +142,31 @@ function PricesSection() {
       supabase.from("feature_access" as never).select("route_key, access_mode, trial_until"),
     ]);
     const existing = (data ?? []) as Price[];
-    const existingKeys = new Set(existing.map((r) => r.route_key));
-    const missing = DEFAULT_ROWS.filter((r) => !existingKeys.has(r.route_key));
-    let finalRows = existing;
-    if (missing.length > 0) {
-      const { error: insErr } = await supabase
-        .from("feature_prices")
-        .insert(missing.map((m) => ({ ...m, is_active: true })));
-      if (!insErr) {
-        const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
-        finalRows = (refetched ?? []) as Price[];
-      }
-    }
     const accessMap: Record<string, AccessRow> = {};
     ((accessData ?? []) as AccessRow[]).forEach((a) => {
       accessMap[a.route_key] = a;
     });
+
+    // Menu yang statusnya Premium (key mengikuti MENU_CATALOG / Pengaturan Halaman).
+    const premiumMenus = MENU_CATALOG.filter(
+      (m) => normalizeMode(accessMap[m.key]?.access_mode) === "premium",
+    );
+    const existingKeys = new Set(existing.map((r) => r.route_key));
+    const missing = premiumMenus
+      .filter((m) => !existingKeys.has(m.key))
+      .map((m) => ({ route_key: m.key, label: m.label, price_idr: DEFAULT_FEATURE_PRICE, is_active: true }));
+
+    let finalRows = existing;
+    if (missing.length > 0) {
+      const { error: insErr } = await supabase.from("feature_prices").insert(missing);
+      if (!insErr) {
+        const { data: refetched } = await supabase.from("feature_prices").select("*").order("label");
+        finalRows = (refetched ?? []) as Price[];
+      } else {
+        finalRows = [...existing, ...missing];
+      }
+    }
+
     setAccess(accessMap);
     setRows(finalRows);
     setLoading(false);
@@ -122,6 +174,8 @@ function PricesSection() {
   useEffect(() => {
     load();
   }, []);
+
+
 
   async function save(row: Price) {
     const newPrice = drafts[row.route_key];
@@ -155,7 +209,7 @@ function PricesSection() {
   const bundleRow = rows.find((r) => r.route_key === FULL_KEY) ?? null;
 
   // Normalisasi mode lama (public/subscription) → mode baru (open/premium/...).
-  const modeOf = (key: string) => normalizeMode(access[key]?.access_mode ?? "premium");
+  const modeOf = (key: string) => normalizeMode(access[key]?.access_mode);
 
   // Hanya fitur yang statusnya Premium yang tampil di kolom harga.
   const featureRows = useMemo(

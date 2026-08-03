@@ -71,6 +71,29 @@ export function removeRoboneoKeyFromManager(
   }
 }
 
+export function updateRoboneoKeyBalance(accessToken: string, balance: number): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(LS_ROBONEO_KEYS);
+    const list = raw ? (JSON.parse(raw) as RoboneoKey[]) : [];
+    const next = list.map((item) =>
+      item?.key === accessToken
+        ? { ...item, balance, status: balance > 0 ? ("active" as const) : ("empty" as const) }
+        : item,
+    );
+    const value = JSON.stringify(next);
+    localStorage.setItem(LS_ROBONEO_KEYS, value);
+    pushTokenAsync(LS_ROBONEO_KEYS, value);
+    window.dispatchEvent(
+      new CustomEvent("aatools:tokens-synced", {
+        detail: { provider: "roboneo", action: "balance" },
+      }),
+    );
+  } catch {
+    /* Token selection must still work when storage synchronization fails. */
+  }
+}
+
 /* --------------------------------- helpers --------------------------------- */
 
 const uuid = () =>
@@ -123,6 +146,46 @@ function extractUid(accessToken: string): string {
  *  yields `error_code:98 "request fail, token error: <value>"`. */
 const ROBONEO_PARAM_TOKEN = "45C30555F10E49629098A75F95828DA6";
 const ROBONEO_TASK_CONTEXT = new Map<string, { roomId: string; nodeId: string }>();
+
+/* ------------------------- motion-control credit cost -----------------------
+ * Roboneo tidak mengekspos harga per tool. Nilai 72 yang dipakai sebelumnya
+ * ternyata terlalu rendah: token dengan 150 Cyber Carrots tetap ditolak
+ * gateway dengan `CHARGE_FAILED / 账户余额不足` (charge dilakukan setelah task
+ * dibuat, jadi preflight sebelumnya lolos dan credit tetap terbuang waktunya).
+ * Karena itu kita simpan ambang yang "belajar": setiap kali charge gagal pada
+ * token dengan saldo B, ambang minimum dinaikkan ke B + 1 sehingga preflight
+ * berikutnya tidak lagi mengorbankan upload untuk token yang pasti gagal.
+ */
+const RN_MIN_CREDITS_KEY = "aatools.roboneo.motionMinCredits";
+/** Batas bawah yang sudah terbukti gagal (150) → default minimal 151. */
+export const ROBONEO_MOTION_MIN_CREDITS_DEFAULT = 151;
+
+export function getRoboneoMotionMinCredits(): number {
+  if (typeof window === "undefined") return ROBONEO_MOTION_MIN_CREDITS_DEFAULT;
+  try {
+    const raw = localStorage.getItem(RN_MIN_CREDITS_KEY);
+    const n = raw ? Number(raw) : NaN;
+    if (Number.isFinite(n) && n > 0) return Math.max(n, ROBONEO_MOTION_MIN_CREDITS_DEFAULT);
+  } catch {
+    /* ignore */
+  }
+  return ROBONEO_MOTION_MIN_CREDITS_DEFAULT;
+}
+
+/** Naikkan ambang setelah charge gagal pada token dengan saldo `balance`. */
+export function noteRoboneoMotionChargeFailure(balance: number | null): number {
+  const current = getRoboneoMotionMinCredits();
+  if (balance === null || !Number.isFinite(balance)) return current;
+  const next = Math.max(current, Math.floor(balance) + 1);
+  if (next !== current && typeof window !== "undefined") {
+    try {
+      localStorage.setItem(RN_MIN_CREDITS_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+  }
+  return next;
+}
 
 /** Common parameter block yang diminta gateway roboneo di setiap request. */
 function baseParameter(accessToken: string, pathScene: string, roomId?: string) {
@@ -515,6 +578,145 @@ export async function submitRoboneoI2V(opts: {
   return ids[0]!;
 }
 
+/**
+ * Submit Roboneo text-to-video job (tanpa gambar input).
+ * apiName t2v mengikuti pola yang sama dengan i2v — contoh yang dikonfirmasi
+ * dari web bundle: `video_barley_i2v_omni_flash` → `video_barley_t2v_omni_flash`
+ * (node_model_id `txt2vid`).
+ */
+export async function submitRoboneoT2V(opts: {
+  accessToken: string;
+  prompt: string;
+  modelKey?: string;
+  ratio?: string;
+  duration?: number;
+  resolution?: string;
+  sound?: "on" | "off";
+}): Promise<string> {
+  const roomId = genRoomId();
+  const nodeId = uuid();
+  const mk = (opts.modelKey || "rn:google-omni").toLowerCase();
+
+  type ParamFamily = "seedance" | "happyhorse" | "kling3" | "kling26" | "omni";
+  type Spec = { apiName: string; toolLabel: string; family: ParamFamily };
+  const specs: Record<string, Spec> = {
+    "rn:google-omni": { apiName: "video_barley_t2v_omni_flash", toolLabel: "Google Omni Flash", family: "omni" },
+    "rn:seedance-2.0": { apiName: "video_toffee_t2v_v20", toolLabel: "Seedance 2.0", family: "seedance" },
+    "rn:seedance-2.0-mini": { apiName: "video_toffee_t2v_v20_mini", toolLabel: "Seedance 2.0 Mini", family: "seedance" },
+    "rn:seedance-2.0-fast": { apiName: "video_toffee_t2v_v20_fast", toolLabel: "Seedance 2.0 Fast", family: "seedance" },
+    "rn:happyhorse-1.1": { apiName: "text2video_edit_hydra", toolLabel: "Happy Horse 1.1", family: "happyhorse" },
+    "rn:happyhorse-1.0": { apiName: "video_happyhorse_t2v", toolLabel: "Happy Horse 1.0", family: "happyhorse" },
+    "rn:kling-v3": { apiName: "video_bonbon_txt2vid_v30", toolLabel: "Kling 3.0", family: "kling3" },
+    "rn:kling-v3-turbo": { apiName: "video_bonbon_t2v_v3turbo", toolLabel: "Kling 3.0 Turbo", family: "kling3" },
+    "rn:kling-v26": { apiName: "video_bonbon_txt2vid_v26", toolLabel: "Kling 2.6", family: "kling26" },
+    "rn:kling-v26:std": { apiName: "video_bonbon_txt2vid_v26", toolLabel: "Kling 2.6", family: "kling26" },
+    "rn:seedance-1.0": { apiName: "api_v1_outsourcing_text_to_video", toolLabel: "Seedance 1.0", family: "seedance" },
+    "rn:seedance-pro": { apiName: "api_v1_outsourcing_text_to_video", toolLabel: "Seedance Pro", family: "seedance" },
+  };
+  const spec = specs[mk] || specs["rn:google-omni"]!;
+
+  const dur = opts.duration ?? 5;
+  const params: Record<string, unknown> = {
+    prompt: opts.prompt ?? "",
+    random: `${Date.now()}-${Math.floor(10_000_000 + Math.random() * 89_999_999)}`,
+  };
+  switch (spec.family) {
+    case "seedance":
+      params.ratio = opts.ratio ?? "9:16";
+      params.resolution = opts.resolution ?? "720p";
+      params.video_duration = dur;
+      params.sound = opts.sound ?? "off";
+      break;
+    case "happyhorse":
+      params.ratio = opts.ratio ?? "9:16";
+      params.resolution = opts.resolution ?? "720p";
+      params.video_duration = dur;
+      break;
+    case "kling3":
+      params.ratio = opts.ratio ?? "9:16";
+      params.video_duration = dur;
+      params.sound = opts.sound ?? "off";
+      break;
+    case "kling26":
+      params.sound = opts.sound ?? "off";
+      params.video_duration = dur;
+      break;
+    case "omni":
+    default:
+      params.ratio = opts.ratio ?? "9:16";
+      params.video_duration = dur;
+      break;
+  }
+
+  const node = {
+    tool_abstract_name: { cn: spec.toolLabel, en: spec.toolLabel },
+    node_id: nodeId,
+    name: spec.apiName,
+    parameters: params,
+  };
+  const result = await rnCall<{
+    tasks?: Record<string, unknown> | Array<{ task_id?: string }>;
+    task_ids?: string[];
+  }>("nodeexecute", opts.accessToken, {
+    room_id: roomId,
+    node_id: nodeId,
+    need_node_name: true,
+    workflow_version: "v2",
+    node_list_array: [[node]],
+  });
+  const ids = result?.task_ids?.length
+    ? result.task_ids
+    : Array.isArray(result?.tasks)
+      ? result.tasks.map((task) => task.task_id).filter((id): id is string => Boolean(id))
+      : Object.keys(result?.tasks || {});
+  if (!ids.length) throw new Error("Roboneo: submit sukses tapi task_id tidak ditemukan");
+  ROBONEO_TASK_CONTEXT.set(ids[0]!, { roomId, nodeId });
+  return ids[0]!;
+}
+
+/** Jalankan T2V Roboneo dengan auto-rotate token (hapus token invalid/habis). */
+export async function runRoboneoT2V(opts: {
+  prompt: string;
+  modelKey?: string;
+  ratio?: string;
+  duration?: number;
+  resolution?: string;
+  sound?: "on" | "off";
+  onProgress?: (msg: string, pct?: number) => void;
+}): Promise<string> {
+  const tokens = getAllRoboneoKeys();
+  if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
+  for (let ti = 0; ti < tokens.length; ti++) {
+    const at = tokens[ti]!;
+    try {
+      opts.onProgress?.(`Submit Roboneo ${opts.modelKey ?? ""} (token ${ti + 1}/${tokens.length})…`, 15);
+      const taskId = await submitRoboneoT2V({
+        accessToken: at,
+        prompt: opts.prompt,
+        modelKey: opts.modelKey,
+        ratio: opts.ratio,
+        duration: opts.duration,
+        resolution: opts.resolution,
+        sound: opts.sound,
+      });
+      opts.onProgress?.("Processing…", 25);
+      const url = await pollRoboneoTask({
+        accessToken: at,
+        taskId,
+        onProgress: (pct, st) => opts.onProgress?.(`Roboneo ${st}`, pct),
+      });
+      if (!url) throw new Error("Roboneo: no output URL");
+      return url;
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (!isRoboneoRotatableError(msg)) throw e;
+      removeRoboneoKeyFromManager(at, msg);
+      opts.onProgress?.(`↻ Token Roboneo ${ti + 1} invalid/habis — rotate…`, 15);
+    }
+  }
+  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+}
+
 
 export type RoboneoTask = {
   status?: string;
@@ -868,13 +1070,30 @@ export async function pollRoboneoTask(opts: {
   throw new Error("Roboneo timeout");
 }
 
-/** Detect if an error looks like an auth/credit failure worth rotating tokens for. */
-export function isRoboneoRotatableError(msg: string): boolean {
-  return (
-    /token|auth|log\s*in|login|expired|unauth|401|403|insufficient|balance|credit|quota|URL output tidak ditemukan|output tidak ditemukan|no output URL|CHARGE_FAILED|charge.?failed|payment.?required|余额不足|余额不够|积分不足|账户余额|欠费|VIP|会员/i.test(
-      msg,
-    )
+/** Content/risk failures belong to the input, never to token health. */
+export function isRoboneoSafetyError(msg: string): boolean {
+  return /safety review|risk control|risk con|content review|moderation|原图审核不过|审核不通过|审核不过|code["'=:\s]+10025|error_code["'=:\s]+10025/i.test(
+    msg,
   );
+}
+
+export function isRoboneoCredentialError(msg: string): boolean {
+  if (isRoboneoSafetyError(msg)) return false;
+  return /token error|invalid token|access-token.*(?:expired|invalid)|auth(?:entication)? failed|please log in|not logged in|unauth(?:orized)?|\b401\b|\b403\b/i.test(
+    msg,
+  );
+}
+
+export function isRoboneoBalanceError(msg: string): boolean {
+  if (isRoboneoSafetyError(msg)) return false;
+  return /insufficient|credit\/quota habis|credit.*(?:empty|exhausted|habis)|balance.*(?:low|empty|insufficient|habis)|CHARGE_FAILED|charge.?failed|payment.?required|余额不足|余额不够|积分不足|账户余额|欠费/i.test(
+    msg,
+  );
+}
+
+/** Detect if an error is specifically auth/credit-related and worth rotating. */
+export function isRoboneoRotatableError(msg: string): boolean {
+  return isRoboneoCredentialError(msg) || isRoboneoBalanceError(msg);
 }
 
 /**

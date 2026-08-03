@@ -40,6 +40,21 @@ export type AdminStats = {
 
 const ONLINE_WINDOW_MS = 2 * 60_000;
 
+// Semua agregasi harian memakai zona Asia/Jakarta (UTC+7) supaya angka kartu
+// dashboard identik dengan tampilan Log Aktivitas yang diformat di browser user.
+const JKT_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function jktDayKey(iso: string | number | Date): string {
+  const t = new Date(iso).getTime();
+  return new Date(t + JKT_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function jktStartOfTodayIso(now = Date.now()): string {
+  const shifted = new Date(now + JKT_OFFSET_MS);
+  shifted.setUTCHours(0, 0, 0, 0);
+  return new Date(shifted.getTime() - JKT_OFFSET_MS).toISOString();
+}
+
 async function headCount(db: LooseClient, table: string, build?: (q: any) => any): Promise<number> {
   try {
     let q = db.from(table).select("id", { count: "exact", head: true });
@@ -59,13 +74,9 @@ export const getAdminStats = createServerFn({ method: "GET" })
     const db = await adminDb();
 
     const now = Date.now();
-    const since30 = new Date(now - 29 * 86_400_000);
-    since30.setHours(0, 0, 0, 0);
-    const since30Iso = since30.toISOString();
+    const since30Iso = jktStartOfTodayIso(now - 29 * 86_400_000);
     const onlineSince = new Date(now - ONLINE_WINDOW_MS).toISOString();
-    const startToday = new Date();
-    startToday.setHours(0, 0, 0, 0);
-    const startTodayIso = startToday.toISOString();
+    const startTodayIso = jktStartOfTodayIso(now);
 
     const isGen = (q: any) => q.eq("origin", "generate");
 
@@ -125,11 +136,11 @@ export const getAdminStats = createServerFn({ method: "GET" })
 
     const buckets = new Map<string, number>();
     for (let i = 0; i < 30; i++) {
-      const d = new Date(now - (29 - i) * 86_400_000);
-      buckets.set(d.toISOString().slice(0, 10), 0);
+      buckets.set(jktDayKey(now - (29 - i) * 86_400_000), 0);
     }
     for (const r of rows) {
-      const k = String(r.created_at ?? "").slice(0, 10);
+      if (!r.created_at) continue;
+      const k = jktDayKey(r.created_at);
       if (buckets.has(k)) buckets.set(k, (buckets.get(k) ?? 0) + 1);
     }
 
@@ -182,7 +193,9 @@ export const getAdminDetail = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const db = await adminDb();
     const type = data.type;
-    const fmt = (t?: string | null) => (t ? new Date(t).toLocaleString("id-ID") : "");
+    // Kirim timestamp mentah (ISO) — formatting dilakukan di client agar
+    // zona waktunya sama dengan halaman Log Aktivitas.
+    const fmt = (t?: string | null) => (t ? new Date(t).toISOString() : "");
     const nameOf = (
       map: Map<string, { email: string | null; display_name: string | null }>,
       uid?: string | null,
@@ -266,12 +279,11 @@ export const getAdminDetail = createServerFn({ method: "GET" })
     }
 
     if (type === "activityToday") {
-      const since = new Date();
-      since.setHours(0, 0, 0, 0);
+      const since = jktStartOfTodayIso();
       const { data: d } = await db
         .from("user_activity_logs")
         .select("id, user_id, category, action, created_at")
-        .gte("created_at", since.toISOString())
+        .gte("created_at", since)
         .order("created_at", { ascending: false })
         .limit(50);
       const rows = (d ?? []) as any[];
@@ -295,9 +307,7 @@ export const getAdminDetail = createServerFn({ method: "GET" })
     else if (type === "totalImages") q = q.eq("origin", "generate").eq("kind", "image");
     else if (type === "totalUploads") q = q.eq("origin", "upload");
     else if (type === "generateToday") {
-      const since = new Date();
-      since.setHours(0, 0, 0, 0);
-      q = q.eq("origin", "generate").gte("created_at", since.toISOString());
+      q = q.eq("origin", "generate").gte("created_at", jktStartOfTodayIso());
     }
     const { data: d } = await q;
     const rows = (d ?? []) as any[];

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { flushSync } from "react-dom";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, RefreshCw, Upload, FileText, X, ExternalLink, CheckCircle2, Eye, EyeOff, ShoppingCart, ChevronDown } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card, Field, Input, Textarea, Select, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
@@ -12,6 +12,7 @@ import { fetchFireflyBalance, checkFireflyToken } from "@/lib/providers/firefly"
 import { checkFramiaToken, fetchFramiaBalance } from "@/lib/providers/framia";
 import { checkLeonardoToken, fetchLeonardoBalance } from "@/lib/providers/leonardo";
 import { checkElevenKey } from "@/lib/providers/eleven";
+import { checkDolaCookie } from "@/lib/providers/dola";
 import { pushTokenAsync, ALLOWED_TOKEN_KEYS, syncTokensForUser } from "@/lib/tokens/sync";
 import { useProviderFlags, tokenTabFlagIds } from "@/lib/platform/provider-flags";
 import { useAuth } from "@/lib/auth-context";
@@ -90,7 +91,7 @@ export const Route = createFileRoute("/manage/tokens")({
   component: TokensPage,
 });
 
-type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "eleven" | "render";
+type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola" | "eleven" | "render";
 
 const PROVIDER_GLOW: Record<ProviderKey, string> = {
   brain: "#f472b6",
@@ -101,6 +102,7 @@ const PROVIDER_GLOW: Record<ProviderKey, string> = {
   framia: "#fb923c",
   leonardo: "#facc15",
   firefly: "#f87171",
+  dola: "#2dd4bf",
   eleven: "#818cf8",
   render: "#94a3b8",
 };
@@ -111,9 +113,10 @@ const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
   { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
   { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
-  { key: "framia", label: "Framia", desc: "Canvas workflow (Converge AI) — semua node & recipe: image, video, avatar, garment, storyboard." },
+  { key: "framia", label: "Framia", desc: "Canvas workflow — semua node & recipe: image, video, avatar, garment, storyboard." },
   { key: "leonardo", label: "Leonardo.ai", desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision)." },
   { key: "firefly", label: "Adobe Firefly", desc: "Firefly image (Image 3/4) & video (Veo) via session token firefly.adobe.com." },
+  { key: "dola", label: "Dola", desc: "Video (Text-to-Video & Image-to-Video) via sesi web dola.com — auth pakai cookie session." },
   { key: "eleven", label: "ElevenLabs", desc: "Voice-over untuk Naratif Video Maker." },
   { key: "render", label: "Render (Shotstack/Creatomate)", desc: "Fallback cloud render ketika video melebihi limit FFmpeg browser (≥ 400 MB)." },
 ];
@@ -135,6 +138,7 @@ const LS = {
   framia: "aatools.framia.keys",
   leonardo: "aatools.leonardo.keys",
   firefly: "aatools.firefly.keys",
+  dola: "aatools.dola.keys",
   eleven: "aatools.eleven",
   elevenChecks: "aatools.eleven.checks",
   shotstack: "aatools.shotstack.keys",
@@ -154,6 +158,40 @@ const readJSON = <T,>(k: string, fallback: T): T => {
 };
 const SYNCED_KEYS: ReadonlySet<string> = new Set(ALLOWED_TOKEN_KEYS);
 const TOKEN_SYNC_EVENTS = ["aatools:tokens-synced", "aatools:keys-changed", "storage"] as const;
+
+/** Ambil semua nilai key/token dari sebuah entry localStorage token manager. */
+function extractKeyValues(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    const arr: unknown[] = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { keys?: unknown[] })?.keys)
+        ? ((parsed as { keys: unknown[] }).keys)
+        : [];
+    return arr
+      .map((x) =>
+        typeof x === "string"
+          ? x
+          : ((x as { key?: string; token?: string })?.key ??
+             (x as { key?: string; token?: string })?.token ??
+             ""),
+      )
+      .filter((v): v is string => typeof v === "string" && v.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function snapshotStoredKeys(): Set<string> {
+  const out = new Set<string>();
+  if (typeof window === "undefined") return out;
+  for (const k of ALLOWED_TOKEN_KEYS) {
+    for (const v of extractKeyValues(localStorage.getItem(k))) out.add(v);
+  }
+  return out;
+}
+
 const writeJSON = (k: string, v: unknown) => {
   if (typeof window === "undefined") return;
   const serialized = JSON.stringify(v);
@@ -201,6 +239,32 @@ function TokensPage() {
     };
   }, []);
 
+  // Deteksi key BARU yang masuk dari cloud (mis. hasil pembelian Token Bank).
+  // Saat itu terjadi, pane aktif di-remount supaya key langsung muncul di
+  // "Key tersimpan" dan info credit-nya otomatis dicek — tanpa pindah tab.
+  const [keyEpoch, setKeyEpoch] = useState(0);
+  const knownKeysRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const check = () => {
+      const now = snapshotStoredKeys();
+      const prev = knownKeysRef.current;
+      knownKeysRef.current = now;
+      if (!prev) return;
+      for (const v of now) {
+        if (!prev.has(v)) {
+          setKeyEpoch((n) => n + 1);
+          break;
+        }
+      }
+    };
+    check();
+    for (const ev of TOKEN_SYNC_EVENTS) window.addEventListener(ev, check);
+    return () => {
+      for (const ev of TOKEN_SYNC_EVENTS) window.removeEventListener(ev, check);
+    };
+  }, []);
+
+
   // On tab change: collapse only when the current tab has more than 10 keys.
   useEffect(() => {
     let n = 0;
@@ -222,6 +286,8 @@ function TokensPage() {
                       ? LS.leonardo
                       : tab === "firefly"
                       ? LS.firefly
+                      : tab === "dola"
+                      ? LS.dola
                       : tab === "eleven"
                         ? LS.eleven
                         : LS.shotstack;
@@ -254,9 +320,10 @@ function TokensPage() {
 
   // Do NOT include syncTick in the pane key — remounting the pane every time
   // remote sync fires (every 20s) wipes local input state, causing the user's
-  // freshly pasted keys to "disappear". Panes already listen to storage/sync
-  // events themselves to refresh the saved list.
-  const paneKey = tab;
+  // freshly pasted keys to "disappear". `keyEpoch` hanya berubah ketika ada
+  // key BARU dari cloud (mis. pembelian token), jadi remount-nya aman.
+  const paneKey = `${tab}:${keyEpoch}`;
+
 
   return (
     <SummaryCtx.Provider value={setSummary}>
@@ -402,6 +469,16 @@ function TokensPage() {
                       helper="Roboneo access-token = login-session token (per docs roboneo.com/cli). Token tersimpan di akun kamu (localStorage + user_tokens server, sinkron antar device). Saat generate mendeteksi credit/quota habis atau token invalid, token itu otomatis dihapus dan flow lanjut rotate ke token berikutnya."
                     />
                   )}
+                  {tab === "dola" && (
+                    <ProviderKeyPane
+                      key={paneKey}
+                      provider="dola"
+                      lsKey={LS.dola}
+                      singlePlaceholder="i18next=en-GB; sessionid=...; sid_guard=...; msToken=... (cookie penuh dola.com)"
+                      bulkPlaceholder={"sessionid=aaa...; sid_guard=...\nsessionid=bbb...; sid_guard=..."}
+                      helper="Dola memakai cookie session (bukan API key). Cara termudah: pakai extension AA Creative — login di www.dola.com lalu klik Ambil Token, cookie tersinkron otomatis ke akunmu. Manual: DevTools → Network → request ke www.dola.com → copy seluruh header Cookie. Multi-cookie (multi akun) auto-rotate saat expired."
+                    />
+                  )}
                   {tab === "firefly" && (
                     <ProviderKeyPane
                       key={paneKey}
@@ -490,6 +567,8 @@ function CompactSummary({
                       ? LS.leonardo
                       : provider === "firefly"
                       ? LS.firefly
+                      : provider === "dola"
+                      ? LS.dola
                       : provider === "eleven"
                         ? LS.eleven
                         : LS.shotstack,
@@ -606,6 +685,18 @@ const GUIDES: Record<ProviderKey, Guide> = {
     ],
     tip: "Model yang didukung: Kling 2.6 Std (motion control + i2v), Seedance Pro, Google Omni. Panduan resmi: roboneo.com/cli/en.",
   },
+  dola: {
+    url: "https://www.dola.com/chat/",
+    urlLabel: "dola.com",
+    prefix: "sessionid=…; sid_guard=… (cookie session penuh)",
+    steps: [
+      { text: "REKOMENDASI: install extension AA Creative, login di www.dola.com, lalu klik Ambil Token — cookie tersinkron otomatis." },
+      { text: "Manual: login di www.dola.com, buka DevTools (F12) → tab Network." },
+      { text: "Klik salah satu request ke www.dola.com → bagian Request Headers → copy seluruh nilai header 'Cookie'." },
+      { text: "Paste ke input di sebelah (harus mengandung sessionid). Simpan beberapa cookie akun berbeda untuk auto-rotate." },
+    ],
+    tip: "Cookie Dola bisa expired saat kamu logout di browser — ambil ulang lewat extension bila generate gagal 401.",
+  },
   firefly: {
     url: "https://firefly.adobe.com/",
     urlLabel: "firefly.adobe.com",
@@ -624,14 +715,14 @@ const GUIDES: Record<ProviderKey, Guide> = {
     urlLabel: "framia.converge.ai",
     prefix: "eyJhbGci... (Auth0 Bearer JWT)",
     steps: [
-      { text: "Login di framia.converge.ai (Google / email — akun Converge AI)." },
+      { text: "Login di framia.converge.ai (Google / email — akun Framia)." },
       { text: "Buka DevTools (F12) → tab Network → filter 'api.framia.pro'." },
       { text: "Klik salah satu request (mis. /video/api/v1/user/credits) → Headers → Request Headers." },
       { text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).' },
       { text: "Paste ke input di sebelah. Token JWT berumur ~24 jam; setelah expired, ambil ulang dari Network tab." },
       { text: "Multi-token akan auto-rotate saat quota / expiry habis. Token tersimpan permanen di akunmu dan sinkron antar device." },
     ],
-    tip: "Framia = platform canvas Converge AI. Semua node (skills) dan recipe (templates) muncul otomatis di halaman Generate → Framia begitu token tersimpan.",
+    tip: "Framia = platform canvas. Semua node (skills) dan recipe (templates) muncul otomatis di halaman Generate → Framia begitu token tersimpan.",
   },
   leonardo: {
     url: "https://app.leonardo.ai/",
@@ -1367,7 +1458,7 @@ function ProviderKeyPane({
   singlePlaceholder?: string;
   bulkPlaceholder: string;
   helper: string;
-  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly";
+  provider: "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola";
 }) {
   const [bulk, setBulk] = useState("");
   const [list, setList] = useState<SimpleKey[]>([]);
@@ -1475,7 +1566,8 @@ function ProviderKeyPane({
     writeJSON(lsKey, next);
   };
   const parseBulk = (raw: string) =>
-    raw.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+    // Cookie Dola boleh mengandung koma (mis. Expires) → pisah per baris saja.
+    raw.split(provider === "dola" ? /\n/ : /[\n,]/).map((s) => s.trim()).filter(Boolean);
 
   const isValidFormat = (key: string) =>
     provider === "wavespeed"
@@ -1484,9 +1576,22 @@ function ProviderKeyPane({
         ? /^_v2[A-Za-z0-9+/=_-]{20,}$/i.test(key)
         : provider === "framia" || provider === "leonardo" || provider === "firefly"
           ? /^eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)
-          : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
+          : provider === "dola"
+            ? // Dola = cookie session penuh, bukan JWT. Cukup ada salah satu cookie sesi.
+              /(?:^|;\s*)(sessionid|sessionid_ss|sid_tt|sid_guard|session_id|uid_tt|uid_tt_ss|passport_csrf_token|passport_auth_status)=/i.test(key)
+            : /^FPSX[A-Za-z0-9_-]{8,}$/i.test(key) || /^FP[A-Za-z0-9_-]{8,}$/i.test(key);
 
   const probe = async (key: string): Promise<SimpleKey> => {
+    if (provider === "dola") {
+      const ok = await checkDolaCookie(key);
+      return {
+        id: uid(),
+        key,
+        balance: null,
+        status: ok ? "active" : "failed",
+        note: ok ? "cookie session aktif" : "cookie ditolak Dola (mungkin sudah expired)",
+      };
+    }
     if (provider === "wavespeed") {
       const res = await checkWavespeedBalance(key);
       return {
@@ -1582,13 +1687,13 @@ function ProviderKeyPane({
     const total = merged.reduce((a, x) => a + (x.balance ?? 0), 0);
     const summary = provider === "wavespeed"
       ? `Total saldo tersimpan: $${total.toFixed(2)} · ${merged.length} key`
-      : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
+      : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
         ? `Total credit tersimpan: ${total.toLocaleString()} cr · ${merged.length} key`
       : `${merged.length} key tersimpan`;
     void summary;
     setBusy(false);
     const dup = raw.length - dedup.length;
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : provider === "dola" ? "Dola" : "Magnific";
     showSummary({
       title: `Ringkasan Import ${label} Key`,
       rows: [
@@ -1602,7 +1707,7 @@ function ProviderKeyPane({
       ],
       footer:
         `Total key tersimpan sekarang: ${merged.length}` +
-        (provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
+        (provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
           ? ` · Total credit: ${total.toLocaleString()} cr`
           : ""),
     });
@@ -1692,7 +1797,7 @@ function ProviderKeyPane({
     const emp = working.filter((x) => x.status === "empty").length;
     const failed = working.filter((x) => x.status === "failed").length;
     const totBal = working.reduce((a, x) => a + (x.balance ?? 0), 0);
-    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : "Magnific";
+    const label = provider === "wavespeed" ? "Wavespeed" : provider === "roboneo" ? "Roboneo" : provider === "framia" ? "Framia" : provider === "leonardo" ? "Leonardo" : provider === "firefly" ? "Adobe Firefly" : provider === "dola" ? "Dola" : "Magnific";
     showSummary({
       title: `Ringkasan Cek ${label} Key`,
       rows: [
@@ -1702,7 +1807,7 @@ function ProviderKeyPane({
           value:
             provider === "wavespeed"
               ? `${active}  ($${totBal.toFixed(2)})`
-              : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly"
+              : provider === "roboneo" || provider === "framia" || provider === "leonardo" || provider === "firefly" || provider === "dola"
                 ? `${active}  (${totBal} credit)`
                 : active,
           tone: "ok",

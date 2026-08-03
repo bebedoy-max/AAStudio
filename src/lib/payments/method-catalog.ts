@@ -39,8 +39,13 @@ export const MIDTRANS_METHODS: MethodDef[] = [
   { code: "QRIS", label: "QRIS (Midtrans)", kind: "qris" },
 ];
 
+export const TEMANQRIS_METHODS: MethodDef[] = [
+  { code: "QRIS", label: "QRIS (TemanQRIS)", kind: "qris" },
+];
+
 export function methodsForProvider(provider: string): MethodDef[] {
   if (provider === "doku") return DOKU_METHODS;
   if (provider === "midtrans") return MIDTRANS_METHODS;
+  if (provider === "temanqris") return TEMANQRIS_METHODS;
   return [];
 }

@@ -23,7 +23,11 @@ import {
   submitRoboneoMotion,
   pollRoboneoTask,
   isRoboneoRotatableError,
+  isRoboneoCredentialError,
+  fetchRoboneoBalance,
+  updateRoboneoKeyBalance,
 } from "./roboneo";
+import { getRoboneoMotionMinCredits, noteRoboneoMotionChargeFailure } from "./roboneo";
 import { notifyGenerationDone } from "@/lib/tokens/refresh";
 
 function getFirstMagnificKey(): string | null {
@@ -71,6 +75,7 @@ export type MotionOpts = {
   orientation: "image" | "video";
   keepSound: boolean;
   prompt?: string;
+  resolution?: "480p" | "720p";
   onLog?: (msg: string, level?: "info" | "warn" | "error" | "success") => void;
   onStatus?: (info: { index: number; status: string; url?: string; error?: string }) => void;
 };
@@ -184,8 +189,68 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
   const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
     opts.onLog?.(`#${index + 1} [RN] ${m}`, l);
 
-  const tokens = getAllRoboneoKeys();
-  if (!tokens.length) throw new Error("Belum ada Roboneo access-token.");
+  const storedTokens = getAllRoboneoKeys();
+  if (!storedTokens.length) throw new Error("Belum ada Roboneo access-token.");
+
+  // Roboneo memotong credit SETELAH task dibuat (fail_code=CHARGE_FAILED),
+  // jadi kita saring token dulu berdasarkan ambang yang diketahui. Ambang ini
+  // adaptif: kalau charge tetap gagal, ambang dinaikkan di atas saldo token
+  // tersebut supaya percobaan berikutnya tidak membuang waktu/upload.
+  const REQUIRED_CREDITS = getRoboneoMotionMinCredits();
+  const tokens: Array<{ token: string; label: number; balance: number | null }> = [];
+  const belowThreshold: Array<{ token: string; label: number; balance: number }> = [];
+  let bestBalance = 0;
+  log(`Preflight ${storedTokens.length} token (minimum ${REQUIRED_CREDITS} credit)...`);
+  opts.onStatus?.({ index, status: "checking token balance" });
+  for (let ti = 0; ti < storedTokens.length; ti++) {
+    const token = storedTokens[ti];
+    if (!token) continue;
+    const result = await fetchRoboneoBalance(token);
+    if (!result.ok) {
+      const reason = result.message || "balance check gagal";
+      if (isRoboneoCredentialError(reason)) {
+        removeRoboneoKeyFromManager(token, reason);
+        log(`Token ${ti + 1} invalid/expired — dihapus dari Token Manager.`, "warn");
+      } else {
+        log(`Token ${ti + 1} dilewati: saldo tidak dapat diverifikasi (${reason}).`, "warn");
+      }
+      continue;
+    }
+    if (result.balance === null) {
+      log(`Token ${ti + 1} dilewati: jumlah credit tidak terbaca.`, "warn");
+      continue;
+    }
+    updateRoboneoKeyBalance(token, result.balance);
+    if (result.balance > bestBalance) bestBalance = result.balance;
+    if (result.balance < REQUIRED_CREDITS) {
+      log(`Token ${ti + 1} credit ${result.balance} < ${REQUIRED_CREDITS} — dilewati.`, "warn");
+      belowThreshold.push({ token, label: ti + 1, balance: result.balance });
+      continue;
+    }
+    log(`Token ${ti + 1} tersedia (${result.balance} credit).`, "success");
+    tokens.push({ token, label: ti + 1, balance: result.balance });
+  }
+  // Prioritaskan saldo terbesar — charge gateway menolak seluruh job kalau
+  // saldo kurang, jadi token paling "gemuk" punya peluang terbaik.
+  tokens.sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+  if (!tokens.length) {
+    // Ambang hanyalah tebakan (Roboneo tidak mengekspos harga tool). Charge
+    // yang gagal tidak memotong credit dan hanya butuh <1 detik, jadi tetap
+    // coba token dengan saldo terbesar daripada memblokir user total.
+    const fallback = belowThreshold.sort((a, b) => b.balance - a.balance)[0];
+    if (fallback) {
+      log(
+        `Tidak ada token ≥ ${REQUIRED_CREDITS} credit — tetap mencoba token #${fallback.label} (${fallback.balance} credit).`,
+        "warn",
+      );
+      tokens.push(fallback);
+    }
+  }
+  if (!tokens.length) {
+    throw new Error(
+      `Motion Control butuh minimal ${REQUIRED_CREDITS} Cyber Carrots. Saldo tertinggi dari ${storedTokens.length} token hanya ${bestBalance} credit — top up token Roboneo dulu. Media belum di-upload.`,
+    );
+  }
 
   // Upload media. Untuk file besar, hindari edge worker (limit ~100MB / 413).
   // Coba direct browser → Uguu / Catbox dulu (keduanya set CORS *), lalu
@@ -438,15 +503,19 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
 
   const MAX_BUSY_RETRIES = 3;
   for (let ti = 0; ti < tokens.length; ti++) {
-    const at = tokens[ti]!;
+    const entry = tokens[ti]!;
+    const at = entry.token;
+    const label = entry.label;
     let busyRetry = 0;
     // Retry loop for the same token to absorb transient upstream congestion
     // ("system is busy") before rotating or giving up.
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
-        opts.onStatus?.({ index, status: `submitting (token ${ti + 1}/${tokens.length})` });
-        log(`Submit motion-control quality=${quality} (token ${ti + 1}/${tokens.length})...`);
+        opts.onStatus?.({ index, status: `submitting (token #${label}, ${ti + 1}/${tokens.length})` });
+        log(
+          `Submit motion-control quality=${quality} (token #${label} — ${entry.balance ?? "?"} credit, ${ti + 1}/${tokens.length})...`,
+        );
         const taskId = await submitRoboneoMotion({
           accessToken: at,
           imageUrl,
@@ -475,52 +544,93 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
           await new Promise((r) => setTimeout(r, waitMs));
           continue;
         }
-        log(`Token ${ti + 1} failed: ${msg}`, "warn");
+        log(`Token #${label} failed: ${msg}`, "warn");
         if (!isRoboneoRotatableError(msg)) throw e;
-        const removed = removeRoboneoKeyFromManager(at, msg);
+        const chargeFailure = /CHARGE_FAILED|charge.?failed|no charge|余额不足/i.test(msg);
+        if (chargeFailure) {
+          const raised = noteRoboneoMotionChargeFailure(entry.balance);
+          log(
+            `Charge ditolak walau saldo ${entry.balance ?? "?"} credit — ambang Motion Control dinaikkan ke ${raised} credit.`,
+            "warn",
+          );
+        }
+        const credentialFailure = isRoboneoCredentialError(msg);
+        const removed = credentialFailure && !chargeFailure
+          ? removeRoboneoKeyFromManager(at, msg)
+          : { removed: false, remaining: tokens.length - ti - 1 };
         log(
           removed.removed && ti < tokens.length - 1
             ? "Token Roboneo habis/invalid — dihapus dari Token Manager, rotate ke token berikutnya..."
             : removed.removed
               ? "Token Roboneo habis/invalid — dihapus dari Token Manager."
-            : "Rotating to next Roboneo token...",
+            : "Credit token tidak cukup — rotate ke token berikutnya tanpa menghapus token.",
           "info",
         );
         break;
       }
     }
   }
-  throw new Error("Roboneo: semua token gagal atau habis credit. Tambahkan token baru di Token Manager.");
+  throw new Error(
+    `Roboneo Motion Control: semua token ditolak saat charge (saldo tertinggi ${bestBalance} credit, ambang sekarang ${getRoboneoMotionMinCredits()}). Top up Cyber Carrots atau tambahkan token dengan saldo lebih besar di Token Manager.`,
+  );
 }
 
 async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
-  void slot;
-  void opts;
-  throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+  const { index } = slot;
+  const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
+    opts.onLog?.(`#${index + 1} [FR] ${m}`, l);
+
+  const { runFramiaWithRotation } = await import("./framia");
+  const { runFramiaMotion } = await import("./framia-motion");
+
+  opts.onStatus?.({ index, status: "uploading img..." });
+  const image = await maybeCompress(slot.image);
+
+  return runFramiaWithRotation(
+    (token) =>
+      runFramiaMotion({
+        token,
+        imageFile: image,
+        videoFile: slot.video,
+        modelKey: opts.modelKey,
+        resolution: opts.resolution === "720p" ? "720p" : "480p",
+        onProgress: (m) => {
+          log(m);
+          opts.onStatus?.({ index, status: m });
+        },
+      }),
+    { onRotate: (i, total, reason) => log(`rotate token ${i}/${total}: ${reason}`, "warn") },
+  );
 }
+
 
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */
 export async function generateMotionAll(slots: MotionSlotInput[], opts: MotionOpts): Promise<void> {
-  await Promise.all(
-    slots.map(async (slot) => {
-      await new Promise((r) => setTimeout(r, slot.index * 1500));
-      try {
-        let url: string;
-        if (opts.provider === "weavy") url = await generateOneWeavy(slot, opts);
-        else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
-        else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
-        else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
-        else if (opts.provider === "framia") url = await generateOneFramia(slot, opts);
-        else throw new Error("Provider tidak dikenal: " + opts.provider);
-        opts.onStatus?.({ index: slot.index, status: "done", url });
-        opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");
-      } catch (e) {
-        const err = (e as Error).message || String(e);
-        opts.onStatus?.({ index: slot.index, status: "error", error: err });
-        opts.onLog?.(`#${slot.index + 1} Error: ${err}`, "error");
-      }
-    }),
-  );
+  const runSlot = async (slot: MotionSlotInput) => {
+    await new Promise((r) => setTimeout(r, slot.index * 1500));
+    try {
+      let url: string;
+      if (opts.provider === "weavy") url = await generateOneWeavy(slot, opts);
+      else if (opts.provider === "wavespeed") url = await generateOneWavespeed(slot, opts);
+      else if (opts.provider === "magnific") url = await generateOneMagnific(slot, opts);
+      else if (opts.provider === "roboneo") url = await generateOneRoboneo(slot, opts);
+      else if (opts.provider === "framia") url = await generateOneFramia(slot, opts);
+      else throw new Error("Provider tidak dikenal: " + opts.provider);
+      opts.onStatus?.({ index: slot.index, status: "done", url });
+      opts.onLog?.(`#${slot.index + 1} Done: ${url.substring(0, 60)}...`, "success");
+    } catch (e) {
+      const err = (e as Error).message || String(e);
+      opts.onStatus?.({ index: slot.index, status: "error", error: err });
+      opts.onLog?.(`#${slot.index + 1} Error: ${err}`, "error");
+    }
+  };
+  // Roboneo balance is checked per generation. Run slots sequentially so two
+  // concurrent jobs cannot both reserve the same 72-credit balance.
+  if (opts.provider === "roboneo") {
+    for (const slot of slots) await runSlot(slot);
+  } else {
+    await Promise.all(slots.map(runSlot));
+  }
   // Setelah batch selesai, refresh saldo provider yang dipakai supaya Token
   // Manager selalu up-to-date & token yang habis auto ter-prune.
   notifyGenerationDone(opts.provider);

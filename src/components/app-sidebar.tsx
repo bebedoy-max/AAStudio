@@ -38,6 +38,7 @@ import {
   Library,
   ImageIcon,
   Clapperboard,
+  Puzzle,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -105,9 +106,9 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Motion Control", url: "/generate/motion", icon: Move3d, permKey: "generate.motion" },
       { title: "Bulk Fashion Generator", url: "/generate/bulk-fashion", icon: Shirt, permKey: "generate.bulk-fashion" },
       { title: "Image To Video", url: "/generate/image-to-video", icon: ImagePlay, permKey: "generate.image-to-video" },
-      { title: "Upscaler / Enhance", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
-      { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
       { title: "Text to Video", url: "/generate/text-to-video", icon: ImagePlay, permKey: "generate.text-to-video" },
+      { title: "Text to Image", url: "/generate/leonardo", icon: Sparkles, permKey: "generate.leonardo" },
+      { title: "Image Upscaler", url: "/generate/upscaler", icon: Wand2, permKey: "generate.upscaler" },
     ],
   },
   {
@@ -156,6 +157,14 @@ const DEFAULT_NAV: NavEntry[] = [
       { title: "Help", url: "/system/help", icon: HelpCircle, permKey: "system.help" },
     ],
   },
+  {
+    kind: "link",
+    key: "plugins",
+    label: "AA Plug-IN",
+    url: "/plugins",
+    icon: Puzzle,
+    permKey: "plugins.hub",
+  },
 ];
 
 const ADMIN_GROUP: NavEntry = {
@@ -167,7 +176,7 @@ const ADMIN_GROUP: NavEntry = {
   requireAdmin: true,
 };
 
-const NAV_ORDER_KEY = "aatools.sidebar.order.v3";
+const NAV_ORDER_KEY = "aatools.sidebar.order.v4";
 const HOVER_CLOSE_DELAY = 320;
 
 function loadOrder(defaults: string[]): string[] {
@@ -256,12 +265,13 @@ function HoverFlyout({
                 <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                   <CIcon className="h-3.5 w-3.5" />
                 </span>
-                <span className="flex-1 truncate">{item.title}</span>
-                {isLocked ? (
-                  <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                ) : (
-                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-                )}
+                <span className="flex-1 min-w-0 flex items-center gap-1.5">
+                  <span className="truncate">{item.title}</span>
+                  {!isLocked && (
+                    <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                  )}
+                </span>
+                {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />}
               </button>
             );
           }
@@ -289,7 +299,12 @@ function HoverFlyout({
                 <CIcon className="h-3.5 w-3.5" />
               </span>
               <span className="flex-1 min-w-0 leading-tight">
-                <span className="block truncate">{item.title}</span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{item.title}</span>
+                  {mode === "premium" && (
+                    <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                  )}
+                </span>
                 {trialBadge && (
                   <span className="block text-[9px] font-mono uppercase tracking-wider text-amber-300 truncate mt-0.5">
                     {trialBadge}
@@ -351,12 +366,13 @@ function InlineSubmenu({
               <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                 <CIcon className="h-3.5 w-3.5" />
               </span>
-              <span className="flex-1 truncate">{item.title}</span>
-              {isLocked ? (
-                <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
-              ) : (
-                <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-              )}
+              <span className="flex-1 min-w-0 flex items-center gap-1.5">
+                <span className="truncate">{item.title}</span>
+                {!isLocked && (
+                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                )}
+              </span>
+              {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />}
             </button>
           );
         }
@@ -384,7 +400,12 @@ function InlineSubmenu({
               <CIcon className="h-3.5 w-3.5" />
             </span>
             <span className="flex-1 min-w-0 leading-tight">
-              <span className="block truncate">{item.title}</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{item.title}</span>
+                {mode === "premium" && (
+                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                )}
+              </span>
               {trialBadge && (
                 <span className="block text-[9px] font-mono uppercase tracking-wider text-amber-300 truncate mt-0.5">
                   {trialBadge}
@@ -635,7 +656,7 @@ export function AppSidebar({
 
   const outerClass = inline
     ? "flex flex-col w-full p-4 gap-1"
-    : "hidden lg:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 sticky top-0 h-screen z-40";
+    : "hidden lg:flex flex-col w-[24rem] shrink-0 px-4 pt-5 pb-4 gap-1 h-screen overflow-y-auto z-40";
 
 
   return (

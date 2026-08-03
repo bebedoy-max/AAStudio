@@ -47,6 +47,13 @@ export const Route = createFileRoute("/generate/motion")({
         content:
           "Kling Motion Control — character motion transfer dari video/gambar referensi.",
       },
+      { property: "og:title", content: "Motion Control — AA Creative Studio" },
+      {
+        property: "og:description",
+        content: "Transfer gerakan karakter dari video dan gambar referensi dengan AI Motion Control.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: MotionControl,
@@ -76,11 +83,10 @@ const MOTION_MODELS: Record<Provider, ModelOpt[]> = {
     { key: "mag:kling-v2-6-motion-control-std", label: "Kling V2.6 Standard (Magnific)", cr: 21 },
   ],
   roboneo: [
-    { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 0 },
+    { key: "rn:video_bonbon_motioncontrol_v26:std", label: "Kling V2.6 Standard (Roboneo)", cr: 72 },
   ],
   framia: [
-    { key: "framia:kling-v2.1-motion", label: "Kling V2.1 Motion Control (Framia)", cr: 40 },
-    { key: "framia:kling-v2.6-motion", label: "Kling V2.6 Motion Control (Framia)", cr: 35 },
+    { key: "framia:seedance-2.0-mini", label: "Seedance 2.0 mini (Framia)", cr: 60 },
   ],
 };
 
@@ -116,6 +122,8 @@ function newSlot(): RefSlot {
 type ResultItem = { id: string; url: string; provider: Provider; modelKey: string; prompt: string; date: string };
 
 const LS_ROUTING = "aatools.routing.v2";
+const LOCAL_RESULTS_KEY = "aatools.motion.local-results";
+
 function readRoutedMotionProvider(): Provider | null {
   if (typeof window === "undefined") return null;
   try {
@@ -180,12 +188,14 @@ function MotionControl() {
   const [prompt, setPrompt] = useSticky<string>("motion.prompt", "");
   const [negativePrompt, setNegativePrompt] = useSticky<string>("motion.negativePrompt", "");
   const [keepSound, setKeepSound] = useSticky<boolean>("motion.keepSound", true);
+  const [framiaResolution, setFramiaResolution] = useSticky<"480p" | "720p">("motion.framiaResolution", "480p");
 
   const [slots, setSlots] = useSticky<RefSlot[]>("motion.slots", [newSlot()]);
 
   const activeModel = models.find((m) => m.key === modelKey) ?? models[0];
   const readySlots = slots.filter((s) => s.image && s.video).length;
-  const totalCredits = readySlots * activeModel.cr;
+  const creditPerResult = provider === "framia" ? (framiaResolution === "720p" ? 120 : 60) : activeModel.cr;
+  const totalCredits = readySlots * creditPerResult;
 
   const [generating, setGenerating] = useSticky<boolean>("motion.generating", false);
   const [logs, setLogs] = useSticky<{ time: string; msg: string; level: string }[]>("motion.logs", []);
@@ -240,18 +250,40 @@ function MotionControl() {
 
   // Galeri hasil tersimpan di cloud (Google Drive), bukan localStorage.
   const gallery = useCloudGallery<{ provider?: string; modelKey?: string; prompt?: string }>("motion", "video");
-  const results = useMemo<ResultItem[]>(
-    () =>
-      gallery.items.map((it) => ({
-        id: it.id,
-        url: it.url,
-        provider: (it.meta?.provider as Provider) || ("weavy" as Provider),
-        modelKey: (it.meta?.modelKey as string) || "",
-        prompt: (it.meta?.prompt as string) || "",
-        date: it.createdAt,
-      })),
-    [gallery.items],
-  );
+  // Fallback lokal: kalau arsip ke cloud gagal (mis. URL provider tidak bisa
+  // diunduh server), hasil generate tetap tampil di galeri sesi ini.
+  const [localResults, setLocalResults] = useState<ResultItem[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(LOCAL_RESULTS_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? (parsed as ResultItem[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(LOCAL_RESULTS_KEY, JSON.stringify(localResults.slice(0, 30)));
+    } catch {
+      /* ignore */
+    }
+  }, [localResults]);
+
+  const results = useMemo<ResultItem[]>(() => {
+    const cloud = gallery.items.map((it) => ({
+      id: it.id,
+      url: it.url,
+      provider: (it.meta?.provider as Provider) || ("weavy" as Provider),
+      modelKey: (it.meta?.modelKey as string) || "",
+      prompt: (it.meta?.prompt as string) || "",
+      date: it.createdAt,
+    }));
+    const archived = new Set(gallery.items.map((it) => it.sourceUrl).filter(Boolean) as string[]);
+    const pending = localResults.filter((r) => !archived.has(r.url));
+    return [...pending, ...cloud];
+  }, [gallery.items, localResults]);
+
 
   useEffect(() => {
     // Consume handoff dari Creative Dashboard → prefill prompt (sekali saja)
@@ -315,7 +347,9 @@ function MotionControl() {
       tone: "danger",
     });
     if (!ok) return;
+    setLocalResults([]);
     await gallery.removeAll();
+
   };
 
   const canGenerate = readySlots > 0 && !generating;
@@ -411,6 +445,7 @@ function MotionControl() {
         orientation: (orientation === "image" ? "image" : "video"),
         keepSound,
         prompt: prompt.trim() || undefined,
+        resolution: provider === "framia" ? framiaResolution : undefined,
         onLog: (msg, level) => pushLog(msg, level || "info"),
         onStatus: ({ index, status, url, error }) => {
           setSlots((prev) =>
@@ -434,10 +469,35 @@ function MotionControl() {
           );
           if (status === "done" && url) {
             doneCount += 1;
-            void gallery.add(url, { provider, modelKey, prompt: prompt.trim() });
+            const finishedUrl = url;
+            // Tampilkan langsung di galeri (fallback lokal) supaya hasil tidak
+            // hilang walau arsip ke cloud gagal / masih berjalan.
+            setLocalResults((prev) =>
+              prev.some((r) => r.url === finishedUrl)
+                ? prev
+                : [
+                    {
+                      id: `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                      url: finishedUrl,
+                      provider,
+                      modelKey,
+                      prompt: prompt.trim(),
+                      date: new Date().toISOString(),
+                    },
+                    ...prev,
+                  ],
+            );
+            void gallery
+              .add(finishedUrl, { provider, modelKey, prompt: prompt.trim() }, `motion-${Date.now()}.mp4`)
+              .then((saved) => {
+                if (!saved) {
+                  pushLog("Gallery: gagal arsip ke cloud — hasil ditampilkan dari link provider.", "warn");
+                }
+              });
           } else if (status === "error") {
             errCount += 1;
           }
+
         },
       });
       if (errCount > 0 && doneCount === 0) {
@@ -565,40 +625,55 @@ function MotionControl() {
               </Field>
 
 
-              <Field label="Character Orientation">
-                <Select
-                  value={orientation}
-                  onChange={(e) => setOrientation(e.target.value)}
-                  options={[
-                    { value: "video", label: "Video (durasi mengikuti referensi)" },
-                    { value: "image", label: "Image (output max 5–10 detik)" },
-                  ]}
-                />
-              </Field>
+              {provider === "framia" ? (
+                <Field label="Resolution" right={<span className="font-mono text-xs text-muted-foreground">15s · 9:16</span>}>
+                  <Select
+                    value={framiaResolution}
+                    onChange={(e) => setFramiaResolution(e.target.value === "720p" ? "720p" : "480p")}
+                    options={[
+                      { value: "480p", label: "480P · 60 credits" },
+                      { value: "720p", label: "720P · 120 credits" },
+                    ]}
+                  />
+                </Field>
+              ) : (
+                <>
+                  <Field label="Character Orientation">
+                    <Select
+                      value={orientation}
+                      onChange={(e) => setOrientation(e.target.value)}
+                      options={[
+                        { value: "video", label: "Video (durasi mengikuti referensi)" },
+                        { value: "image", label: "Image (output max 5–10 detik)" },
+                      ]}
+                    />
+                  </Field>
 
-              <Field label="Prompt (opsional)">
-                <Textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Deskripsikan motion yang diinginkan…"
-                />
-              </Field>
+                  <Field label="Prompt (opsional)">
+                    <Textarea
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="Deskripsikan motion yang diinginkan…"
+                    />
+                  </Field>
 
-              <Field label="Negative Prompt (opsional)">
-                <Textarea
-                  rows={2}
-                  value={negativePrompt}
-                  onChange={(e) => setNegativePrompt(e.target.value)}
-                  placeholder="blurry, low quality, distorted…"
-                />
-              </Field>
+                  <Field label="Negative Prompt (opsional)">
+                    <Textarea
+                      rows={2}
+                      value={negativePrompt}
+                      onChange={(e) => setNegativePrompt(e.target.value)}
+                      placeholder="blurry, low quality, distorted…"
+                    />
+                  </Field>
 
-              <ControlledCheck
-                id="keepSoundCheck"
-                label="Keep Original Sound"
-                checked={keepSound}
-                onChange={setKeepSound}
-              />
+                  <ControlledCheck
+                    id="keepSoundCheck"
+                    label="Keep Original Sound"
+                    checked={keepSound}
+                    onChange={setKeepSound}
+                  />
+                </>
+              )}
 
               <PrimaryButton disabled={!canGenerate} onClick={runGenerate}>
                 {generating ? (
@@ -617,7 +692,7 @@ function MotionControl() {
                 <span className="text-foreground font-mono font-semibold">
                   {totalCredits.toLocaleString()}
                 </span>{" "}
-                credits ({readySlots} × {activeModel.cr})
+                 credits ({readySlots} × {creditPerResult})
               </div>
 
             </div>
@@ -730,7 +805,14 @@ function MotionControl() {
                           <Download className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Download</span>
                         </button>
                         <button
-                          onClick={() => void gallery.remove(r.id)}
+                          onClick={() => {
+                            if (r.id.startsWith("local-")) {
+                              setLocalResults((prev) => prev.filter((x) => x.id !== r.id));
+                              return;
+                            }
+                            void gallery.remove(r.id);
+                          }}
+
                           className="inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-2 py-1 text-[11px] hover:text-destructive hover:border-destructive/50 transition"
                           title="Hapus dari gallery"
                         >

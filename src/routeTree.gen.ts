@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReffEditRouteImport } from './routes/reff-edit'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PluginsRouteImport } from './routes/plugins'
 import { Route as MixingRouteImport } from './routes/mixing'
 import { Route as AiInfluencerRouteImport } from './routes/ai-influencer'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -52,6 +53,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTransactionsRouteImport } from './routes/admin.transactions'
 import { Route as AdminTokenBankRouteImport } from './routes/admin.token-bank'
 import { Route as AdminRequestsRouteImport } from './routes/admin.requests'
+import { Route as AdminPluginConfigRouteImport } from './routes/admin.plugin-config'
 import { Route as AdminPaymentsRouteImport } from './routes/admin.payments'
 import { Route as AdminActivityLogRouteImport } from './routes/admin.activity-log'
 import { Route as AdminAccessRouteImport } from './routes/admin.access'
@@ -84,17 +86,24 @@ import { Route as ApiPublicFfmpegCdnRouteImport } from './routes/api/public/ffmp
 import { Route as ApiPublicElevenlabsValidateRouteImport } from './routes/api/public/elevenlabs-validate'
 import { Route as ApiPublicElevenlabsTtsRouteImport } from './routes/api/public/elevenlabs-tts'
 import { Route as ApiPublicDubbingBrainRouteImport } from './routes/api/public/dubbing-brain'
+import { Route as ApiPublicDolaRouteImport } from './routes/api/public/dola'
 import { Route as ApiPublicCreativeBrainRouteImport } from './routes/api/public/creative-brain'
 import { Route as ApiPublicClipperBrainRouteImport } from './routes/api/public/clipper-brain'
 import { Route as ApiPublicBacksoundSearchRouteImport } from './routes/api/public/backsound-search'
 import { Route as ApiPublicTiktokCallbackRouteImport } from './routes/api/public/tiktok/callback'
+import { Route as ApiPublicTemanqrisNotificationRouteImport } from './routes/api/public/temanqris/notification'
 import { Route as ApiPublicMidtransNotificationRouteImport } from './routes/api/public/midtrans/notification'
 import { Route as ApiPublicGoogleDriveCallbackRouteImport } from './routes/api/public/google-drive/callback'
 import { Route as ApiPublicExtensionRefreshRouteImport } from './routes/api/public/extension/refresh'
 import { Route as ApiPublicExtensionPushTokenRouteImport } from './routes/api/public/extension/push-token'
 import { Route as ApiPublicExtensionLoginRouteImport } from './routes/api/public/extension/login'
+import { Route as ApiPublicExtensionConfigRouteImport } from './routes/api/public/extension/config'
 import { Route as ApiPublicDokuNotificationRouteImport } from './routes/api/public/doku/notification'
+import { Route as ApiPublicCompanionHealthRouteImport } from './routes/api/public/companion/health'
 import { Route as ApiPublicCloudUploadRouteImport } from './routes/api/public/cloud/upload'
+import { Route as ApiPublicCompanionPaymentVerifyRouteImport } from './routes/api/public/companion/payment/verify'
+import { Route as ApiPublicCompanionPaymentPaidRouteImport } from './routes/api/public/companion/payment/paid'
+import { Route as ApiPublicCompanionDeviceRegisterRouteImport } from './routes/api/public/companion/device/register'
 import { Route as ApiPublicCloudFileIdRouteImport } from './routes/api/public/cloud/file.$id'
 
 const ReffEditRoute = ReffEditRouteImport.update({
@@ -105,6 +114,11 @@ const ReffEditRoute = ReffEditRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PluginsRoute = PluginsRouteImport.update({
+  id: '/plugins',
+  path: '/plugins',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MixingRoute = MixingRouteImport.update({
@@ -312,6 +326,11 @@ const AdminRequestsRoute = AdminRequestsRouteImport.update({
   path: '/requests',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPluginConfigRoute = AdminPluginConfigRouteImport.update({
+  id: '/plugin-config',
+  path: '/plugin-config',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
   id: '/payments',
   path: '/payments',
@@ -476,6 +495,11 @@ const ApiPublicDubbingBrainRoute = ApiPublicDubbingBrainRouteImport.update({
   path: '/api/public/dubbing-brain',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicDolaRoute = ApiPublicDolaRouteImport.update({
+  id: '/api/public/dola',
+  path: '/api/public/dola',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCreativeBrainRoute = ApiPublicCreativeBrainRouteImport.update({
   id: '/api/public/creative-brain',
   path: '/api/public/creative-brain',
@@ -497,6 +521,12 @@ const ApiPublicTiktokCallbackRoute = ApiPublicTiktokCallbackRouteImport.update({
   path: '/api/public/tiktok/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTemanqrisNotificationRoute =
+  ApiPublicTemanqrisNotificationRouteImport.update({
+    id: '/api/public/temanqris/notification',
+    path: '/api/public/temanqris/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMidtransNotificationRoute =
   ApiPublicMidtransNotificationRouteImport.update({
     id: '/api/public/midtrans/notification',
@@ -526,10 +556,22 @@ const ApiPublicExtensionLoginRoute = ApiPublicExtensionLoginRouteImport.update({
   path: '/api/public/extension/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicExtensionConfigRoute =
+  ApiPublicExtensionConfigRouteImport.update({
+    id: '/api/public/extension/config',
+    path: '/api/public/extension/config',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicDokuNotificationRoute =
   ApiPublicDokuNotificationRouteImport.update({
     id: '/api/public/doku/notification',
     path: '/api/public/doku/notification',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCompanionHealthRoute =
+  ApiPublicCompanionHealthRouteImport.update({
+    id: '/api/public/companion/health',
+    path: '/api/public/companion/health',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicCloudUploadRoute = ApiPublicCloudUploadRouteImport.update({
@@ -537,6 +579,24 @@ const ApiPublicCloudUploadRoute = ApiPublicCloudUploadRouteImport.update({
   path: '/api/public/cloud/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCompanionPaymentVerifyRoute =
+  ApiPublicCompanionPaymentVerifyRouteImport.update({
+    id: '/api/public/companion/payment/verify',
+    path: '/api/public/companion/payment/verify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCompanionPaymentPaidRoute =
+  ApiPublicCompanionPaymentPaidRouteImport.update({
+    id: '/api/public/companion/payment/paid',
+    path: '/api/public/companion/payment/paid',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicCompanionDeviceRegisterRoute =
+  ApiPublicCompanionDeviceRegisterRouteImport.update({
+    id: '/api/public/companion/device/register',
+    path: '/api/public/companion/device/register',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCloudFileIdRoute = ApiPublicCloudFileIdRouteImport.update({
   id: '/api/public/cloud/file/$id',
   path: '/api/public/cloud/file/$id',
@@ -548,11 +608,13 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
+  '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -593,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
+  '/api/public/dola': typeof ApiPublicDolaRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
@@ -623,23 +686,31 @@ export interface FileRoutesByFullPath {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
+  '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/config': typeof ApiPublicExtensionConfigRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
   '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/temanqris/notification': typeof ApiPublicTemanqrisNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
+  '/api/public/companion/device/register': typeof ApiPublicCompanionDeviceRegisterRoute
+  '/api/public/companion/payment/paid': typeof ApiPublicCompanionPaymentPaidRoute
+  '/api/public/companion/payment/verify': typeof ApiPublicCompanionPaymentVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mixing': typeof MixingRouteWithChildren
+  '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -680,6 +751,7 @@ export interface FileRoutesByTo {
   '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
+  '/api/public/dola': typeof ApiPublicDolaRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
@@ -710,14 +782,20 @@ export interface FileRoutesByTo {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
+  '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/config': typeof ApiPublicExtensionConfigRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
   '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/temanqris/notification': typeof ApiPublicTemanqrisNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
+  '/api/public/companion/device/register': typeof ApiPublicCompanionDeviceRegisterRoute
+  '/api/public/companion/payment/paid': typeof ApiPublicCompanionPaymentPaidRoute
+  '/api/public/companion/payment/verify': typeof ApiPublicCompanionPaymentVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -725,11 +803,13 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
+  '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
   '/admin/access': typeof AdminAccessRoute
   '/admin/activity-log': typeof AdminActivityLogRoute
   '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/plugin-config': typeof AdminPluginConfigRoute
   '/admin/requests': typeof AdminRequestsRoute
   '/admin/token-bank': typeof AdminTokenBankRoute
   '/admin/transactions': typeof AdminTransactionsRoute
@@ -770,6 +850,7 @@ export interface FileRoutesById {
   '/api/public/backsound-search': typeof ApiPublicBacksoundSearchRoute
   '/api/public/clipper-brain': typeof ApiPublicClipperBrainRoute
   '/api/public/creative-brain': typeof ApiPublicCreativeBrainRoute
+  '/api/public/dola': typeof ApiPublicDolaRoute
   '/api/public/dubbing-brain': typeof ApiPublicDubbingBrainRoute
   '/api/public/elevenlabs-tts': typeof ApiPublicElevenlabsTtsRoute
   '/api/public/elevenlabs-validate': typeof ApiPublicElevenlabsValidateRoute
@@ -800,14 +881,20 @@ export interface FileRoutesById {
   '/api/router/voice': typeof ApiRouterVoiceRoute
   '/oauth/google-drive/return': typeof OauthGoogleDriveReturnRoute
   '/api/public/cloud/upload': typeof ApiPublicCloudUploadRoute
+  '/api/public/companion/health': typeof ApiPublicCompanionHealthRoute
   '/api/public/doku/notification': typeof ApiPublicDokuNotificationRoute
+  '/api/public/extension/config': typeof ApiPublicExtensionConfigRoute
   '/api/public/extension/login': typeof ApiPublicExtensionLoginRoute
   '/api/public/extension/push-token': typeof ApiPublicExtensionPushTokenRoute
   '/api/public/extension/refresh': typeof ApiPublicExtensionRefreshRoute
   '/api/public/google-drive/callback': typeof ApiPublicGoogleDriveCallbackRoute
   '/api/public/midtrans/notification': typeof ApiPublicMidtransNotificationRoute
+  '/api/public/temanqris/notification': typeof ApiPublicTemanqrisNotificationRoute
   '/api/public/tiktok/callback': typeof ApiPublicTiktokCallbackRoute
   '/api/public/cloud/file/$id': typeof ApiPublicCloudFileIdRoute
+  '/api/public/companion/device/register': typeof ApiPublicCompanionDeviceRegisterRoute
+  '/api/public/companion/payment/paid': typeof ApiPublicCompanionPaymentPaidRoute
+  '/api/public/companion/payment/verify': typeof ApiPublicCompanionPaymentVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -816,11 +903,13 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-influencer'
     | '/mixing'
+    | '/plugins'
     | '/profile'
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
+    | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
@@ -861,6 +950,7 @@ export interface FileRouteTypes {
     | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
+    | '/api/public/dola'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
@@ -891,23 +981,31 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
+    | '/api/public/companion/health'
     | '/api/public/doku/notification'
+    | '/api/public/extension/config'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
     | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
+    | '/api/public/temanqris/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
+    | '/api/public/companion/device/register'
+    | '/api/public/companion/payment/paid'
+    | '/api/public/companion/payment/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/mixing'
+    | '/plugins'
     | '/profile'
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
+    | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
@@ -948,6 +1046,7 @@ export interface FileRouteTypes {
     | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
+    | '/api/public/dola'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
@@ -978,25 +1077,33 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
+    | '/api/public/companion/health'
     | '/api/public/doku/notification'
+    | '/api/public/extension/config'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
     | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
+    | '/api/public/temanqris/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
+    | '/api/public/companion/device/register'
+    | '/api/public/companion/payment/paid'
+    | '/api/public/companion/payment/verify'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/ai-influencer'
     | '/mixing'
+    | '/plugins'
     | '/profile'
     | '/reff-edit'
     | '/admin/access'
     | '/admin/activity-log'
     | '/admin/payments'
+    | '/admin/plugin-config'
     | '/admin/requests'
     | '/admin/token-bank'
     | '/admin/transactions'
@@ -1037,6 +1144,7 @@ export interface FileRouteTypes {
     | '/api/public/backsound-search'
     | '/api/public/clipper-brain'
     | '/api/public/creative-brain'
+    | '/api/public/dola'
     | '/api/public/dubbing-brain'
     | '/api/public/elevenlabs-tts'
     | '/api/public/elevenlabs-validate'
@@ -1067,14 +1175,20 @@ export interface FileRouteTypes {
     | '/api/router/voice'
     | '/oauth/google-drive/return'
     | '/api/public/cloud/upload'
+    | '/api/public/companion/health'
     | '/api/public/doku/notification'
+    | '/api/public/extension/config'
     | '/api/public/extension/login'
     | '/api/public/extension/push-token'
     | '/api/public/extension/refresh'
     | '/api/public/google-drive/callback'
     | '/api/public/midtrans/notification'
+    | '/api/public/temanqris/notification'
     | '/api/public/tiktok/callback'
     | '/api/public/cloud/file/$id'
+    | '/api/public/companion/device/register'
+    | '/api/public/companion/payment/paid'
+    | '/api/public/companion/payment/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1082,6 +1196,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AiInfluencerRoute: typeof AiInfluencerRouteWithChildren
   MixingRoute: typeof MixingRouteWithChildren
+  PluginsRoute: typeof PluginsRoute
   ProfileRoute: typeof ProfileRoute
   ReffEditRoute: typeof ReffEditRouteWithChildren
   ApiProxyImageRoute: typeof ApiProxyImageRoute
@@ -1107,6 +1222,7 @@ export interface RootRouteChildren {
   ApiPublicBacksoundSearchRoute: typeof ApiPublicBacksoundSearchRoute
   ApiPublicClipperBrainRoute: typeof ApiPublicClipperBrainRoute
   ApiPublicCreativeBrainRoute: typeof ApiPublicCreativeBrainRoute
+  ApiPublicDolaRoute: typeof ApiPublicDolaRoute
   ApiPublicDubbingBrainRoute: typeof ApiPublicDubbingBrainRoute
   ApiPublicElevenlabsTtsRoute: typeof ApiPublicElevenlabsTtsRoute
   ApiPublicElevenlabsValidateRoute: typeof ApiPublicElevenlabsValidateRoute
@@ -1137,14 +1253,20 @@ export interface RootRouteChildren {
   ApiRouterVoiceRoute: typeof ApiRouterVoiceRoute
   OauthGoogleDriveReturnRoute: typeof OauthGoogleDriveReturnRoute
   ApiPublicCloudUploadRoute: typeof ApiPublicCloudUploadRoute
+  ApiPublicCompanionHealthRoute: typeof ApiPublicCompanionHealthRoute
   ApiPublicDokuNotificationRoute: typeof ApiPublicDokuNotificationRoute
+  ApiPublicExtensionConfigRoute: typeof ApiPublicExtensionConfigRoute
   ApiPublicExtensionLoginRoute: typeof ApiPublicExtensionLoginRoute
   ApiPublicExtensionPushTokenRoute: typeof ApiPublicExtensionPushTokenRoute
   ApiPublicExtensionRefreshRoute: typeof ApiPublicExtensionRefreshRoute
   ApiPublicGoogleDriveCallbackRoute: typeof ApiPublicGoogleDriveCallbackRoute
   ApiPublicMidtransNotificationRoute: typeof ApiPublicMidtransNotificationRoute
+  ApiPublicTemanqrisNotificationRoute: typeof ApiPublicTemanqrisNotificationRoute
   ApiPublicTiktokCallbackRoute: typeof ApiPublicTiktokCallbackRoute
   ApiPublicCloudFileIdRoute: typeof ApiPublicCloudFileIdRoute
+  ApiPublicCompanionDeviceRegisterRoute: typeof ApiPublicCompanionDeviceRegisterRoute
+  ApiPublicCompanionPaymentPaidRoute: typeof ApiPublicCompanionPaymentPaidRoute
+  ApiPublicCompanionPaymentVerifyRoute: typeof ApiPublicCompanionPaymentVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1161,6 +1283,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plugins': {
+      id: '/plugins'
+      path: '/plugins'
+      fullPath: '/plugins'
+      preLoaderRoute: typeof PluginsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mixing': {
@@ -1450,6 +1579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRequestsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/plugin-config': {
+      id: '/admin/plugin-config'
+      path: '/plugin-config'
+      fullPath: '/admin/plugin-config'
+      preLoaderRoute: typeof AdminPluginConfigRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/payments': {
       id: '/admin/payments'
       path: '/payments'
@@ -1674,6 +1810,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDubbingBrainRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/dola': {
+      id: '/api/public/dola'
+      path: '/api/public/dola'
+      fullPath: '/api/public/dola'
+      preLoaderRoute: typeof ApiPublicDolaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/creative-brain': {
       id: '/api/public/creative-brain'
       path: '/api/public/creative-brain'
@@ -1700,6 +1843,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/tiktok/callback'
       fullPath: '/api/public/tiktok/callback'
       preLoaderRoute: typeof ApiPublicTiktokCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/temanqris/notification': {
+      id: '/api/public/temanqris/notification'
+      path: '/api/public/temanqris/notification'
+      fullPath: '/api/public/temanqris/notification'
+      preLoaderRoute: typeof ApiPublicTemanqrisNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/midtrans/notification': {
@@ -1737,6 +1887,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExtensionLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/extension/config': {
+      id: '/api/public/extension/config'
+      path: '/api/public/extension/config'
+      fullPath: '/api/public/extension/config'
+      preLoaderRoute: typeof ApiPublicExtensionConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/doku/notification': {
       id: '/api/public/doku/notification'
       path: '/api/public/doku/notification'
@@ -1744,11 +1901,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDokuNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/companion/health': {
+      id: '/api/public/companion/health'
+      path: '/api/public/companion/health'
+      fullPath: '/api/public/companion/health'
+      preLoaderRoute: typeof ApiPublicCompanionHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cloud/upload': {
       id: '/api/public/cloud/upload'
       path: '/api/public/cloud/upload'
       fullPath: '/api/public/cloud/upload'
       preLoaderRoute: typeof ApiPublicCloudUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/payment/verify': {
+      id: '/api/public/companion/payment/verify'
+      path: '/api/public/companion/payment/verify'
+      fullPath: '/api/public/companion/payment/verify'
+      preLoaderRoute: typeof ApiPublicCompanionPaymentVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/payment/paid': {
+      id: '/api/public/companion/payment/paid'
+      path: '/api/public/companion/payment/paid'
+      fullPath: '/api/public/companion/payment/paid'
+      preLoaderRoute: typeof ApiPublicCompanionPaymentPaidRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/companion/device/register': {
+      id: '/api/public/companion/device/register'
+      path: '/api/public/companion/device/register'
+      fullPath: '/api/public/companion/device/register'
+      preLoaderRoute: typeof ApiPublicCompanionDeviceRegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/cloud/file/$id': {
@@ -1765,6 +1950,7 @@ interface AdminRouteChildren {
   AdminAccessRoute: typeof AdminAccessRoute
   AdminActivityLogRoute: typeof AdminActivityLogRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
+  AdminPluginConfigRoute: typeof AdminPluginConfigRoute
   AdminRequestsRoute: typeof AdminRequestsRoute
   AdminTokenBankRoute: typeof AdminTokenBankRoute
   AdminTransactionsRoute: typeof AdminTransactionsRoute
@@ -1776,6 +1962,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAccessRoute: AdminAccessRoute,
   AdminActivityLogRoute: AdminActivityLogRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
+  AdminPluginConfigRoute: AdminPluginConfigRoute,
   AdminRequestsRoute: AdminRequestsRoute,
   AdminTokenBankRoute: AdminTokenBankRoute,
   AdminTransactionsRoute: AdminTransactionsRoute,
@@ -1843,6 +2030,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AiInfluencerRoute: AiInfluencerRouteWithChildren,
   MixingRoute: MixingRouteWithChildren,
+  PluginsRoute: PluginsRoute,
   ProfileRoute: ProfileRoute,
   ReffEditRoute: ReffEditRouteWithChildren,
   ApiProxyImageRoute: ApiProxyImageRoute,
@@ -1868,6 +2056,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicBacksoundSearchRoute: ApiPublicBacksoundSearchRoute,
   ApiPublicClipperBrainRoute: ApiPublicClipperBrainRoute,
   ApiPublicCreativeBrainRoute: ApiPublicCreativeBrainRoute,
+  ApiPublicDolaRoute: ApiPublicDolaRoute,
   ApiPublicDubbingBrainRoute: ApiPublicDubbingBrainRoute,
   ApiPublicElevenlabsTtsRoute: ApiPublicElevenlabsTtsRoute,
   ApiPublicElevenlabsValidateRoute: ApiPublicElevenlabsValidateRoute,
@@ -1898,14 +2087,20 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRouterVoiceRoute: ApiRouterVoiceRoute,
   OauthGoogleDriveReturnRoute: OauthGoogleDriveReturnRoute,
   ApiPublicCloudUploadRoute: ApiPublicCloudUploadRoute,
+  ApiPublicCompanionHealthRoute: ApiPublicCompanionHealthRoute,
   ApiPublicDokuNotificationRoute: ApiPublicDokuNotificationRoute,
+  ApiPublicExtensionConfigRoute: ApiPublicExtensionConfigRoute,
   ApiPublicExtensionLoginRoute: ApiPublicExtensionLoginRoute,
   ApiPublicExtensionPushTokenRoute: ApiPublicExtensionPushTokenRoute,
   ApiPublicExtensionRefreshRoute: ApiPublicExtensionRefreshRoute,
   ApiPublicGoogleDriveCallbackRoute: ApiPublicGoogleDriveCallbackRoute,
   ApiPublicMidtransNotificationRoute: ApiPublicMidtransNotificationRoute,
+  ApiPublicTemanqrisNotificationRoute: ApiPublicTemanqrisNotificationRoute,
   ApiPublicTiktokCallbackRoute: ApiPublicTiktokCallbackRoute,
   ApiPublicCloudFileIdRoute: ApiPublicCloudFileIdRoute,
+  ApiPublicCompanionDeviceRegisterRoute: ApiPublicCompanionDeviceRegisterRoute,
+  ApiPublicCompanionPaymentPaidRoute: ApiPublicCompanionPaymentPaidRoute,
+  ApiPublicCompanionPaymentVerifyRoute: ApiPublicCompanionPaymentVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

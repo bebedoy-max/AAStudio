@@ -73,9 +73,10 @@ export function Check({ id, label, defaultChecked }: { id: string; label: string
   );
 }
 
-export function Card({ title, sub, children, right }: { title?: string; sub?: string; right?: ReactNode; children: ReactNode }) {
+export function Card({ title, sub, children, right, className }: { title?: string; sub?: string; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <div className="neumorph p-5">
+    <div className={["neumorph p-5", className ?? ""].join(" ").trim()}>
+
       {(title || right) && (
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">

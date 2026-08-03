@@ -11,7 +11,7 @@ import { fetchFramiaBalance } from "@/lib/providers/framia";
 import { fetchFireflyBalance } from "@/lib/providers/firefly";
 import { pushTokenAsync, deleteTokenAsync, ALLOWED_TOKEN_KEYS } from "./sync";
 
-export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "eleven" | "brain";
+export type RefreshableProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola" | "eleven" | "brain";
 
 export const MIN_CREDITS = {
   weavy: 5,

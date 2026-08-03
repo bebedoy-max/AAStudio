@@ -53,7 +53,7 @@ async function uploadPublicWithRetry(file: File, filename: string, retries = 2):
   throw new Error(`Upload gagal: ${lastErr}`);
 }
 
-export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly";
+export type I2VProvider = "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola";
 
 export type I2VOpts = {
   provider: I2VProvider;
@@ -253,6 +253,45 @@ async function runFireflyI2V(opts: I2VOpts): Promise<string> {
   );
 }
 
+async function runDolaI2V(opts: I2VOpts): Promise<string> {
+  const { getAllDolaCookies, uploadDolaImage, runDolaVideo, removeDolaKeyFromManager } = await import("./dola");
+  const cookies = getAllDolaCookies();
+  if (cookies.length === 0) {
+    throw new Error("Belum ada cookie Dola. Tambahkan di Token Manager → Dola atau ambil via extension.");
+  }
+  // ImageX menerima file asli secara langsung; jangan re-encode atau membesarkan
+  // payload lewat base64 sebelum melewati proxy.
+  const file = opts.imageFile;
+  let lastErr: Error | null = null;
+  for (const cookie of cookies) {
+    try {
+      opts.onProgress?.("Upload gambar ke Dola...", 15);
+      const imageUri = await uploadDolaImage(cookie, file);
+      opts.onProgress?.("Submit ke Dola...", 30);
+      return await runDolaVideo(cookie, {
+        prompt: opts.prompt,
+        modelKey: opts.modelKey,
+        ratio: opts.ratio,
+        duration: opts.duration,
+        resolution: opts.resolution,
+        sound: opts.sound,
+        imageUri,
+        onLog: (m) => opts.onProgress?.(m),
+      });
+    } catch (e) {
+      const err = e as Error;
+      lastErr = err;
+      if (/expired|unauthorized|not\s*login|401|cookie/i.test(err.message)) {
+        removeDolaKeyFromManager(cookie, err.message);
+        opts.onProgress?.("Cookie Dola invalid — rotate ke cookie berikutnya.");
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr ?? new Error("Semua cookie Dola gagal");
+}
+
 export async function generateI2V(opts: I2VOpts): Promise<string> {
   try {
     if (opts.provider === "wavespeed") return await runWavespeedI2V(opts);
@@ -261,6 +300,7 @@ export async function generateI2V(opts: I2VOpts): Promise<string> {
     if (opts.provider === "framia") return await runFramiaI2V(opts);
     if (opts.provider === "leonardo") return await runLeonardoI2V(opts);
     if (opts.provider === "firefly") return await runFireflyI2V(opts);
+    if (opts.provider === "dola") return await runDolaI2V(opts);
     return await runMagnificI2V(opts);
   } finally {
     notifyGenerationDone(opts.provider);

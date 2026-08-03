@@ -13,6 +13,7 @@ const STORAGE_KEY: Record<string, string> = {
   framia: "aatools.framia.keys",
   firefly: "aatools.firefly.keys",
   leonardo: "aatools.leonardo.keys",
+  dola: "aatools.dola.keys",
   eleven: "aatools.eleven",
   gemini: "aatools.brain.geminiKeys",
   openai: "aatools.brain.openaiKeys",

@@ -21,6 +21,9 @@ export type BankProvider =
   | "weavy"
   | "wavespeed"
   | "magnific"
+  | "roboneo"
+  | "framia"
+  | "firefly"
   | "eleven"
   | "shotstack"
   | "creatomate";
@@ -30,6 +33,9 @@ const BANK_STORAGE_KEY: Record<BankProvider, string> = {
   weavy: "aatools.weavy.tokens",
   wavespeed: "aatools.wavespeed.keys",
   magnific: "aatools.magnific.keys",
+  roboneo: "aatools.roboneo.keys",
+  framia: "aatools.framia.keys",
+  firefly: "aatools.firefly.keys",
   eleven: "aatools.eleven",
   shotstack: "aatools.shotstack.keys",
   creatomate: "aatools.creatomate.keys",
@@ -58,7 +64,10 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
     case "wavespeed":
     case "magnific":
     case "shotstack":
-    case "creatomate": {
+    case "creatomate":
+    case "roboneo":
+    case "framia":
+    case "firefly": {
       type T = { id: string; key: string; balance: number | null; status: string };
       const arr: T[] = currentJson ? (JSON.parse(currentJson) as T[]) : [];
       if (!arr.some((k) => k.key === keyValue))
@@ -74,6 +83,29 @@ function appendKey(provider: BankProvider, currentJson: string | null, keyValue:
       if (!cfg.keys.includes(keyValue)) cfg.keys.push(keyValue);
       return JSON.stringify(cfg);
     }
+  }
+}
+
+function storedKeyValues(provider: BankProvider, currentJson: string | null): Set<string> {
+  if (!currentJson) return new Set();
+  try {
+    const parsed = JSON.parse(currentJson) as unknown;
+    if (provider === "brain") {
+      return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
+    }
+    if (provider === "eleven") {
+      const keys = (parsed as { keys?: unknown })?.keys;
+      return new Set(Array.isArray(keys) ? keys.filter((v): v is string => typeof v === "string") : []);
+    }
+    if (!Array.isArray(parsed)) return new Set();
+    const field = provider === "weavy" ? "token" : "key";
+    return new Set(
+      parsed
+        .map((item) => (item && typeof item === "object" ? (item as Record<string, unknown>)[field] : null))
+        .filter((v): v is string => typeof v === "string"),
+    );
+  } catch {
+    return new Set();
   }
 }
 
@@ -107,22 +139,17 @@ async function deliverKeysForItem(
     purchaseRequestId: string;
     priceIdr: number;
   },
-) {
+): Promise<{ requested: number; delivered: number }> {
+  // Ambil lebih banyak dari qty lalu buang duplikat nilai key — key kembar
+  // di bank akan digabung oleh appendKey sehingga user hanya menerima satu.
   const { data: keys, error: kErr } = await admin
     .from("token_bank_keys")
     .select("id, key_value")
     .eq("provider", params.provider)
     .eq("status", "available")
     .order("created_at", { ascending: true })
-    .limit(params.qty);
+    .limit(Math.max(params.qty * 5, params.qty + 20));
   if (kErr) throw new Error(kErr.message);
-  const picked = (keys ?? []) as { id: string; key_value: string }[];
-  if (picked.length < params.qty) {
-    throw new Error(
-      `Stok tidak cukup: butuh ${params.qty}, tersedia ${picked.length} untuk ${params.provider}`,
-    );
-  }
-
   const storageKey = BANK_STORAGE_KEY[params.provider];
   const { data: existing } = await admin
     .from("user_tokens")
@@ -140,8 +167,23 @@ async function deliverKeysForItem(
       currentJson = null;
     }
   }
+  const existingValues = storedKeyValues(params.provider, currentJson);
+  const seen = new Set(existingValues);
+  const available = ((keys ?? []) as { id: string; key_value: string }[]).filter((k) => {
+    const v = (k.key_value ?? "").trim();
+    if (!v || seen.has(v)) return false;
+    seen.add(v);
+    return true;
+  });
+  const picked = available.slice(0, params.qty);
+  if (picked.length < params.qty) {
+    throw new Error(
+      `Stok unik tidak cukup: butuh ${params.qty}, tersedia ${picked.length} untuk ${params.provider}`,
+    );
+  }
   for (const k of picked) currentJson = appendKey(params.provider, currentJson, k.key_value);
-  const ciphertext = await encryptString(currentJson!);
+  if (!currentJson) throw new Error(`Gagal menyusun token ${params.provider}`);
+  const ciphertext = await encryptString(currentJson);
 
   const { error: upErr } = await admin.from("user_tokens").upsert(
     {
@@ -155,15 +197,6 @@ async function deliverKeysForItem(
   if (upErr) throw new Error(upErr.message);
 
   const ids = picked.map((k) => k.id);
-  const { error: mkErr } = await admin
-    .from("token_bank_keys")
-    .update({
-      status: "assigned",
-      assigned_to: params.targetUserId,
-      assigned_at: new Date().toISOString(),
-    })
-    .in("id", ids);
-  if (mkErr) throw new Error(mkErr.message);
 
   const perKeyPrice = params.qty > 0 ? Math.round(params.priceIdr / params.qty) : 0;
   const txRows = picked.map((k) => ({
@@ -177,7 +210,15 @@ async function deliverKeysForItem(
   }));
   const { error: txErr } = await admin.from("token_bank_transactions").insert(txRows);
   if (txErr) throw new Error(txErr.message);
+
+  // Key terjual langsung dihapus dari bank agar tidak terjual dua kali.
+  const { error: delErr } = await admin.from("token_bank_keys").delete().in("id", ids);
+  if (delErr) throw new Error(delErr.message);
+
+  return { requested: params.qty, delivered: picked.length };
+
 }
+
 
 /**
  * Fulfill a purchase after payment confirmation. Idempotent — safe to call
@@ -188,7 +229,7 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
 
   const { data: prRaw, error } = await admin
     .from("purchase_requests")
-    .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note, route_key")
+    .select("id, user_id, request_kind, token_provider, token_qty, price_idr, status, note, route_key, admin_note")
     .eq("id", purchaseRequestId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -202,20 +243,35 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
     status: string;
     note: string | null;
     route_key: string;
+    admin_note: string | null;
   } | null;
   if (!pr) throw new Error("Purchase request not found");
   if (pr.status === "approved") return { ok: true, skipped: "already approved" };
 
+  // Kunci atomik tanpa menandai approved terlalu dini. UI hanya boleh melihat
+  // approved setelah seluruh token benar-benar tersimpan dan tercatat.
+  const activatedUntil = new Date();
+  activatedUntil.setDate(activatedUntil.getDate() + 30);
+  let lockQuery = admin
+    .from("purchase_requests")
+    .update({
+      admin_note: "PROCESSING_TOKEN_FULFILLMENT",
+    })
+    .eq("id", pr.id)
+    .eq("status", "pending");
+  lockQuery = pr.admin_note === null
+    ? lockQuery.is("admin_note", null)
+    : lockQuery.eq("admin_note", pr.admin_note);
+  const { data: lockRows, error: lockErr } = await lockQuery.select("id");
+  if (lockErr) throw new Error(lockErr.message);
+  if (!Array.isArray(lockRows) || lockRows.length === 0) {
+    return { ok: true, skipped: "already approved" };
+  }
+
   const isTokenBank = pr.request_kind === "token_bank";
 
   if (isTokenBank) {
-    // Skip if transactions already exist (race).
-    const { data: existingTx } = await admin
-      .from("token_bank_transactions")
-      .select("id")
-      .eq("purchase_request_id", pr.id)
-      .limit(1);
-    if (!(Array.isArray(existingTx) && existingTx.length > 0)) {
+    {
       const cart = parseCartFromNote(pr.note);
       const items =
         cart ??
@@ -225,32 +281,43 @@ export async function fulfillPurchaseAfterPayment(purchaseRequestId: string) {
       if (!items || items.length === 0) throw new Error("Request is missing token cart items");
       const totalKeys = items.reduce((a, it) => a + it.qty, 0);
       const perKeyPrice = totalKeys > 0 ? Math.round(pr.price_idr / totalKeys) : 0;
-      for (const it of items) {
-        await deliverKeysForItem(admin, {
-          provider: it.provider,
-          qty: it.qty,
-          targetUserId: pr.user_id,
-          purchaseRequestId: pr.id,
-          priceIdr: perKeyPrice * it.qty,
-        });
+      try {
+        for (const it of items) {
+          await deliverKeysForItem(admin, {
+            provider: it.provider,
+            qty: it.qty,
+            targetUserId: pr.user_id,
+            purchaseRequestId: pr.id,
+            priceIdr: perKeyPrice * it.qty,
+          });
+        }
+      } catch (e) {
+        // Lepas kunci supaya bisa dicoba lagi / ditinjau admin.
+        await admin
+          .from("purchase_requests")
+          .update({
+            status: "pending",
+            reviewed_at: null,
+            activated_until: null,
+            admin_note: `Gagal kirim token: ${e instanceof Error ? e.message : String(e)}`,
+          })
+          .eq("id", pr.id);
+        throw e;
       }
     }
   }
 
-  // Approve + activate for 30 days (used by feature-access checks).
-  // The pr_on_approved DB trigger writes route_permissions for pr.route_key.
-  const activatedUntil = new Date();
-  activatedUntil.setDate(activatedUntil.getDate() + 30);
-  const { error: uErr } = await admin
+  const { error: approveErr } = await admin
     .from("purchase_requests")
     .update({
       status: "approved",
       reviewed_at: new Date().toISOString(),
       activated_until: activatedUntil.toISOString(),
-      admin_note: "Auto-approved by Midtrans QRIS payment",
+      admin_note: "Auto-approved: pembayaran terverifikasi dan token terkirim",
     })
-    .eq("id", pr.id);
-  if (uErr) throw new Error(uErr.message);
+    .eq("id", pr.id)
+    .eq("admin_note", "PROCESSING_TOKEN_FULFILLMENT");
+  if (approveErr) throw new Error(approveErr.message);
 
   // Bundle checkouts encode ALL feature route_keys in the note. Grant
   // route_permissions for every listed feature (including the primary) so

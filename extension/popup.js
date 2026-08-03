@@ -1,4 +1,7 @@
 const $ = (id) => document.getElementById(id);
+// Config baked-in saat build per-provider (config.js). URL AA Creative Studio
+// dikunci oleh admin — user tidak bisa mengubahnya dari popup.
+const AA_CONFIG = self.AA_CONFIG || {};
 const PROVIDERS = self.AA_PROVIDERS;
 
 /* ------------------------------ tab switcher ------------------------------ */
@@ -205,6 +208,23 @@ $("grab").addEventListener("click", async () => {
     await onGrabbed(p.id, cap.token, cap.source);
     return;
   }
+  // Provider berbasis cookie (Dola): baca cookie jar, bukan localStorage.
+  if (p.cookieCapture) {
+    const r = await chrome.runtime.sendMessage({ kind: "AA_GRAB_COOKIES", providerId: p.id }).catch(() => null);
+    if (!r?.ok) {
+      setStatus(
+        r?.error === "no-session"
+          ? `Cookie ${p.cookieCapture.domain} ada tapi belum ada sesi login — refresh halaman ${p.openUrl.replace(/^https?:\/\//, "")} lalu coba lagi.`
+          : `Login dulu di ${p.openUrl.replace(/^https?:\/\//, "")}.`,
+        "err",
+      );
+      return;
+    }
+    const jar = r.jar;
+    await chrome.storage.local.set({ [`captured::${p.id}`]: { token: jar, source: "cookies", at: Date.now() } });
+    await onGrabbed(p.id, jar, "cookies");
+    return;
+  }
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.url || !p.hostMatch.test(tab.url)) {
@@ -292,11 +312,12 @@ async function refreshSession(appUrl, refreshToken) {
 }
 
 /* --------------------------------- account -------------------------------- */
-const DEFAULT_APP_URL = "https://aacreative.vercel.app/";
+const DEFAULT_APP_URL = AA_CONFIG.appUrl || "https://aacreative.vercel.app/";
 
 async function renderAccount() {
   const { appUrl, session, savedAccounts } = await chrome.storage.local.get(["appUrl", "session", "savedAccounts"]);
-  const effectiveUrl = appUrl || DEFAULT_APP_URL;
+  // URL hasil auto-sync dari Plug-IN Config menang atas nilai bawaan build.
+  const effectiveUrl = appUrl || AA_CONFIG.appUrl || DEFAULT_APP_URL;
   if ($("appUrl")) $("appUrl").value = effectiveUrl;
   const pill = $("account-pill");
   if (session?.user?.email) {
@@ -322,6 +343,12 @@ async function renderAccount() {
     $("account-signed-in").style.display = "none";
     pill.textContent = "Belum login";
     pill.className = "muted";
+    const { boundEmail } = await chrome.storage.local.get("boundEmail");
+    if (boundEmail && $("email")) {
+      $("email").value = boundEmail;
+      $("email").readOnly = true;
+      $("email").title = "Extension terikat ke akun ini";
+    }
     renderSavedAccounts(savedAccounts || []);
   }
 }
@@ -351,7 +378,7 @@ function renderSavedAccounts(accounts) {
         renderSavedAccounts(savedAccounts);
         return;
       }
-      $("appUrl").value = acc.appUrl;
+      if ($("appUrl")) $("appUrl").value = acc.appUrl;
       $("email").value = acc.email;
       $("password").value = acc.password || "";
       await chrome.storage.local.set({ appUrl: acc.appUrl });
@@ -367,11 +394,17 @@ $("appUrl")?.addEventListener("change", () => {
 });
 
 $("login").addEventListener("click", async () => {
-  const appUrl = ($("appUrl").value.trim() || DEFAULT_APP_URL);
+  const stored = (await chrome.storage.local.get("appUrl")).appUrl;
+  const appUrl = stored || AA_CONFIG.appUrl || ($("appUrl")?.value.trim() || DEFAULT_APP_URL);
   const email = $("email").value.trim();
   const password = $("password").value;
   const remember = $("remember")?.checked;
-  if (!appUrl || !email || !password) { setStatus("Isi URL app, email, password.", "err", "auth-status"); return; }
+  if (!appUrl || !email || !password) { setStatus("Isi email dan password.", "err", "auth-status"); return; }
+  const { boundEmail } = await chrome.storage.local.get("boundEmail");
+  if (boundEmail && boundEmail.toLowerCase() !== email.toLowerCase()) {
+    setStatus(`Extension ini terikat ke akun ${boundEmail}. Tidak bisa dipakai akun lain.`, "err", "auth-status");
+    return;
+  }
   await chrome.storage.local.set({ appUrl });
   setStatus("Login...", "muted", "auth-status");
   try {
@@ -385,7 +418,7 @@ $("login").addEventListener("click", async () => {
       setStatus("Gagal: " + (data?.error || res.status), "err", "auth-status");
       return;
     }
-    await chrome.storage.local.set({ session: data });
+    await chrome.storage.local.set({ session: data, boundEmail: data.user?.email || email });
     if (remember) {
       const { savedAccounts = [] } = await chrome.storage.local.get("savedAccounts");
       const filtered = savedAccounts.filter((a) => !(a.email === email && a.appUrl === appUrl));
@@ -498,4 +531,25 @@ document.getElementById("relay-open-ff")?.addEventListener("click", async () => 
   const tabs = await chrome.tabs.query({ url: ["https://firefly.adobe.com/*"] });
   if (tabs?.[0]?.id) chrome.tabs.update(tabs[0].id, { active: true });
   else chrome.tabs.create({ url: "https://firefly.adobe.com/" });
+});
+
+/* ------------------- branding auto-sync (dikelola admin) ------------------ */
+async function applyRemoteBranding() {
+  try {
+    const { remoteConfig } = await chrome.storage.local.get("remoteConfig");
+    if (!remoteConfig) return;
+    const h1 = document.querySelector("header h1");
+    if (h1 && remoteConfig.name) h1.textContent = remoteConfig.name;
+    const img = document.querySelector("header img");
+    if (img && remoteConfig.logoUrl) img.src = remoteConfig.logoUrl;
+  } catch {}
+}
+applyRemoteBranding();
+// Minta background menarik config terbaru tiap popup dibuka.
+chrome.runtime.sendMessage({ kind: "AA_SYNC_CONFIG" }, () => {
+  void chrome.runtime.lastError;
+  setTimeout(() => {
+    applyRemoteBranding();
+    renderAccount();
+  }, 800);
 });

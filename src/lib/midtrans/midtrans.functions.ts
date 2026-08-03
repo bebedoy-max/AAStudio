@@ -7,11 +7,6 @@ type LooseClient = {
   from: (t: string) => any;
 };
 
-function newOrderId() {
-  const rnd = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `AA-${Date.now()}-${rnd}`;
-}
-
 /**
  * Creates a Midtrans QRIS charge for an EXISTING pending purchase_request
  * owned by the current user. Stores order_id / qr_url on the row so the
@@ -30,7 +25,7 @@ export const createMidtransQris = createServerFn({ method: "POST" })
     const { data: prRaw, error } = await db
       .from("purchase_requests")
       .select(
-        "id, user_id, price_idr, status, note, route_key, midtrans_order_id, midtrans_qr_url, midtrans_expires_at",
+        "id, user_id, price_idr, status, note, route_key, payment_provider, temanqris_order_id, midtrans_order_id, midtrans_qr_url, midtrans_expires_at",
       )
       .eq("id", data.purchaseRequestId)
       .maybeSingle();
@@ -43,6 +38,8 @@ export const createMidtransQris = createServerFn({ method: "POST" })
           status: string;
           note: string | null;
           route_key: string;
+          payment_provider: string | null;
+          temanqris_order_id: string | null;
           midtrans_order_id: string | null;
           midtrans_qr_url: string | null;
           midtrans_expires_at: string | null;
@@ -52,6 +49,12 @@ export const createMidtransQris = createServerFn({ method: "POST" })
     if (pr.user_id !== context.userId) throw new Error("Forbidden");
     if (pr.status !== "pending") throw new Error(`Purchase is already ${pr.status}`);
     if (pr.price_idr < 1) throw new Error("Amount must be >= Rp 1");
+    if (pr.payment_provider && pr.payment_provider !== "midtrans") {
+      throw new Error(`Purchase ini sudah menggunakan ${pr.payment_provider}`);
+    }
+    if (pr.temanqris_order_id) {
+      throw new Error("Purchase ini sudah memiliki transaksi TemanQRIS");
+    }
 
     // If already has a valid QR, return it (idempotent).
     if (pr.midtrans_qr_url && pr.midtrans_order_id) {
@@ -69,7 +72,8 @@ export const createMidtransQris = createServerFn({ method: "POST" })
     }
 
     const { createQrisCharge } = await import("@/lib/midtrans/midtrans.server");
-    const orderId = newOrderId();
+    const rnd = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const orderId = `AA-${Date.now()}-${rnd}`;
     const itemName = (pr.note ?? pr.route_key ?? "Payment").replace(/\s+/g, " ").trim();
     const charge = await createQrisCharge({
       orderId,
@@ -87,6 +91,7 @@ export const createMidtransQris = createServerFn({ method: "POST" })
         midtrans_expires_at: charge.expiry_time
           ? new Date(charge.expiry_time.replace(" ", "T") + "+07:00").toISOString()
           : null,
+        payment_provider: "midtrans",
         payment_method_name: "QRIS (Midtrans)",
       })
       .eq("id", pr.id);

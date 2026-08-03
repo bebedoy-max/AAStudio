@@ -24,6 +24,10 @@ import {
   listBankStock,
 } from "@/lib/token-bank/bank.functions";
 import { PaymentPicker } from "@/components/payments/payment-picker";
+import { useServerFn } from "@tanstack/react-start";
+import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
+import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
+import { syncTokensForUser } from "@/lib/tokens/sync";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -68,6 +72,8 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<OrderInfo | null>(null);
+  const [gopayAmount, setGopayAmount] = useState<number | null>(null);
+  const assignGopay = useServerFn(ensureGopayAmount);
 
   useEffect(() => {
     (async () => {
@@ -88,13 +94,15 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     })();
   }, []);
 
+  // Hanya token yang benar-benar dijual: aktif, ada harga, dan stok tersedia.
   const catalog = useMemo(() => {
     return BANK_PROVIDERS.filter((p) => {
       const price = prices[p];
       if (!price || !price.is_active || price.price_idr <= 0) return false;
+      if ((stock[p] ?? 0) <= 0) return false;
       return true;
     });
-  }, [prices]);
+  }, [prices, stock]);
 
   const cartItems: CartItem[] = useMemo(() => {
     const out: CartItem[] = [];
@@ -159,6 +167,13 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
       if (error) throw error;
       const inserted = data as { id: string; status: OrderInfo["status"] };
       setOrder({ id: inserted.id, items: cartItems, total, status: inserted.status });
+      // Nominal unik untuk pencocokan otomatis transfer GoPay Merchant.
+      try {
+        const unique = await assignGopay({ data: { purchaseId: inserted.id } });
+        setGopayAmount(unique?.amount ?? null);
+      } catch {
+        setGopayAmount(null);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal membuat pesanan");
     } finally {
@@ -175,7 +190,10 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
       .eq("id", order.id)
       .maybeSingle();
     const st = (data as { status?: OrderInfo["status"] } | null)?.status;
-    if (st && st !== order.status) setOrder({ ...order, status: st });
+    if (st && st !== order.status) {
+      setOrder({ ...order, status: st });
+      if (st === "approved" && user) await syncTokensForUser(user.id, { force: true });
+    }
   }
 
   return (
@@ -208,7 +226,12 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : order ? (
-          <OrderStatusView order={order} onClose={onClose} onApproved={refreshStatus} />
+          <OrderStatusView
+            order={order}
+            gopayAmount={gopayAmount}
+            onClose={onClose}
+            onApproved={refreshStatus}
+          />
         ) : catalog.length === 0 ? (
           <div className="mt-6 p-6 text-center rounded-2xl border border-border bg-card/40 text-sm text-muted-foreground">
             Belum ada token yang dijual saat ini. Hubungi admin.
@@ -374,12 +397,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
               )}
             </div>
 
-            <div className="mt-4 rounded-xl border border-border/60 bg-primary/[0.04] p-3 text-[11px] text-muted-foreground">
-              Setelah <b className="text-foreground">Lanjut</b>, kamu akan memilih metode pembayaran
-              (QRIS Midtrans / DOKU, VA bank BCA·Mandiri·BRI·BNI·CIMB·Permata, OVO, DANA,
-              ShopeePay, LinkAja, Alfamart, dsb.). Token masuk otomatis ke Token Manager setelah
-              pembayaran terkonfirmasi.
-            </div>
+
 
             <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-border/60">
               <button
@@ -405,15 +423,26 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
 
 function OrderStatusView({
   order,
+  gopayAmount,
   onClose,
   onApproved,
 }: {
   order: OrderInfo;
+  gopayAmount: number | null;
   onClose: () => void;
   onApproved: () => void;
 }) {
   const paid = order.status === "approved";
+  // Pembayaran sukses → beri notifikasi lalu tutup popup otomatis.
+  useEffect(() => {
+    if (!paid) return;
+    toast.success("Pembayaran sukses — token sudah dikirim ke Token Manager.");
+    const t = setTimeout(() => onClose(), 2200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paid]);
   return (
+
     <div className="mt-5 flex flex-col gap-4">
       <div className="rounded-2xl border border-border bg-card/40 p-4">
         <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
@@ -431,9 +460,16 @@ function OrderStatusView({
           <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
             Total
           </span>
-          <span className="font-display text-lg text-gradient">{rupiah(order.total)}</span>
+          <span className="font-display text-lg text-gradient">
+            {rupiah(gopayAmount ?? order.total)}
+          </span>
+        </div>
+        <div className="mt-1 flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Order ID</span>
+          <span className="font-mono">{order.id.slice(0, 8)}…</span>
         </div>
       </div>
+
 
       {paid ? (
         <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/5 p-6 flex flex-col items-center gap-2 text-emerald-200">
@@ -444,11 +480,20 @@ function OrderStatusView({
           </div>
         </div>
       ) : (
-        <PaymentPicker
-          purchaseRequestId={order.id}
-          amount={order.total}
-          onApproved={onApproved}
-        />
+        <div className="flex flex-col gap-3">
+          <PaymentPicker
+            purchaseRequestId={order.id}
+            amount={order.total}
+            onApproved={onApproved}
+          />
+          {gopayAmount !== null && (
+            <GopayQrisPanel
+              purchaseRequestId={order.id}
+              amount={gopayAmount}
+              onApproved={onApproved}
+            />
+          )}
+        </div>
       )}
 
       <div className="flex justify-end">

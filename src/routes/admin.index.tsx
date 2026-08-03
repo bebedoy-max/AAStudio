@@ -14,6 +14,8 @@ import {
   SlidersHorizontal, BookText, Video, Image as ImageIcon, Sparkles, Activity, Landmark,
   Radio, TrendingUp, ArrowRight, KeyRound, Crown, X,
 } from "lucide-react";
+import { Puzzle } from "lucide-react";
+import { GenerateChart } from "@/components/admin/generate-chart";
 
 
 export const Route = createFileRoute("/admin/")({
@@ -174,19 +176,20 @@ function Body() {
 
       {/* Main content: chart + top kind */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex">
           <Card
+            className="flex-1 flex flex-col"
             title="Generate 30 Hari Terakhir"
             sub={`Total ${total30} aset · Pertumbuhan 15 hari terakhir vs 15 hari sebelumnya: ${growth > 0 ? "+" : ""}${growth}%`}
           >
-            <SeriesChart data={series} />
+            <GenerateChart data={series} />
             {total30 === 0 && (
               <div className="text-xs text-muted-foreground text-center py-6">Belum ada aset di-generate 30 hari terakhir.</div>
             )}
           </Card>
         </div>
 
-        <Card title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
+        <Card className="h-full" title="Konten Terpopuler" sub="Jenis yang paling banyak di-generate">
           {byKind.length === 0 ? (
             <div className="text-xs text-muted-foreground py-4">Belum ada data.</div>
           ) : (
@@ -235,6 +238,7 @@ function Body() {
           <ModuleCard to="/admin/transactions" icon={LineChartIcon} title="Laporan Transaksi" desc={`${c.approvedTx} transaksi disetujui`} />
           <ModuleCard to="/admin/access" icon={SlidersHorizontal} title="Pengaturan Halaman" desc="Aktif / non-aktif halaman & feature flag" />
           <ModuleCard to="/admin/activity-log" icon={BookText} title="Log Aktivitas" desc={`${c.activityToday} event hari ini`} />
+          <ModuleCard to="/admin/plugin-config" icon={Puzzle} title="Plug-IN Config" desc="Atur URL studio, status & versi extension" />
           <ModuleCard to="/admin/token-bank" icon={Landmark} title="Token Bank" desc="Kirim / hapus banyak key sekaligus" />
         </div>
       </div>
@@ -303,41 +307,17 @@ function ModuleCard({
   );
 }
 
-function SeriesChart({ data }: { data: DayPoint[] }) {
-  const w = 640, h = 180, pad = 24;
-  const max = Math.max(1, ...data.map((d) => d.count));
-  const step = (w - pad * 2) / Math.max(1, data.length - 1);
-  const points = data.map((d, i) => ({
-    x: pad + i * step,
-    y: h - pad - (d.count / max) * (h - pad * 2),
-    ...d,
-  }));
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-  const area = `${path} L ${points[points.length - 1]?.x ?? w - pad} ${h - pad} L ${pad} ${h - pad} Z`;
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-48">
-      <defs>
-        <linearGradient id="ad-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="var(--neon-pink)" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="var(--neon-pink)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0.25, 0.5, 0.75].map((r) => (
-        <line key={r} x1={pad} x2={w - pad} y1={pad + (h - pad * 2) * r} y2={pad + (h - pad * 2) * r}
-          stroke="oklch(0.35 0.06 275 / 0.25)" strokeDasharray="3 5" />
-      ))}
-      <path d={area} fill="url(#ad-fill)" />
-      <path d={path} fill="none" stroke="var(--neon-pink)" strokeWidth="2" style={{ filter: "drop-shadow(0 0 4px var(--neon-pink))" }} />
-      {points.filter((_, i) => i % 5 === 0 || i === points.length - 1).map((p, i) => (
-        <text key={i} x={p.x} y={h - 6} textAnchor="middle" fontSize="9" fill="oklch(0.65 0.05 265)">
-          {p.day.slice(5)}
-        </text>
-      ))}
-    </svg>
-  );
-}
 
 type DetailRow = AdminDetailRow;
+
+// meta dari server berupa ISO timestamp — format di client supaya identik
+// dengan tampilan pada halaman Log Aktivitas (zona waktu perangkat user).
+function fmtMeta(meta?: string): string {
+  if (!meta) return "";
+  const t = Date.parse(meta);
+  if (Number.isNaN(t)) return meta;
+  return new Date(t).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "medium" });
+}
 
 const DETAIL_TITLES: Record<DetailKey, { title: string; subtitle: string }> = {
   users: { title: "Total User", subtitle: "30 user terbaru terdaftar" },
@@ -410,7 +390,9 @@ function KpiDetailModal({ type, onClose }: { type: DetailKey; onClose: () => voi
                   {r.badge && (
                     <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full border border-primary/40 bg-primary/10 text-primary">{r.badge}</span>
                   )}
-                  {r.meta && <div className="text-[11px] text-muted-foreground whitespace-nowrap">{r.meta}</div>}
+                  {r.meta && (
+                    <div className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">{fmtMeta(r.meta)}</div>
+                  )}
                 </div>
               ))}
             </div>

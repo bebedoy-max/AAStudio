@@ -63,18 +63,35 @@ export const Route = createFileRoute("/api/public/proxy-image")({
         };
         if (authorization && new URL(url).hostname.endsWith(".weavy.ai")) headers.Authorization = authorization;
 
+        const inm = request.headers.get("if-none-match");
+        const ims = request.headers.get("if-modified-since");
+        if (inm) headers["If-None-Match"] = inm;
+        if (ims) headers["If-Modified-Since"] = ims;
+
         const upstream = await fetch(url, { headers });
+        if (upstream.status === 304) {
+          return new Response(null, {
+            status: 304,
+            headers: { "Cache-Control": "public, max-age=86400, immutable", "Access-Control-Allow-Origin": "*" },
+          });
+        }
 
         if (!upstream.ok || !upstream.body) {
           return new Response("Image fetch failed", { status: upstream.status || 502 });
         }
 
+        const out: Record<string, string> = {
+          "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream",
+          "Cache-Control": "public, max-age=86400, immutable",
+          "Access-Control-Allow-Origin": "*",
+        };
+        const etag = upstream.headers.get("etag");
+        const lastModified = upstream.headers.get("last-modified");
+        if (etag) out.ETag = etag;
+        if (lastModified) out["Last-Modified"] = lastModified;
+
         return new Response(upstream.body, {
-          headers: {
-            "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream",
-            "Cache-Control": "public, max-age=86400",
-            "Access-Control-Allow-Origin": "*",
-          },
+          headers: out,
         });
       },
     },

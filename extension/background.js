@@ -4,6 +4,24 @@
 // extension). This is what makes "auto grab & sync on refresh" work.
 
 importScripts("providers.js");
+try {
+  importScripts("remote-config.js");
+} catch (e) {
+  console.warn("[aa] remote-config unavailable", e);
+}
+
+// --- Auto-sync konfigurasi admin (URL studio, nama, logo) ------------------
+async function syncRemoteConfig() {
+  try {
+    await self.AA_REMOTE?.sync?.();
+  } catch (e) {
+    console.debug("[aa] config sync", e?.message || e);
+  }
+}
+syncRemoteConfig();
+chrome.runtime.onStartup?.addListener?.(syncRemoteConfig);
+chrome.runtime.onInstalled?.addListener?.(syncRemoteConfig);
+chrome.alarms.create("aa-config", { periodInMinutes: 30 });
 
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
 
@@ -12,7 +30,14 @@ const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
 for (const p of self.AA_PROVIDERS) {
   try {
     chrome.webRequest.onBeforeSendHeaders.addListener(
-      (details) => handleHeaders(details, p),
+      (details) => {
+        if (p.cookieCapture) {
+          captureSts(details, p);
+          handleCookies(p);
+        } else {
+          handleHeaders(details, p);
+        }
+      },
       { urls: p.urlPatterns },
       ["requestHeaders", "extraHeaders"],
     );
@@ -38,6 +63,108 @@ async function handleHeaders(details, provider) {
     return;
   }
 }
+
+// Cookie-based providers (Dola): the session lives in cookies, not in an
+// Authorization header. Read the whole cookie jar for the domain and push it
+// as the "token" string.
+const lastCookieScan = {}; // providerId -> ms
+
+// Kredensial upload ImageX (Dola) hanya ada di header AWS request browser:
+//   authorization: AWS4-HMAC-SHA256 Credential=...
+//   x-amz-security-token: STS2<base64>
+// STS token itu sudah memuat AccessKeyId + SignedSecretAccessKey, jadi cukup
+// simpan header ini dan server bisa tanda-tangan sendiri.
+const stsCache = {}; // providerId -> { token, at }
+function captureSts(details, provider) {
+  const re = provider.cookieCapture?.stsHosts;
+  if (!re) return;
+  let host = "";
+  try {
+    host = new URL(details.url).hostname;
+  } catch {
+    return;
+  }
+  if (!re.test(host)) return;
+  for (const h of details.requestHeaders || []) {
+    if (h?.name?.toLowerCase() !== "x-amz-security-token") continue;
+    const token = String(h.value || "").trim();
+    if (!token) return;
+    if (stsCache[provider.id]?.token === token) return;
+    stsCache[provider.id] = { token, at: Date.now() };
+    chrome.storage.local.set({ [`sts::${provider.id}`]: stsCache[provider.id] });
+    // Re-emit jar supaya token yang tersimpan di app ikut membawa STS baru.
+    lastCookieScan[provider.id] = 0;
+    handleCookies(provider);
+    return;
+  }
+}
+
+async function readSts(providerId) {
+  const cached = stsCache[providerId];
+  if (cached) return cached;
+  const stored = (await chrome.storage.local.get(`sts::${providerId}`))[`sts::${providerId}`];
+  return stored || null;
+}
+
+async function handleCookies(provider) {
+  const now = Date.now();
+  if (lastCookieScan[provider.id] && now - lastCookieScan[provider.id] < 10000) return;
+  lastCookieScan[provider.id] = now;
+  try {
+    const cookies = await collectCookies(provider.cookieCapture);
+    if (!cookies.length) return;
+    if (!cookieJarValid(cookies, provider.cookieCapture)) return;
+    const jar = await buildJar(provider.id, cookies);
+    await onTokenCaptured(provider.id, jar, `cookies@${provider.cookieCapture.domain}`);
+  } catch (e) {
+    console.debug("[aa] cookie capture", provider.id, e?.message || e);
+  }
+}
+
+// Dipakai juga oleh popup.js lewat message AA_GRAB_COOKIES.
+async function collectCookies(cfg) {
+  const seen = new Map();
+  const add = (list) => {
+    for (const c of list || []) if (c?.name) seen.set(`${c.domain}|${c.name}`, c);
+  };
+  try {
+    add(await chrome.cookies.getAll({ domain: cfg.domain }));
+  } catch {}
+  for (const url of cfg.urls || []) {
+    try {
+      add(await chrome.cookies.getAll({ url }));
+    } catch {}
+  }
+  return [...seen.values()];
+}
+
+function cookieJarValid(cookies, cfg) {
+  const names = cookies.map((c) => c.name);
+  const required = cfg.required || [];
+  if (!required.every((r) => names.includes(r))) return false;
+  const anyOf = cfg.anyOf || [];
+  if (anyOf.length && !anyOf.some((n) => names.includes(n))) return false;
+  return true;
+}
+
+async function buildJar(providerId, cookies) {
+  const jar = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const sts = await readSts(providerId);
+  return sts?.token ? `${jar}; __imagex_sts=${sts.token}` : jar;
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.kind !== "AA_GRAB_COOKIES") return;
+  (async () => {
+    const provider = self.AA_PROVIDERS.find((p) => p.id === msg.providerId);
+    if (!provider?.cookieCapture) return sendResponse({ ok: false, error: "provider bukan cookie-based" });
+    const cookies = await collectCookies(provider.cookieCapture);
+    if (!cookies.length) return sendResponse({ ok: false, error: "no-cookies" });
+    if (!cookieJarValid(cookies, provider.cookieCapture)) return sendResponse({ ok: false, error: "no-session" });
+    sendResponse({ ok: true, jar: await buildJar(provider.id, cookies) });
+  })();
+  return true;
+});
 
 // Debounce so we don't spam the app when a page fires 20 requests per second.
 const lastPushAt = {}; // providerId -> ms
@@ -127,6 +254,7 @@ async function refreshSession(appUrl, refreshToken) {
 // don't get 401 on the auto-push path.
 chrome.alarms.create("aa-refresh", { periodInMinutes: 30 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === "aa-config") return void syncRemoteConfig();
   if (alarm.name !== "aa-refresh") return;
   const cfg = await chrome.storage.local.get(["appUrl", "session"]);
   if (!cfg.appUrl || !cfg.session?.refresh_token) return;
@@ -319,3 +447,10 @@ async function relayViaFireflyTab({ url, method, headers, bodyText, bodyBase64 }
     return null;
   }
 }
+
+// Popup meminta sinkronisasi config on-demand.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.kind !== "AA_SYNC_CONFIG") return;
+  syncRemoteConfig().then(() => sendResponse({ ok: true }));
+  return true;
+});

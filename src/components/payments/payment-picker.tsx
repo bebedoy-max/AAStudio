@@ -10,7 +10,7 @@ import {
   Store,
   ExternalLink,
   CircleCheck,
-  CircleAlert,
+  
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { listActivePaymentMethods, type ActivePaymentMethod } from "@/lib/payments/methods.functions";
 import { createPayment, pollPurchaseStatus } from "@/lib/payments/charge.functions";
 import { MidtransQrisPanel } from "@/components/payments/midtrans-qris-panel";
+import { TemanQrisPanel } from "@/components/payments/temanqris-panel";
 
 function rupiah(n: number) {
   return "Rp " + (n || 0).toLocaleString("id-ID");
@@ -63,8 +64,17 @@ export function PaymentPicker({
     expiresAt: string | null;
   } | null>(null);
   const [midtrans, setMidtrans] = useState<boolean>(false); // sekali user pilih QRIS midtrans, render panel
+  const [temanqris, setTemanqris] = useState<{
+    orderId: string;
+    qrImage: string | null;
+    paymentUrl: string | null;
+    amount: number;
+    expiresAt: string | null;
+  } | null>(null);
   const [approved, setApproved] = useState(false);
   const notifiedRef = useRef(false);
+  const autoPickedRef = useRef(false);
+  const [autoFailed, setAutoFailed] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -132,7 +142,7 @@ export function PaymentPicker({
         data: {
           purchaseRequestId,
           gatewayId: m.gatewayId,
-          provider: m.provider as "midtrans" | "doku",
+          provider: m.provider as "midtrans" | "doku" | "temanqris",
           methodCode: m.methodCode,
         },
       });
@@ -140,14 +150,32 @@ export function PaymentPicker({
         setDokuRedirect({ url: r.redirectUrl, invoice: r.invoiceNumber, expiresAt: r.expiresAt });
       } else if (r.mode === "inline_qris") {
         setMidtrans(true);
+      } else if (r.mode === "temanqris_qris") {
+        setTemanqris({
+          orderId: r.orderId,
+          qrImage: r.qrImage,
+          paymentUrl: r.paymentUrl,
+          amount: r.amount,
+          expiresAt: r.expiresAt,
+        });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal memulai pembayaran");
       setSelected(null);
+      setAutoFailed(true);
     } finally {
       setCreating(false);
     }
   }
+
+  // Kalau hanya ada 1 metode aktif, langsung buat pembayaran tanpa memilih.
+  useEffect(() => {
+    if (!methods || methods.length !== 1) return;
+    if (autoPickedRef.current) return;
+    autoPickedRef.current = true;
+    void pick(methods[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [methods]);
 
   if (approved) {
     return (
@@ -166,6 +194,25 @@ export function PaymentPicker({
         purchaseRequestId={purchaseRequestId}
         amount={amount}
         onApproved={() => finalize("approved")}
+      />
+    );
+  }
+
+  // TemanQRIS inline QR + konfirmasi "sudah bayar".
+  if (temanqris) {
+    return (
+      <TemanQrisPanel
+        purchaseRequestId={purchaseRequestId}
+        orderId={temanqris.orderId}
+        qrImage={temanqris.qrImage}
+        paymentUrl={temanqris.paymentUrl}
+        amount={temanqris.amount || amount}
+        expiresAt={temanqris.expiresAt}
+        onApproved={() => finalize("approved")}
+        onBack={() => {
+          setTemanqris(null);
+          setSelected(null);
+        }}
       />
     );
   }
@@ -222,12 +269,18 @@ export function PaymentPicker({
   }
 
   if (methods.length === 0) {
+    // Tidak ada payment gateway aktif — pembayaran ditangani Companion (QRIS).
+    return null;
+  }
+
+
+  // Single-method: tampilkan loader saja sementara payment dibuat otomatis.
+  if (methods.length === 1 && !autoFailed) {
     return (
-      <div className="rounded-2xl border border-rose-400/40 bg-rose-400/5 p-4 text-sm text-rose-200 flex items-start gap-2">
-        <CircleAlert className="h-4 w-4 mt-0.5" />
-        <div>
-          Belum ada metode pembayaran aktif. Admin dapat mengaktifkan di{" "}
-          <span className="font-mono">/admin/payments</span>.
+      <div className="rounded-2xl border border-border bg-card/40 p-6 grid place-items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <div className="text-xs text-muted-foreground">
+          Menyiapkan pembayaran {methods[0].methodLabel} · {rupiah(amount)}…
         </div>
       </div>
     );

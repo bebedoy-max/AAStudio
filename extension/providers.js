@@ -10,7 +10,7 @@
 self.AA_PROVIDERS = [
   {
     id: "framia",
-    label: "Framia (Converge AI)",
+    label: "Framia",
     hostMatch: /https:\/\/([\w-]+\.)?(converge\.ai|framia\.pro)\//,
     urlPatterns: [
       "https://api.framia.pro/*",
@@ -35,19 +35,5 @@ self.AA_PROVIDERS = [
     openUrl: "https://app.leonardo.ai/",
     hint: "Login ke app.leonardo.ai lalu klik Ambil Token.",
     scoreKeys: /firebase|leonardo|cognito|access.?token|idToken|stsTokenManager/i,
-  },
-  {
-    id: "firefly",
-    label: "Adobe Firefly",
-    hostMatch: /https:\/\/([\w-]+\.)?(firefly\.adobe\.(com|io)|adobe\.com)\//,
-    urlPatterns: [
-      "https://firefly.adobe.com/*",
-      "https://firefly.adobe.io/*",
-      "https://firefly-3p.ff.adobe.io/*",
-      "https://firefly-api.adobe.io/*",
-    ],
-    openUrl: "https://firefly.adobe.com/",
-    hint: "Login ke firefly.adobe.com lalu klik Ambil Token.",
-    scoreKeys: /adobe|firefly|ims|access.?token|bearer/i,
   },
 ];

@@ -124,7 +124,7 @@ function NotifPanel({
             {purchases.length > 0 && (
               <div>
                 <div className="px-4 pt-3 pb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                  Pembelian token
+                  Pembelian
                 </div>
                 <ul className="divide-y divide-border/50">
                   {purchases.map((p) => {
@@ -410,7 +410,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
-    <div className="min-h-screen flex w-full">
+    <div className="h-screen overflow-hidden flex w-full max-w-full">
       <AppSidebar />
 
       {/* Mobile drawer */}
@@ -435,8 +435,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col">
-        <header className="fixed top-0 left-0 right-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur-xl lg:static lg:z-20 lg:border-0 lg:bg-transparent lg:backdrop-blur-none">
+      <main className="flex-1 min-w-0 max-w-full flex flex-col h-screen overflow-y-auto overflow-x-hidden">
+        <header
+          className="fixed top-0 left-0 right-0 z-40 lg:sticky lg:top-0 lg:z-20"
+          style={{ background: "var(--gradient-canvas)", backgroundAttachment: "fixed" }}
+        >
           <div className="flex items-center gap-2 px-3 sm:px-6 py-3">
             {/* Mobile hamburger — top-left */}
             <button
@@ -504,7 +507,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </header>
         {/* Spacer for the fixed mobile header */}
         <div className="h-16 shrink-0 lg:hidden" aria-hidden="true" />
-        <div className="p-4 sm:p-6 flex flex-col gap-6">{children}</div>
+        <div className="w-full max-w-full min-w-0 p-4 sm:p-6 flex flex-col gap-6">{children}</div>
       </main>
       {pickedPurchase && (
         <PurchaseDetailDialog

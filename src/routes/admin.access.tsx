@@ -5,7 +5,7 @@ import { useAuth, type FeatureAccessMode, normalizeFeatureAccessMode as normaliz
 import { MENU_CATALOG } from "@/lib/menu-catalog";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
-import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Trash2, RefreshCw, Cloud } from "lucide-react";
+import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Trash2, RefreshCw, Cloud, ChevronDown } from "lucide-react";
 import { GlobalCloudSection } from "@/components/admin/global-cloud-section";
 import { PROVIDER_FLAGS, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 import { toast } from "sonner";
@@ -165,6 +165,9 @@ function AccessBody() {
     return byGroup;
   }, []);
 
+  const groupNames = useMemo(() => Object.keys(groups), [groups]);
+  const [activeGroup, setActiveGroup] = useState<string>(() => Object.keys(groups)[0] ?? "");
+
   function setMode(key: string, mode: FeatureAccessMode) {
     setDrafts((d) => ({ ...d, [key]: { ...d[key], mode } }));
   }
@@ -223,59 +226,75 @@ function AccessBody() {
 
   return (
     <div className="flex flex-col gap-4">
-      {Object.entries(groups).map(([groupName, features]) => (
-        <Card key={groupName}>
-          <div className="p-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="font-display text-lg">{groupName}</div>
-              <div className="text-xs text-muted-foreground">
-                Atur akses tiap menu di grup ini untuk user umum.
-              </div>
-            </div>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-              {features.length} menu
-            </div>
+      <div
+        className="rounded-3xl border border-border/60 bg-card/60 px-6 py-5 flex flex-wrap items-center gap-3"
+      >
+        <div
+          className="font-display text-3xl sm:text-4xl uppercase tracking-wider bg-clip-text text-transparent"
+          style={{ backgroundImage: "var(--gradient-neon)" }}
+        >
+          {activeGroup || "Grup Menu"}
+        </div>
+        <div className="ml-auto relative">
+          <div
+            className="h-10 w-12 rounded-full grid place-items-center text-primary-foreground"
+            style={{ background: "var(--gradient-neon)" }}
+            aria-hidden
+          >
+            <ChevronDown className="h-4 w-4" />
           </div>
-          <div className="p-4 grid gap-3">
+          <select
+            aria-label="Pilih grup menu"
+            value={activeGroup}
+            onChange={(e) => setActiveGroup(e.target.value)}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 bg-popover text-popover-foreground"
+          >
+            {groupNames.map((g) => (
+              <option key={g} value={g} className="bg-popover text-popover-foreground">
+                {g} ({groups[g].length})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {Object.entries(groups)
+        .filter(([groupName]) => groupName === activeGroup)
+        .map(([groupName, features]) => (
+        <div
+          key={groupName}
+          className="rounded-3xl border border-border/60 bg-card/60 p-6 grid gap-8"
+        >
             {features.map((f) => {
               const draft = drafts[f.key];
               const dirty = isDirty(f.key);
               const price = prices[f.key];
-              const active = MODES.find((m) => m.value === draft.mode)!;
               return (
-                <div
-                  key={f.key}
-                  className={[
-                    "rounded-2xl border bg-card/40 p-4 transition-colors",
-                    dirty ? "border-primary/50 bg-primary/[0.04]" : "border-border",
-                  ].join(" ")}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium">{f.label}</span>
-                        <span
-                          className={`text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border ${active.cls}`}
-                        >
-                          {active.label}
-                        </span>
-                      </div>
-                      <div className="text-[10px] font-mono text-muted-foreground break-all mt-0.5">
-                        {f.key}
-                        {draft.mode === "premium"
-                          ? price != null
-                            ? ` · ${formatRupiah(price)} / 30 hari`
-                            : " · harga belum diatur"
-                          : ""}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-1">{active.hint}</div>
-                    </div>
-
+                <div key={f.key}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-display text-2xl sm:text-3xl italic text-foreground">
+                      {f.label}
+                    </span>
+                    {draft.mode === "trial" && (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">Trial berlaku sampai</span>
+                        <input
+                          type="datetime-local"
+                          value={toLocalInput(draft.trialUntil)}
+                          onChange={(e) => setTrial(f.key, e.target.value)}
+                          className="rounded-xl border border-border/60 bg-background/60 px-3 py-2 text-xs outline-none focus:border-primary/60"
+                        />
+                      </span>
+                    )}
+                    {draft.mode === "premium" && (
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                        {price != null ? `${formatRupiah(price)} / 30 hari` : "harga belum diatur"}
+                      </span>
+                    )}
                     <button
                       onClick={() => save(f.key)}
                       disabled={!dirty || saving === f.key}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40 shrink-0"
-                      style={{ background: "var(--gradient-neon)" }}
+                      className="ml-auto inline-flex items-center justify-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-4 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/70 disabled:opacity-40 shrink-0"
                     >
                       {saving === f.key ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -286,7 +305,7 @@ function AccessBody() {
                     </button>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     {MODES.map((m) => {
                       const on = draft.mode === m.value;
                       return (
@@ -296,34 +315,22 @@ function AccessBody() {
                           title={m.hint}
                           onClick={() => setMode(f.key, m.value)}
                           className={[
-                            "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
+                            "w-full rounded-full px-3.5 py-3 text-xs font-extrabold uppercase tracking-widest transition inline-flex items-center justify-center gap-2 border",
                             on
-                              ? m.cls
-                              : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30",
+                              ? "border-transparent text-primary-foreground"
+                              : "border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/50",
                           ].join(" ")}
+                          style={on ? { background: "var(--gradient-neon)" } : undefined}
                         >
                           {m.label}
                         </button>
                       );
                     })}
                   </div>
-
-                  {draft.mode === "trial" && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">Trial berlaku sampai</span>
-                      <input
-                        type="datetime-local"
-                        value={toLocalInput(draft.trialUntil)}
-                        onChange={(e) => setTrial(f.key, e.target.value)}
-                        className="rounded-xl border border-border bg-background/60 px-3 py-2 text-xs outline-none focus:border-primary/60"
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })}
-          </div>
-        </Card>
+        </div>
       ))}
     </div>
   );

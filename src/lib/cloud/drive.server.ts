@@ -274,6 +274,80 @@ export async function downloadFromDrive(ctx: DriveCtx, driveFileId: string): Pro
   return driveFetch(ctx, `/drive/v3/files/${encodeURIComponent(driveFileId)}?alt=media`);
 }
 
+/**
+ * Buat sesi resumable upload. URL sesi yang dikembalikan Google bisa dipakai
+ * langsung oleh browser (PUT) sehingga byte file TIDAK melewati server aplikasi.
+ */
+export async function createResumableSession(
+  ctx: DriveCtx,
+  userId: string,
+  file: { name: string; type: string; size: number },
+  source?: string | null,
+  origin?: string | null,
+): Promise<{ uploadUrl: string; name: string; parentId: string }> {
+  const parent = await ensureFolder(ctx, userId, source, origin);
+  const finalName = await uniqueFileName(ctx, parent, file.name);
+  const mime = file.type || "application/octet-stream";
+
+  const res = await driveFetch(ctx, "/upload/drive/v3/files?uploadType=resumable&fields=id,name,size,mimeType", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": mime,
+      ...(file.size > 0 ? { "X-Upload-Content-Length": String(file.size) } : {}),
+    },
+    body: JSON.stringify({ name: finalName, parents: [parent], mimeType: mime }),
+  });
+  if (!res.ok) await readError(res, "Membuat sesi upload Drive");
+  const uploadUrl = res.headers.get("location") || res.headers.get("Location");
+  if (!uploadUrl) throw new Error("Google tidak mengembalikan URL sesi upload.");
+  return { uploadUrl, name: finalName, parentId: parent };
+}
+
+/** Metadata ringan sebuah file Drive (untuk finalize upload langsung). */
+export async function driveFileMeta(
+  ctx: DriveCtx,
+  driveFileId: string,
+): Promise<{ id: string; name: string; size: number; mimeType: string } | null> {
+  const res = await driveFetch(
+    ctx,
+    `/drive/v3/files/${encodeURIComponent(driveFileId)}?fields=id,name,size,mimeType,parents`,
+  );
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => null)) as
+    | { id: string; name?: string; size?: string; mimeType?: string }
+    | null;
+  if (!data?.id) return null;
+  return {
+    id: data.id,
+    name: data.name ?? "file",
+    size: Number(data.size ?? 0) || 0,
+    mimeType: data.mimeType ?? "application/octet-stream",
+  };
+}
+
+/**
+ * Pastikan file punya izin "anyone with link (reader)" supaya browser bisa
+ * mengambilnya langsung dari Google tanpa lewat server aplikasi.
+ * Idempoten; error duplikat diabaikan.
+ */
+export async function ensureAnyoneWithLink(ctx: DriveCtx, driveFileId: string): Promise<boolean> {
+  try {
+    const res = await driveFetch(
+      ctx,
+      `/drive/v3/files/${encodeURIComponent(driveFileId)}/permissions?fields=id`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "reader", type: "anyone", allowFileDiscovery: false }),
+      },
+    );
+    return res.ok || res.status === 400 || res.status === 409;
+  } catch {
+    return false;
+  }
+}
+
 export async function deleteFromDrive(ctx: DriveCtx, driveFileId: string): Promise<void> {
   const res = await driveFetch(ctx, `/drive/v3/files/${encodeURIComponent(driveFileId)}`, { method: "DELETE" });
   if (!res.ok && res.status !== 404) await readError(res, "Hapus file Drive");

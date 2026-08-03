@@ -102,6 +102,42 @@ export async function findBySourceUrl(userId: string, sourceUrl: string): Promis
   return (data as CloudFileRow | null) ?? null;
 }
 
+/**
+ * Daftarkan file yang sudah di-upload BROWSER langsung ke storage.
+ * Server hanya menyimpan metadata — byte tidak pernah melewati server.
+ */
+export async function registerUploadedFile(params: {
+  userId: string;
+  storageMode: StorageMode;
+  driveFileId: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  origin?: string;
+  source?: string | null;
+  sourceUrl?: string | null;
+  meta?: Record<string, unknown> | null;
+}): Promise<CloudFileRow> {
+  const db = await admin();
+  const baseRow: Record<string, unknown> = {
+    user_id: params.userId,
+    storage_mode: params.storageMode,
+    drive_file_id: params.driveFileId,
+    name: params.name,
+    mime_type: params.mimeType,
+    size_bytes: params.size,
+    kind: guessKind(params.mimeType, params.name),
+    origin: params.origin ?? "upload",
+    source: params.source ?? null,
+    source_url: params.sourceUrl ?? null,
+  };
+  const insert = (row: Record<string, unknown>) => db.from("cloud_files").insert(row).select("*").single();
+  let { data, error } = await insert({ ...baseRow, meta: params.meta ?? {} });
+  if (error && /meta/i.test(error.message ?? "")) ({ data, error } = await insert(baseRow));
+  if (error) throw new Error(`Simpan registry cloud gagal: ${error.message}`);
+  return data as CloudFileRow;
+}
+
 export async function getCloudFile(id: string): Promise<CloudFileRow | null> {
   const db = await admin();
   const { data } = await db.from("cloud_files").select("*").eq("id", id).maybeSingle();
@@ -163,14 +199,87 @@ export async function archiveRemoteUrlForUser(params: {
 
   const res = await fetch(params.url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Gagal mengunduh hasil (${res.status})`);
-  const mimeType = res.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
-  const bytes = await res.arrayBuffer();
+  const headerMime = res.headers.get("content-type")?.split(";")[0] || "";
+  const pathname = (() => {
+    try {
+      return new URL(params.url).pathname;
+    } catch {
+      return "";
+    }
+  })();
+  // Beberapa provider (mis. Framia) mengirim signed URL dengan content-type
+  // generic. Tebak dari ekstensi path supaya `kind` tidak jatuh ke "file"
+  // (kalau itu terjadi, item tidak akan muncul di galeri yang difilter video).
+  const pathMime = /\.(mp4|mov|webm|m4v)$/i.test(pathname)
+    ? "video/mp4"
+    : /\.(png|jpe?g|webp|gif)$/i.test(pathname)
+      ? "image/jpeg"
+      : /\.(mp3|wav|m4a)$/i.test(pathname)
+        ? "audio/mpeg"
+        : "";
+  const isGeneric = !headerMime || /octet-stream|binary/i.test(headerMime);
+  const mimeType = isGeneric ? pathMime || headerMime || "application/octet-stream" : headerMime;
   const fallbackName =
     params.name ||
-    decodeURIComponent(new URL(params.url).pathname.split("/").pop() || "") ||
+    decodeURIComponent(pathname.split("/").pop() || "") ||
     `generated-${Date.now()}`;
-  const ext = mimeType.startsWith("video/") ? "mp4" : mimeType.startsWith("image/") ? "jpg" : "bin";
+  const ext = mimeType.startsWith("video/")
+    ? "mp4"
+    : mimeType.startsWith("image/")
+      ? "jpg"
+      : mimeType.startsWith("audio/")
+        ? "mp3"
+        : "bin";
   const name = /\.[a-z0-9]{2,5}$/i.test(fallbackName) ? fallbackName : `${fallbackName}.${ext}`;
+
+
+  // Utama: alirkan (stream) byte langsung ke storage tanpa buffering penuh di server.
+  const declared = Number(res.headers.get("content-length") || 0);
+  if (res.body) {
+    try {
+      const { mode, key } = await resolveStorageMode(params.userId);
+      const ctx = { mode, connectionKey: key };
+      const { createResumableSession } = await import("./drive.server");
+      const session = await createResumableSession(
+        ctx,
+        params.userId,
+        { name, type: mimeType, size: declared },
+        params.source ?? null,
+        params.origin ?? "generate",
+      );
+      const put = await fetch(session.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": mimeType },
+        body: res.body,
+        // @ts-expect-error duplex diperlukan untuk body berupa stream
+        duplex: "half",
+      });
+      if (put.ok) {
+        const up = (await put.json().catch(() => ({}))) as { id?: string; name?: string; size?: string; mimeType?: string };
+        if (up.id) {
+          return registerUploadedFile({
+            userId: params.userId,
+            storageMode: mode,
+            driveFileId: up.id,
+            name: up.name || name,
+            mimeType: up.mimeType || mimeType,
+            size: Number(up.size ?? declared) || declared,
+            origin: params.origin ?? "generate",
+            source: params.source ?? null,
+            sourceUrl: params.url,
+            meta: params.meta ?? null,
+          });
+        }
+      }
+      console.warn("[cloud] streaming archive gagal, fallback buffer", put.status);
+    } catch (e) {
+      console.warn("[cloud] streaming archive error, fallback buffer", e);
+    }
+  }
+
+  const retry = await fetch(params.url, { signal: AbortSignal.timeout(120_000) });
+  if (!retry.ok) throw new Error(`Gagal mengunduh hasil (${retry.status})`);
+  const bytes = await retry.arrayBuffer();
 
   return storeMediaForUser({
     userId: params.userId,

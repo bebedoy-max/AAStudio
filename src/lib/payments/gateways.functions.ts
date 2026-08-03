@@ -24,42 +24,6 @@ async function invalidateProviderCache(provider: string) {
   }
 }
 
-/**
- * Kalau Midtrans dikonfigurasi via env var (MIDTRANS_SERVER_KEY) tapi belum
- * ada baris di tabel `payment_gateways`, seed satu baris otomatis supaya
- * admin bisa lihat + edit di UI. Hanya berjalan pertama kali (idempotent).
- */
-async function autoSeedMidtransFromEnv(db: LooseClient, userId: string) {
-  try {
-    const key = process.env.MIDTRANS_SERVER_KEY;
-    if (!key) return;
-    const { data: existing } = await db
-      .from("payment_gateways")
-      .select("id")
-      .eq("provider", "midtrans")
-      .limit(1)
-      .maybeSingle();
-    if (existing) return;
-    const isProd = (process.env.MIDTRANS_MODE ?? "production").toLowerCase() === "production";
-    const config: Record<string, string> = { server_key: key };
-    if (process.env.MIDTRANS_CLIENT_KEY) config.client_key = process.env.MIDTRANS_CLIENT_KEY;
-    if (process.env.MIDTRANS_MERCHANT_ID) config.merchant_id = process.env.MIDTRANS_MERCHANT_ID;
-    const { encryptString } = await import("@/lib/tokens/crypto.server");
-    const ciphertext = await encryptString(JSON.stringify(config));
-    await db.from("payment_gateways").insert({
-      provider: "midtrans",
-      label: `Midtrans ${isProd ? "Production" : "Sandbox"} (env)`,
-      environment: isProd ? "production" : "sandbox",
-      is_active: true,
-      config_ciphertext: ciphertext,
-      masked_hint: buildMaskedHint("midtrans", config),
-      created_by: userId,
-    });
-  } catch (e) {
-    console.warn("[payment_gateways] auto-seed midtrans dari env gagal", e);
-  }
-}
-
 export type GatewayListItem = {
   id: string;
   provider: string;
@@ -79,7 +43,6 @@ export const listPaymentGateways = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<GatewayListItem[]> => {
     await assertAdmin(context);
     const db = context.supabase as unknown as LooseClient;
-    await autoSeedMidtransFromEnv(db, context.userId);
     const { data, error } = await db
       .from("payment_gateways")
       .select("id, provider, label, environment, is_active, masked_hint, last_test_at, last_test_status, last_test_message, created_at, updated_at")
@@ -259,6 +222,19 @@ async function testDoku(config: Record<string, string>, env: "sandbox" | "produc
   return { ok: r.ok, message: r.message };
 }
 
+async function testTemanQris(config: Record<string, string>): Promise<GatewayTestResult> {
+  const apiKey = config.api_key;
+  if (!apiKey) return { ok: false, message: "api_key kosong" };
+  const { pingTemanQris } = await import("./temanqris.server");
+  const r = await pingTemanQris({
+    apiKey,
+    webhookSecret: config.webhook_secret || undefined,
+    autoVerify: String(config.auto_verify ?? "").trim().toLowerCase() === "on",
+    qrisId: config.qris_id ? Number(config.qris_id) || undefined : undefined,
+  });
+  return r;
+}
+
 export const testPaymentGateway = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
@@ -286,6 +262,8 @@ export const testPaymentGateway = createServerFn({ method: "POST" })
         result = await testMidtrans(config, row.environment);
       } else if (row.provider === "doku") {
         result = await testDoku(config, row.environment);
+      } else if (row.provider === "temanqris") {
+        result = await testTemanQris(config);
       } else {
         const def = getProviderDef(row.provider);
         const missing = def?.fields.filter((f) => f.required && !config[f.key]).map((f) => f.label) ?? [];
