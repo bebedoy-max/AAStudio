@@ -75,6 +75,7 @@ export type MotionOpts = {
   orientation: "image" | "video";
   keepSound: boolean;
   prompt?: string;
+  resolution?: "480p" | "720p";
   onLog?: (msg: string, level?: "info" | "warn" | "error" | "success") => void;
   onStatus?: (info: { index: number; status: string; url?: string; error?: string }) => void;
 };
@@ -575,9 +576,31 @@ async function generateOneRoboneo(slot: MotionSlotInput, opts: MotionOpts): Prom
 }
 
 async function generateOneFramia(slot: MotionSlotInput, opts: MotionOpts): Promise<string> {
-  void slot;
-  void opts;
-  throw new Error("Provider aktif Framia. Gunakan Generate → Framia untuk menjalankan node/canvas Framia secara langsung.");
+  const { index } = slot;
+  const log = (m: string, l?: "info" | "warn" | "error" | "success") =>
+    opts.onLog?.(`#${index + 1} [FR] ${m}`, l);
+
+  const { runFramiaWithRotation } = await import("./framia");
+  const { runFramiaMotion } = await import("./framia-motion");
+
+  opts.onStatus?.({ index, status: "uploading img..." });
+  const image = await maybeCompress(slot.image);
+
+  return runFramiaWithRotation(
+    (token) =>
+      runFramiaMotion({
+        token,
+        imageFile: image,
+        videoFile: slot.video,
+        modelKey: opts.modelKey,
+        resolution: opts.resolution === "720p" ? "720p" : "480p",
+        onProgress: (m) => {
+          log(m);
+          opts.onStatus?.({ index, status: m });
+        },
+      }),
+    { onRotate: (i, total, reason) => log(`rotate token ${i}/${total}: ${reason}`, "warn") },
+  );
 }
 
 /** Run all slots. Stagger starts by 1.5s to avoid API collision, mirror legacy behavior. */

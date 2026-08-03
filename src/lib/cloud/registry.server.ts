@@ -199,13 +199,39 @@ export async function archiveRemoteUrlForUser(params: {
 
   const res = await fetch(params.url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Gagal mengunduh hasil (${res.status})`);
-  const mimeType = res.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
+  const headerMime = res.headers.get("content-type")?.split(";")[0] || "";
+  const pathname = (() => {
+    try {
+      return new URL(params.url).pathname;
+    } catch {
+      return "";
+    }
+  })();
+  // Beberapa provider (mis. Framia) mengirim signed URL dengan content-type
+  // generic. Tebak dari ekstensi path supaya `kind` tidak jatuh ke "file"
+  // (kalau itu terjadi, item tidak akan muncul di galeri yang difilter video).
+  const pathMime = /\.(mp4|mov|webm|m4v)$/i.test(pathname)
+    ? "video/mp4"
+    : /\.(png|jpe?g|webp|gif)$/i.test(pathname)
+      ? "image/jpeg"
+      : /\.(mp3|wav|m4a)$/i.test(pathname)
+        ? "audio/mpeg"
+        : "";
+  const isGeneric = !headerMime || /octet-stream|binary/i.test(headerMime);
+  const mimeType = isGeneric ? pathMime || headerMime || "application/octet-stream" : headerMime;
   const fallbackName =
     params.name ||
-    decodeURIComponent(new URL(params.url).pathname.split("/").pop() || "") ||
+    decodeURIComponent(pathname.split("/").pop() || "") ||
     `generated-${Date.now()}`;
-  const ext = mimeType.startsWith("video/") ? "mp4" : mimeType.startsWith("image/") ? "jpg" : "bin";
+  const ext = mimeType.startsWith("video/")
+    ? "mp4"
+    : mimeType.startsWith("image/")
+      ? "jpg"
+      : mimeType.startsWith("audio/")
+        ? "mp3"
+        : "bin";
   const name = /\.[a-z0-9]{2,5}$/i.test(fallbackName) ? fallbackName : `${fallbackName}.${ext}`;
+
 
   // Utama: alirkan (stream) byte langsung ke storage tanpa buffering penuh di server.
   const declared = Number(res.headers.get("content-length") || 0);

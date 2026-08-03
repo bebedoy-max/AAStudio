@@ -1,28 +1,36 @@
-// Server-side proxy for Leonardo init-image upload.
-// Browser POST to image-flex-...s3-accelerate.amazonaws.com is blocked by
-// CORS (Leonardo's S3 bucket only allows Origin https://app.leonardo.ai).
-// We do BOTH steps server-side: 1) init-image (get presigned form fields),
-// 2) multipart POST the blob to S3, then return the imageId to the browser.
+// Server proxy: upload init image ke Leonardo.ai.
+// Browser tidak bisa memanggil api.leonardo.ai (CORS) maupun S3 presigned POST
+// dengan header Origin app.leonardo.ai, jadi seluruh flow dijalankan di server:
+//   1) mutation uploadInitImage → { id, key, url, fields }
+//   2) multipart POST ke S3 dengan fields presigned + file
+// Body: { b64, ext, mime? }   Header: X-Leonardo-Token
 import { createFileRoute } from "@tanstack/react-router";
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
   });
 }
 
-type Body = {
-  b64: string; // raw base64 (no data: prefix)
-  ext?: "png" | "jpg" | "jpeg" | "webp";
-  mime?: string;
-};
+const UPLOAD_MUTATION =
+  "mutation AddInitImage($arg1: InitImageUploadInput!) {\n  uploadInitImage(arg1: $arg1) {\n    id\n    fields\n    key\n    url\n    __typename\n  }\n}";
 
-function b64ToBytes(b64: string): Uint8Array {
+function mimeFor(ext: string): string {
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+function b64ToBytes(b64: string): ArrayBuffer {
   const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
+  const buf = new ArrayBuffer(bin.length);
+  const out = new Uint8Array(buf);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  return buf;
 }
 
 export const Route = createFileRoute("/api/public/leonardo-upload")({
@@ -42,70 +50,85 @@ export const Route = createFileRoute("/api/public/leonardo-upload")({
           request.headers.get("X-Leonardo-Token") ||
           request.headers.get("x-leonardo-token") ||
           "";
-        if (!token) return json({ ok: false, error: "X-Leonardo-Token required" }, 200);
+        if (!token) return json({ ok: false, error: "X-Leonardo-Token required" });
 
-        const body = (await request.json().catch(() => null)) as Body | null;
-        if (!body?.b64) return json({ ok: false, error: "b64 required" }, 200);
-        const ext = body.ext === "png" || body.ext === "webp" || body.ext === "jpeg" || body.ext === "jpg" ? body.ext : "png";
-        const mime = body.mime || (ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg");
+        const body = (await request.json().catch(() => null)) as
+          | { b64?: string; ext?: string; mime?: string }
+          | null;
+        if (!body?.b64) return json({ ok: false, error: "b64 required" });
 
-        // Step 1: init-image
-        let initRes: Response;
+        const rawExt = (body.ext || "png").toLowerCase();
+        const ext = ["png", "jpg", "jpeg", "webp"].includes(rawExt) ? rawExt : "png";
+        const mime = body.mime || mimeFor(ext);
+
+        const leoHeaders: Record<string, string> = {
+          Accept: "application/json, text/plain, */*",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          Origin: "https://app.leonardo.ai",
+          Referer: "https://app.leonardo.ai/",
+          "X-Leo-Schema-Version": "1.244.1",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        };
+
+        let presign: Response;
         try {
-          initRes = await fetch("https://api.leonardo.ai/api/rest/v1/init-image", {
+          presign = await fetch("https://api.leonardo.ai/v1/graphql", {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-              Accept: "application/json, text/plain, */*",
-              Origin: "https://app.leonardo.ai",
-              Referer: "https://app.leonardo.ai/",
-              "X-Leo-Schema-Version": "1.244.1",
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
-            },
-            body: JSON.stringify({ extension: ext === "jpg" ? "jpeg" : ext }),
+            headers: leoHeaders,
+            body: JSON.stringify({
+              operationName: "AddInitImage",
+              variables: { arg1: { extension: ext } },
+              query: UPLOAD_MUTATION,
+            }),
           });
         } catch (e) {
-          return json({ ok: false, error: `init-image network: ${(e as Error).message}` });
+          return json({ ok: false, error: `network: ${(e as Error).message}` });
         }
-        if (!initRes.ok) {
-          const t = await initRes.text().catch(() => "");
-          return json({ ok: false, error: `init-image ${initRes.status}: ${t.slice(0, 300)}` });
+
+        const text = await presign.text();
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          /* raw */
         }
-        const initData = (await initRes.json().catch(() => null)) as {
-          uploadInitImage?: { id: string; url: string; fields: string };
-        } | null;
-        const info = initData?.uploadInitImage;
-        if (!info?.id || !info?.url || !info?.fields) {
-          return json({ ok: false, error: `init-image response invalid: ${JSON.stringify(initData).slice(0, 300)}` });
+        if (!presign.ok || !parsed) {
+          return json({ ok: false, error: `presign ${presign.status}: ${text.slice(0, 300)}` });
         }
+        if (Array.isArray(parsed.errors) && parsed.errors.length) {
+          return json({ ok: false, error: `presign graphql: ${JSON.stringify(parsed.errors).slice(0, 300)}` });
+        }
+
+        const up = parsed?.data?.uploadInitImage;
+        if (!up?.url || !up?.fields || !up?.id) {
+          return json({ ok: false, error: `presign kosong: ${text.slice(0, 300)}` });
+        }
+
         let fields: Record<string, string>;
         try {
-          fields = JSON.parse(info.fields) as Record<string, string>;
+          fields = typeof up.fields === "string" ? JSON.parse(up.fields) : up.fields;
         } catch {
-          return json({ ok: false, error: "init-image fields not JSON" });
+          return json({ ok: false, error: "presign fields tidak valid" });
         }
 
-        // Step 2: multipart POST to S3
         const form = new FormData();
-        for (const [k, v] of Object.entries(fields)) form.append(k, v);
-        const bytes = b64ToBytes(body.b64);
-        const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-        form.append("file", new Blob([ab], { type: mime }), `ref.${ext}`);
+        for (const [k, v] of Object.entries(fields)) form.append(k, String(v));
+        form.append("file", new Blob([b64ToBytes(body.b64)], { type: mime }), `upload.${ext}`);
 
-        let s3Res: Response;
+        let s3: Response;
         try {
-          s3Res = await fetch(info.url, { method: "POST", body: form });
+          s3 = await fetch(up.url, { method: "POST", body: form });
         } catch (e) {
           return json({ ok: false, error: `s3 network: ${(e as Error).message}` });
         }
-        if (!s3Res.ok && s3Res.status !== 204) {
-          const t = await s3Res.text().catch(() => "");
-          return json({ ok: false, error: `s3 ${s3Res.status}: ${t.slice(0, 300)}` });
+        if (!s3.ok) {
+          const t = await s3.text().catch(() => "");
+          return json({ ok: false, error: `s3 ${s3.status}: ${t.slice(0, 300)}` });
         }
 
-        return json({ ok: true, id: info.id });
+        return json({ ok: true, id: String(up.id), key: up.key ?? null });
       },
     },
   },

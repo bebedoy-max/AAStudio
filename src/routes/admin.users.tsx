@@ -5,6 +5,7 @@ import { useAuth, ALL_ROUTE_KEYS } from "@/lib/auth-context";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Card } from "@/components/dashboard/ui";
 import { toast } from "sonner";
+import { useDirty } from "@/lib/hooks/use-dirty";
 import { useServerFn } from "@tanstack/react-start";
 import { listAdminUserStats, setUserTags } from "@/lib/admin/users.functions";
 import {
@@ -766,6 +767,13 @@ function EditUserModal({
   const [saving, setSaving] = useState(false);
   const [tags, setTags] = useState<UserTag[]>(user.tags ?? []);
   const saveTagsFn = useServerFn(setUserTags);
+  const { dirty, markSaved } = useDirty({
+    displayName,
+    role,
+    routeKeys: [...routeKeys].sort(),
+    newPassword,
+    tags: [...tags].sort(),
+  });
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -809,6 +817,7 @@ function EditUserModal({
         await saveTagsFn({ data: { userId: user.id, tags } });
       }
 
+      markSaved();
       toast.success("Perubahan tersimpan");
       onDone();
     } catch (e) {
@@ -849,7 +858,7 @@ function EditUserModal({
         </Field>
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !dirty}
           className="mt-2 inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           style={{ background: "var(--gradient-neon)" }}
         >

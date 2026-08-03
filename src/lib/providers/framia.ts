@@ -841,6 +841,10 @@ export async function createWorkflowRun(token: string, req: FramiaRunRequest): P
   const requested = req.workflowVersion ?? Date.now();
   const published = await publishWorkflowVersion(token, req, requested);
   const workflowVersion = published.version;
+  const contextRefs = asObject(req.contextRefs);
+  const runContextRefs = contextRefs
+    ? Object.fromEntries(Object.entries(contextRefs).filter(([key]) => key !== "canvas_snapshot"))
+    : { run_kind: "execution_graph" };
   const raw = await framiaFetch<unknown>({
     token,
     path: "/video/api/workflows/runs",
@@ -854,7 +858,9 @@ export async function createWorkflowRun(token: string, req: FramiaRunRequest): P
       project_id: req.projectId,
       canvas_id: req.canvasId,
       input_refs: req.inputRefs ?? {},
-      context_refs: req.contextRefs ?? { run_kind: "execution_graph" },
+      // The browser publishes canvas_snapshot through /workflows/versions,
+      // then sends only run_kind + execution_node_ids in the run request.
+      context_refs: runContextRefs,
       execution_backend: req.executionBackend ?? "temporal",
     },
   }).catch((e: unknown) => {
@@ -878,7 +884,7 @@ export type FramiaRunNode = {
   status?: string;
   progress?: number;
   output?: unknown;
-  error?: string;
+  error?: unknown;
   [k: string]: unknown;
 };
 
@@ -891,6 +897,15 @@ export async function listRunNodes(token: string, runId: string): Promise<Framia
   });
   const data = unwrapFramiaEnvelope<{ nodes?: FramiaRunNode[]; items?: FramiaRunNode[] } | FramiaRunNode[]>(raw);
   return pickArrayFromObject<FramiaRunNode>(data, ["nodes", "items", "node_runs", "run_nodes", "tasks", "results"]) ?? [];
+}
+
+/** Ambil detail run (berisi error/reason level-run yang tidak muncul di /nodes). */
+export async function getRunDetail(token: string, runId: string): Promise<Record<string, unknown>> {
+  const raw = await framiaFetch<unknown>({
+    token,
+    path: `/video/api/workflows/runs/${encodeURIComponent(runId)}`,
+  });
+  return (unwrapFramiaEnvelope<Record<string, unknown>>(raw) ?? {}) as Record<string, unknown>;
 }
 
 export async function listWorkflowRuns(

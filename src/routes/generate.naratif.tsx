@@ -1,3 +1,4 @@
+import { GenMetaTable } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
@@ -1436,6 +1437,15 @@ function NaratifPage() {
           <div className="mt-5 flex items-center gap-3 flex-wrap">
             <PrimaryButton onClick={runBrain}><Sparkles className="h-4 w-4" /> Analisa & Bikin Naskah</PrimaryButton>
             {brainStatus && <div className="text-[11px] text-muted-foreground">{brainStatus}</div>}
+            <GenMetaTable
+              items={[
+                { slot: "Image", provider: imgProvider },
+                { slot: "Video", provider },
+                { slot: "Voice", provider: "eleven" },
+              ]}
+              status={anyBusy ? "processing" : "idle"}
+              className="min-w-[320px] lg:min-w-0 lg:flex-1"
+            />
           </div>
         </Card>
       )}

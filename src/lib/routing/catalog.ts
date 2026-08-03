@@ -61,7 +61,7 @@ export const CAPS: Cap[] = [
         { name: "gpt-image-1 (1024²)", cost: "$0.040 / image" },
         { name: "gpt-image-1 HD (1024²)", cost: "$0.167 / image" },
       ] },
-      { id: "framia", name: "Framia (Converge AI)", desc: "Canvas workflow via Framia — Nano Banana, Flux, Seedream, dsb.", models: [
+      { id: "framia", name: "Framia", desc: "Canvas workflow via Framia — Nano Banana, Flux, Seedream, dsb.", models: [
         { name: "Gemini 2.5 Flash Image (Nano Banana)", cost: "~4 cr (Framia)" },
         { name: "Flux 1.1 Pro", cost: "~8 cr (Framia)" },
         { name: "Seedream 4.0", cost: "~6 cr (Framia)" },
@@ -102,7 +102,7 @@ export const CAPS: Cap[] = [
         { name: "Kling V2.6 Pro (i2v)", cost: "Gratis (kuota Roboneo)" },
         { name: "Kling V2.1 Standard (i2v)", cost: "Gratis (kuota Roboneo)" },
       ] },
-      { id: "framia", name: "Framia (Converge AI)", desc: "Canvas workflow video di Framia.", models: [
+      { id: "framia", name: "Framia", desc: "Canvas workflow video di Framia.", models: [
         { name: "Kling v2.1 Master (i2v)", cost: "~45 cr / 5s" },
         { name: "Sora 2 (t2v/i2v)", cost: "~50 cr / 5s" },
         { name: "Seedance 1.0 Pro", cost: "~30 cr / 5s" },
@@ -150,7 +150,7 @@ export const CAPS: Cap[] = [
       ] },
       { id: "roboneo", name: "Roboneo", desc: "Kling Motion Control via Roboneo (Meitu). Hanya Kling V2.6 Std.", models: [{ name: "Kling V2.6 Standard", cost: "Gratis (kuota Roboneo)" }] },
       { id: "magnific", name: "Magnific", desc: "Kling Motion Control via api.magnific.com. Butuh Freepik/Magnific API key.", models: [{ name: "Kling Motion Transfer", cost: "~50 Freepik cr / 5s" }] },
-      { id: "framia", name: "Framia (Converge AI)", desc: "Motion Control via Framia canvas — Kling motion node.", models: [
+      { id: "framia", name: "Framia", desc: "Motion Control via Framia canvas — Kling motion node.", models: [
         { name: "Kling V2.1 Motion Control", cost: "~40 cr / 5s" },
         { name: "Kling V2.6 Motion Control", cost: "~35 cr / 5s" },
       ] },

@@ -24,7 +24,15 @@ export function TokenBankPricesSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+  const [saved, setSaved] = useState<Record<string, Draft>>({});
   const [stock, setStock] = useState<Record<string, number>>({});
+
+  function isDirty(p: string) {
+    const a = drafts[p];
+    const b = saved[p];
+    if (!a || !b) return false;
+    return a.price !== b.price || a.active !== b.active;
+  }
 
   async function load() {
     setLoading(true);
@@ -37,6 +45,7 @@ export function TokenBankPricesSection() {
       for (const p of BANK_PROVIDERS) map[p] = { price: 0, active: false };
       for (const p of prices) map[p.provider] = { price: p.price_idr, active: p.is_active };
       setDrafts(map);
+      setSaved(JSON.parse(JSON.stringify(map)) as Record<string, Draft>);
       setStock(st);
     } finally {
       setLoading(false);
@@ -57,6 +66,7 @@ export function TokenBankPricesSection() {
     setSaving(provider);
     try {
       await setBankPrice({ data: { provider, price_idr: d.price, is_active: d.active } });
+      setSaved((c) => ({ ...c, [provider]: { ...d } }));
       toast.success(`${PROVIDER_LABELS[provider]} tersimpan`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
@@ -129,8 +139,8 @@ export function TokenBankPricesSection() {
 
                 <button
                   onClick={() => save(p)}
-                  disabled={saving === p}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-60"
+                  disabled={saving === p || !isDirty(p)}
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-40"
                 >
                   {saving === p ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

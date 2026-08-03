@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { logGenerate } from "@/lib/activity/log";
@@ -991,13 +992,11 @@ function StoryboardPage() {
                 )}
               </PrimaryButton>
 
-              <div className="text-center text-xs text-muted-foreground">
-                Total:{" "}
-                <span className="text-foreground font-mono font-semibold">
-                  {totalCredits.toFixed(1)}
-                </span>{" "}
-                credits ({okCount} produk × {perCost} cr)
-              </div>
+              <GenMetaBar
+                provider={provider}
+                cost={totalCredits}
+                status={busy ? "processing" : "idle"}
+              />
             </div>
           </Card>
         </div>

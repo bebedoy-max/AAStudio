@@ -211,6 +211,9 @@ function SettingsPage() {
     });
   };
 
+  const profileDirty =
+    displayName !== (profile?.display_name ?? "") || avatarUrl !== (profile?.avatar_url ?? "");
+
   const humanBytes = useMemo(() => {
     const kb = storageBytes / 1024;
     if (kb < 1024) return `${kb.toFixed(1)} KB`;
@@ -302,7 +305,7 @@ function SettingsPage() {
           <div className="flex justify-end">
             <button
               onClick={handleSaveProfile}
-              disabled={savingProfile || !user}
+              disabled={savingProfile || !user || !profileDirty}
               className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-60"
               style={{ background: "var(--gradient-neon)" }}
             >

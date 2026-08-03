@@ -10,7 +10,7 @@
 self.AA_PROVIDERS = [
   {
     id: "framia",
-    label: "Framia (Converge AI)",
+    label: "Framia",
     hostMatch: /https:\/\/([\w-]+\.)?(converge\.ai|framia\.pro)\//,
     urlPatterns: [
       "https://api.framia.pro/*",

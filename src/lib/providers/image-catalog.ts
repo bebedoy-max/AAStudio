@@ -17,7 +17,7 @@ export const IMAGE_PROVIDER_LABEL: Record<ImageProviderId, string> = {
   weavy: "Weavy",
   gemini: "Gemini Direct",
   openai: "OpenAI Direct",
-  framia: "Framia (Converge AI)",
+  framia: "Framia",
   leonardo: "Leonardo.ai",
   firefly: "Adobe Firefly",
 };

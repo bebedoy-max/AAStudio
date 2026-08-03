@@ -49,6 +49,11 @@ function ProfilePage() {
     setPhone((user?.user_metadata as { phone?: string } | undefined)?.phone ?? "");
   }, [profile, user]);
 
+  const profileDirty =
+    displayName !== (profile?.display_name ?? "") ||
+    avatarUrl !== (profile?.avatar_url ?? "") ||
+    phone !== ((user?.user_metadata as { phone?: string } | undefined)?.phone ?? "");
+
   const hasFullAccess =
     isAdmin || ALL_ROUTE_KEYS.every((r) => routePermissions.includes(r.key));
 
@@ -274,7 +279,7 @@ function ProfilePage() {
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleSaveProfile}
-                disabled={savingProfile}
+                disabled={savingProfile || !profileDirty}
                 className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                 style={{ background: "var(--gradient-neon)" }}
               >

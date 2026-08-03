@@ -22,10 +22,10 @@ import { confirmDialog } from "@/components/ui-confirm";
 /* ============ Themed Summary Dialog (replaces browser alert) ============ */
 export type SummaryRow = { label: string; value: string | number; tone?: "ok" | "warn" | "bad" | "muted" };
 export type SummaryPayload = { title: string; rows: SummaryRow[]; footer?: string };
-const SummaryCtx = createContext<(p: SummaryPayload) => void>(() => {});
+export const SummaryCtx = createContext<(p: SummaryPayload) => void>(() => {});
 const useSummaryDialog = () => useContext(SummaryCtx);
 
-function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose: () => void }) {
+export function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-[80] grid place-items-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150"
@@ -82,6 +82,8 @@ function SummaryDialog({ payload, onClose }: { payload: SummaryPayload; onClose:
 }
 
 export const Route = createFileRoute("/manage/tokens")({
+  validateSearch: (search: Record<string, unknown>): { provider?: string } =>
+    typeof search["provider"] === "string" ? { provider: search["provider"] as string } : {},
   head: () => ({
     meta: [
       { title: "Token / API Manager — AA Creative Studio" },
@@ -94,17 +96,17 @@ export const Route = createFileRoute("/manage/tokens")({
 type ProviderKey = "brain" | "weavy" | "wavespeed" | "magnific" | "roboneo" | "framia" | "leonardo" | "firefly" | "dola" | "eleven" | "render";
 
 const PROVIDER_GLOW: Record<ProviderKey, string> = {
-  brain: "#f472b6",
-  weavy: "#22d3ee",
-  wavespeed: "#38bdf8",
-  magnific: "#a78bfa",
-  roboneo: "#34d399",
-  framia: "#fb923c",
-  leonardo: "#facc15",
-  firefly: "#f87171",
-  dola: "#2dd4bf",
-  eleven: "#818cf8",
-  render: "#94a3b8",
+  brain: "oklch(0.72 0.18 355)",
+  weavy: "oklch(0.78 0.14 80)",
+  wavespeed: "oklch(0.78 0.16 210)",
+  magnific: "oklch(0.72 0.16 300)",
+  roboneo: "oklch(0.70 0.18 25)",
+  framia: "oklch(0.72 0.16 160)",
+  leonardo: "oklch(0.82 0.16 95)",
+  firefly: "oklch(0.70 0.18 25)",
+  dola: "oklch(0.78 0.16 190)",
+  eleven: "oklch(0.72 0.16 265)",
+  render: "oklch(0.70 0.05 275)",
 };
 
 const providers: { key: ProviderKey; label: string; desc: string }[] = [
@@ -113,7 +115,7 @@ const providers: { key: ProviderKey; label: string; desc: string }[] = [
   { key: "wavespeed", label: "Wavespeed", desc: "Provider alternatif — cek balance via api.wavespeed.ai/api/v3/balance." },
   { key: "magnific", label: "Magnific", desc: "Hanya dipakai untuk Motion Control (Kling motion transfer)." },
   { key: "roboneo", label: "Roboneo", desc: "Motion Control via Roboneo (Meitu) — Kling 2.6 Standard." },
-  { key: "framia", label: "Framia", desc: "Canvas workflow (Converge AI) — semua node & recipe: image, video, avatar, garment, storyboard." },
+  { key: "framia", label: "Framia", desc: "Canvas workflow — semua node & recipe: image, video, avatar, garment, storyboard." },
   { key: "leonardo", label: "Leonardo.ai", desc: "app.leonardo.ai via Cognito Bearer JWT — Text-to-Image (Phoenix, Diffusion XL, Kino, Anime, Vision)." },
   { key: "firefly", label: "Adobe Firefly", desc: "Firefly image (Image 3/4) & video (Veo) via session token firefly.adobe.com." },
   { key: "dola", label: "Dola", desc: "Video (Text-to-Video & Image-to-Video) via sesi web dola.com — auth pakai cookie session." },
@@ -128,7 +130,7 @@ type SimpleKey = { id: string; key: string; balance: number | null; status: "act
 const MIN_WEAVY_CREDITS = 5;
 const MIN_ELEVEN_CREDITS = 50;
 
-const LS = {
+export const LS = {
   brain: "aatools.brain.geminiKeys",
   brainChecks: "aatools.brain.checks",
   weavy: "aatools.weavy.tokens",
@@ -147,6 +149,115 @@ const LS = {
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+/** Gradient tiap card provider di dashboard Token Manager.
+ *  Warna diselaraskan dengan tema gelap aplikasi (deep indigo/navy) namun
+ *  tetap memiliki nuansa warna berbeda per provider. */
+const PROVIDER_GRADIENT: Record<ProviderKey, string> = {
+  brain: "linear-gradient(115deg, oklch(0.26 0.08 340 / 0.10), oklch(0.21 0.06 320 / 0.10))",
+  weavy: "linear-gradient(115deg, oklch(0.27 0.08 75 / 0.10), oklch(0.21 0.06 60 / 0.10))",
+  wavespeed: "linear-gradient(115deg, oklch(0.26 0.08 210 / 0.10), oklch(0.21 0.06 230 / 0.10))",
+  roboneo: "linear-gradient(115deg, oklch(0.26 0.08 25 / 0.10), oklch(0.21 0.06 40 / 0.10))",
+  leonardo: "linear-gradient(115deg, oklch(0.27 0.08 95 / 0.10), oklch(0.21 0.06 85 / 0.10))",
+  framia: "linear-gradient(115deg, oklch(0.26 0.08 165 / 0.10), oklch(0.21 0.06 150 / 0.10))",
+  magnific: "linear-gradient(115deg, oklch(0.26 0.08 55 / 0.10), oklch(0.21 0.06 45 / 0.10))",
+  firefly: "linear-gradient(115deg, oklch(0.26 0.08 25 / 0.10), oklch(0.21 0.06 15 / 0.10))",
+  eleven: "linear-gradient(115deg, oklch(0.26 0.08 255 / 0.10), oklch(0.21 0.06 270 / 0.10))",
+  dola: "linear-gradient(115deg, oklch(0.26 0.08 185 / 0.10), oklch(0.21 0.06 200 / 0.10))",
+  render: "linear-gradient(115deg, oklch(0.26 0.04 275 / 0.10), oklch(0.20 0.03 275 / 0.10))",
+};
+
+/** Hitung total token & total credit tersimpan untuk satu provider. */
+function readProviderStats(provider: ProviderKey): { tokens: number; credits: number | null } {
+  if (typeof window === "undefined") return { tokens: 0, credits: null };
+  const storageKeys =
+    provider === "render"
+      ? [LS.shotstack, LS.creatomate]
+      : [(LS as Record<string, string>)[provider]].filter(Boolean);
+  let tokens = 0;
+  let credits = 0;
+  let known = false;
+  for (const sk of storageKeys) {
+    try {
+      const raw = localStorage.getItem(sk);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as unknown;
+      const list: unknown[] = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray((parsed as { keys?: unknown[] })?.keys)
+          ? (parsed as { keys: unknown[] }).keys
+          : [];
+      tokens += list.length;
+      for (const item of list) {
+        if (!item || typeof item !== "object") continue;
+        const e = item as { credits?: number | null; balance?: number | null };
+        const v = e.credits ?? e.balance;
+        if (typeof v === "number" && Number.isFinite(v)) {
+          credits += v;
+          known = true;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return { tokens, credits: known ? credits : null };
+}
+
+function ProviderDashboardCard({
+  provider,
+  label,
+  onOpen,
+}: {
+  provider: ProviderKey;
+  label: string;
+  onOpen: () => void;
+}) {
+  const [stats, setStats] = useState<{ tokens: number; credits: number | null }>({ tokens: 0, credits: null });
+  useEffect(() => {
+    const sync = () => setStats(readProviderStats(provider));
+    sync();
+    for (const ev of TOKEN_SYNC_EVENTS) window.addEventListener(ev, sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      for (const ev of TOKEN_SYNC_EVENTS) window.removeEventListener(ev, sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, [provider]);
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group relative overflow-hidden rounded-3xl p-6 text-left transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      style={{
+        background: PROVIDER_GRADIENT[provider],
+        boxShadow: `0 14px 34px -14px color-mix(in oklab, ${PROVIDER_GLOW[provider]}, transparent 55%)`,
+      }}
+    >
+      <div
+        className="font-display text-3xl md:text-4xl font-black uppercase tracking-wide"
+        style={{
+          color: "oklch(0.98 0.01 260)",
+          textShadow: `0 3px 0 ${PROVIDER_GLOW[provider]}, 0 5px 12px oklch(0.12 0.04 275 / 0.45)`,
+        }}
+      >
+        {label}
+      </div>
+      <div className="mt-6 inline-grid grid-cols-[auto_auto_1fr] items-center gap-x-2 gap-y-1 rounded-xl bg-background/60 px-3 py-2 font-mono text-[13px] md:text-sm font-bold uppercase backdrop-blur-[2px] border border-white/10">
+        <span style={{ color: PROVIDER_GLOW[provider] }}>Total Token</span>
+        <span style={{ color: PROVIDER_GLOW[provider] }}>:</span>
+        <span className="tabular-nums text-emerald-300">{stats.tokens}</span>
+        <span style={{ color: PROVIDER_GLOW[provider] }}>Total Credit</span>
+        <span style={{ color: PROVIDER_GLOW[provider] }}>:</span>
+        <span className="tabular-nums text-emerald-300">
+          {stats.credits === null ? "—" : stats.credits.toLocaleString("id-ID")}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 const readJSON = <T,>(k: string, fallback: T): T => {
   if (typeof window === "undefined") return fallback;
   try {
@@ -215,6 +326,17 @@ function TokensPage() {
   );
   const [tab, setTab] = useState<ProviderKey>("brain");
   const [tabOpen, setTabOpen] = useState(false);
+  // null = tampilkan dashboard card semua provider.
+  const [selected, setSelected] = useState<ProviderKey | null>(null);
+  const { provider: providerParam } = Route.useSearch();
+  useEffect(() => {
+    if (!providerParam) return;
+    const match = providers.find((p) => p.key === providerParam);
+    if (match) {
+      setTab(match.key);
+      setSelected(match.key);
+    }
+  }, [providerParam]);
   useEffect(() => {
     if (visibleProviders.length && !visibleProviders.some((p) => p.key === tab)) {
       setTab(visibleProviders[0].key);
@@ -335,7 +457,43 @@ function TokensPage() {
           desc="Pusat kelola semua API key & token. Tersimpan terenkripsi di akun kamu — auto sync di semua perangkat."
         />
 
+        {selected === null ? (
+          <>
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={() => setBuyOpen(true)}
+                className="relative inline-flex items-center gap-1.5 rounded-full border border-red-500/50 bg-gradient-to-r from-red-500/20 via-red-500/10 to-red-500/20 text-red-100 px-4 py-2 text-xs md:text-sm font-bold shadow-[0_0_20px_rgba(239,68,68,0.45)] hover:shadow-[0_0_28px_rgba(239,68,68,0.75)] hover:scale-[1.02] transition-all"
+                title="Beli token dari Token Bank"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                Beli Token
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {visibleProviders.map((p) => (
+                <ProviderDashboardCard
+                  key={p.key}
+                  provider={p.key}
+                  label={p.label}
+                  onOpen={() => {
+                    setTab(p.key);
+                    setSelected(p.key);
+                  }}
+                />
+              ))}
+            </div>
+            {buyOpen && <BuyTokenDialog onClose={() => setBuyOpen(false)} />}
+          </>
+        ) : (
         <Card>
+          <div className="mb-4">
+            <button
+              onClick={() => setSelected(null)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs font-semibold hover:bg-sidebar-accent/40"
+            >
+              ← Semua Provider
+            </button>
+          </div>
           <div className="flex flex-wrap items-center gap-2 mb-4">
             {/* Single big provider selector with rotating light border */}
             <div className="w-full lg:w-[calc(66.666%-0.5rem)] relative">
@@ -355,10 +513,10 @@ function TokensPage() {
                 />
                 <span
                   className="relative flex min-h-[84px] items-center justify-between gap-3 rounded-[10px] bg-[oklch(0.19_0.055_275)] px-5 py-4"
-                  style={{ boxShadow: `inset 0 0 40px ${PROVIDER_GLOW[tab]}22` }}
+                  style={{ boxShadow: `inset 0 0 40px color-mix(in oklab, ${PROVIDER_GLOW[tab]}, transparent 85%)` }}
                 >
                   <span className="min-w-0">
-                    <span className="block truncate font-display text-2xl md:text-3xl font-black tracking-wide" style={{ color: PROVIDER_GLOW[tab], textShadow: `0 0 18px ${PROVIDER_GLOW[tab]}88` }}>
+                    <span className="block truncate font-display text-2xl md:text-3xl font-black tracking-wide" style={{ color: PROVIDER_GLOW[tab], textShadow: `0 0 18px color-mix(in oklab, ${PROVIDER_GLOW[tab]}, transparent 55%)` }}>
                       {active.label}
                     </span>
                   </span>
@@ -526,10 +684,11 @@ function TokensPage() {
             </div>
           </div>
         </Card>
+        )}
 
         {showImport && <ImportModal onClose={() => setShowImport(false)} />}
         {summary && <SummaryDialog payload={summary} onClose={() => setSummary(null)} />}
-        {buyOpen && <BuyTokenDialog onClose={() => setBuyOpen(false)} />}
+        {selected !== null && buyOpen && <BuyTokenDialog onClose={() => setBuyOpen(false)} />}
       </DashboardShell>
     </SummaryCtx.Provider>
   );
@@ -715,14 +874,14 @@ const GUIDES: Record<ProviderKey, Guide> = {
     urlLabel: "framia.converge.ai",
     prefix: "eyJhbGci... (Auth0 Bearer JWT)",
     steps: [
-      { text: "Login di framia.converge.ai (Google / email — akun Converge AI)." },
+      { text: "Login di framia.converge.ai (Google / email — akun Framia)." },
       { text: "Buka DevTools (F12) → tab Network → filter 'api.framia.pro'." },
       { text: "Klik salah satu request (mis. /video/api/v1/user/credits) → Headers → Request Headers." },
       { text: 'Copy value header "authorization" — HANYA bagian setelah "Bearer " (dimulai dengan eyJ...).' },
       { text: "Paste ke input di sebelah. Token JWT berumur ~24 jam; setelah expired, ambil ulang dari Network tab." },
       { text: "Multi-token akan auto-rotate saat quota / expiry habis. Token tersimpan permanen di akunmu dan sinkron antar device." },
     ],
-    tip: "Framia = platform canvas Converge AI. Semua node (skills) dan recipe (templates) muncul otomatis di halaman Generate → Framia begitu token tersimpan.",
+    tip: "Framia = platform canvas. Semua node (skills) dan recipe (templates) muncul otomatis di halaman Generate → Framia begitu token tersimpan.",
   },
   leonardo: {
     url: "https://app.leonardo.ai/",
@@ -857,7 +1016,7 @@ async function checkGeminiKey(key: string): Promise<BrainKeyStatus> {
   }
 }
 
-function BrainPane() {
+export function BrainPane() {
   const [bulk, setBulk] = useState("");
   const [status, setStatus] = useState("");
   const [checks, setChecks] = useState<BrainKeyStatus[]>([]);
@@ -1091,7 +1250,7 @@ function BrainPane() {
 }
 
 /* ============ WEAVY (refresh token pool) ============ */
-function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
+export function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
   const [bulkTokenText, setBulkTokenText] = useState("");
   const [list, setList] = useState<WeavyTok[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1448,7 +1607,7 @@ function WeavyPane({ onOpenImport }: { onOpenImport: () => void }) {
 }
 
 /* ============ Wavespeed / Magnific reusable ============ */
-function ProviderKeyPane({
+export function ProviderKeyPane({
   lsKey,
   bulkPlaceholder,
   helper,
@@ -1927,7 +2086,7 @@ const emptyEleven: ElevenCfg = { keys: [], voice: voices[0].value, customVoice: 
 
 type ElevenKeyStatus = { key: string; ok: boolean; remaining: number | null; limit: number; tier?: string; method?: string; note?: string; reason?: string };
 
-function ElevenPane() {
+export function ElevenPane() {
   const [cfg, setCfg] = useState<ElevenCfg>(emptyEleven);
   const [bulk, setBulk] = useState("");
   const [status, setStatus] = useState("");
@@ -2248,7 +2407,7 @@ function ElevenPane() {
 }
 
 /* ============ Bulk Import Modal (Weavy) ============ */
-function ImportModal({ onClose }: { onClose: () => void }) {
+export function ImportModal({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -2328,7 +2487,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 }
 
 /* ============ Render (Shotstack + Creatomate) ============ */
-function RenderPane() {
+export function RenderPane() {
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-[11.5px] text-muted-foreground leading-relaxed">

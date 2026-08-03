@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { setUpscaleHandoff } from "@/lib/creative/upscale-handoff";
 
@@ -548,9 +549,11 @@ function BulkFashion() {
               <Rocket className="h-4 w-4" /> Generate
             </PrimaryButton>
           )}
-          <div className="text-xs text-muted-foreground">
-            Cost: <b className="text-foreground font-mono">{totalCost}</b> credits ({outfits.length} × {modelCr})
-          </div>
+          <GenMetaBar
+            provider={provider}
+            cost={totalCost}
+            status={running ? "processing" : "idle"}
+          />
         </div>
         {status.show && (
           <div className="mt-4 rounded-xl border border-border/70 bg-card/40 p-3">

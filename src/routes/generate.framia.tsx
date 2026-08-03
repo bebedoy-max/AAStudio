@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Play, Loader2, Sparkles, Layers, Puzzle, ExternalLink, Copy, Check } from "lucide-react";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/generate/framia")({
       {
         name: "description",
         content:
-          "Jalankan semua node dan recipe Framia (Converge AI) langsung dari AA Creative Studio — image, video, avatar, garment, storyboard.",
+          "Jalankan semua node dan recipe Framia langsung dari AA Creative Studio — image, video, avatar, garment, storyboard.",
       },
       { property: "og:title", content: "Framia — Canvas Workflow" },
       {
@@ -144,11 +145,15 @@ function FramiaPage() {
   return (
     <DashboardShell>
       <PageHero
-        eyebrow="Framia · Converge AI"
+        eyebrow="Framia"
         title="Canvas Workflow"
         highlight="Runner"
         desc="Semua node (skills) dan recipe (templates) dari akun Framia kamu — image, video, avatar, garment, storyboard. Auto-load begitu token tersimpan di Token Manager."
       />
+
+      <div className="mb-4">
+        <GenMetaBar provider="framia" status={status === "loading" ? "processing" : "idle"} />
+      </div>
 
       {!token ? (
         <Card>

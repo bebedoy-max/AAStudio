@@ -265,12 +265,13 @@ function HoverFlyout({
                 <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                   <CIcon className="h-3.5 w-3.5" />
                 </span>
-                <span className="flex-1 truncate">{item.title}</span>
-                {isLocked ? (
-                  <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                ) : (
-                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-                )}
+                <span className="flex-1 min-w-0 flex items-center gap-1.5">
+                  <span className="truncate">{item.title}</span>
+                  {!isLocked && (
+                    <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                  )}
+                </span>
+                {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />}
               </button>
             );
           }
@@ -298,16 +299,18 @@ function HoverFlyout({
                 <CIcon className="h-3.5 w-3.5" />
               </span>
               <span className="flex-1 min-w-0 leading-tight">
-                <span className="block truncate">{item.title}</span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="truncate">{item.title}</span>
+                  {mode === "premium" && (
+                    <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                  )}
+                </span>
                 {trialBadge && (
                   <span className="block text-[9px] font-mono uppercase tracking-wider text-amber-300 truncate mt-0.5">
                     {trialBadge}
                   </span>
                 )}
               </span>
-              {mode === "premium" && (
-                <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-              )}
             </Link>
           );
         })}
@@ -363,12 +366,13 @@ function InlineSubmenu({
               <span className="h-7 w-7 grid place-items-center rounded-lg shrink-0 bg-sidebar-accent/40 border border-sidebar-border">
                 <CIcon className="h-3.5 w-3.5" />
               </span>
-              <span className="flex-1 truncate">{item.title}</span>
-              {isLocked ? (
-                <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
-              ) : (
-                <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-              )}
+              <span className="flex-1 min-w-0 flex items-center gap-1.5">
+                <span className="truncate">{item.title}</span>
+                {!isLocked && (
+                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                )}
+              </span>
+              {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />}
             </button>
           );
         }
@@ -396,16 +400,18 @@ function InlineSubmenu({
               <CIcon className="h-3.5 w-3.5" />
             </span>
             <span className="flex-1 min-w-0 leading-tight">
-              <span className="block truncate">{item.title}</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{item.title}</span>
+                {mode === "premium" && (
+                  <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
+                )}
+              </span>
               {trialBadge && (
                 <span className="block text-[9px] font-mono uppercase tracking-wider text-amber-300 truncate mt-0.5">
                   {trialBadge}
                 </span>
               )}
             </span>
-            {mode === "premium" && (
-              <ShoppingCart className="h-3.5 w-3.5 shrink-0 text-vvip-gold opacity-90" />
-            )}
           </Link>
         );
       })}

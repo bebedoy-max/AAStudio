@@ -3,7 +3,7 @@
 // payload EMVCo, memvalidasi CRC, lalu membuat QR baru bernominal unik tiap
 // transaksi. Auto-verify pembayarannya dikerjakan Companion Android.
 import { useEffect, useRef, useState } from "react";
-import { Loader2, QrCode, Upload, Save, ShieldCheck, TriangleAlert, Eye } from "lucide-react";
+import { Loader2, QrCode, Upload, Save, TriangleAlert, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { validateQris, toDynamicQris } from "@/lib/payments/qris";
 import { decodeQrFromFile, renderQrDataUrl } from "@/lib/payments/qr-image";
@@ -16,6 +16,7 @@ export function CompanionQrisCard() {
   const [saving, setSaving] = useState(false);
   const [payload, setPayload] = useState("");
   const [active, setActive] = useState(false);
+  const [savedState, setSavedState] = useState({ payload: "", active: false });
   const [preview, setPreview] = useState<string | null>(null);
   const [decoding, setDecoding] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -26,6 +27,7 @@ export function CompanionQrisCard() {
         const row = await getCompanionQris();
         setPayload(row?.static_payload ?? "");
         setActive(Boolean(row?.active));
+        setSavedState({ payload: row?.static_payload ?? "", active: Boolean(row?.active) });
       } catch {
         /* tabel belum dibuat — biarkan kosong */
       } finally {
@@ -85,6 +87,7 @@ export function CompanionQrisCard() {
         merchant_city: v?.ok ? v.city : null,
         active: Boolean(trimmed) && active,
       });
+      setSavedState({ payload: trimmed, active: Boolean(trimmed) && active });
       toast.success("QRIS merchant tersimpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
@@ -92,6 +95,10 @@ export function CompanionQrisCard() {
       setSaving(false);
     }
   }
+
+  const dirty =
+    payload.trim() !== savedState.payload.trim() ||
+    (Boolean(payload.trim()) && active) !== savedState.active;
 
   return (
     <div className="rounded-3xl border border-border bg-card/40 p-4">
@@ -155,41 +162,18 @@ export function CompanionQrisCard() {
               </label>
             </div>
 
-            <div>
-              <div className="mb-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-                Payload QRIS statis (EMVCo)
-              </div>
-              <textarea
-                value={payload}
-                onChange={(e) => setPayload(e.target.value)}
-                rows={5}
-                spellCheck={false}
-                placeholder="00020101021126..."
-                className="w-full resize-y rounded-2xl border border-border bg-background/60 p-3 font-mono text-[11px] outline-none focus:border-primary/50"
-              />
-            </div>
-
             {check && !check.ok && (
               <div className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/5 p-3 text-[11px] text-destructive">
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 {check.error}
               </div>
             )}
-            {check?.ok && (
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-[11px] text-emerald-200">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span>
-                  Valid · <b>{check.merchantName ?? "Merchant"}</b>
-                  {check.city ? ` · ${check.city}` : ""} ·{" "}
-                  {check.isStatic ? "QR statis (siap dijadikan dinamis)" : "QR sudah dinamis"}
-                </span>
-              </div>
-            )}
+
 
             <div className="flex justify-end">
               <button
                 onClick={() => void save()}
-                disabled={saving}
+                disabled={saving || !dirty}
                 className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                 style={{ background: "var(--gradient-neon)" }}
               >

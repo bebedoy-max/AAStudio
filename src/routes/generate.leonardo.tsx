@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -407,7 +408,7 @@ function LeonardoPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Kualitas / Resolusi">
+              <Field label="Kualitas">
                 <Select
                   value={genQuality}
                   onChange={(e) => setGenQuality(e.target.value)}
@@ -430,7 +431,7 @@ function LeonardoPage() {
               </Field>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <PrimaryButton
                 onClick={generateWithRoutedProvider}
                 disabled={busy || !prompt.trim() || !activeGenModel}
@@ -447,7 +448,13 @@ function LeonardoPage() {
               >
                 Reset
               </GhostButton>
+              <GenMetaBar
+                provider={imgProvider}
+                status={busy ? "processing" : "idle"}
+                className="min-w-[260px] flex-1"
+              />
             </div>
+
 
             {error && (
               <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -588,7 +595,7 @@ function LeonardoPage() {
             </Field>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <PrimaryButton onClick={generate} disabled={busy || !prompt.trim() || keyCount === 0}>
               {busy ? "Generating…" : "Generate"}
             </PrimaryButton>
@@ -603,7 +610,13 @@ function LeonardoPage() {
             >
               Reset
             </GhostButton>
+            <GenMetaBar
+              provider="leonardo"
+              status={busy ? "processing" : "idle"}
+              className="min-w-[260px] flex-1"
+            />
           </div>
+
 
           {error && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">

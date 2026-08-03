@@ -23,6 +23,7 @@ import {
   Puzzle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useDirty } from "@/lib/hooks/use-dirty";
 import { PaymentGatewaysSection } from "@/components/admin/payment-gateways-section";
 import { TokenBankPricesSection } from "@/components/admin/token-bank-prices-section";
 import { CompanionSection } from "@/components/admin/companion-section";
@@ -556,6 +557,16 @@ function MethodModal({
   const [signedPreview, setSignedPreview] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<number>(method?.sort_order ?? 0);
   const [saving, setSaving] = useState(false);
+  const { dirty, markSaved } = useDirty({
+    type,
+    name,
+    instructions,
+    accountNumber,
+    accountHolder,
+    imagePath,
+    imageFileKey: imageFile ? `${imageFile.name}:${imageFile.size}:${imageFile.lastModified}` : null,
+    sortOrder,
+  });
 
   useEffect(() => {
     if (imagePath && !imageFile) {
@@ -607,6 +618,7 @@ function MethodModal({
         const { error } = await supabase.from("payment_methods").insert(payload);
         if (error) throw error;
       }
+      markSaved();
       toast.success("Metode tersimpan");
       onSaved();
     } catch (e) {
@@ -711,7 +723,7 @@ function MethodModal({
 
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !dirty}
             className="mt-2 inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             style={{ background: "var(--gradient-neon)" }}
           >
