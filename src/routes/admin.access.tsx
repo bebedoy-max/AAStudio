@@ -9,6 +9,7 @@ import { Loader2, ShieldCheck, Save, LifeBuoy, Brain, Plug, LayoutList, Plus, Tr
 import { GlobalCloudSection } from "@/components/admin/global-cloud-section";
 import { PROVIDER_FLAGS, refreshPlatformFlags } from "@/lib/platform/provider-flags";
 import { toast } from "sonner";
+import { useDirty } from "@/lib/hooks/use-dirty";
 
 export const Route = createFileRoute("/admin/access")({
   head: () => ({
@@ -343,6 +344,7 @@ function ContactSection() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const { dirty, markSaved } = useDirty({ email, phone, whatsapp }, !loading);
 
   useEffect(() => {
     (async () => {
@@ -371,6 +373,7 @@ function ContactSection() {
     });
     setSaving(false);
     if (error) return toast.error(error.message);
+    markSaved();
     toast.success("Kontak support tersimpan");
   }
 
@@ -413,7 +416,7 @@ function ContactSection() {
           </label>
           <button
             onClick={save}
-            disabled={saving}
+            disabled={saving || !dirty}
             className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             style={{ background: "var(--gradient-neon)" }}
           >

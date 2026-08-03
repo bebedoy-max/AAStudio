@@ -16,6 +16,7 @@ export function CompanionQrisCard() {
   const [saving, setSaving] = useState(false);
   const [payload, setPayload] = useState("");
   const [active, setActive] = useState(false);
+  const [savedState, setSavedState] = useState({ payload: "", active: false });
   const [preview, setPreview] = useState<string | null>(null);
   const [decoding, setDecoding] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -26,6 +27,7 @@ export function CompanionQrisCard() {
         const row = await getCompanionQris();
         setPayload(row?.static_payload ?? "");
         setActive(Boolean(row?.active));
+        setSavedState({ payload: row?.static_payload ?? "", active: Boolean(row?.active) });
       } catch {
         /* tabel belum dibuat — biarkan kosong */
       } finally {
@@ -85,6 +87,7 @@ export function CompanionQrisCard() {
         merchant_city: v?.ok ? v.city : null,
         active: Boolean(trimmed) && active,
       });
+      setSavedState({ payload: trimmed, active: Boolean(trimmed) && active });
       toast.success("QRIS merchant tersimpan");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal menyimpan");
@@ -92,6 +95,10 @@ export function CompanionQrisCard() {
       setSaving(false);
     }
   }
+
+  const dirty =
+    payload.trim() !== savedState.payload.trim() ||
+    (Boolean(payload.trim()) && active) !== savedState.active;
 
   return (
     <div className="rounded-3xl border border-border bg-card/40 p-4">
@@ -166,7 +173,7 @@ export function CompanionQrisCard() {
             <div className="flex justify-end">
               <button
                 onClick={() => void save()}
-                disabled={saving}
+                disabled={saving || !dirty}
                 className="inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-60"
                 style={{ background: "var(--gradient-neon)" }}
               >

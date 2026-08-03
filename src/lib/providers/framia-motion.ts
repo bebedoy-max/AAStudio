@@ -101,6 +101,121 @@ async function resolveWorkspaceId(token: string): Promise<string | null> {
   return null;
 }
 
+/* ------------------------------ video probing ------------------------------ */
+
+type VideoMeta = { duration: number; aspect: string };
+
+/** Aspect ratio yang diterima node video Framia. */
+const FRAMIA_ASPECTS: Array<{ label: string; value: number }> = [
+  { label: "9:16", value: 9 / 16 },
+  { label: "3:4", value: 3 / 4 },
+  { label: "1:1", value: 1 },
+  { label: "4:3", value: 4 / 3 },
+  { label: "16:9", value: 16 / 9 },
+];
+
+function nearestAspect(w: number, h: number): string {
+  if (!w || !h) return "9:16";
+  const r = w / h;
+  let best = FRAMIA_ASPECTS[0]!;
+  for (const a of FRAMIA_ASPECTS) {
+    if (Math.abs(a.value - r) < Math.abs(best.value - r)) best = a;
+  }
+  return best.label;
+}
+
+/**
+ * Ambil durasi + rasio video sumber. Framia menolak (biz_code 5000) kalau
+ * durasi/rasio yang dikirim tidak cocok dengan video referensi.
+ */
+async function probeVideoMeta(file: Blob): Promise<VideoMeta> {
+  const fallback: VideoMeta = { duration: 5, aspect: "9:16" };
+  if (typeof document === "undefined" || typeof URL === "undefined") return fallback;
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise<VideoMeta>((resolve) => {
+      const el = document.createElement("video");
+      el.preload = "metadata";
+      el.muted = true;
+      const done = (meta: VideoMeta) => {
+        el.removeAttribute("src");
+        resolve(meta);
+      };
+      const timer = setTimeout(() => done(fallback), 10_000);
+      el.onloadedmetadata = () => {
+        clearTimeout(timer);
+        const d = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : fallback.duration;
+        done({
+          duration: Math.round(Math.max(1, d) * 1000) / 1000,
+          aspect: nearestAspect(el.videoWidth, el.videoHeight),
+        });
+      };
+      el.onerror = () => {
+        clearTimeout(timer);
+        done(fallback);
+      };
+      el.src = url;
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Batas keras Framia dan target aman untuk menghindari overshoot timestamp encoder. */
+const FRAMIA_MAX_VIDEO_SEC = 15;
+const FRAMIA_SAFE_TRIM_SEC = 14.5;
+
+/**
+ * Potong sedikit di bawah 15 detik karena muxing MP4 dapat menambahkan satu
+ * frame/audio packet sehingga hasil `-t 15` terbaca sebagai 15.021 detik.
+ */
+async function trimVideoTo15(
+  file: File | Blob,
+  onProgress?: (msg: string, pct?: number) => void,
+): Promise<File> {
+  const src =
+    file instanceof File
+      ? file
+      : new File([file], `motion_src_${Date.now()}.mp4`, { type: (file as Blob).type || "video/mp4" });
+  try {
+    onProgress?.(`Framia: memotong video ke batas aman ${FRAMIA_SAFE_TRIM_SEC} detik...`, 12);
+    const { getFfmpeg } = await import("@/lib/mixing/ffmpeg-render");
+    const { fetchFile } = await import("@ffmpeg/util");
+    const ff = await getFfmpeg();
+    const inName = "framia_in.mp4";
+    const outName = "framia_out.mp4";
+    await ff.writeFile(inName, await fetchFile(src));
+    await ff.exec([
+      "-i",
+      inName,
+      "-t",
+      String(FRAMIA_SAFE_TRIM_SEC),
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "23",
+      "-c:a",
+      "aac",
+      "-movflags",
+      "+faststart",
+      outName,
+    ]);
+    const data = (await ff.readFile(outName)) as Uint8Array;
+    await ff.deleteFile(inName).catch(() => {});
+    await ff.deleteFile(outName).catch(() => {});
+    const buf = new ArrayBuffer(data.byteLength);
+    new Uint8Array(buf).set(data);
+    return new File([buf], src.name.replace(/\.[^.]+$/, "") + `_14-5s.mp4`, { type: "video/mp4" });
+  } catch {
+    throw new Error(
+      `Video referensi lebih dari ${FRAMIA_MAX_VIDEO_SEC} detik dan gagal dipotong otomatis. Potong video ke maksimal ${FRAMIA_MAX_VIDEO_SEC} detik lalu coba lagi.`,
+    );
+  }
+}
+
+
 /* ---------------------------------- run ----------------------------------- */
 
 export type FramiaMotionOpts = {
@@ -117,6 +232,16 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
   const model = resolveFramiaMotionModelLabel(opts.modelKey);
   const prompt = FRAMIA_MOTION_PROMPT;
   const resolution = opts.resolution === "720p" ? "720p" : "480p";
+  const rawMeta = await probeVideoMeta(opts.videoFile);
+  const needsTrim = rawMeta.duration > FRAMIA_SAFE_TRIM_SEC;
+  const sourceVideo = needsTrim ? await trimVideoTo15(opts.videoFile, opts.onProgress) : opts.videoFile;
+  const processedMeta = needsTrim ? await probeVideoMeta(sourceVideo) : rawMeta;
+  const videoMeta: VideoMeta = {
+    aspect: processedMeta.aspect,
+    duration: Math.floor(Math.min(FRAMIA_SAFE_TRIM_SEC, Math.max(1, processedMeta.duration)) * 10) / 10,
+  };
+
+
 
   opts.onProgress?.("Framia: mengambil profil...", 5);
   const workspaceId = await resolveWorkspaceId(token);
@@ -142,11 +267,12 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
           type: (opts.imageFile as Blob).type || "image/jpeg",
         });
   const vidFile =
-    opts.videoFile instanceof File
-      ? opts.videoFile
-      : new File([opts.videoFile], `motion_src_${Date.now()}.mp4`, {
-          type: (opts.videoFile as Blob).type || "video/mp4",
+    sourceVideo instanceof File
+      ? sourceVideo
+      : new File([sourceVideo], `motion_src_${Date.now()}.mp4`, {
+          type: (sourceVideo as Blob).type || "video/mp4",
         });
+
 
   opts.onProgress?.("Framia: upload gambar referensi...", 20);
   const uploadedImage = await uploadFramiaAsset(token, {
@@ -181,111 +307,131 @@ export async function runFramiaMotion(opts: FramiaMotionOpts): Promise<string> {
     resources: [{ resource_id: uploadedVideo.resource_id, media_type: "video" }],
   };
 
-  opts.onProgress?.(`Framia: mengirim workflow ${model}...`, 45);
-  const run = await createWorkflowRun(token, {
-    workflowId: `wf_node_${rand(7)}_${rand(6)}`,
-    workflowVersion: Date.now(),
-    projectId,
-    canvasId,
-    sourceType: "ad_hoc",
-    sourceId: outputNodeId,
-    inputRefs: {
-      nodes: {
-        [imageNodeId]: { output: { result: imageOutput } },
-        [videoRefNodeId]: { output: { result: videoOutput } },
-      },
-    },
-    contextRefs: {
-      run_kind: "execution_graph",
-      execution_node_ids: [outputNodeId],
-      canvas_snapshot: {
-        meta: {
-          exportedAt: new Date().toISOString(),
-          projectId,
-          canvasId,
-          version: "1.0.0",
+  // Framia kadang gagal transient (biz_code 5000). Coba ulang sekali sebelum
+  // menyerah, karena semua asset sudah ter-upload dan submit ulang murah.
+  const MAX_ATTEMPTS = 2;
+  let lastFailure = "";
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    opts.onProgress?.(
+      `Framia: mengirim workflow ${model}${attempt > 1 ? ` (percobaan ${attempt})` : ""}...`,
+      45,
+    );
+    const run = await createWorkflowRun(token, {
+      workflowId: `wf_node_${rand(7)}_${rand(6)}`,
+      workflowVersion: Date.now(),
+      projectId,
+      canvasId,
+      sourceType: "ad_hoc",
+      sourceId: outputNodeId,
+      inputRefs: {
+        nodes: {
+          [imageNodeId]: { output: { result: imageOutput } },
+          [videoRefNodeId]: { output: { result: videoOutput } },
         },
-        nodes: [
-          {
-            id: outputNodeId,
-            type: "Video",
-            position: { x: 672, y: 302.5 },
-            width: 320,
-            height: 574,
-            data: {
-              label: "Video",
-              node_type: "task",
-              node_interface: "media.generate.video",
-              input_refs: {
-                gen_type: "video",
-                model,
-                prompt,
-                aspect_ratio: "9:16",
-                resolution,
-                duration_float: 15,
-                video_mode: "multi_reference",
-                prompt_inputs: [
-
-                  {
-                    label: "Image",
-                    node_id: imageNodeId,
-                    content: {
-                      $ref: ["run", "input", "nodes", imageNodeId, "output", "result"],
+      },
+      contextRefs: {
+        run_kind: "execution_graph",
+        execution_node_ids: [outputNodeId],
+        canvas_snapshot: {
+          meta: {
+            exportedAt: new Date().toISOString(),
+            projectId,
+            canvasId,
+            version: "1.0.0",
+          },
+          nodes: [
+            {
+              id: outputNodeId,
+              type: "Video",
+              position: { x: 672, y: 302.5 },
+              width: 320,
+              height: 574,
+              data: {
+                label: "Video",
+                node_type: "task",
+                node_interface: "media.generate.video",
+                input_refs: {
+                  gen_type: "video",
+                  model,
+                  prompt,
+                  aspect_ratio: videoMeta.aspect,
+                  resolution,
+                  duration_float: videoMeta.duration,
+                  video_mode: "multi_reference",
+                  prompt_inputs: [
+                    {
+                      label: "Image",
+                      node_id: imageNodeId,
+                      content: {
+                        $ref: ["run", "input", "nodes", imageNodeId, "output", "result"],
+                      },
                     },
-                  },
-                  {
-                    label: "Video",
-                    node_id: videoRefNodeId,
-                    content: {
-                      $ref: ["run", "input", "nodes", videoRefNodeId, "output", "result"],
+                    {
+                      label: "Video",
+                      node_id: videoRefNodeId,
+                      content: {
+                        $ref: ["run", "input", "nodes", videoRefNodeId, "output", "result"],
+                      },
                     },
-                  },
-                ],
-              },
-              reads: {
-                resources: {
-                  sources: [
-                    { source: "run_input", key: "nodes", path: [imageNodeId, "output", "result"] },
-                    { source: "run_input", key: "nodes", path: [videoRefNodeId, "output", "result"] },
                   ],
+                },
+                reads: {
+                  resources: {
+                    sources: [
+                      { source: "run_input", key: "nodes", path: [imageNodeId, "output", "result"] },
+                      { source: "run_input", key: "nodes", path: [videoRefNodeId, "output", "result"] },
+                    ],
+                  },
                 },
               },
             },
-          },
-        ],
-        edges: [],
+          ],
+          edges: [],
+        },
       },
-    },
-  });
+    });
 
-  const runId = String(run.run_id || run.id || "");
-  if (!runId) throw new Error("Framia: run_id tidak dikembalikan");
+    const runId = String(run.run_id || run.id || "");
+    if (!runId) throw new Error("Framia: run_id tidak dikembalikan");
 
-  opts.onProgress?.("Framia: rendering motion...", 55);
-  const finalNodes = await waitForRunCompletion(token, runId, {
-    timeoutMs: 25 * 60_000,
-    intervalMs: 4_000,
-    onTick: (nodes) => {
-      const v = nodes.find((n) => String(n.node_id || "").startsWith("video-"));
-      if (v) {
-        const p =
-          typeof v.progress === "number" ? Math.min(95, 55 + Math.round(v.progress * 0.4)) : undefined;
-        opts.onProgress?.(`Framia: ${v.status ?? "processing"}`, p);
+    opts.onProgress?.("Framia: rendering motion...", 55);
+    const finalNodes = await waitForRunCompletion(token, runId, {
+      timeoutMs: 25 * 60_000,
+      intervalMs: 4_000,
+      onTick: (nodes) => {
+        const v = nodes.find((n) => String(n.node_id || "").startsWith("video-"));
+        if (v) {
+          const p =
+            typeof v.progress === "number"
+              ? Math.min(95, 55 + Math.round(v.progress * 0.4))
+              : undefined;
+          opts.onProgress?.(`Framia: ${v.status ?? "processing"}`, p);
+        }
+      },
+    });
+
+    const failed = finalNodes.find((n) => String(n.status ?? "").toLowerCase() === "failed");
+    if (failed) {
+      lastFailure = formatFramiaFailure(failed);
+      if (attempt < MAX_ATTEMPTS) {
+        opts.onProgress?.("Framia: gagal, mencoba ulang...", 50);
+        await new Promise((r) => setTimeout(r, 4_000));
+        continue;
       }
-    },
-  });
+      throw new Error(
+        `Framia node failed: ${lastFailure}` +
+          " — generate ditolak Framia. Coba video motion yang lebih pendek/kecil, ganti gambar referensi, atau ulangi beberapa saat lagi.",
+      );
+    }
 
-  const failed = finalNodes.find((n) => String(n.status ?? "").toLowerCase() === "failed");
-  if (failed) {
-    const detail = formatFramiaFailure(failed);
-    throw new Error(`Framia node failed: ${detail}`);
+    const url = pickVideoUrl(finalNodes) || (await resolveResourceUrl(token, finalNodes));
+    if (!url) throw new Error("Framia: video URL tidak ditemukan pada output run");
+    opts.onProgress?.("Framia: selesai", 100);
+    return url;
   }
-
-  const url = pickVideoUrl(finalNodes) || (await resolveResourceUrl(token, finalNodes));
-  if (!url) throw new Error("Framia: video URL tidak ditemukan pada output run");
-  opts.onProgress?.("Framia: selesai", 100);
-  return url;
+  throw new Error(`Framia node failed: ${lastFailure || "unknown"}`);
 }
+
 
 function formatFramiaFailure(node: FramiaRunNode): string {
   const candidates = [node.error, node.message, node.detail, node.output];

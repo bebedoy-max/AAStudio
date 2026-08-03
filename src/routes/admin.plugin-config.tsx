@@ -14,6 +14,7 @@ import {
 } from "@/lib/plugins/catalog";
 import { Loader2, ShieldCheck, Save, Puzzle, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { useDirty } from "@/lib/hooks/use-dirty";
 
 export const Route = createFileRoute("/admin/plugin-config")({
   head: () => ({
@@ -105,6 +106,7 @@ function PluginConfigFormInner() {
   const [saving, setSaving] = useState(false);
   const [studioUrl, setStudioUrl] = useState(DEFAULT_STUDIO_URL);
   const [cfg, setCfg] = useState<PluginConfig>({});
+  const { dirty, markSaved } = useDirty({ studioUrl, cfg }, !loading);
 
   useEffect(() => {
     (async () => {
@@ -133,6 +135,7 @@ function PluginConfigFormInner() {
     });
     setSaving(false);
     if (error) return toast.error(error.message);
+    markSaved();
     toast.success("Konfigurasi Plug-IN tersimpan");
   }
 
@@ -269,7 +272,7 @@ function PluginConfigFormInner() {
       <div className="flex justify-end">
         <button
           onClick={save}
-          disabled={saving}
+          disabled={saving || !dirty}
           className="inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-60"
           style={{ background: "var(--gradient-neon)" }}
         >

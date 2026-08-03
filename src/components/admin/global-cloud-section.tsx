@@ -84,6 +84,12 @@ export function GlobalCloudSection() {
     void reload();
   }, [reload]);
 
+  const configDirty =
+    !!s &&
+    (clientId.trim() !== (s.clientId ?? "") ||
+      folder.trim() !== (s.rootFolderName ?? "") ||
+      clientSecret.trim().length > 0);
+
   const onSave = async () => {
     setBusy(true);
     try {
@@ -197,7 +203,7 @@ export function GlobalCloudSection() {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <PrimaryButton onClick={() => void onSave()} disabled={busy || !clientId.trim()}>
+          <PrimaryButton onClick={() => void onSave()} disabled={busy || !clientId.trim() || !configDirty}>
             <Save className="h-4 w-4" /> Simpan konfigurasi
           </PrimaryButton>
           {s?.connected ? (

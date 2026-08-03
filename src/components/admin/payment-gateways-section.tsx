@@ -23,6 +23,7 @@ import {
   testPaymentGateway,
   type GatewayListItem,
 } from "@/lib/payments/gateways.functions";
+import { useDirty } from "@/lib/hooks/use-dirty";
 import { PAYMENT_PROVIDERS, getProviderDef, type ProviderDef } from "@/lib/payments/providers-catalog";
 import { confirmDialog } from "@/components/ui-confirm";
 
@@ -263,6 +264,7 @@ function GatewayModal({
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
   const [config, setConfig] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const { dirty } = useDirty({ provider, label, environment, isActive, config });
 
   const def: ProviderDef | undefined = useMemo(() => getProviderDef(provider), [provider]);
   const isEdit = !!initial;
@@ -448,7 +450,7 @@ function GatewayModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !dirty}
               className="inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
               style={{ background: "var(--gradient-neon)" }}
             >
