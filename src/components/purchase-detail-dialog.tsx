@@ -224,6 +224,7 @@ export function PurchaseDetailDialog({
             <GopayQrisPanel
               purchaseRequestId={purchase.id}
               amount={gopayAmount}
+              createdAt={purchase.created_at}
               onApproved={() => setLiveStatus("approved")}
             />
           </div>

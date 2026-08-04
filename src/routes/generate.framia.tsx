@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Play, Loader2, Sparkles, Layers, Puzzle, ExternalLink, Copy, Check } from "lucide-react";
@@ -149,6 +150,10 @@ function FramiaPage() {
         highlight="Runner"
         desc="Semua node (skills) dan recipe (templates) dari akun Framia kamu — image, video, avatar, garment, storyboard. Auto-load begitu token tersimpan di Token Manager."
       />
+
+      <div className="mb-4">
+        <GenMetaBar provider="framia" status={status === "loading" ? "processing" : "idle"} />
+      </div>
 
       {!token ? (
         <Card>

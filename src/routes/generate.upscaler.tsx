@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useMemo, useState } from "react";
@@ -480,6 +481,7 @@ function UpscalerPage() {
                 </PrimaryButton>
                 <GhostButton onClick={clearAll} disabled={running || rows.length === 0}>Bersihkan</GhostButton>
               </div>
+              <GenMetaBar provider={provider === "leonardo" ? "leonardo" : "weavy"} status={running ? "processing" : "idle"} />
             </div>
           </Card>
           </div>

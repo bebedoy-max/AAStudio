@@ -196,7 +196,7 @@ export const LEONARDO_VIDEO_MODELS: LeonardoVideoModel[] = [
     label: "Kling Video O3 Omni",
     group: "Other",
     aspectRatios: ["1:1", "16:9", "9:16"],
-    durations: [1, 15],
+    durations: [1, 10],
     durationMode: "slider",
     sizeTiers: [TIER_HD_720, TIER_FULL_1080, TIER_4K_2160],
     audio: true,
@@ -210,6 +210,38 @@ export const LEONARDO_VIDEO_MODELS: LeonardoVideoModel[] = [
     id: "leo-vid:kling-2.6",
     slug: "kling-2.6",
     label: "Kling 2.6",
+    group: "Other",
+    aspectRatios: ["1:1", "16:9", "9:16"],
+    durations: [5, 10],
+    durationMode: "buttons",
+    sizeTiers: [TIER_FULL_1080],
+    audio: true,
+    supportsI2V: true,
+    supportsT2V: true,
+    crPerSecond: 140,
+    crPerMpSecond: 67.5,
+    crExamples: [{ tier: "fullHd", seconds: 10, cr: 1400 }],
+  },
+  {
+    id: "leo-vid:wan-2.7",
+    slug: "wan-2.7",
+    label: "Wan 2.7",
+    group: "Other",
+    aspectRatios: ["1:1", "16:9", "9:16"],
+    durations: [1, 10],
+    durationMode: "slider",
+    sizeTiers: [TIER_HD_720, TIER_FULL_1080],
+    audio: true,
+    supportsI2V: true,
+    supportsT2V: true,
+    crPerSecond: 35,
+    crPerMpSecond: 37.98,
+    crExamples: [{ tier: "hd", seconds: 10, cr: 350 }],
+  },
+  {
+    id: "leo-vid:kling-o1",
+    slug: "kling-o1",
+    label: "Kling O1 Video Model",
     group: "Other",
     aspectRatios: ["1:1", "16:9", "9:16"],
     durations: [5, 10],
@@ -421,10 +453,24 @@ type VideoGenerationRow = {
   id: string;
   status: "PENDING" | "COMPLETE" | "FAILED";
   motionMP4URL?: string | null;
+  error?: unknown;
+  failureReason?: unknown;
+  failure_reason?: unknown;
+  statusMessage?: unknown;
+  status_message?: unknown;
   generated_images?: Array<{
     id?: string; url?: string; motionMP4URL?: string | null; videoUrl?: string | null;
   }>;
 };
+
+function failureDetail(g: VideoGenerationRow): string {
+  const cands = [g.error, g.failureReason, g.failure_reason, g.statusMessage, g.status_message];
+  for (const c of cands) {
+    if (typeof c === "string" && c.trim()) return c.slice(0, 400);
+    if (c && typeof c === "object") return preview(c, 400);
+  }
+  return preview(g, 600);
+}
 
 function pickVideoUrl(g: VideoGenerationRow | null): string | null {
   if (!g) return null;
@@ -531,7 +577,11 @@ export async function runLeonardoVideo(opts: RunLeonardoVideoOpts): Promise<stri
           opts.onProgress?.(`Leonardo: selesai`, 100);
           return url;
         }
-        if (g.status === "FAILED") throw new Error("Leonardo video: generation FAILED");
+        if (g.status === "FAILED") {
+          const detail = failureDetail(g);
+          opts.onProgress?.(`Leonardo: generation FAILED — ${detail}`);
+          throw new Error(`Leonardo video: generation FAILED — ${detail}`);
+        }
         const el = Math.round((Date.now() - started) / 1000);
         opts.onProgress?.(`Leonardo: rendering… (${el}s)`, Math.min(90, 30 + el));
       }

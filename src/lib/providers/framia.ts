@@ -899,6 +899,15 @@ export async function listRunNodes(token: string, runId: string): Promise<Framia
   return pickArrayFromObject<FramiaRunNode>(data, ["nodes", "items", "node_runs", "run_nodes", "tasks", "results"]) ?? [];
 }
 
+/** Ambil detail run (berisi error/reason level-run yang tidak muncul di /nodes). */
+export async function getRunDetail(token: string, runId: string): Promise<Record<string, unknown>> {
+  const raw = await framiaFetch<unknown>({
+    token,
+    path: `/video/api/workflows/runs/${encodeURIComponent(runId)}`,
+  });
+  return (unwrapFramiaEnvelope<Record<string, unknown>>(raw) ?? {}) as Record<string, unknown>;
+}
+
 export async function listWorkflowRuns(
   token: string,
   opts: {

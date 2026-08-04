@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Download, ExternalLink } from "lucide-react";
@@ -91,7 +92,7 @@ function TextToVideoPage() {
   const isRoboneo = provider === "roboneo";
   const isDola = provider === "dola";
   const supported = T2V_SUPPORTED.includes(provider);
-  const { tokens, credits } = useProviderCredit(provider);
+  const { tokens } = useProviderCredit(provider);
 
   const models = I2V_CATALOG[provider] || [];
   const activeModel = models.find((m) => m.value === model) || models[0];
@@ -201,15 +202,6 @@ function TextToVideoPage() {
     }
   };
 
-  const statusTone =
-    runState === "sukses"
-      ? "text-emerald-400"
-      : runState === "gagal"
-        ? "text-destructive"
-        : runState === "processing"
-          ? "text-amber-300"
-          : "text-muted-foreground";
-
   return (
     <DashboardShell>
       <PageHero
@@ -283,15 +275,7 @@ function TextToVideoPage() {
             >
               Reset
             </GhostButton>
-            <div className="text-xs text-muted-foreground">
-              Cost: <b className="text-foreground font-mono">{totalCost}</b> credits
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Token: <b className="text-fuchsia-300">{tokens}</b>
-              {" · "}Sisa credit:{" "}
-              <b className="text-emerald-400">{credits == null ? "—" : credits.toLocaleString()}</b>
-              {" · "}Status: <b className={statusTone}>{runState}</b>
-            </div>
+            <GenMetaBar provider={provider} cost={totalCost} status={runState} />
           </div>
 
           {error && (

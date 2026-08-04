@@ -124,63 +124,6 @@ export function CompanionSection() {
         <CompanionQrisCard />
       </div>
 
-      <div className="mb-3 flex flex-wrap justify-end gap-2">
-        <div className="relative">
-          <button
-            onClick={() => setDlOpen((v) => !v)}
-            disabled={events.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-40"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download
-          </button>
-          {dlOpen && (
-            <div className="absolute right-0 z-30 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
-              <button
-                onClick={() => {
-                  setDlOpen(false);
-                  downloadEventsPdf(events);
-                }}
-                className="block w-full px-3 py-2 text-left text-xs hover:bg-sidebar-accent/50"
-              >
-                PDF
-              </button>
-              <button
-                onClick={() => {
-                  setDlOpen(false);
-                  downloadEventsCsv(events);
-                }}
-                className="block w-full px-3 py-2 text-left text-xs hover:bg-sidebar-accent/50"
-              >
-                CSV
-              </button>
-            </div>
-          )}
-        </div>
-        <button
-          onClick={() => void saveAndClear()}
-          disabled={saving || events.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-40"
-        >
-          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-          Simpan
-        </button>
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60"
-        >
-          <Search className="h-3.5 w-3.5" />
-          Cari
-        </button>
-        <button
-          onClick={() => void load()}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Muat ulang
-        </button>
-      </div>
-
       {loading ? (
         <div className="p-8 grid place-items-center">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -250,6 +193,63 @@ export function CompanionSection() {
                 </div>
               ))
             )}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setDlOpen((v) => !v)}
+                disabled={events.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-40"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </button>
+              {dlOpen && (
+                <div className="absolute left-0 z-30 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+                  <button
+                    onClick={() => {
+                      setDlOpen(false);
+                      downloadEventsPdf(events);
+                    }}
+                    className="block w-full px-3 py-2 text-left text-xs hover:bg-sidebar-accent/50"
+                  >
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDlOpen(false);
+                      downloadEventsCsv(events);
+                    }}
+                    className="block w-full px-3 py-2 text-left text-xs hover:bg-sidebar-accent/50"
+                  >
+                    CSV
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => void saveAndClear()}
+              disabled={saving || events.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60 disabled:opacity-40"
+            >
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Simpan
+            </button>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60"
+            >
+              <Search className="h-3.5 w-3.5" />
+              Cari
+            </button>
+            <button
+              onClick={() => void load()}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3.5 py-1.5 text-xs hover:bg-sidebar-accent/60"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Muat ulang
+            </button>
           </div>
 
           <div className="flex flex-col gap-2">

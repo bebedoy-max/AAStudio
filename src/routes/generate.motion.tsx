@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -28,7 +29,6 @@ import { logGenerate } from "@/lib/activity/log";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
-
 
 import { useAuth } from "@/lib/auth-context";
 import { startNotification, finishNotification, failNotification } from "@/lib/stores/notifications";
@@ -193,8 +193,14 @@ function MotionControl() {
   const [slots, setSlots] = useSticky<RefSlot[]>("motion.slots", [newSlot()]);
 
   const activeModel = models.find((m) => m.key === modelKey) ?? models[0];
+
   const readySlots = slots.filter((s) => s.image && s.video).length;
-  const creditPerResult = provider === "framia" ? (framiaResolution === "720p" ? 120 : 60) : activeModel.cr;
+  const creditPerResult =
+    provider === "framia"
+      ? framiaResolution === "720p"
+        ? 120
+        : 60
+      : activeModel.cr;
   const totalCredits = readySlots * creditPerResult;
 
   const [generating, setGenerating] = useSticky<boolean>("motion.generating", false);
@@ -687,13 +693,12 @@ function MotionControl() {
                 )}
               </PrimaryButton>
 
-              <div className="text-center text-xs text-muted-foreground">
-                Total:{" "}
-                <span className="text-foreground font-mono font-semibold">
-                  {totalCredits.toLocaleString()}
-                </span>{" "}
-                 credits ({readySlots} × {creditPerResult})
-              </div>
+              <GenMetaBar
+                provider={provider}
+                cost={totalCredits}
+                status={generating ? "processing" : "idle"}
+                
+              />
 
             </div>
           </Card>

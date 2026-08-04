@@ -10,7 +10,10 @@
 // ditolak (ambiguous) supaya tidak salah menandai pesanan lunas.
 
 /** Jendela waktu pencocokan (menit) sejak pesanan dibuat. */
-export const MATCH_WINDOW_MINUTES = 90;
+export const MATCH_WINDOW_MINUTES = 60;
+
+/** Batas waktu pembayaran companion (menit) sebelum dibatalkan otomatis. */
+export const COMPANION_EXPIRY_MINUTES = 60;
 
 type LooseClient = { from: (t: string) => any };
 
@@ -97,11 +100,30 @@ export async function registerDevice(input: {
   deviceId: string;
   deviceName?: string | null;
   androidVersion?: string | null;
+}, diagnostic?: {
+  requestId: string;
+  build: string;
 }): Promise<{ token: string }> {
+  const context = {
+    requestId: diagnostic?.requestId ?? "untracked",
+    build: diagnostic?.build ?? "untracked",
+    deviceId: input.deviceId,
+  };
+  console.info("[companion/registerDevice]", { ...context, stage: "GENERATE_TOKEN_START" });
   const token = randomToken();
   const tokenHash = await sha256Hex(token);
+  console.info("[companion/registerDevice]", {
+    ...context,
+    stage: "TOKEN_GENERATED",
+    tokenLength: token.length,
+    tokenFingerprint: await shortFingerprint(token),
+    tokenHashFingerprint: tokenHash.slice(0, 8),
+  });
+
+  console.info("[companion/registerDevice]", { ...context, stage: "ADMIN_CLIENT_START" });
   const db = await admin();
-  const { error } = await db.from("companion_devices").upsert(
+  console.info("[companion/registerDevice]", { ...context, stage: "ADMIN_CLIENT_READY" });
+  const response = await db.from("companion_devices").upsert(
     {
       device_id: input.deviceId,
       device_name: input.deviceName ?? null,
@@ -111,8 +133,42 @@ export async function registerDevice(input: {
       last_seen_at: new Date().toISOString(),
     },
     { onConflict: "device_id" },
-  );
-  if (error) throw new Error(error.message ?? "register failed");
+  ).select("id, device_id, token_hash, active").single();
+  const row = response.data as {
+    id?: string;
+    device_id?: string;
+    token_hash?: string;
+    active?: boolean;
+  } | null;
+  console.info("[companion/registerDevice]", {
+    ...context,
+    stage: "SUPABASE_RESPONSE",
+    status: response.status,
+    statusText: response.statusText,
+    hasError: Boolean(response.error),
+    error: response.error
+      ? {
+          code: response.error.code,
+          message: response.error.message,
+          details: response.error.details,
+          hint: response.error.hint,
+        }
+      : null,
+    persisted: Boolean(row?.id),
+    persistedDeviceId: row?.device_id,
+    active: row?.active,
+    tokenHashMatches: row?.token_hash === tokenHash,
+    storedTokenHashFingerprint: row?.token_hash?.slice(0, 8),
+  });
+  if (response.error) {
+    throw new Error(
+      `companion_devices upsert failed (${response.error.code ?? "unknown"}): ${response.error.message ?? "register failed"}`,
+    );
+  }
+  if (!row?.id || row.token_hash !== tokenHash) {
+    throw new Error("companion_devices upsert could not be verified");
+  }
+  console.info("[companion/registerDevice]", { ...context, stage: "REGISTER_DEVICE_SUCCESS" });
   return { token };
 }
 
@@ -216,12 +272,34 @@ export async function assignUniqueGopayAmount(
 
 
   const amount = base + code;
+  const expiresAt = new Date(Date.now() + COMPANION_EXPIRY_MINUTES * 60_000).toISOString();
   const { error } = await db
     .from("purchase_requests")
-    .update({ gopay_expected_amount: amount })
+    .update({ gopay_expected_amount: amount, temanqris_expires_at: expiresAt })
     .eq("id", purchaseId);
   if (error) return null;
   return { amount, base, code };
+}
+
+/**
+ * Batalkan otomatis pesanan companion yang pending lebih dari batas waktu.
+ * Idempotent dan aman dipanggil sesering mungkin.
+ */
+export async function expireStaleCompanionPurchases(): Promise<number> {
+  const db = await admin();
+  const cutoff = new Date(Date.now() - COMPANION_EXPIRY_MINUTES * 60_000).toISOString();
+  const { data } = await db
+    .from("purchase_requests")
+    .update({
+      status: "rejected",
+      admin_note: `Dibatalkan otomatis: pembayaran melewati batas waktu ${COMPANION_EXPIRY_MINUTES} menit.`,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("status", "pending")
+    .not("gopay_expected_amount", "is", null)
+    .lt("created_at", cutoff)
+    .select("id");
+  return ((data ?? []) as { id: string }[]).length;
 }
 
 export type MatchResult =
@@ -234,6 +312,7 @@ export type MatchResult =
  */
 export async function matchPurchaseByAmount(amount: number): Promise<MatchResult> {
   const db = await admin();
+  await expireStaleCompanionPurchases();
   const since = new Date(Date.now() - MATCH_WINDOW_MINUTES * 60_000).toISOString();
   const { data } = await db
     .from("purchase_requests")

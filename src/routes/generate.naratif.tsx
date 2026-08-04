@@ -1,15 +1,29 @@
+import { GenMetaTable } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { LEONARDO_VIDEO_MODELS, leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
-import { Rocket, Play, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2 } from "lucide-react";
+import { Rocket, Play, Pause, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2, Activity, Search, Star } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
+import { SubtitleDesigner } from "@/components/generate/subtitle-designer";
+import {
+  DEFAULT_SUB_CONFIG,
+  buildAss,
+  findSubFont,
+  narrationToCues,
+  type SubtitleConfig,
+} from "@/lib/subtitle/styles";
+import {
+  BacksoundFavoritesDialog,
+  FavoriteHeart,
+  useBacksoundFavorites,
+} from "@/components/generate/backsound-favorites";
 
 
 function ratioClass(r: string): string {
@@ -305,124 +319,6 @@ type BulkKind = "img" | "vo" | "vid" | "merge";
 type BulkBusy = Record<BulkKind, boolean>;
 const EMPTY_BUSY: BulkBusy = { img: false, vo: false, vid: false, merge: false };
 
-// Subtitle style catalog — preview CSS + ffmpeg ASS force_style equivalent.
-// Colors ASS format: &HAABBGGRR (alpha BGR reversed).
-type SubStyleDef = {
-  key: string;
-  label: string;
-  preview: React.CSSProperties;
-  // ffmpeg force_style string used by subtitles=... filter
-  force: string;
-};
-const SUB_STYLES: SubStyleDef[] = [
-  {
-    key: "modern",
-    label: "Modern",
-    preview: {
-      color: "#ffffff",
-      background: "rgba(0,0,0,0.55)",
-      padding: "4px 10px",
-      borderRadius: 6,
-      fontWeight: 600,
-    },
-    force: "FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H80000000&,BorderStyle=3,Outline=1,Shadow=0,Bold=1,MarginV=60",
-  },
-  {
-    key: "minimal",
-    label: "Minimal",
-    preview: {
-      color: "#ffffff",
-      textShadow: "0 1px 3px rgba(0,0,0,0.85)",
-      fontWeight: 500,
-    },
-    force: "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=2,Shadow=1,MarginV=60",
-  },
-  {
-    key: "tiktok",
-    label: "TikTok",
-    preview: {
-      color: "#ffffff",
-      background: "#000",
-      padding: "3px 8px",
-      borderRadius: 4,
-      fontWeight: 900,
-      textTransform: "uppercase",
-      letterSpacing: "0.02em",
-    },
-    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BackColour=&H00000000&,BorderStyle=3,Outline=2,Shadow=0,Bold=1,MarginV=80",
-  },
-  {
-    key: "capcut",
-    label: "CapCut",
-    preview: {
-      color: "#ffe600",
-      WebkitTextStroke: "2px black",
-      textShadow: "0 0 6px rgba(0,0,0,.8)",
-      fontWeight: 800,
-    },
-    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H0000E6FF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
-  },
-  {
-    key: "cinematic",
-    label: "Sinematik",
-    preview: {
-      color: "#ffffff",
-      fontStyle: "italic",
-      fontWeight: 300,
-      letterSpacing: "0.05em",
-      textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-    },
-    force: "FontName=DejaVu Sans,FontSize=20,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,BorderStyle=1,Outline=1,Shadow=1,Italic=1,MarginV=50",
-  },
-  {
-    key: "anime",
-    label: "Anime Pop",
-    preview: {
-      color: "#ffffff",
-      WebkitTextStroke: "3px #d946ef",
-      textShadow: "0 0 12px rgba(217,70,239,.7)",
-      fontWeight: 900,
-    },
-    force: "FontName=DejaVu Sans,FontSize=24,PrimaryColour=&H00FFFFFF&,OutlineColour=&H00EE46D9&,BorderStyle=1,Outline=3,Shadow=1,Bold=1,MarginV=70",
-  },
-];
-function findSubStyle(k: string): SubStyleDef {
-  return SUB_STYLES.find((s) => s.key === k) || SUB_STYLES[0];
-}
-// Format seconds → SRT timestamp HH:MM:SS,mmm
-function srtTs(sec: number): string {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = Math.floor(sec % 60);
-  const ms = Math.max(0, Math.floor((sec - Math.floor(sec)) * 1000));
-  const p = (n: number, w = 2) => n.toString().padStart(w, "0");
-  return `${p(h)}:${p(m)}:${p(s)},${p(ms, 3)}`;
-}
-// Split narration into short cues (~40 chars/word groups) for readable subs.
-function narrationToCues(text: string, totalDur: number): Array<{ start: number; end: number; text: string }> {
-  const clean = (text || "").replace(/\s+/g, " ").trim();
-  if (!clean || totalDur <= 0.3) return [];
-  const words = clean.split(" ");
-  const groups: string[] = [];
-  let cur = "";
-  for (const w of words) {
-    const next = cur ? `${cur} ${w}` : w;
-    if (next.length > 42 && cur) {
-      groups.push(cur);
-      cur = w;
-    } else {
-      cur = next;
-    }
-  }
-  if (cur) groups.push(cur);
-  if (groups.length === 0) return [];
-  const per = totalDur / groups.length;
-  return groups.map((g, i) => ({
-    start: i * per,
-    end: Math.min(totalDur, (i + 1) * per),
-    text: g,
-  }));
-}
 
 
 function NaratifPage() {
@@ -461,6 +357,9 @@ function NaratifPage() {
   const bgAudioRef = useRef<HTMLAudioElement | null>(null);
   const [bgPlaying, setBgPlaying] = useState(false);
   const [bgSource, setBgSource] = useSticky<"none" | "library" | "upload">("naratif.bgSource", "none");
+  const [bgQuery, setBgQuery] = useSticky<string>("naratif.bgQuery", "");
+  const [bgFavOpen, setBgFavOpen] = useState(false);
+  const bgFav = useBacksoundFavorites();
 
   const BG_MOODS: Array<{ key: string; label: string }> = [
     { key: "cinematic", label: "🎬 Cinematic" },
@@ -470,12 +369,24 @@ function NaratifPage() {
     { key: "comedy", label: "😄 Comedy / Fun" },
     { key: "upbeat", label: "⚡ Upbeat / Energetic" },
     { key: "documentary", label: "📽️ Documentary" },
+    { key: "epic", label: "🥁 Epic Trailer" },
+    { key: "lofi", label: "🎧 Lo-Fi Chill" },
+    { key: "ambient", label: "🌫️ Ambient" },
+    { key: "acoustic", label: "🎸 Acoustic" },
+    { key: "electronic", label: "🛸 Electronic" },
+    { key: "hiphop", label: "🎤 Hip-Hop Beat" },
+    { key: "emotional", label: "💔 Emotional" },
+    { key: "corporate", label: "💼 Corporate" },
+    { key: "travel", label: "🌴 Travel / Vlog" },
   ];
 
-  const loadBgLibrary = async (mood: string): Promise<BgTrack[]> => {
+  const loadBgLibrary = async (mood: string, query?: string): Promise<BgTrack[]> => {
     setBgLoading(true);
     try {
-      const r = await fetch(`/api/public/backsound-search?mood=${encodeURIComponent(mood)}`);
+      const qs = query && query.trim()
+        ? `q=${encodeURIComponent(query.trim())}`
+        : `mood=${encodeURIComponent(mood)}`;
+      const r = await fetch(`/api/public/backsound-search?${qs}`);
       const j = await r.json();
       const tracks: BgTrack[] = Array.isArray(j.tracks) ? j.tracks : [];
       setBgLibrary(tracks);
@@ -488,15 +399,18 @@ function NaratifPage() {
     }
   };
 
-  const shuffleBgTrack = async () => {
-    let list = bgLibrary;
-    if (!list.length) list = await loadBgLibrary(bgMood);
-    if (!list.length) return;
-    const t = list[Math.floor(Math.random() * list.length)];
+  const pickBgTrack = (t: BgTrack) => {
     setBgTrack(t);
     setBgSource("library");
     setBgUploadName("");
     if (bgAudioRef.current) { bgAudioRef.current.pause(); setBgPlaying(false); }
+  };
+
+  const shuffleBgTrack = async () => {
+    let list = bgLibrary;
+    if (!list.length) list = await loadBgLibrary(bgMood, bgQuery);
+    if (!list.length) return;
+    pickBgTrack(list[Math.floor(Math.random() * list.length)]);
   };
 
   const toggleBgPlay = () => {
@@ -527,7 +441,7 @@ function NaratifPage() {
 
   // Subtitle burn-in options (default: aktif)
   const [subEnable, setSubEnable] = useSticky<boolean>("naratif.subEnable", true);
-  const [subStyle, setSubStyle] = useSticky<string>("naratif.subStyle", "modern");
+  const [subCfg, setSubCfg] = useSticky<SubtitleConfig>("naratif.subCfg", DEFAULT_SUB_CONFIG);
 
   const [brainStatus, setBrainStatus] = useSticky<string>("naratif.brainStatus", "");
   const [scenes, setScenes] = useSticky<Scene[]>("naratif.scenes", []);
@@ -1072,21 +986,19 @@ function NaratifPage() {
       const XFADE = Math.max(0.1, Math.min(1.5, Number(xfadeDur) || 0.5));
       const GAP = Math.max(0, Math.min(4, Number(sceneGap) || 0));
       const TAIL_LAST = Math.max(0, Math.min(4, Number(leadOutDur) || 0));
-      const activeSubStyle = findSubStyle(subStyle);
       const burnSubs = !!subEnable;
+      const subFont = findSubFont(subCfg.font);
 
       // Preload font TTF supaya libass punya font untuk render subtitle
       // (ffmpeg.wasm tidak ship font sistem; tanpa ini subtitle tidak muncul).
-      let fontsReady = false;
       if (burnSubs) {
         try {
           setMergeStatus("🔤 Memuat font untuk subtitle…");
-          pushBulkLog("🔤 Memuat font DejaVu Sans untuk subtitle…");
-          const fontResp = await fetch("https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf");
+          pushBulkLog(`🔤 Memuat font ${subFont.label} untuk subtitle…`);
+          const fontResp = await fetch(subFont.url);
           if (fontResp.ok) {
             const buf = new Uint8Array(await fontResp.arrayBuffer());
-            await ff.writeFile("DejaVuSans.ttf", buf);
-            fontsReady = true;
+            await ff.writeFile(subFont.file, buf);
             pushBulkLog(`✅ Font subtitle siap (${(buf.byteLength / 1024).toFixed(0)} KB)`);
           } else {
             pushBulkLog(`⚠️ Font gagal dimuat (HTTP ${fontResp.status}); subtitle mungkin tidak tampil`);
@@ -1134,16 +1046,13 @@ function NaratifPage() {
           (vTail > 0 ? `,tpad=stop_mode=clone:stop_duration=${vTail.toFixed(3)}` : "");
 
         if (burnSubs && s.narration && s.narration.trim()) {
-          const cues = narrationToCues(s.narration, voDur);
+          const cues = narrationToCues(s.narration, voDur, subCfg.maxChars);
           if (cues.length > 0) {
-            const srt = cues
-              .map((c, k) => `${k + 1}\n${srtTs(c.start)} --> ${srtTs(c.end)}\n${c.text}\n`)
-              .join("\n");
-            const subName = `s${i}.srt`;
-            await ff.writeFile(subName, new TextEncoder().encode(srt));
+            const ass = buildAss(cues, subCfg, targetW, targetH);
+            const subName = `s${i}.ass`;
+            await ff.writeFile(subName, new TextEncoder().encode(ass));
             subFilesToClean.push(subName);
-            const subOpts = fontsReady ? `fontsdir=.:force_style='${activeSubStyle.force}'` : `force_style='${activeSubStyle.force}'`;
-            vFilter += `,subtitles=${subName}:${subOpts}`;
+            vFilter += `,subtitles=${subName}:fontsdir=.`;
           }
         }
 
@@ -1436,6 +1345,15 @@ function NaratifPage() {
           <div className="mt-5 flex items-center gap-3 flex-wrap">
             <PrimaryButton onClick={runBrain}><Sparkles className="h-4 w-4" /> Analisa & Bikin Naskah</PrimaryButton>
             {brainStatus && <div className="text-[11px] text-muted-foreground">{brainStatus}</div>}
+            <GenMetaTable
+              items={[
+                { slot: "Image", provider: imgProvider },
+                { slot: "Video", provider },
+                { slot: "Voice", provider: "eleven" },
+              ]}
+              status={anyBusy ? "processing" : "idle"}
+              className="min-w-[320px] lg:min-w-0 lg:flex-1"
+            />
           </div>
         </Card>
       )}
@@ -1463,8 +1381,24 @@ function NaratifPage() {
                         <span className="text-[11px] text-muted-foreground">Belum ada gambar</span>
                       )}
                       {s.busy && (
-                        <div className="absolute inset-0 grid place-items-center bg-black/60 text-[11px] text-primary-foreground">
-                          {s.busy === "img" ? "🖼️ generating…" : s.busy === "vo" ? "🎙️ generating…" : "🎬 generating…"}
+                        <div className="absolute inset-0 z-10 grid place-items-center gap-2 bg-black/75 backdrop-blur-[2px]">
+                          <div className="flex flex-col items-center gap-2 px-3 text-center">
+                            <span className="relative flex h-9 w-9 items-center justify-center">
+                              <span className="absolute inset-0 animate-ping rounded-full bg-primary/30" />
+                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            </span>
+                            <span className="rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-[10px] font-semibold text-primary">
+                              {s.busy === "img"
+                                ? "🖼️ Generating Image…"
+                                : s.busy === "vo"
+                                  ? "🎙️ Generating Voice-Over…"
+                                  : "🎬 Generating Video…"}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground">Scene #{s.idx} sedang diproses</span>
+                          </div>
+                          <div className="absolute bottom-0 left-0 h-1 w-full overflow-hidden bg-black/50">
+                            <div className="h-full w-1/3 animate-[shimmer_1.4s_linear_infinite] bg-gradient-to-r from-transparent via-primary to-transparent" />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1554,41 +1488,7 @@ function NaratifPage() {
                 <span>{subEnable ? "Aktif — subtitle akan dibakar ke video" : "Nonaktif — video tanpa subtitle"}</span>
               </label>
             </div>
-            {subEnable && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                {SUB_STYLES.map((st) => {
-                  const active = st.key === subStyle;
-                  return (
-                    <button
-                      key={st.key}
-                      type="button"
-                      onClick={() => setSubStyle(st.key)}
-                      className={`text-left rounded-lg border transition p-2 flex flex-col gap-1.5 ${active ? "border-primary ring-2 ring-primary/50 bg-primary/5" : "border-border hover:border-primary/60 bg-black/20"}`}
-                      title={st.label}
-                    >
-                      <div
-                        className="w-full h-14 rounded-md relative overflow-hidden grid place-items-center"
-                        style={{
-                          background:
-                            "linear-gradient(135deg,#2a2a3d 0%,#4a3a5e 50%,#2a3a4d 100%)",
-                        }}
-                      >
-                        <span
-                          className="text-[10px] leading-tight text-center px-1 max-w-[95%] whitespace-nowrap overflow-hidden text-ellipsis"
-                          style={st.preview}
-                        >
-                          Contoh subtitle
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-medium">{st.label}</span>
-                        {active && <span className="text-[9px] text-primary font-mono">AKTIF</span>}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            {subEnable && <SubtitleDesigner value={subCfg} onChange={setSubCfg} ratio={ratio} />}
           </div>
           <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
             <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
@@ -1616,6 +1516,38 @@ function NaratifPage() {
                   ))}
                 </select>
               </label>
+              <label className="text-[11px] flex flex-col gap-1 sm:col-span-2">
+                <span>Cari backsound di internet (archive.org · CC / public domain)</span>
+                <div className="flex gap-1.5">
+                  <div className="flex flex-1 items-center gap-1.5 rounded-md border border-border bg-black/30 px-2">
+                    <Search className="h-3 w-3 text-muted-foreground" />
+                    <input
+                      value={bgQuery}
+                      onChange={(e) => setBgQuery(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void loadBgLibrary(bgMood, bgQuery); }}
+                      placeholder="epic drums, lofi chill, piano sedih…"
+                      className="h-8 flex-1 bg-transparent text-[12px] outline-none"
+                    />
+                  </div>
+                  <GhostButton
+                    onClick={() => loadBgLibrary(bgMood, bgQuery)}
+                    disabled={bgLoading}
+                    className="!px-2 !py-1 text-[11px]"
+                  >
+                    {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />} Cari
+                  </GhostButton>
+                  <GhostButton
+                    onClick={() => setBgFavOpen(true)}
+                    className="!px-2 !py-1 text-[11px]"
+                    title="Backsound favorit tersimpan di cloud"
+                  >
+                    <Star className="h-3 w-3" /> Favorit{bgFav.items.length ? ` (${bgFav.items.length})` : ""}
+                  </GhostButton>
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div className="text-[11px] flex flex-col gap-1">
                 <span>Aksi</span>
                 <div className="flex gap-1.5">
@@ -1623,7 +1555,7 @@ function NaratifPage() {
                     onClick={shuffleBgTrack}
                     disabled={bgLoading}
                     className="!px-2 !py-1 text-[11px] flex-1"
-                    title="Ambil track random dari mood ini"
+                    title="Ambil track random dari hasil pencarian / mood ini"
                   >
                     {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Shuffle
                   </GhostButton>
@@ -1633,7 +1565,7 @@ function NaratifPage() {
                     className="!px-2 !py-1 text-[11px] flex-1"
                     title="Play / pause preview"
                   >
-                    <Play className="h-3 w-3" /> {bgPlaying ? "Pause" : "Play"}
+                    {bgPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />} {bgPlaying ? "Pause" : "Play"}
                   </GhostButton>
                 </div>
               </div>
@@ -1641,7 +1573,46 @@ function NaratifPage() {
                 <span>Volume backsound: <b>{Math.round(bgVol * 100)}%</b></span>
                 <input type="range" min={0} max={0.6} step={0.02} value={bgVol} onChange={(e) => setBgVol(Number(e.target.value))} />
               </label>
+              <div className="text-[11px] flex flex-col gap-1">
+                <span>Backsound aktif</span>
+                <span className="truncate rounded-md border border-border bg-black/20 px-2 py-1.5 text-muted-foreground">
+                  {bgTrack ? `🎶 ${bgSource === "upload" ? bgUploadName || bgTrack.title : bgTrack.title}` : "Belum dipilih"}
+                </span>
+              </div>
             </div>
+
+            {bgLibrary.length > 0 && (
+              <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border/60 bg-black/25 p-2">
+                {bgLibrary.map((t) => {
+                  const active = bgTrack?.url === t.url;
+                  return (
+                    <div
+                      key={t.url}
+                      className={`flex items-center gap-2 rounded-md px-2 py-1 ${active ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-white/5"}`}
+                    >
+                      <FavoriteHeart
+                        active={bgFav.isFav(t.url)}
+                        onClick={() => bgFav.toggle({ title: t.title, url: t.url, duration: t.duration, mood: bgMood })}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[11px]">{t.title}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {Math.floor(t.duration / 60)}:{String(Math.floor(t.duration % 60)).padStart(2, "0")}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => pickBgTrack(t)}
+                        className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/20"
+                      >
+                        {active ? "Dipakai" : "Pakai"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
               <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-md border border-border bg-black/20 px-2 py-1 hover:border-primary/60">
                 <span>📁 Upload manual (MP3/WAV)</span>
@@ -1652,14 +1623,24 @@ function NaratifPage() {
                   onChange={(e) => { const f = e.currentTarget.files?.[0] || null; onBgUpload(f); e.currentTarget.value = ""; }}
                 />
               </label>
-              {bgTrack && (
-                <span className="truncate max-w-[60%]">
-                  🎶 <b>{bgSource === "upload" ? bgUploadName || bgTrack.title : bgTrack.title}</b>
-                  {bgSource === "library" ? " (Kevin MacLeod · CC-BY)" : ""}
-                </span>
+              {bgTrack && bgSource === "library" && (
+                <FavoriteHeart
+                  active={bgFav.isFav(bgTrack.url)}
+                  onClick={() => bgFav.toggle({ title: bgTrack.title, url: bgTrack.url, duration: bgTrack.duration, mood: bgMood })}
+                />
               )}
               {!bgTrack && <span className="opacity-70">Tidak ada backsound dipilih — video akan hanya pakai voice-over.</span>}
             </div>
+
+            <BacksoundFavoritesDialog
+              open={bgFavOpen}
+              onClose={() => setBgFavOpen(false)}
+              items={bgFav.items}
+              loading={bgFav.loading}
+              onRefresh={() => void bgFav.refresh()}
+              onRemove={(url) => void bgFav.toggle({ title: "", url })}
+              onPick={(t) => pickBgTrack({ title: t.title, url: t.url, duration: t.duration })}
+            />
             {bgTrack?.url && (
               <audio
                 ref={bgAudioRef}
@@ -1700,34 +1681,51 @@ function NaratifPage() {
             </PrimaryButton>
           </div>
 
-          {(anyBusy || bulkPct > 0 || bulkLogs.length > 0) && (
-            <div className="mt-4 rounded-xl border border-border/70 bg-card/40 p-3 space-y-3">
-              <div>
-                <div className="flex justify-between items-center text-xs mb-1">
-                  <span className="text-muted-foreground">Progress bulk</span>
-                  <span className="font-mono text-muted-foreground">{bulkPct}%</span>
-                </div>
-                <div className="h-1 rounded-full bg-border overflow-hidden">
-                  <div className="h-full transition-all" style={{ width: `${bulkPct}%`, background: "var(--gradient-neon)" }} />
-                </div>
-              </div>
-              {bulkLogs.length > 0 && (
-                <div className="rounded-lg border border-border/60 bg-black/40 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Log Proses</div>
-                    <button onClick={() => { setBulkLogs([]); setPct(0); }} className="text-[10px] text-muted-foreground hover:text-destructive">Clear</button>
-                  </div>
-                  <div className="max-h-48 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
-                    {bulkLogs.map((l, i) => (
-                      <div key={i} className="whitespace-pre-wrap break-all min-w-0">{l}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* Box khusus: status proses, progress bar, dan log — seperti di Motion Control */}
+          <div className="mt-4 rounded-xl border border-border/70 bg-card/40 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              <div className="text-xs font-semibold">Status &amp; Log Proses</div>
+              {anyBusy && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-mono ${anyBusy ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}
+              >
+                {bulkBusy.img
+                  ? "GENERATING IMAGE"
+                  : bulkBusy.vo
+                    ? "GENERATING VO"
+                    : bulkBusy.vid
+                      ? "GENERATING VIDEO"
+                      : bulkBusy.merge
+                        ? "MERGING"
+                        : "IDLE"}
+              </span>
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground">{bulkPct}%</span>
             </div>
-          )}
 
-          {mergeStatus && <div className="mt-3 text-[11px] text-muted-foreground">{mergeStatus}</div>}
+            <div className="h-1.5 rounded-full bg-border overflow-hidden">
+              <div className="h-full transition-all" style={{ width: `${bulkPct}%`, background: "var(--gradient-neon)" }} />
+            </div>
+
+            <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
+              <div className="truncate">🧠 Brain: {brainStatus || "—"}</div>
+              <div className="truncate">🧵 Merge: {mergeStatus || "—"}</div>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-black/40 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground">Log Proses</div>
+                <button onClick={() => { setBulkLogs([]); setPct(0); }} className="text-[10px] text-muted-foreground hover:text-destructive">Clear</button>
+              </div>
+              <div className="max-h-48 overflow-y-auto overflow-x-hidden font-mono text-[10px] leading-relaxed text-muted-foreground min-w-0">
+                {bulkLogs.length === 0 && <div className="opacity-60">Belum ada aktivitas. Log akan muncul saat proses berjalan.</div>}
+                {bulkLogs.map((l, i) => (
+                  <div key={i} className="whitespace-pre-wrap break-all min-w-0">{l}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {finalUrl && finalUrl !== "#" && (
             <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 space-y-3">
               <video src={finalUrl} controls className={`w-full rounded-lg ${ratioClass(ratio)} bg-black`} />

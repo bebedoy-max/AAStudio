@@ -1,3 +1,4 @@
+import { GenMetaBar } from "@/components/generate/gen-meta-bar";
 import { createFileRoute } from "@tanstack/react-router";
 import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useRef, useState } from "react";
@@ -58,7 +59,7 @@ function ImageToVideo() {
     });
 
   // Real token/credit dari Token / API Manager (live)
-  const { tokens, credits } = useProviderCredit(provider);
+  useProviderCredit(provider);
   // Status generate nyata: idle → processing → sukses / gagal
   const [runState, setRunState] = useSticky<"idle" | "processing" | "sukses" | "gagal">("i2v.runState", "idle");
 
@@ -217,15 +218,6 @@ function ImageToVideo() {
     localStorage.setItem("aatools.i2v.templates", JSON.stringify(next));
   };
 
-  const statusTone =
-    runState === "sukses"
-      ? "text-emerald-400"
-      : runState === "gagal"
-        ? "text-destructive"
-        : runState === "processing"
-          ? "text-amber-300"
-          : "text-muted-foreground";
-
   return (
     <DashboardShell>
       <PageHero eyebrow="Generate" title="Image To" highlight="Video" desc="1 gambar → pilih model, aspek rasio, kualitas, prompt → generate video." />
@@ -301,13 +293,7 @@ function ImageToVideo() {
               <PrimaryButton onClick={generate} disabled={!img || !prompt.trim()}>
                 <Rocket className="h-4 w-4" /> Generate Video
               </PrimaryButton>
-              <div className="text-xs text-muted-foreground">Cost: <b className="text-foreground font-mono">{totalCost}</b> credits</div>
-              <div className="text-xs text-muted-foreground">
-                Token: <b className="text-fuchsia-300">{tokens}</b>
-                {" · "}Sisa credit: <b className="text-emerald-400">{credits == null ? "—" : credits.toLocaleString()}</b>
-                {" · "}Status: <b className={statusTone}>{runState}</b>
-              </div>
-
+              <GenMetaBar provider={provider} cost={totalCost} status={runState} />
             </div>
             {status.show && (
               <div className="mt-4 rounded-xl border border-border/70 bg-card/40 p-3">
