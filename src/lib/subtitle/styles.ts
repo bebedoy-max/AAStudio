@@ -110,6 +110,7 @@ export function findSubPreset(key: string): SubPreset {
   return SUB_PRESETS.find((p) => p.key === key) || SUB_PRESETS[0];
 }
 
+<<<<<<< HEAD
 export const DEFAULT_SUB_CONFIG: SubtitleConfig = {
   ...findSubPreset("anime").config,
   preset: "anime",
@@ -128,6 +129,9 @@ export const DEFAULT_SUB_CONFIG: SubtitleConfig = {
   uppercase: true,
   box: false,
 };
+=======
+export const DEFAULT_SUB_CONFIG: SubtitleConfig = { preset: "modern", ...SUB_PRESETS[0].config };
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
 
 export function presetConfig(key: string): SubtitleConfig {
   const p = findSubPreset(key);
@@ -146,10 +150,17 @@ export function subtitleCss(cfg: SubtitleConfig, scale = 0.42): React.CSSPropert
     }
   }
   if (cfg.shadow > 0) shadows.push(`${cfg.shadow * scale * 2}px ${cfg.shadow * scale * 2}px ${cfg.shadow * scale * 2}px rgba(0,0,0,.9)`);
+<<<<<<< HEAD
   if (cfg.effect === "glow") shadows.push(`0 0 ${Math.max(2, cfg.fontSize * scale * 0.25)}px ${cfg.outlineColor}`);
   return {
     fontFamily: f.css,
     fontSize: Math.max(5, cfg.fontSize * scale),
+=======
+  if (cfg.effect === "glow") shadows.push(`0 0 ${8 * scale * 3}px ${cfg.outlineColor}`);
+  return {
+    fontFamily: f.css,
+    fontSize: Math.max(9, Math.round(cfg.fontSize * scale)),
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
     color: cfg.primary,
     fontWeight: cfg.bold ? 800 : 400,
     fontStyle: cfg.italic ? "italic" : "normal",
@@ -157,7 +168,11 @@ export function subtitleCss(cfg: SubtitleConfig, scale = 0.42): React.CSSPropert
     letterSpacing: `${cfg.spacing * scale}px`,
     textShadow: shadows.length ? shadows.join(", ") : undefined,
     background: cfg.box ? `rgba(0,0,0,${cfg.boxOpacity})` : "transparent",
+<<<<<<< HEAD
     padding: cfg.box ? `${2 * scale * 4}px ${8 * scale * 4}px` : 0,
+=======
+    padding: cfg.box ? "2px 8px" : 0,
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
     borderRadius: cfg.box ? 6 : 0,
     lineHeight: 1.25,
     textAlign: "center",

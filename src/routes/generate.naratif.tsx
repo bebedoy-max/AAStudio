@@ -5,19 +5,26 @@ import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { LEONARDO_VIDEO_MODELS, leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
+<<<<<<< HEAD
 import { Rocket, Play, Pause, ClipboardPaste, Sparkles, Film, Merge, RefreshCw, Loader2, Activity, Search, Star, X, Trash2, Download, ChevronRight } from "lucide-react";
+=======
+import { Rocket, Play, Pause, ClipboardPaste, Sparkles, Film, Mic, Image as ImageIcon, Merge, RefreshCw, Loader2, Activity, Search, Star } from "lucide-react";
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
 import { consumeHandoff } from "@/lib/creative/handoff";
 import { ProviderActivePill } from "@/components/routing/quick-routing-dialog";
 import { SubtitleDesigner } from "@/components/generate/subtitle-designer";
+<<<<<<< HEAD
 import { readProviderCredit } from "@/lib/providers/credit-summary";
 import { useCloudGallery } from "@/lib/cloud/gallery";
 import { uploadFileToCloud } from "@/lib/cloud/client";
 import { downloadFilesAsZip } from "@/lib/utils/download-zip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
+=======
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
 import {
   DEFAULT_SUB_CONFIG,
   buildAss,
@@ -406,6 +413,7 @@ function NaratifPage() {
     }
   };
 
+<<<<<<< HEAD
   const stopPreview = () => {
     bgAudioRef.current?.pause();
     bgAudioRef.current = null;
@@ -423,6 +431,8 @@ function NaratifPage() {
     void a.play().catch(() => { setBgPlayingUrl(null); });
   };
 
+=======
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
   const pickBgTrack = (t: BgTrack) => {
     setBgTrack(t);
     setBgSource("library");
@@ -433,9 +443,21 @@ function NaratifPage() {
     let list = bgLibrary;
     if (!list.length) list = await loadBgLibrary(bgMood, bgQuery);
     if (!list.length) return;
+<<<<<<< HEAD
     const t = list[Math.floor(Math.random() * list.length)];
     pickBgTrack(t);
     playPreview(t.url);
+=======
+    pickBgTrack(list[Math.floor(Math.random() * list.length)]);
+  };
+
+  const toggleBgPlay = () => {
+    if (!bgTrack?.url) return;
+    const el = bgAudioRef.current;
+    if (!el) return;
+    if (bgPlaying) { el.pause(); setBgPlaying(false); }
+    else { el.play().then(() => setBgPlaying(true)).catch(() => setBgPlaying(false)); }
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
   };
 
   const onBgUpload = async (file: File | null) => {
@@ -1630,7 +1652,11 @@ function NaratifPage() {
                 <span>{subEnable ? "Aktif — subtitle akan dibakar ke video" : "Nonaktif — video tanpa subtitle"}</span>
               </label>
             </div>
+<<<<<<< HEAD
             {subOpen && subEnable && <SubtitleDesigner value={subCfg} onChange={setSubCfg} ratio={ratio} />}
+=======
+            {subEnable && <SubtitleDesigner value={subCfg} onChange={setSubCfg} ratio={ratio} />}
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
           </div>
           <div className="mt-3 rounded-xl border border-border bg-card/40 p-3">
             <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
@@ -1652,6 +1678,7 @@ function NaratifPage() {
                 </button>
               )}
             </div>
+<<<<<<< HEAD
             <div className={`grid gap-3 lg:grid-cols-2 ${bgOpen ? "" : "hidden"}`}>
               {/* Kiri — pengaturan */}
               <div className="grid gap-2">
@@ -1693,11 +1720,76 @@ function NaratifPage() {
                     disabled={bgLoading}
                     className="!px-2 !py-1 text-[11px]"
                     title="Acak lagu lalu langsung diputar"
+=======
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Mood (dari internet, gratis)</span>
+                <select
+                  value={bgMood}
+                  onChange={(e) => { setBgMood(e.target.value); setBgLibrary([]); }}
+                  className="h-8 rounded-md border border-border bg-black/30 px-2 text-[12px]"
+                >
+                  {BG_MOODS.map((m) => (
+                    <option key={m.key} value={m.key}>{m.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-[11px] flex flex-col gap-1 sm:col-span-2">
+                <span>Cari backsound di internet (archive.org · CC / public domain)</span>
+                <div className="flex gap-1.5">
+                  <div className="flex flex-1 items-center gap-1.5 rounded-md border border-border bg-black/30 px-2">
+                    <Search className="h-3 w-3 text-muted-foreground" />
+                    <input
+                      value={bgQuery}
+                      onChange={(e) => setBgQuery(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void loadBgLibrary(bgMood, bgQuery); }}
+                      placeholder="epic drums, lofi chill, piano sedih…"
+                      className="h-8 flex-1 bg-transparent text-[12px] outline-none"
+                    />
+                  </div>
+                  <GhostButton
+                    onClick={() => loadBgLibrary(bgMood, bgQuery)}
+                    disabled={bgLoading}
+                    className="!px-2 !py-1 text-[11px]"
+                  >
+                    {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />} Cari
+                  </GhostButton>
+                  <GhostButton
+                    onClick={() => setBgFavOpen(true)}
+                    className="!px-2 !py-1 text-[11px]"
+                    title="Backsound favorit tersimpan di cloud"
+                  >
+                    <Star className="h-3 w-3" /> Favorit{bgFav.items.length ? ` (${bgFav.items.length})` : ""}
+                  </GhostButton>
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="text-[11px] flex flex-col gap-1">
+                <span>Aksi</span>
+                <div className="flex gap-1.5">
+                  <GhostButton
+                    onClick={shuffleBgTrack}
+                    disabled={bgLoading}
+                    className="!px-2 !py-1 text-[11px] flex-1"
+                    title="Ambil track random dari hasil pencarian / mood ini"
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
                   >
                     {bgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Shuffle & Play
                   </GhostButton>
+<<<<<<< HEAD
                   <GhostButton onClick={() => setBgFavOpen(true)} className="!px-2 !py-1 text-[11px]" title="Backsound favorit tersimpan di cloud">
                     <Star className="h-3 w-3" /> Favorit{bgFav.items.length ? ` (${bgFav.items.length})` : ""}
+=======
+                  <GhostButton
+                    onClick={toggleBgPlay}
+                    disabled={!bgTrack?.url}
+                    className="!px-2 !py-1 text-[11px] flex-1"
+                    title="Play / pause preview"
+                  >
+                    {bgPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />} {bgPlaying ? "Pause" : "Play"}
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
                   </GhostButton>
                   <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border bg-black/20 px-2 py-1 text-[11px] hover:border-primary/60">
                     <span>📁 Upload MP3/WAV</span>
@@ -1780,8 +1872,74 @@ function NaratifPage() {
                   })}
                 </div>
               </div>
+<<<<<<< HEAD
             </div>
 
+=======
+              <label className="text-[11px] flex flex-col gap-1">
+                <span>Volume backsound: <b>{Math.round(bgVol * 100)}%</b></span>
+                <input type="range" min={0} max={0.6} step={0.02} value={bgVol} onChange={(e) => setBgVol(Number(e.target.value))} />
+              </label>
+              <div className="text-[11px] flex flex-col gap-1">
+                <span>Backsound aktif</span>
+                <span className="truncate rounded-md border border-border bg-black/20 px-2 py-1.5 text-muted-foreground">
+                  {bgTrack ? `🎶 ${bgSource === "upload" ? bgUploadName || bgTrack.title : bgTrack.title}` : "Belum dipilih"}
+                </span>
+              </div>
+            </div>
+
+            {bgLibrary.length > 0 && (
+              <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border/60 bg-black/25 p-2">
+                {bgLibrary.map((t) => {
+                  const active = bgTrack?.url === t.url;
+                  return (
+                    <div
+                      key={t.url}
+                      className={`flex items-center gap-2 rounded-md px-2 py-1 ${active ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-white/5"}`}
+                    >
+                      <FavoriteHeart
+                        active={bgFav.isFav(t.url)}
+                        onClick={() => bgFav.toggle({ title: t.title, url: t.url, duration: t.duration, mood: bgMood })}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[11px]">{t.title}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {Math.floor(t.duration / 60)}:{String(Math.floor(t.duration % 60)).padStart(2, "0")}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => pickBgTrack(t)}
+                        className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] text-primary hover:bg-primary/20"
+                      >
+                        {active ? "Dipakai" : "Pakai"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <label className="inline-flex items-center gap-1.5 cursor-pointer rounded-md border border-border bg-black/20 px-2 py-1 hover:border-primary/60">
+                <span>📁 Upload manual (MP3/WAV)</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => { const f = e.currentTarget.files?.[0] || null; onBgUpload(f); e.currentTarget.value = ""; }}
+                />
+              </label>
+              {bgTrack && bgSource === "library" && (
+                <FavoriteHeart
+                  active={bgFav.isFav(bgTrack.url)}
+                  onClick={() => bgFav.toggle({ title: bgTrack.title, url: bgTrack.url, duration: bgTrack.duration, mood: bgMood })}
+                />
+              )}
+              {!bgTrack && <span className="opacity-70">Tidak ada backsound dipilih — video akan hanya pakai voice-over.</span>}
+            </div>
+
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
             <BacksoundFavoritesDialog
               open={bgFavOpen}
               onClose={() => setBgFavOpen(false)}
@@ -1791,7 +1949,20 @@ function NaratifPage() {
               onRemove={(url) => void bgFav.toggle({ title: "", url })}
               onPick={(t) => pickBgTrack({ title: t.title, url: t.url, duration: t.duration })}
             />
+<<<<<<< HEAD
 
+=======
+            {bgTrack?.url && (
+              <audio
+                ref={bgAudioRef}
+                src={bgTrack.url}
+                onEnded={() => setBgPlaying(false)}
+                onPause={() => setBgPlaying(false)}
+                onPlay={() => setBgPlaying(true)}
+                className="hidden"
+              />
+            )}
+>>>>>>> 6b278d59eaf9dcbec5aca3bbc75b7115fca15548
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
 
