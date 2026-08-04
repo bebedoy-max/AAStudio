@@ -9,9 +9,8 @@ export const Route = createFileRoute("/api/public/companion/payment/paid")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
-        const { authenticateDevice, findPurchaseByOrderId } = await import(
-          "@/lib/companion/companion.server"
-        );
+        const { authenticateDevice, findPurchaseByOrderId, expireStaleCompanionPurchases } =
+          await import("@/lib/companion/companion.server");
 
         const device = await authenticateDevice(request);
         if (!device) return jsonResponse({ ok: false, error: "unauthorized" }, 401);
@@ -26,8 +25,13 @@ export const Route = createFileRoute("/api/public/companion/payment/paid")({
         if (!orderId) return jsonResponse({ ok: false, error: "missing order_id" }, 400);
 
         try {
+          // Batalkan dulu pesanan yang lewat batas waktu 1 jam.
+          await expireStaleCompanionPurchases();
           const pr = await findPurchaseByOrderId(orderId);
           if (!pr) return jsonResponse({ ok: false, error: "unknown order" }, 404);
+          if (pr.status === "rejected") {
+            return jsonResponse({ ok: false, error: "order expired" }, 409);
+          }
           if (pr.status === "approved") {
             return jsonResponse({ ok: true, status: "PAID", note: "already approved" });
           }
