@@ -113,6 +113,13 @@ async function getOrCreateFolder(ctx: DriveCtx, name: string, parentId?: string)
 
 const folderCache = new Map<string, Promise<string>>();
 
+/** Buang cache folder setelah user mengganti/menghubungkan ulang akun Drive. */
+export function invalidateDriveFolderCache(userId: string): void {
+  for (const key of folderCache.keys()) {
+    if (key.includes(`:${userId}:`)) folderCache.delete(key);
+  }
+}
+
 /** Label folder user di Global Cloud: "@displayname" (fallback ke email/user id). */
 export async function userFolderLabel(userId: string): Promise<string> {
   try {
@@ -187,7 +194,10 @@ export async function ensureFolder(
 ): Promise<string> {
   const menu = menuFolderName(source);
   const bucket = originFolderName(origin);
-  const cacheKey = `${ctx.mode}:${ctx.mode === "personal" ? userId : `g:${userId}`}:${bucket}:${menu}`;
+  // Connection key ikut membedakan cache akun pribadi. Tanpa ini, reconnect ke
+  // akun Google lain dapat memakai folder id milik akun lama dan upload gagal.
+  const accountKey = ctx.mode === "personal" ? `${userId}:${ctx.connectionKey ?? "missing"}` : `g:${userId}`;
+  const cacheKey = `${ctx.mode}:${accountKey}:${bucket}:${menu}`;
   const cached = folderCache.get(cacheKey);
   if (cached) return cached;
 
@@ -373,26 +383,44 @@ export type DriveAbout = {
   usageInDrive: number | null;
 };
 
-/** Info akun + kuota Drive (dipakai untuk label & deteksi penuh). */
-export async function driveAbout(ctx: DriveCtx): Promise<DriveAbout | null> {
+/** Info akun + kuota Drive, plus alasan kalau gagal (buat ditampilkan di UI). */
+export async function driveAboutResult(
+  ctx: DriveCtx,
+): Promise<{ about: DriveAbout | null; error: string | null }> {
   try {
     const res = await driveFetch(ctx, "/drive/v3/about?fields=user(emailAddress),storageQuota");
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const msg = `Google Drive menolak permintaan info akun [${res.status}] ${body.slice(0, 200)}`;
+      console.error("[cloud] driveAbout failed", msg);
+      return { about: null, error: msg };
+    }
     const data = (await res.json()) as {
       user?: { emailAddress?: string };
       storageQuota?: { limit?: string; usage?: string; usageInDrive?: string };
     };
     const num = (v?: string) => (v == null ? null : Number(v));
     return {
-      email: data.user?.emailAddress ?? null,
-      limit: num(data.storageQuota?.limit),
-      usage: num(data.storageQuota?.usage),
-      usageInDrive: num(data.storageQuota?.usageInDrive),
+      about: {
+        email: data.user?.emailAddress ?? null,
+        limit: num(data.storageQuota?.limit),
+        usage: num(data.storageQuota?.usage),
+        usageInDrive: num(data.storageQuota?.usageInDrive),
+      },
+      error: null,
     };
-  } catch {
-    return null;
+  } catch (e) {
+    const msg = (e as Error).message || "Gagal membaca info Google Drive.";
+    console.error("[cloud] driveAbout threw", msg);
+    return { about: null, error: msg };
   }
 }
+
+/** Info akun + kuota Drive (dipakai untuk label & deteksi penuh). */
+export async function driveAbout(ctx: DriveCtx): Promise<DriveAbout | null> {
+  return (await driveAboutResult(ctx)).about;
+}
+
 
 /** True kalau Drive pribadi sudah (hampir) penuh sehingga upload pasti gagal. */
 export async function driveIsFull(ctx: DriveCtx, incomingBytes = 0): Promise<boolean> {

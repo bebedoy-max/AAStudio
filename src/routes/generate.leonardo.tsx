@@ -265,8 +265,9 @@ function LeonardoPage() {
           onRotate: (idx, total, reason) => log(`↻ rotate token #${idx}/${total}: ${reason}`),
         });
         out.push(url);
-        void gallery.add(url, { prompt: prompt.trim() });
       }
+      const archived = await gallery.addMany(out.map((url) => ({ url, meta: { prompt: prompt.trim() } })));
+      if (archived.length !== out.length) throw new Error(`${out.length - archived.length} gambar gagal disimpan ke cloud.`);
       log(`✅ Selesai — ${out.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {
@@ -345,7 +346,8 @@ function LeonardoPage() {
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         },
       );
-      for (const u of images) void gallery.add(u, { prompt: prompt.trim() });
+      const archived = await gallery.addMany(images.map((url) => ({ url, meta: { prompt: prompt.trim() } })));
+      if (archived.length !== images.length) throw new Error(`${images.length - archived.length} gambar gagal disimpan ke cloud.`);
       log(`✅ Selesai — ${images.length} gambar`, 100);
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
     } catch (e) {

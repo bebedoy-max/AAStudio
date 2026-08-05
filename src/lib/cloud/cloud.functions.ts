@@ -19,12 +19,23 @@ export const getCloudStatus = createServerFn({ method: "GET" })
     // Info akun + kuota Drive pribadi (live dari Google).
     let personalEmail = info?.account_email ?? null;
     let quota: { limit: number | null; usage: number | null } | null = null;
+    let personalError: string | null = null;
     if (key) {
-      const { driveAbout } = await import("./drive.server");
-      const about = await driveAbout({ mode: "personal", connectionKey: key });
+      const { driveAboutResult } = await import("./drive.server");
+      const { about, error } = await driveAboutResult({ mode: "personal", connectionKey: key });
+      personalError = error;
       if (about) {
         personalEmail = about.email ?? personalEmail;
         quota = { limit: about.limit, usage: about.usage };
+        // Simpan email kalau sebelumnya belum tercatat.
+        if (about.email && about.email !== info?.account_email) {
+          const { saveConnectionKeyForUser } = await import("./connections.server");
+          try {
+            await saveConnectionKeyForUser(context.userId, DRIVE_CONNECTOR_ID, key, about.email);
+          } catch (e) {
+            console.warn("[cloud] gagal menyimpan email akun Drive", e);
+          }
+        }
       }
     }
     const personalFull = Boolean(quota?.limit != null && quota?.usage != null && quota.usage >= quota.limit);
@@ -35,12 +46,14 @@ export const getCloudStatus = createServerFn({ method: "GET" })
       accountEmail: personalEmail,
       personalQuota: quota,
       personalFull,
+      personalError,
       globalAvailable: Boolean(
         global?.enabled &&
           (global.refresh_token_cipher || (process.env.GOOGLE_DRIVE_API_KEY && process.env.LOVABLE_API_KEY)),
       ),
     };
   });
+
 
 
 export const setCloudStorageMode = createServerFn({ method: "POST" })
@@ -205,6 +218,8 @@ export const completeDriveConnect = createServerFn({ method: "POST" })
     if (connectorId !== DRIVE_CONNECTOR_ID) throw new Error("OAuth mengembalikan connector yang salah");
     const email = await fetchDriveAccountEmail(connectionAPIKey);
     await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey, email);
+    const { invalidateDriveFolderCache } = await import("./drive.server");
+    invalidateDriveFolderCache(context.userId);
     await setStorageMode(context.userId, "personal");
     return { ok: true, accountEmail: email };
   });
@@ -228,6 +243,8 @@ export const disconnectDrive = createServerFn({ method: "POST" })
       }
     }
     await deleteConnectionForUser(context.userId, DRIVE_CONNECTOR_ID);
+    const { invalidateDriveFolderCache } = await import("./drive.server");
+    invalidateDriveFolderCache(context.userId);
     await setStorageMode(context.userId, "global");
     return { ok: true };
   });

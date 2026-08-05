@@ -183,7 +183,8 @@ function ImageToVideo() {
         },
       });
 
-      void gallery.add(url, { prompt: prompt.trim() });
+      const archived = await gallery.add(url, { prompt: prompt.trim() });
+      if (!archived) throw new Error("Video selesai dibuat, tetapi gagal disimpan ke cloud.");
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));
       pushLog(`✅ Video selesai · ${url.slice(0, 60)}${url.length > 60 ? "…" : ""}`);

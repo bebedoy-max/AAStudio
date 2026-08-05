@@ -379,7 +379,6 @@ function BulkFashion() {
           if (ac.signal.aborted) return;
           if (msg === "done" && url) {
             doneCount.n += 1;
-            void gallery.add(url, {});
           } else if (msg === "error") {
             setErrors((r) => [...r, { error: err }]);
           }
@@ -387,6 +386,10 @@ function BulkFashion() {
         },
       });
       if (!ac.signal.aborted) {
+        const archived = await gallery.addMany(urls.map((url) => ({ url, meta: {} })));
+        if (archived.length !== urls.length) {
+          throw new Error(`${urls.length - archived.length} hasil gagal disimpan ke cloud.`);
+        }
         setStatus((s) => ({ ...s, pct: 100, text: `✅ Selesai — ${urls.length}/${outfitFiles.length} sukses` }));
         const failed = outfitFiles.length - urls.length;
         logGenerate("bulk_fashion", {

@@ -74,18 +74,18 @@ export async function storeMediaForUser(params: {
   let uploaded;
   try {
     uploaded = await uploadToDrive(resolved.ctx, params.userId, file, params.source ?? null, origin);
-  } catch (e) {
-    if (mode !== "personal") throw e;
-    // Drive pribadi menolak (kuota/izin) — jangan gagalkan hasil generate.
-    console.warn("[cloud] upload Drive pribadi gagal, fallback Global Cloud", e);
-    mode = "global";
-    uploaded = await uploadToDrive(
-      { mode: "global", connectionKey: null },
-      params.userId,
-      file,
-      params.source ?? null,
-      origin,
-    );
+  } catch (firstError) {
+    if (mode !== "personal") throw firstError;
+    // Jangan diam-diam memindahkan hasil ke Global Cloud bila izin/token/folder
+    // Drive pribadi bermasalah. Retry sekali; fallback global sudah ditentukan
+    // resolveUploadCtx hanya ketika kuota personal benar-benar penuh.
+    console.warn("[cloud] upload Drive pribadi gagal, mencoba ulang", firstError);
+    try {
+      uploaded = await uploadToDrive(resolved.ctx, params.userId, file, params.source ?? null, origin);
+    } catch (retryError) {
+      const detail = retryError instanceof Error ? retryError.message : String(retryError);
+      throw new Error(`Google Drive pribadi gagal menyimpan hasil: ${detail}`);
+    }
   }
 
 

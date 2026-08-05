@@ -194,6 +194,7 @@ function UpscalerPage() {
     logGenerate("upscaler", { provider, status: "started", count: rows.length, mode });
     const jobs = rows.map((r, i) => ({ index: i, file: r.file }));
     const snapshot = rows.map((r) => ({ name: r.file.name }));
+    const cloudArchives: Promise<unknown>[] = [];
     try {
       await runUpscale(jobs, {
         provider,
@@ -216,16 +217,20 @@ function UpscalerPage() {
           setRows((prev) => prev.map((r, i) => (i === index ? { ...r, status, url: url ?? r.url, error: error ?? r.error } : r)));
           if (status === "done" && url) {
             setProgress((p) => ({ ...p, done: p.done + 1 }));
-            void gallery.add(
-              url,
-              { provider, mode, sourceName: snapshot[index]?.name || `image-${index + 1}` },
-              snapshot[index]?.name || `upscale-${index + 1}`,
+            cloudArchives.push(
+              gallery.add(
+                url,
+                { provider, mode, sourceName: snapshot[index]?.name || `image-${index + 1}` },
+                snapshot[index]?.name || `upscale-${index + 1}`,
+              ),
             );
           } else if (status === "error") {
             setProgress((p) => ({ ...p, done: p.done + 1 }));
           }
         },
       });
+      const archived = await Promise.all(cloudArchives);
+      if (archived.some((item) => item == null)) throw new Error("Sebagian hasil gagal disimpan ke cloud.");
       logGenerate("upscaler", { provider, status: "success", count: rows.length, mode });
     } catch (e) {
       logGenerate("upscaler", { provider, status: "error", count: rows.length, mode, error: (e as Error).message });

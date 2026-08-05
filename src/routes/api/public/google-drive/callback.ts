@@ -67,6 +67,8 @@ export const Route = createFileRoute("/api/public/google-drive/callback")({
               "@/lib/cloud/connections.server"
             );
             await saveConnectionKeyForUser(state.userId, DRIVE_CONNECTOR_ID, refreshToken, email);
+            const { invalidateDriveFolderCache } = await import("@/lib/cloud/drive.server");
+            invalidateDriveFolderCache(state.userId);
             await setStorageMode(state.userId, "personal");
           }
           return closingPage(true, "Google Drive terhubung. Jendela ini akan tertutup…");

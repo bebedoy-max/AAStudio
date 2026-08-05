@@ -186,7 +186,8 @@ function TextToVideoPage() {
           onRotate: (i, total, reason) => log(`↻ rotate token #${i}/${total}: ${reason}`),
         });
       }
-      void gallery.add(url, { prompt: prompt.trim() });
+      const archived = await gallery.add(url, { prompt: prompt.trim() });
+      if (!archived) throw new Error("Video selesai dibuat, tetapi gagal disimpan ke cloud.");
       log("✅ Video siap", 100);
       setRunState("sukses");
       setStatus((s) => ({ ...s, pct: 100, text: "✅ Selesai" }));

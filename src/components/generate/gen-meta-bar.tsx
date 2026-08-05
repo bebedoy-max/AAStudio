@@ -47,10 +47,7 @@ function statusTone(status: GenStatus) {
   return "border-border bg-card/60 text-muted-foreground";
 }
 
-/**
- * Bar info generate: baris atas = Cost / Token / Sisa credit,
- * baris bawah = Status + tombol pil isi token provider aktif.
- */
+/** Bar info generate; desktop satu baris, mobile tetap boleh membungkus. */
 export function GenMetaBar({
   provider,
   cost,
@@ -73,46 +70,48 @@ export function GenMetaBar({
   return (
     <div
       className={
-        "rounded-2xl border border-border/70 bg-card/50 px-3 py-2 backdrop-blur-sm " + (className || "")
+        "rounded-2xl border border-border/70 bg-card/50 px-3 py-2 backdrop-blur-sm lg:min-w-0 lg:flex-1 " + (className || "")
       }
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>
-          Cost: <b className="font-mono tabular-nums text-foreground">{cost == null ? "—" : cost.toLocaleString("id-ID")}</b> credits
-        </span>
-        <span className="text-border">·</span>
-        <span>
-          Token: <b className="font-mono tabular-nums text-fuchsia-300">{tokens}</b>
-        </span>
-        <span className="text-border">·</span>
-        <span>
-          Sisa credit:{" "}
-          <b className="font-mono tabular-nums text-emerald-400">
-            {credits == null ? "—" : credits.toLocaleString("id-ID")}
-          </b>
-        </span>
-        {note && <span className="text-muted-foreground/80">{note}</span>}
-      </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-muted-foreground">Status:</span>
-        <span
-          className={
-            "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider " +
-            statusTone(status)
-          }
-        >
-          {status}
-        </span>
-        <button
-          type="button"
-          onClick={() => setFillOpen(true)}
-          className={"inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20" + (low ? " token-low-alert" : "")}
-          title={`Isi token ${label}`}
-        >
-          <Plus className="h-3 w-3" />
-          <Coins className="h-3 w-3" />
-          Isi Token {label}
-        </button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 lg:flex-nowrap">
+          <span>
+            Cost: <b className="font-mono tabular-nums text-foreground">{cost == null ? "—" : cost.toLocaleString("id-ID")}</b> credits
+          </span>
+          <span className="text-border">·</span>
+          <span>
+            Token: <b className="font-mono tabular-nums text-fuchsia-300">{tokens}</b>
+          </span>
+          <span className="text-border">·</span>
+          <span>
+            Sisa credit:{" "}
+            <b className="font-mono tabular-nums text-emerald-400">
+              {credits == null ? "—" : credits.toLocaleString("id-ID")}
+            </b>
+          </span>
+          {note && <span className="text-muted-foreground/80">{note}</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+          <span className="text-xs text-muted-foreground">Status:</span>
+          <span
+            className={
+              "inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider " +
+              statusTone(status)
+            }
+          >
+            {status}
+          </span>
+          <button
+            type="button"
+            onClick={() => setFillOpen(true)}
+            className={"inline-flex items-center gap-1 rounded-full border border-primary/50 bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20" + (low ? " token-low-alert" : "")}
+            title={`Isi token ${label}`}
+          >
+            <Plus className="h-3 w-3" />
+            <Coins className="h-3 w-3" />
+            Isi Token {label}
+          </button>
+        </div>
       </div>
       {fillOpen && <TokenFillDialog provider={tab} onClose={() => setFillOpen(false)} />}
     </div>

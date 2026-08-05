@@ -115,8 +115,10 @@ function CloudStoragePage() {
     accountEmail: string | null;
     personalQuota: { limit: number | null; usage: number | null } | null;
     personalFull: boolean;
+    personalError?: string | null;
     globalAvailable: boolean;
   } | null>(null);
+
 
   const [files, setFiles] = useState<CloudFile[]>([]);
   const [kind, setKind] = useState<(typeof KINDS)[number]>("all");
@@ -278,29 +280,47 @@ function CloudStoragePage() {
                 </span>
               )}
             </div>
-            {status?.personalConnected && status.accountEmail && (
-              <div className="mt-1 text-xs font-medium text-foreground">{status.accountEmail}</div>
+            {status?.personalConnected && (
+              <div className="mt-1 text-xs font-medium text-foreground">
+                {status.accountEmail ?? "Akun Google tidak terbaca"}
+              </div>
             )}
             <p className="mt-1 text-xs text-muted-foreground">
               {status?.personalConnected
                 ? 'Terhubung. File masuk ke folder "AA Creative Studio" di Drive Anda.'
                 : "Belum terhubung. Klik Hubungkan Google Drive di bawah."}
             </p>
-            {status?.personalConnected && quota && (
+            {status?.personalConnected && (
               <div className="mt-2">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      quota.pct >= 100 ? "animate-pulse bg-destructive" : quota.pct >= 90 ? "bg-amber-500" : "bg-primary"
-                    }`}
-                    style={{ width: `${Math.min(100, quota.pct)}%` }}
-                  />
-                </div>
-                <div className={`mt-1 text-[11px] ${quota.pct >= 100 ? "animate-pulse font-semibold text-destructive" : "text-muted-foreground"}`}>
-                  Terpakai {fmtBytes(quota.usage)} dari {fmtBytes(quota.limit)} · sisa {fmtBytes(Math.max(0, quota.limit - quota.usage))}
-                </div>
+                {quota ? (
+                  <>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          quota.pct >= 100 ? "animate-pulse bg-destructive" : quota.pct >= 90 ? "bg-amber-500" : "bg-primary"
+                        }`}
+                        style={{ width: `${Math.min(100, quota.pct)}%` }}
+                      />
+                    </div>
+                    <div
+                      className={`mt-1 text-[11px] ${quota.pct >= 100 ? "animate-pulse font-semibold text-destructive" : "text-muted-foreground"}`}
+                    >
+                      Terpakai {fmtBytes(quota.usage)} dari {fmtBytes(quota.limit)} · sisa{" "}
+                      {fmtBytes(Math.max(0, quota.limit - quota.usage))} ({Math.round(quota.pct)}%)
+                    </div>
+                  </>
+                ) : status.personalError ? (
+                  <div className="text-[11px] font-medium text-destructive">
+                    Kuota tidak terbaca: {status.personalError}
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground">
+                    Kuota Drive tidak dibatasi (akun tanpa limit penyimpanan).
+                  </div>
+                )}
               </div>
             )}
+
           </button>
 
         </div>
