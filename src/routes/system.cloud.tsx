@@ -52,7 +52,20 @@ type CloudFile = {
 
 const KINDS = ["all", "image", "video", "audio", "file"] as const;
 
+function fmtBytes(bytes: number) {
+  if (!bytes || bytes < 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v >= 10 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`;
+}
+
 function fmtSize(bytes: number) {
+
   if (!bytes) return "—";
   const mb = bytes / (1024 * 1024);
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -100,8 +113,11 @@ function CloudStoragePage() {
     storageMode: "global" | "personal";
     personalConnected: boolean;
     accountEmail: string | null;
+    personalQuota: { limit: number | null; usage: number | null } | null;
+    personalFull: boolean;
     globalAvailable: boolean;
   } | null>(null);
+
   const [files, setFiles] = useState<CloudFile[]>([]);
   const [kind, setKind] = useState<(typeof KINDS)[number]>("all");
   const [q, setQ] = useState("");
@@ -205,6 +221,13 @@ function CloudStoragePage() {
 
   const visible = files.filter((f) => !q || f.name.toLowerCase().includes(q.toLowerCase()));
 
+  const q0 = status?.personalQuota;
+  const quota =
+    q0 && q0.limit != null && q0.usage != null
+      ? { limit: q0.limit, usage: q0.usage, pct: q0.limit > 0 ? (q0.usage / q0.limit) * 100 : 0 }
+      : null;
+
+
   return (
     <DashboardShell>
       <PageHero
@@ -246,16 +269,40 @@ function CloudStoragePage() {
               status?.storageMode === "personal" ? "border-primary bg-primary/5" : "border-border bg-card/40 hover:bg-card/70",
             ].join(" ")}
           >
-            <div className="flex items-center gap-2 font-medium">
+            <div className="flex flex-wrap items-center gap-2 font-medium">
               <HardDrive className="h-4 w-4" /> Google Drive saya
               {status?.storageMode === "personal" && <Chip tone="primary">Aktif</Chip>}
+              {status?.personalFull && (
+                <span className="animate-pulse rounded-full border border-destructive bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                  Penuh · fallback Global Cloud
+                </span>
+              )}
             </div>
+            {status?.personalConnected && status.accountEmail && (
+              <div className="mt-1 text-xs font-medium text-foreground">{status.accountEmail}</div>
+            )}
             <p className="mt-1 text-xs text-muted-foreground">
               {status?.personalConnected
-                ? `Terhubung${status.accountEmail ? ` — ${status.accountEmail}` : ""}. File masuk ke folder "AA Creative Studio" di Drive Anda.`
+                ? 'Terhubung. File masuk ke folder "AA Creative Studio" di Drive Anda.'
                 : "Belum terhubung. Klik Hubungkan Google Drive di bawah."}
             </p>
+            {status?.personalConnected && quota && (
+              <div className="mt-2">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      quota.pct >= 100 ? "animate-pulse bg-destructive" : quota.pct >= 90 ? "bg-amber-500" : "bg-primary"
+                    }`}
+                    style={{ width: `${Math.min(100, quota.pct)}%` }}
+                  />
+                </div>
+                <div className={`mt-1 text-[11px] ${quota.pct >= 100 ? "animate-pulse font-semibold text-destructive" : "text-muted-foreground"}`}>
+                  Terpakai {fmtBytes(quota.usage)} dari {fmtBytes(quota.limit)} · sisa {fmtBytes(Math.max(0, quota.limit - quota.usage))}
+                </div>
+              </div>
+            )}
           </button>
+
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

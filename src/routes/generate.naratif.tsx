@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { withKeyGuard } from "@/components/brain/key-guard";
 import { LEONARDO_MODEL_CATALOG } from "@/lib/providers/leonardo-router";
 import { LEONARDO_VIDEO_MODELS, leonardoVideoQualityOptions } from "@/lib/providers/leonardo-video";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logGenerate } from "@/lib/activity/log";
 import { Rocket, Play, Pause, ClipboardPaste, Sparkles, Film, Merge, RefreshCw, Loader2, Activity, Search, Star, X, Trash2, Download, ChevronRight } from "lucide-react";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
@@ -526,6 +526,23 @@ function NaratifPage() {
   const scenesSectionRef = useRef<HTMLDivElement | null>(null);
   const [tokenAlert, setTokenAlert] = useState<string[] | null>(null);
   const gallery = useCloudGallery<Record<string, unknown>>("naratif", "video");
+  /** Simpan hasil final ke Google Drive / global cloud lalu tampilkan di Galeri Hasil. */
+  const archiveFinalVideo = useCallback(
+    async (blob: Blob) => {
+      const fname = `naratif-${Date.now()}.mp4`;
+      try {
+        await uploadFileToCloud(new File([blob], fname, { type: "video/mp4" }), {
+          origin: "generate",
+          source: "naratif",
+          name: fname,
+        });
+        await gallery.reload();
+      } catch (err) {
+        console.warn("[naratif] arsip galeri gagal", err);
+      }
+    },
+    [gallery],
+  );
   const [zipBusy, setZipBusy] = useState(false);
   const downloadGalleryZip = async () => {
     if (zipBusy || gallery.items.length === 0) return;
@@ -1177,6 +1194,7 @@ function NaratifPage() {
           const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
           const url = URL.createObjectURL(blob);
           setFinalUrl(url);
+          void archiveFinalVideo(blob);
           setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
           try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
           logGenerate("naratif_merge", { status: "success", scenes: 1, bytes: blob.size });
@@ -1202,6 +1220,7 @@ function NaratifPage() {
         const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
         const url = URL.createObjectURL(blob);
         setFinalUrl(url);
+        void archiveFinalVideo(blob);
         setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
         try { await ff.deleteFile(parts[0]); } catch { /* noop */ }
         try { await ff.deleteFile("final.mp4"); } catch { /* noop */ }
@@ -1272,20 +1291,8 @@ function NaratifPage() {
       const blob = new Blob([data.buffer as ArrayBuffer], { type: "video/mp4" });
       const url = URL.createObjectURL(blob);
       setFinalUrl(url);
-      // Arsipkan ke cloud (Google Drive) supaya hasil tetap ada di galeri.
-      void (async () => {
-        try {
-          const fname = `naratif-${Date.now()}.mp4`;
-          await uploadFileToCloud(new File([blob], fname, { type: "video/mp4" }), {
-            origin: "generate",
-            source: "naratif",
-            name: fname,
-          });
-          await gallery.reload();
-        } catch (err) {
-          console.warn("[naratif] arsip galeri gagal", err);
-        }
-      })();
+      // Arsipkan ke cloud (Google Drive) supaya hasil masuk Galeri Hasil.
+      void archiveFinalVideo(blob);
       setMergeStatus(`✅ Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB${hasBgFile ? " · + backsound" : ""}`);
       pushBulkLog(`🏁 Video naratif siap · ${(blob.size / (1024 * 1024)).toFixed(1)} MB`);
       setPct(100);
@@ -1837,10 +1844,6 @@ function NaratifPage() {
               <div className="h-full transition-all" style={{ width: `${bulkPct}%`, background: "var(--gradient-neon)" }} />
             </div>
 
-            <div className="grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
-              <div className="truncate">🧠 Brain: {brainStatus || "—"}</div>
-              <div className="truncate">🧵 Merge: {mergeStatus || "—"}</div>
-            </div>
 
             <div className="rounded-lg border border-border/60 bg-black/40 p-3">
               <div className="flex items-center justify-between mb-2">
@@ -1856,20 +1859,7 @@ function NaratifPage() {
             </div>
           </div>
 
-          {finalUrl && finalUrl !== "#" && (
-            <div className="mt-4 rounded-xl border border-border bg-black/40 p-4 space-y-3">
-              <video src={finalUrl} controls className={`w-full rounded-lg ${ratioClass(ratio)} bg-black`} />
-              <div className="flex justify-center">
-                <a
-                  href={finalUrl}
-                  download={`naratif-${Date.now()}.mp4`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-                >
-                  ⬇️ Unduh Video Naratif
-                </a>
-              </div>
-            </div>
-          )}
+          {/* Preview besar dihapus — hasil final otomatis masuk ke Galeri Hasil (auto sync cloud). */}
         </Card>
       )}
 

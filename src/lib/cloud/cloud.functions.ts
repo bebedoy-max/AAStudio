@@ -15,16 +15,33 @@ export const getCloudStatus = createServerFn({ method: "GET" })
       getConnectionInfoForUser(context.userId, DRIVE_CONNECTOR_ID),
       getGlobalCloudRow(),
     ]);
+
+    // Info akun + kuota Drive pribadi (live dari Google).
+    let personalEmail = info?.account_email ?? null;
+    let quota: { limit: number | null; usage: number | null } | null = null;
+    if (key) {
+      const { driveAbout } = await import("./drive.server");
+      const about = await driveAbout({ mode: "personal", connectionKey: key });
+      if (about) {
+        personalEmail = about.email ?? personalEmail;
+        quota = { limit: about.limit, usage: about.usage };
+      }
+    }
+    const personalFull = Boolean(quota?.limit != null && quota?.usage != null && quota.usage >= quota.limit);
+
     return {
       storageMode: mode,
       personalConnected: Boolean(key),
-      accountEmail: info?.account_email ?? null,
+      accountEmail: personalEmail,
+      personalQuota: quota,
+      personalFull,
       globalAvailable: Boolean(
         global?.enabled &&
           (global.refresh_token_cipher || (process.env.GOOGLE_DRIVE_API_KEY && process.env.LOVABLE_API_KEY)),
       ),
     };
   });
+
 
 export const setCloudStorageMode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

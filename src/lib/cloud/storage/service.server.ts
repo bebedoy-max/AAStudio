@@ -1,16 +1,17 @@
 // Service layer: business logic memakai StorageProvider, bukan API Drive langsung.
 import type { DriveCtx } from "../drive.server";
-import { resolveStorageMode } from "../connections.server";
+import { resolveUploadCtx } from "../registry.server";
 import { googleDriveProvider } from "./google-drive.provider.server";
 import { logTransfer } from "./log.server";
 import type { DirectUploadTicket, PreviewLinks } from "./types";
 
 export const provider = googleDriveProvider;
 
-export async function ctxForUser(userId: string): Promise<{ ctx: DriveCtx; mode: "global" | "personal" }> {
-  const { mode, key } = await resolveStorageMode(userId);
-  return { ctx: { mode, connectionKey: key }, mode };
+export async function ctxForUser(userId: string, incomingBytes = 0): Promise<{ ctx: DriveCtx; mode: "global" | "personal" }> {
+  const { ctx, mode } = await resolveUploadCtx(userId, incomingBytes);
+  return { ctx, mode };
 }
+
 
 /** UploadService — hanya membuat tiket; byte dikirim browser langsung ke storage. */
 export const UploadService = {
@@ -22,7 +23,7 @@ export const UploadService = {
     source?: string | null;
     origin?: string | null;
   }): Promise<DirectUploadTicket & { mode: "global" | "personal" }> {
-    const { ctx, mode } = await ctxForUser(params.userId);
+    const { ctx, mode } = await ctxForUser(params.userId, params.size);
     const ticket = await provider.createDirectUpload(
       ctx,
       params.userId,

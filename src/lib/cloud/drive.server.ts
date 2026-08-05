@@ -366,3 +366,37 @@ export async function fetchDriveAccountEmail(connectionKey: string): Promise<str
     return null;
   }
 }
+export type DriveAbout = {
+  email: string | null;
+  limit: number | null;
+  usage: number | null;
+  usageInDrive: number | null;
+};
+
+/** Info akun + kuota Drive (dipakai untuk label & deteksi penuh). */
+export async function driveAbout(ctx: DriveCtx): Promise<DriveAbout | null> {
+  try {
+    const res = await driveFetch(ctx, "/drive/v3/about?fields=user(emailAddress),storageQuota");
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      user?: { emailAddress?: string };
+      storageQuota?: { limit?: string; usage?: string; usageInDrive?: string };
+    };
+    const num = (v?: string) => (v == null ? null : Number(v));
+    return {
+      email: data.user?.emailAddress ?? null,
+      limit: num(data.storageQuota?.limit),
+      usage: num(data.storageQuota?.usage),
+      usageInDrive: num(data.storageQuota?.usageInDrive),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** True kalau Drive pribadi sudah (hampir) penuh sehingga upload pasti gagal. */
+export async function driveIsFull(ctx: DriveCtx, incomingBytes = 0): Promise<boolean> {
+  const about = await driveAbout(ctx);
+  if (!about || about.limit == null || about.usage == null) return false;
+  return about.usage + incomingBytes >= about.limit;
+}

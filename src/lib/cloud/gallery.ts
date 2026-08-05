@@ -1,7 +1,9 @@
 // Galeri hasil generate yang tersimpan di cloud (Google Drive + registry),
 // bukan di localStorage — jadi hasilnya sama di semua perangkat.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { listCloudFiles, archiveGeneratedUrl, deleteCloudFile } from "./cloud.functions";
+
 
 export type CloudGalleryItem<M = Record<string, unknown>> = {
   id: string;
@@ -58,24 +60,44 @@ export function useCloudGallery<M = Record<string, unknown>>(source: string, kin
   /** Simpan hasil generate ke cloud lalu tampilkan di galeri. */
   const add = useCallback(
     async (url: string, meta?: M, name?: string): Promise<CloudGalleryItem<M> | null> => {
-      if (!url || !/^https?:\/\//i.test(url) || pending.current.has(url)) return null;
-      pending.current.add(url);
-      try {
-        const row = await archiveGeneratedUrl({
-          data: { url, source, origin: "generate", name, meta: (meta ?? {}) as Record<string, string | number | boolean | null> },
-        });
-        const item = normalize<M>(row);
-        setItems((prev) => (prev.some((p) => p.id === item.id) ? prev : [item, ...prev]));
-        return item;
-      } catch (e) {
-        console.warn("[cloud-gallery] save failed", e);
+      if (!url || pending.current.has(url)) return null;
+      if (!/^https?:\/\//i.test(url)) {
+        console.warn("[cloud-gallery] URL hasil tidak bisa diarsipkan", url.slice(0, 40));
+        toast.error("Hasil tidak bisa disimpan ke cloud: URL provider tidak valid.");
         return null;
-      } finally {
-        pending.current.delete(url);
       }
+      pending.current.add(url);
+      // Retry sekali — link provider kadang belum siap sesaat setelah selesai.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const row = await archiveGeneratedUrl({
+            data: {
+              url,
+              source,
+              origin: "generate",
+              name,
+              meta: (meta ?? {}) as Record<string, string | number | boolean | null>,
+            },
+          });
+          const item = normalize<M>(row);
+          setItems((prev) => (prev.some((p) => p.id === item.id) ? prev : [item, ...prev]));
+          pending.current.delete(url);
+          return item;
+        } catch (e) {
+          if (attempt === 0) {
+            await new Promise((r) => setTimeout(r, 1500));
+            continue;
+          }
+          console.warn("[cloud-gallery] save failed", e);
+          toast.error(`Gagal menyimpan ke cloud: ${(e as Error).message}`);
+        }
+      }
+      pending.current.delete(url);
+      return null;
     },
     [source],
   );
+
 
   const addMany = useCallback(
     async (entries: { url: string; meta?: M; name?: string }[]) => {

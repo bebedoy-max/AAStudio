@@ -1,6 +1,6 @@
 // Server-only registry for cloud media (upload + hasil generate).
 import { resolveStorageMode, type StorageMode } from "./connections.server";
-import { uploadToDrive, downloadFromDrive } from "./drive.server";
+import { uploadToDrive, downloadFromDrive, driveIsFull } from "./drive.server";
 
 export type CloudFileRow = {
   id: string;
@@ -35,6 +35,25 @@ function guessKind(mime: string, name: string): string {
   return "file";
 }
 
+/**
+ * Tentukan tujuan upload. Kalau user memilih Drive pribadi tapi Drive-nya
+ * penuh (atau tidak bisa diakses), otomatis fallback ke Global Cloud supaya
+ * hasil generate tidak pernah hilang.
+ */
+export async function resolveUploadCtx(
+  userId: string,
+  incomingBytes = 0,
+): Promise<{ mode: StorageMode; ctx: { mode: StorageMode; connectionKey: string | null }; fellBack: boolean }> {
+  const { mode, key } = await resolveStorageMode(userId);
+  if (mode === "personal") {
+    const ctx = { mode: "personal" as const, connectionKey: key };
+    const full = await driveIsFull(ctx, incomingBytes).catch(() => false);
+    if (!full) return { mode, ctx, fellBack: false };
+    console.warn("[cloud] Drive pribadi penuh — fallback ke Global Cloud");
+  }
+  return { mode: "global", ctx: { mode: "global", connectionKey: null }, fellBack: mode === "personal" };
+}
+
 export async function storeMediaForUser(params: {
   userId: string;
   name: string;
@@ -48,14 +67,27 @@ export async function storeMediaForUser(params: {
   if (params.bytes.byteLength <= 0 || params.bytes.byteLength > MAX_CLOUD_BYTES) {
     throw new Error("Ukuran file tidak valid atau terlalu besar untuk cloud.");
   }
-  const { mode, key } = await resolveStorageMode(params.userId);
-  const ctx = { mode, connectionKey: key };
+  const resolved = await resolveUploadCtx(params.userId, params.bytes.byteLength);
+  let mode = resolved.mode;
   const origin = params.origin ?? "upload";
-  const uploaded = await uploadToDrive(ctx, params.userId, {
-    name: params.name,
-    type: params.mimeType,
-    bytes: params.bytes,
-  }, params.source ?? null, origin);
+  const file = { name: params.name, type: params.mimeType, bytes: params.bytes };
+  let uploaded;
+  try {
+    uploaded = await uploadToDrive(resolved.ctx, params.userId, file, params.source ?? null, origin);
+  } catch (e) {
+    if (mode !== "personal") throw e;
+    // Drive pribadi menolak (kuota/izin) — jangan gagalkan hasil generate.
+    console.warn("[cloud] upload Drive pribadi gagal, fallback Global Cloud", e);
+    mode = "global";
+    uploaded = await uploadToDrive(
+      { mode: "global", connectionKey: null },
+      params.userId,
+      file,
+      params.source ?? null,
+      origin,
+    );
+  }
+
 
   const db = await admin();
   const baseRow = {
@@ -237,8 +269,8 @@ export async function archiveRemoteUrlForUser(params: {
   const declared = Number(res.headers.get("content-length") || 0);
   if (res.body) {
     try {
-      const { mode, key } = await resolveStorageMode(params.userId);
-      const ctx = { mode, connectionKey: key };
+      const { mode, ctx } = await resolveUploadCtx(params.userId, declared);
+
       const { createResumableSession } = await import("./drive.server");
       const session = await createResumableSession(
         ctx,

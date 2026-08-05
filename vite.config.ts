@@ -6,9 +6,16 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 
-function readProjectEnv() {
+function readProjectEnv(): Record<string, string> {
+  let raw = "";
+  try {
+    raw = readFileSync(new URL(".env", import.meta.url), "utf8");
+  } catch {
+    // No .env checked in: fall back to the host-provided environment.
+    return process.env as Record<string, string>;
+  }
   return Object.fromEntries(
-    readFileSync(new URL(".env", import.meta.url), "utf8")
+    raw
       .split(/\r?\n/)
       .filter((line) => line && !line.startsWith("#") && line.includes("="))
       .map((line) => {
