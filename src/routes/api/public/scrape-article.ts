@@ -379,12 +379,13 @@ export const Route = createFileRoute("/api/public/scrape-article")({
         const finalTitle = decodeEntities(msnTitle || pickTitle || jinaTitle || pickHtmlTitle || titleFromUrl(resolvedTarget) || titleFromUrl(target) || "");
         const cleanedBody = cleanArticleText(bodyText);
         const finalDesc = decodeEntities(msnDesc || pickDesc || jinaDesc || flatten(cleanedBody).slice(0, 300));
-        // Trim to ~6000 chars but avoid cutting in the middle of a paragraph.
-        let finalBody = cleanedBody.slice(0, 6000);
-        if (cleanedBody.length > 6000) {
+        // Trim to ~24000 chars but avoid cutting in the middle of a paragraph.
+        let finalBody = cleanedBody.slice(0, 24000);
+        if (cleanedBody.length > 24000) {
           const lastBreak = finalBody.lastIndexOf("\n\n");
-          if (lastBreak > 3000) finalBody = finalBody.slice(0, lastBreak).trim();
+          if (lastBreak > 12000) finalBody = finalBody.slice(0, lastBreak).trim();
         }
+
 
         const finalImages = unique([...msnImages, ...imgs])
           .filter((u) => /^https?:\/\//i.test(u))

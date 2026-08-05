@@ -1615,10 +1615,10 @@ function NaratifPage() {
               <button
                 type="button"
                 onClick={() => setSubOpen((v) => !v)}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                className={`inline-flex items-center gap-2 font-semibold text-muted-foreground hover:text-foreground ${subOpen ? "text-[11px]" : "text-sm uppercase tracking-wide"}`}
               >
-                <ChevronRight className={`h-3.5 w-3.5 transition-transform ${subOpen ? "rotate-90" : ""}`} />
-                💬 Subtitle (burn-in ke video)
+                <ChevronRight className={`transition-transform ${subOpen ? "h-3.5 w-3.5 rotate-90" : "h-4 w-4"}`} />
+                💬 {subOpen ? "Subtitle (burn-in ke video)" : "KLIK DI SINI UNTUK PENGATURAN SUBTITLE"}
               </button>
               <label className="inline-flex items-center gap-2 text-[11px] cursor-pointer select-none">
                 <input
@@ -1637,10 +1637,10 @@ function NaratifPage() {
               <button
                 type="button"
                 onClick={() => void toggleBgPanel()}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                className={`inline-flex items-center gap-2 font-semibold text-muted-foreground hover:text-foreground ${bgOpen ? "text-[11px]" : "text-sm uppercase tracking-wide"}`}
               >
-                <ChevronRight className={`h-3.5 w-3.5 transition-transform ${bgOpen ? "rotate-90" : ""}`} />
-                🎵 Gunakan Backsound (musik latar) — auto-loop menyesuaikan durasi video
+                <ChevronRight className={`transition-transform ${bgOpen ? "h-3.5 w-3.5 rotate-90" : "h-4 w-4"}`} />
+                🎵 {bgOpen ? "Backsound (musik latar) — auto-loop menyesuaikan durasi video" : "KLIK DI SINI UNTUK MENGGUNAKAN BACKSOUND"}
               </button>
               {bgOpen && bgTrack && (
                 <button

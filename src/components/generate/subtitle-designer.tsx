@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Type } from "lucide-react";
-import { Field, Select, Input } from "@/components/dashboard/ui";
+import { Field, Select } from "@/components/dashboard/ui";
+import { ColorField } from "@/components/generate/color-field";
 import {
   SUB_PRESETS,
   SUB_FONTS,
@@ -45,9 +46,9 @@ export function SubtitleDesigner({
       ? "aspect-square max-w-[260px]"
       : "aspect-video";
 
-  // Resolusi render sebenarnya (harus sama dengan targetW/targetH di pipeline render).
-  const videoW = ratio.startsWith("9:16") ? 720 : ratio.startsWith("1:1") ? 720 : 1280;
-  const videoH = ratio.startsWith("9:16") ? 1280 : ratio.startsWith("1:1") ? 720 : 720;
+  // Resolusi referensi preview: 1080p.
+  const videoW = ratio.startsWith("9:16") ? 1080 : ratio.startsWith("1:1") ? 1080 : 1920;
+  const videoH = ratio.startsWith("9:16") ? 1920 : ratio.startsWith("1:1") ? 1080 : 1080;
 
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [boxW, setBoxW] = useState(0);
@@ -99,10 +100,10 @@ export function SubtitleDesigner({
             />
           </Field>
           <Field label="Warna teks">
-            <Input type="color" value={value.primary} onChange={(e) => set("primary", e.target.value)} />
+            <ColorField value={value.primary} onChange={(v) => set("primary", v)} />
           </Field>
           <Field label="Warna outline">
-            <Input type="color" value={value.outlineColor} onChange={(e) => set("outlineColor", e.target.value)} />
+            <ColorField value={value.outlineColor} onChange={(v) => set("outlineColor", v)} />
           </Field>
         </div>
 
