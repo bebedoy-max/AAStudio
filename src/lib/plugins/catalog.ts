@@ -57,6 +57,24 @@ export const PLUGIN_CATALOG: PluginEntry[] = [
       "Terikat ke akun kamu — tidak bisa dipindah",
     ],
   },
+  {
+    id: "grabber-weavy",
+    name: "AA Grabber — Weavy",
+    kind: "extension",
+    provider: "Weavy",
+    tagline: "Auto-sync refresh token Weavy ke Token Manager",
+    desc: "Browser extension khusus Weavy. Membaca refresh token Firebase dari sesi kamu di weavy.ai lalu mengirimnya otomatis ke Token Manager akun AA Creative Studio kamu — tanpa copy-paste manual.",
+    version: "1.0.0",
+    file: "/plugins/aa-token-grabber-weavy.zip",
+    site: "https://weavy.ai/",
+    accent: "linear-gradient(135deg, hsl(20 90% 55%), hsl(340 85% 60%))",
+    features: [
+      "Deteksi tab weavy.ai otomatis",
+      "Ambil refresh token Firebase (stsTokenManager)",
+      "Anti duplikat di Token Manager",
+      "Terikat ke akun kamu — tidak bisa dipindah",
+    ],
+  },
 ];
 
 export type PluginAccessMode = "open" | "premium" | "hide";

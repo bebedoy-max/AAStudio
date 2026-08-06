@@ -36,4 +36,14 @@ self.AA_PROVIDERS = [
     hint: "Login ke app.leonardo.ai lalu klik Ambil Token.",
     scoreKeys: /firebase|leonardo|cognito|access.?token|idToken|stsTokenManager/i,
   },
+  {
+    id: "weavy",
+    label: "Weavy",
+    hostMatch: /https:\/\/([\w-]+\.)?weavy\.ai\//,
+    urlPatterns: ["https://weavy.ai/*", "https://*.weavy.ai/*"],
+    openUrl: "https://weavy.ai/",
+    hint: "Login ke weavy.ai lalu klik Ambil Token — refresh token Firebase akan disinkron ke Token Manager.",
+    scoreKeys: /firebase|weavy|stsTokenManager|refresh.?token/i,
+    firebaseRefresh: true,
+  },
 ];

@@ -29,6 +29,12 @@ const VARIANTS = [
       "https://*.framia.pro/*",
     ],
   },
+  {
+    id: "weavy",
+    name: "AA Grabber — Weavy",
+    version: "1.0.0",
+    hosts: ["https://weavy.ai/*", "https://*.weavy.ai/*"],
+  },
 ];
 
 const APP_HOSTS = [

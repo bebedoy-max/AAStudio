@@ -231,6 +231,25 @@ $("grab").addEventListener("click", async () => {
       setStatus(`Buka tab ${p.openUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")} dulu.`, "err");
       return;
     }
+    // Provider berbasis Firebase (Weavy): baca refreshToken dari IndexedDB.
+    if (p.firebaseRefresh) {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id, allFrames: true },
+        world: "MAIN",
+        func: extractFirebaseRefresh,
+      });
+      const hit = (results || []).map((x) => x?.result).find((r) => r?.ok);
+      if (!hit) {
+        const err = results?.[0]?.result?.err || "Refresh token Firebase tidak ditemukan — pastikan sudah login.";
+        setStatus(err, "err");
+        return;
+      }
+      await chrome.storage.local.set({
+        [`captured::${p.id}`]: { token: hit.token, source: hit.source || "firebaseIDB", at: Date.now(), email: hit.email || "" },
+      });
+      await onGrabbed(p.id, hit.token, hit.source || "firebaseIDB");
+      return;
+    }
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: extractToken,
@@ -245,6 +264,42 @@ $("grab").addEventListener("click", async () => {
     setStatus("Error: " + (e?.message || e), "err");
   }
 });
+
+// Runs in MAIN world of the Weavy tab. Opens firebaseLocalStorageDb and picks
+// stsTokenManager.refreshToken — the value the AA Token Manager stores for
+// each Weavy account.
+function extractFirebaseRefresh() {
+  return new Promise((resolve) => {
+    try {
+      const req = indexedDB.open("firebaseLocalStorageDb");
+      req.onerror = () => resolve({ ok: false, err: "IDB firebaseLocalStorageDb tidak bisa dibuka." });
+      req.onsuccess = (e) => {
+        try {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains("firebaseLocalStorage")) {
+            resolve({ ok: false, err: "Firebase belum initialized di tab ini." });
+            return;
+          }
+          const tx = db.transaction("firebaseLocalStorage", "readonly");
+          const g = tx.objectStore("firebaseLocalStorage").getAll();
+          g.onerror = () => resolve({ ok: false, err: "IDB getAll gagal." });
+          g.onsuccess = (ev) => {
+            const items = ev.target.result || [];
+            for (const it of items) {
+              const v = it?.value || it;
+              const m = v?.stsTokenManager || v?.spipiToken;
+              if (m?.refreshToken) {
+                resolve({ ok: true, token: m.refreshToken, source: it?.fbase_key ? `idb:${it.fbase_key}` : "idb:firebaseLocalStorage", email: v.email || "" });
+                return;
+              }
+            }
+            resolve({ ok: false, err: "Belum ada sesi Firebase — login dulu di weavy.ai lalu coba lagi." });
+          };
+        } catch (ex) { resolve({ ok: false, err: String(ex?.message || ex) }); }
+      };
+    } catch (ex) { resolve({ ok: false, err: String(ex?.message || ex) }); }
+  });
+}
 
 async function onGrabbed(providerId, token, source) {
   $("token").value = token;

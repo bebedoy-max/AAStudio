@@ -11,6 +11,7 @@ const PROVIDER_KEYS: Record<string, string> = {
   leonardo: "aatools.leonardo.keys",
   firefly: "aatools.firefly.keys",
   dola: "aatools.dola.keys",
+  weavy: "aatools.weavy.tokens",
 };
 
 function cors(res: Response) {
@@ -59,6 +60,11 @@ export const Route = createFileRoute("/api/public/extension/push-token")({
             token,
           );
           if (!hasSession) return json({ error: "invalid_cookie" }, 400);
+        } else if (provider === "weavy") {
+          // Firebase refresh token — panjang, opaque, tidak bershape JWT.
+          if (typeof token !== "string" || token.length < 40 || token.length > 4096) {
+            return json({ error: "invalid_refresh_token" }, 400);
+          }
         } else if (!JWT_RE.test(token)) {
           return json({ error: "invalid_jwt" }, 400);
         }
@@ -86,27 +92,40 @@ export const Route = createFileRoute("/api/public/extension/push-token")({
           .eq("storage_key", storageKey)
           .maybeSingle();
 
-        let list: KeyEntry[] = [];
+        // Weavy entries use `token` field; other providers use `key`.
+        const tokenField = provider === "weavy" ? "token" : "key";
+        type AnyEntry = Record<string, unknown>;
+        let list: AnyEntry[] = [];
         if (existing.data?.ciphertext) {
           try {
             const plain = await decryptString(existing.data.ciphertext);
             const parsed = JSON.parse(plain);
-            if (Array.isArray(parsed)) list = parsed as KeyEntry[];
+            if (Array.isArray(parsed)) list = parsed as AnyEntry[];
           } catch {
             list = [];
           }
         }
 
-        const already = list.some((x) => x?.key === token);
+        const already = list.some((x) => x?.[tokenField] === token);
         if (already) return json({ ok: true, added: false });
 
-        list.push({
-          id: crypto.randomUUID(),
-          key: token,
-          balance: null,
-          status: "pending",
-          note: "auto-grabbed via extension",
-        });
+        if (provider === "weavy") {
+          list.push({
+            id: crypto.randomUUID(),
+            token,
+            credits: null,
+            status: "pending",
+            note: "auto-grabbed via extension",
+          });
+        } else {
+          list.push({
+            id: crypto.randomUUID(),
+            key: token,
+            balance: null,
+            status: "pending",
+            note: "auto-grabbed via extension",
+          } as KeyEntry);
+        }
 
         const ciphertext = await encryptString(JSON.stringify(list));
         const up = await db.from("user_tokens").upsert(
