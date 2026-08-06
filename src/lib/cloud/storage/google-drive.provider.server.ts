@@ -15,10 +15,12 @@ const linkCache = new Map<string, PreviewLinks>();
 
 function candidateLinks(objectId: string, mimeType: string): PreviewLinks {
   const isImage = mimeType.startsWith("image/");
+  // Hanya gambar yang punya direct link stabil (lh3). Untuk video/file lain,
+  // link "usercontent download" sering balas halaman konfirmasi/403 sehingga
+  // player kosong dan tombol download gagal — biarkan lewat stream server.
+  if (!isImage) return { directUrl: null, thumbnailUrl: null };
   return {
-    directUrl: isImage
-      ? `https://lh3.googleusercontent.com/d/${objectId}`
-      : `https://drive.usercontent.google.com/download?id=${objectId}&export=download`,
+    directUrl: `https://lh3.googleusercontent.com/d/${objectId}`,
     thumbnailUrl: `https://lh3.googleusercontent.com/d/${objectId}=w512`,
   };
 }

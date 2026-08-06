@@ -12,15 +12,18 @@ export async function downloadFilesAsZip(
   const zip = new JSZip();
   const results = await Promise.allSettled(
     files.map(async (f) => {
-      // Try direct fetch first, fall back to proxy for CORS-blocked assets.
+      // File cloud milik aplikasi (URL relatif) diambil langsung same-origin;
+      // proxy hanya untuk URL absolut milik provider.
+      const isRelative = !/^https?:\/\//i.test(f.url);
       let blob: Blob | null = null;
       try {
-        const r = await fetch(f.url, { mode: "cors" });
+        const target = isRelative ? `${f.url}${f.url.includes("?") ? "&" : "?"}download=1&stream=1` : f.url;
+        const r = await fetch(target, isRelative ? {} : { mode: "cors" });
         if (r.ok) blob = await r.blob();
       } catch {
         /* fallthrough */
       }
-      if (!blob) {
+      if (!blob && !isRelative) {
         try {
           const r = await fetch(`/api/public/proxy-image?url=${encodeURIComponent(f.url)}`);
           if (r.ok) blob = await r.blob();

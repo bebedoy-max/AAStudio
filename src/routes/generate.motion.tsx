@@ -321,12 +321,14 @@ function MotionControl() {
 
   const downloadOne = async (r: ResultItem) => {
     try {
+      const isRelative = !/^https?:\/\//i.test(r.url);
       let blob: Blob | null = null;
       try {
-        const res = await fetch(r.url, { mode: "cors" });
+        const target = isRelative ? `${r.url}${r.url.includes("?") ? "&" : "?"}download=1&stream=1` : r.url;
+        const res = await fetch(target, isRelative ? {} : { mode: "cors" });
         if (res.ok) blob = await res.blob();
       } catch {}
-      if (!blob) {
+      if (!blob && !isRelative) {
         const res = await fetch(`/api/public/proxy-image?url=${encodeURIComponent(r.url)}`);
         if (res.ok) blob = await res.blob();
       }
@@ -343,6 +345,7 @@ function MotionControl() {
       pushLog(`Download error: ${(e as Error).message}`, "error");
     }
   };
+
 
   const clearAll = async () => {
     if (results.length === 0) return;
@@ -697,7 +700,7 @@ function MotionControl() {
                 provider={provider}
                 cost={totalCredits}
                 status={generating ? "processing" : "idle"}
-                
+                stacked
               />
 
             </div>

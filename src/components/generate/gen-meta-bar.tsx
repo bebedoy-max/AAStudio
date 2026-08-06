@@ -54,12 +54,15 @@ export function GenMetaBar({
   status = "idle",
   note,
   className,
+  stacked = false,
 }: {
   provider: string;
   cost?: number | null;
   status?: GenStatus;
   note?: string;
   className?: string;
+  /** Paksa tampil 2 baris (info di atas, status + tombol di bawah). */
+  stacked?: boolean;
 }) {
   const { tokens, credits } = useProviderCredit(provider);
   const label = PROVIDER_LABEL[provider] ?? provider;
@@ -73,8 +76,14 @@ export function GenMetaBar({
         "rounded-2xl border border-border/70 bg-card/50 px-3 py-2 backdrop-blur-sm lg:min-w-0 lg:flex-1 " + (className || "")
       }
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground lg:flex-nowrap lg:whitespace-nowrap">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 lg:flex-nowrap">
+      <div
+        className={
+          "flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground " +
+          (stacked ? "" : "lg:flex-nowrap lg:whitespace-nowrap")
+        }
+      >
+        <div className={"flex flex-wrap items-center gap-x-3 gap-y-1 " + (stacked ? "w-full" : "lg:flex-nowrap")}>
+
           <span>
             Cost: <b className="font-mono tabular-nums text-foreground">{cost == null ? "—" : cost.toLocaleString("id-ID")}</b> credits
           </span>
@@ -91,7 +100,7 @@ export function GenMetaBar({
           </span>
           {note && <span className="text-muted-foreground/80">{note}</span>}
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
+        <div className={"flex flex-wrap items-center gap-2 " + (stacked ? "w-full" : "lg:flex-nowrap")}>
           <span className="text-xs text-muted-foreground">Status:</span>
           <span
             className={
