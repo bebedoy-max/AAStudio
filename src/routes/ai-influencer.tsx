@@ -1,5 +1,4 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { DialogsHost } from "@/components/ai-influencer/dialogs";
 
 export const Route = createFileRoute("/ai-influencer")({
   head: () => ({
@@ -12,10 +11,6 @@ export const Route = createFileRoute("/ai-influencer")({
       },
     ],
   }),
-  component: () => (
-    <>
-      <Outlet />
-      <DialogsHost />
-    </>
-  ),
+  component: () => <Outlet />,
 });
+

@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-function closingPage(ok: boolean, message: string) {
+const MISSING_SCOPE_MESSAGE =
+  "Izin Google Drive belum dicentang. Di halaman izin Google, centang \u201cSee, edit, create, and delete only the specific Google Drive files you use with this app\u201d lalu hubungkan ulang.";
+
+function closingPage(ok: boolean, message: string, reason?: string) {
   const payload = JSON.stringify({
     type: ok ? "appUserConnectorOAuthComplete" : "appUserConnectorOAuthFailed",
     connectorId: "google_drive",
+    reason: reason ?? (ok ? undefined : message),
   });
   return new Response(
     `<!doctype html><meta charset="utf-8"><title>Google Drive</title>
@@ -23,9 +27,17 @@ export const Route = createFileRoute("/api/public/google-drive/callback")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const error = url.searchParams.get("error");
+        if (error === "access_denied") return closingPage(false, MISSING_SCOPE_MESSAGE, "missing_scope");
         if (error) return closingPage(false, `Google menolak izin: ${error}`);
         const code = url.searchParams.get("code");
         const rawState = url.searchParams.get("state") || "";
+
+        // Google mengirim daftar scope yang benar-benar dicentang user.
+        const granted = (url.searchParams.get("scope") || "").split(/[\s+]+/).filter(Boolean);
+        if (granted.length && !granted.includes("https://www.googleapis.com/auth/drive.file")) {
+          return closingPage(false, MISSING_SCOPE_MESSAGE, "missing_scope");
+        }
+
 
         const {
           verifyState,

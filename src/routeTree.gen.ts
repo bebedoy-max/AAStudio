@@ -31,7 +31,6 @@ import { Route as ManageTokensRouteImport } from './routes/manage.tokens'
 import { Route as ManageRoutingRouteImport } from './routes/manage.routing'
 import { Route as ManageAccountsRouteImport } from './routes/manage.accounts'
 import { Route as GenerateUpscalerRouteImport } from './routes/generate.upscaler'
-import { Route as GenerateTextToVideoRouteImport } from './routes/generate.text-to-video'
 import { Route as GenerateStoryboardRouteImport } from './routes/generate.storyboard'
 import { Route as GenerateNaratifRouteImport } from './routes/generate.naratif'
 import { Route as GenerateMotionRouteImport } from './routes/generate.motion'
@@ -215,11 +214,6 @@ const ManageAccountsRoute = ManageAccountsRouteImport.update({
 const GenerateUpscalerRoute = GenerateUpscalerRouteImport.update({
   id: '/generate/upscaler',
   path: '/generate/upscaler',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GenerateTextToVideoRoute = GenerateTextToVideoRouteImport.update({
-  id: '/generate/text-to-video',
-  path: '/generate/text-to-video',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GenerateStoryboardRoute = GenerateStoryboardRouteImport.update({
@@ -642,7 +636,6 @@ export interface FileRoutesByFullPath {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
-  '/generate/text-to-video': typeof GenerateTextToVideoRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
@@ -739,7 +732,6 @@ export interface FileRoutesByTo {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
-  '/generate/text-to-video': typeof GenerateTextToVideoRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
@@ -839,7 +831,6 @@ export interface FileRoutesById {
   '/generate/motion': typeof GenerateMotionRoute
   '/generate/naratif': typeof GenerateNaratifRoute
   '/generate/storyboard': typeof GenerateStoryboardRoute
-  '/generate/text-to-video': typeof GenerateTextToVideoRoute
   '/generate/upscaler': typeof GenerateUpscalerRoute
   '/manage/accounts': typeof ManageAccountsRoute
   '/manage/routing': typeof ManageRoutingRoute
@@ -940,7 +931,6 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
-    | '/generate/text-to-video'
     | '/generate/upscaler'
     | '/manage/accounts'
     | '/manage/routing'
@@ -1037,7 +1027,6 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
-    | '/generate/text-to-video'
     | '/generate/upscaler'
     | '/manage/accounts'
     | '/manage/routing'
@@ -1136,7 +1125,6 @@ export interface FileRouteTypes {
     | '/generate/motion'
     | '/generate/naratif'
     | '/generate/storyboard'
-    | '/generate/text-to-video'
     | '/generate/upscaler'
     | '/manage/accounts'
     | '/manage/routing'
@@ -1222,7 +1210,6 @@ export interface RootRouteChildren {
   GenerateMotionRoute: typeof GenerateMotionRoute
   GenerateNaratifRoute: typeof GenerateNaratifRoute
   GenerateStoryboardRoute: typeof GenerateStoryboardRoute
-  GenerateTextToVideoRoute: typeof GenerateTextToVideoRoute
   GenerateUpscalerRoute: typeof GenerateUpscalerRoute
   ManageAccountsRoute: typeof ManageAccountsRoute
   ManageRoutingRoute: typeof ManageRoutingRoute
@@ -1436,13 +1423,6 @@ declare module '@tanstack/react-router' {
       path: '/generate/upscaler'
       fullPath: '/generate/upscaler'
       preLoaderRoute: typeof GenerateUpscalerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/generate/text-to-video': {
-      id: '/generate/text-to-video'
-      path: '/generate/text-to-video'
-      fullPath: '/generate/text-to-video'
-      preLoaderRoute: typeof GenerateTextToVideoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/generate/storyboard': {
@@ -2064,7 +2044,6 @@ const rootRouteChildren: RootRouteChildren = {
   GenerateMotionRoute: GenerateMotionRoute,
   GenerateNaratifRoute: GenerateNaratifRoute,
   GenerateStoryboardRoute: GenerateStoryboardRoute,
-  GenerateTextToVideoRoute: GenerateTextToVideoRoute,
   GenerateUpscalerRoute: GenerateUpscalerRoute,
   ManageAccountsRoute: ManageAccountsRoute,
   ManageRoutingRoute: ManageRoutingRoute,

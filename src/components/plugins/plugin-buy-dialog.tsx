@@ -2,6 +2,7 @@
 // route_key `plugin:<id>` lalu membayar via QRIS. Ketika status approved,
 // tombol "Beli" di katalog otomatis berubah jadi "Unduh".
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Loader2, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -97,7 +98,9 @@ export function PluginBuyDialog({
     }
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
       role="dialog"
@@ -160,6 +163,7 @@ export function PluginBuyDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

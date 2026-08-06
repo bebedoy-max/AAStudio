@@ -1,49 +1,49 @@
 import JSZip from "jszip";
 
+export type ZipFileEntry = {
+  url: string;
+  filename: string;
+};
+
 /**
- * Download multiple remote files as a single .zip.
- * Skips files that fail to fetch (CORS, network) and logs a warning.
+ * Fetch a list of remote files and download them as a single .zip archive.
+ * Files that fail to fetch are skipped so one broken URL never kills the export.
  */
 export async function downloadFilesAsZip(
-  files: { url: string; filename: string }[],
+  files: ZipFileEntry[],
   zipName: string,
 ): Promise<void> {
   if (!files.length) return;
+
   const zip = new JSZip();
-  const results = await Promise.allSettled(
-    files.map(async (f) => {
-      // File cloud milik aplikasi (URL relatif) diambil langsung same-origin;
-      // proxy hanya untuk URL absolut milik provider.
-      const isRelative = !/^https?:\/\//i.test(f.url);
-      let blob: Blob | null = null;
+  let added = 0;
+
+  await Promise.all(
+    files.map(async (file, index) => {
       try {
-        const target = isRelative ? `${f.url}${f.url.includes("?") ? "&" : "?"}download=1&stream=1` : f.url;
-        const r = await fetch(target, isRelative ? {} : { mode: "cors" });
-        if (r.ok) blob = await r.blob();
+        const res = await fetch(file.url);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const name = file.filename || `file-${index + 1}`;
+        zip.file(name, blob);
+        added += 1;
       } catch {
-        /* fallthrough */
+        // skip unreachable file
       }
-      if (!blob && !isRelative) {
-        try {
-          const r = await fetch(`/api/public/proxy-image?url=${encodeURIComponent(f.url)}`);
-          if (r.ok) blob = await r.blob();
-        } catch {
-          /* ignore */
-        }
-      }
-      if (!blob) throw new Error(`Fetch failed: ${f.url}`);
-      zip.file(f.filename, blob);
     }),
   );
-  const failed = results.filter((r) => r.status === "rejected").length;
-  if (failed) console.warn(`downloadFilesAsZip: ${failed}/${files.length} file(s) gagal diambil`);
+
+  if (added === 0) return;
+
   const blob = await zip.generateAsync({ type: "blob" });
-  const url = URL.createObjectURL(blob);
+  const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = zipName.endsWith(".zip") ? zipName : `${zipName}.zip`;
+  a.href = objectUrl;
+  a.download = zipName.toLowerCase().endsWith(".zip") ? zipName : `${zipName}.zip`;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
 }
+
+export default downloadFilesAsZip;

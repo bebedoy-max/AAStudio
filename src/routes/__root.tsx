@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import { Toaster } from "sonner";
+import { DialogsHost } from "@/components/ai-influencer/dialogs";
 import { AuthProvider } from "@/lib/auth-context";
 import { AuthGate } from "@/components/auth/auth-gate";
 
@@ -121,7 +122,9 @@ function RootComponent() {
         <AuthGate>
           <Outlet />
         </AuthGate>
+        <DialogsHost />
         <Toaster theme="dark" position="top-right" richColors />
+
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -71,6 +71,14 @@ function fmtSize(bytes: number) {
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+const DRIVE_SCOPE_LABEL =
+  "See, edit, create, and delete only the specific Google Drive files you use with this app";
+const SCOPE_FLAG_KEY = "aacs.drive.scope-missing";
+
+class OAuthScopeError extends Error {
+  scopeMissing = true;
+}
+
 function waitForOAuth(popup: Window) {
   return new Promise<void>((resolve, reject) => {
     let poll: number | undefined;
@@ -79,17 +87,26 @@ function waitForOAuth(popup: Window) {
       if (poll !== undefined) window.clearInterval(poll);
     };
     const onMessage = (event: MessageEvent) => {
-      const type = (event.data as { type?: string; connectorId?: string })?.type;
+      const data = event.data as { type?: string; connectorId?: string; reason?: string };
+      const type = data?.type;
       if (
         event.origin !== window.location.origin ||
         event.source !== popup ||
-        (event.data as { connectorId?: string })?.connectorId !== "google_drive" ||
+        data?.connectorId !== "google_drive" ||
         (type !== "appUserConnectorOAuthComplete" && type !== "appUserConnectorOAuthFailed")
       )
         return;
       cleanup();
       if (type === "appUserConnectorOAuthComplete") return resolve();
       popup.close();
+      if (data.reason === "missing_scope") {
+        reject(
+          new OAuthScopeError(
+            `Koneksi gagal: centang izin “${DRIVE_SCOPE_LABEL}” di halaman Google, lalu hubungkan ulang.`,
+          ),
+        );
+        return;
+      }
       reject(new Error("Koneksi Google Drive gagal."));
     };
     window.addEventListener("message", onMessage);
@@ -100,6 +117,7 @@ function waitForOAuth(popup: Window) {
     }, 500);
   });
 }
+
 
 function CloudStoragePage() {
   const _status = useServerFn(getCloudStatus);
@@ -125,6 +143,17 @@ function CloudStoragePage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [scopeMissing, setScopeMissing] = useState(false);
+
+  useEffect(() => {
+    setScopeMissing(window.localStorage.getItem(SCOPE_FLAG_KEY) === "1");
+  }, []);
+
+  const flagScope = (missing: boolean) => {
+    setScopeMissing(missing);
+    if (missing) window.localStorage.setItem(SCOPE_FLAG_KEY, "1");
+    else window.localStorage.removeItem(SCOPE_FLAG_KEY);
+  };
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -147,6 +176,15 @@ function CloudStoragePage() {
   }, [reload]);
 
   const onConnect = async () => {
+    const agreed = await openConfirm({
+      title: "Sebelum menghubungkan Google Drive",
+      description: `Di halaman izin Google nanti, Anda WAJIB mencentang: “${DRIVE_SCOPE_LABEL}”. Tanpa centang itu, Google Drive tidak bisa terhubung dan terbaca oleh aplikasi, dan tombol Hubungkan tidak akan berfungsi. Klik “Lanjutkan” lalu centang izin tersebut sebelum menekan Continue di Google.`,
+      confirmLabel: "Lanjutkan",
+      cancelLabel: "Batal",
+      icon: <Link2 className="h-5 w-5" />,
+    });
+    if (!agreed) return;
+
     const popup = window.open("", "drive-oauth", "width=600,height=720");
     if (!popup) {
       toast.error("Popup diblokir. Izinkan popup lalu coba lagi.");
@@ -158,15 +196,19 @@ function CloudStoragePage() {
       const done = waitForOAuth(popup);
       popup.location.href = authorizationUrl;
       await done;
+      flagScope(false);
       toast.success("Google Drive pribadi terhubung.");
       await reload();
     } catch (e) {
       popup.close();
-      toast.error((e as Error).message);
+      const err = e as Error & { scopeMissing?: boolean };
+      if (err.scopeMissing) flagScope(true);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
   };
+
 
   const onDisconnect = async () => {
     const ok = await openConfirm({
@@ -280,11 +322,18 @@ function CloudStoragePage() {
                 </span>
               )}
             </div>
+            {!status?.personalConnected && scopeMissing && (
+              <div className="mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-500">
+                Perlu hubungkan ulang. Izin Drive belum dicentang, jadi Drive Anda tidak bisa terbaca. Saat halaman
+                Google muncul, centang “{DRIVE_SCOPE_LABEL}” (lihat “See access details”), lalu tekan Continue.
+              </div>
+            )}
             {status?.personalConnected && (
               <div className="mt-1 text-xs font-medium text-foreground">
                 {status.accountEmail ?? "Akun Google tidak terbaca"}
               </div>
             )}
+
             <p className="mt-1 text-xs text-muted-foreground">
               {status?.personalConnected
                 ? 'Terhubung. File masuk ke folder "AA Creative Studio" di Drive Anda.'
@@ -339,6 +388,13 @@ function CloudStoragePage() {
             <span className="text-xs text-destructive self-center">Global Cloud belum dikonfigurasi admin.</span>
           )}
         </div>
+        {!status?.personalConnected && (
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Catatan: di halaman izin Google, centang “{DRIVE_SCOPE_LABEL}”. Jika kotak itu tidak dicentang, koneksi
+            akan ditolak dan tombol Hubungkan tidak berfungsi.
+          </p>
+        )}
+
       </Card>
 
       <Card sub="File di cloud — bisa dibuka, di-download, atau dihapus kapan saja.">
