@@ -942,7 +942,7 @@ export function ReffEditWorkspace({
                     {mode === "image" ? (
                       <img src={url} alt={`Render ${i + 1}`} className="w-full h-full object-cover" />
                     ) : (
-                      <video src={url} className="w-full h-full object-cover" muted />
+                      <video src={url} className="w-full h-full object-cover" muted preload="none" />
                     )}
                   </button>
                   <button
@@ -970,7 +970,7 @@ export function ReffEditWorkspace({
               {mode === "image" ? (
                 <img src={currentOutput} alt="Output" className="w-full h-auto" />
               ) : (
-                <video src={currentOutput} controls className="w-full h-auto" />
+                <video src={currentOutput} controls preload="metadata" className="w-full h-auto" />
               )}
               <button
                 type="button"

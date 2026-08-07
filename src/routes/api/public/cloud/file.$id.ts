@@ -52,7 +52,7 @@ export const Route = createFileRoute("/api/public/cloud/file/$id")({
           headers: {
             "Content-Type": row.mime_type || "application/octet-stream",
             "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${row.name.replace(/"/g, "")}"`,
-            "Cache-Control": "private, max-age=3600",
+            "Cache-Control": "public, max-age=86400, s-maxage=86400",
             ETag: `"${row.id}"`,
             "Access-Control-Allow-Origin": "*",
           },

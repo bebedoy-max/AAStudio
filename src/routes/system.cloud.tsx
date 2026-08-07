@@ -439,7 +439,7 @@ function CloudStoragePage() {
                 {f.kind === "image" ? (
                   <img src={f.url} alt={f.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
                 ) : f.kind === "video" ? (
-                  <video src={f.url} className="absolute inset-0 h-full w-full object-cover" muted playsInline />
+                  <video src={f.url} className="absolute inset-0 h-full w-full object-cover" muted playsInline preload="none" />
                 ) : (
                   <span className="p-3 text-center break-all">{f.name}</span>
                 )}

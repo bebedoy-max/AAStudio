@@ -72,7 +72,7 @@ export const Route = createFileRoute("/api/public/proxy-image")({
         if (upstream.status === 304) {
           return new Response(null, {
             status: 304,
-            headers: { "Cache-Control": "public, max-age=86400, immutable", "Access-Control-Allow-Origin": "*" },
+            headers: { "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable", "Access-Control-Allow-Origin": "*" },
           });
         }
 
@@ -82,7 +82,7 @@ export const Route = createFileRoute("/api/public/proxy-image")({
 
         const out: Record<string, string> = {
           "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream",
-          "Cache-Control": "public, max-age=86400, immutable",
+          "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
           "Access-Control-Allow-Origin": "*",
         };
         const etag = upstream.headers.get("etag");

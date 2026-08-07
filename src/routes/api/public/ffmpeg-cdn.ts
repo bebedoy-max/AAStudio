@@ -71,6 +71,18 @@ export const Route = createFileRoute("/api/public/ffmpeg-cdn")({
         if (!realFile || !ALLOWED_PKGS.has(pkg) || !ALLOWED_VERSIONS.has(v)) {
           return new Response("bad params", { status: 400 });
         }
+        // File .wasm berukuran puluhan MB. Jangan relay byte-nya lewat origin —
+        // redirect ke CDN publik (CORS `*`), jadi egress server ~0.
+        if (realFile.endsWith(".wasm")) {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: `https://cdn.jsdelivr.net/npm/@ffmpeg/${pkg}@${v}/dist/${realFile}`,
+              "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
+              "Access-Control-Allow-Origin": "*",
+            },
+          });
+        }
         try {
           const upstream = await fetchWithFallback(pkg, v, realFile);
           const buf = await upstream.arrayBuffer();
@@ -78,10 +90,12 @@ export const Route = createFileRoute("/api/public/ffmpeg-cdn")({
             status: 200,
             headers: {
               "Content-Type": mimeFor(realFile),
-              "Cache-Control": "public, max-age=86400",
+              // Versi terkunci di query → aman di-cache permanen (browser + CDN).
+              "Cache-Control": "public, max-age=31536000, s-maxage=31536000, immutable",
               "Access-Control-Allow-Origin": "*",
             },
           });
+
         } catch (e) {
           return new Response("upstream error: " + (e as Error).message, {
             status: 502,

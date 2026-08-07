@@ -774,7 +774,7 @@ function ClipperPage() {
                 {project.sources.map((s) => (
                   <div key={s.id} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
                     <div className="relative">
-                      <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted />
+                      <video src={s.url} className="rounded-lg w-full h-24 object-cover bg-black" muted preload="none" />
                       <button
                         onClick={(e) => { e.stopPropagation(); removeSource(s.id); }}
                         className="absolute top-1 right-1 p-1 rounded-md bg-black/60 hover:bg-red-500/80 text-white"
@@ -946,7 +946,7 @@ function ClipperPage() {
                   {[...project.renderHistory].reverse().map((h, i) => (
                     <div key={`${h.ts}-${i}`} className="rounded-xl bg-card/60 border border-border p-2 flex flex-col gap-1">
                       {h.url ? (
-                        <video src={h.url} controls className="rounded-lg w-full h-28 object-cover bg-black" />
+                        <video src={h.url} controls preload="none" className="rounded-lg w-full h-28 object-cover bg-black" />
                       ) : (
                         <div className="rounded-lg w-full h-28 grid place-items-center bg-black/50 text-[10px] text-muted-foreground">no preview</div>
                       )}
