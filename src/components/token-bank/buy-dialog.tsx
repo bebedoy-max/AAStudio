@@ -4,6 +4,7 @@
 // settlement, the Midtrans webhook auto-fulfills the order and pushes keys
 // to Token Manager without any admin approval.
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Loader2,
@@ -196,9 +197,11 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] grid place-items-center bg-background/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[10050] grid place-items-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4"
       onClick={onClose}
     >
       <div
@@ -417,7 +420,8 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
