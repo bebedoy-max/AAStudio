@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ReffEditRouteImport } from './routes/reff-edit'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PluginsRouteImport } from './routes/plugins'
+import { Route as MotionmodeRouteImport } from './routes/motionmode'
 import { Route as MixingRouteImport } from './routes/mixing'
 import { Route as AiInfluencerRouteImport } from './routes/ai-influencer'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -119,6 +120,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const PluginsRoute = PluginsRouteImport.update({
   id: '/plugins',
   path: '/plugins',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MotionmodeRoute = MotionmodeRouteImport.update({
+  id: '/motionmode',
+  path: '/motionmode',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MixingRoute = MixingRouteImport.update({
@@ -608,6 +614,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
+  '/motionmode': typeof MotionmodeRoute
   '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
@@ -704,6 +711,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mixing': typeof MixingRouteWithChildren
+  '/motionmode': typeof MotionmodeRoute
   '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
@@ -803,6 +811,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/ai-influencer': typeof AiInfluencerRouteWithChildren
   '/mixing': typeof MixingRouteWithChildren
+  '/motionmode': typeof MotionmodeRoute
   '/plugins': typeof PluginsRoute
   '/profile': typeof ProfileRoute
   '/reff-edit': typeof ReffEditRouteWithChildren
@@ -903,6 +912,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-influencer'
     | '/mixing'
+    | '/motionmode'
     | '/plugins'
     | '/profile'
     | '/reff-edit'
@@ -999,6 +1009,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/mixing'
+    | '/motionmode'
     | '/plugins'
     | '/profile'
     | '/reff-edit'
@@ -1097,6 +1108,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ai-influencer'
     | '/mixing'
+    | '/motionmode'
     | '/plugins'
     | '/profile'
     | '/reff-edit'
@@ -1196,6 +1208,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AiInfluencerRoute: typeof AiInfluencerRouteWithChildren
   MixingRoute: typeof MixingRouteWithChildren
+  MotionmodeRoute: typeof MotionmodeRoute
   PluginsRoute: typeof PluginsRoute
   ProfileRoute: typeof ProfileRoute
   ReffEditRoute: typeof ReffEditRouteWithChildren
@@ -1290,6 +1303,13 @@ declare module '@tanstack/react-router' {
       path: '/plugins'
       fullPath: '/plugins'
       preLoaderRoute: typeof PluginsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/motionmode': {
+      id: '/motionmode'
+      path: '/motionmode'
+      fullPath: '/motionmode'
+      preLoaderRoute: typeof MotionmodeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mixing': {
@@ -2030,6 +2050,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AiInfluencerRoute: AiInfluencerRouteWithChildren,
   MixingRoute: MixingRouteWithChildren,
+  MotionmodeRoute: MotionmodeRoute,
   PluginsRoute: PluginsRoute,
   ProfileRoute: ProfileRoute,
   ReffEditRoute: ReffEditRouteWithChildren,

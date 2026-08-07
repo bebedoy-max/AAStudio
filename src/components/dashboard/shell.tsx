@@ -349,6 +349,22 @@ function AccountMenu() {
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  if (pathname === "/motionmode") return <MotionModeShell>{children}</MotionModeShell>;
+  return <FullShell>{children}</FullShell>;
+}
+
+function MotionModeShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden" style={{ background: "var(--gradient-canvas)", backgroundAttachment: "fixed" }}>
+      <div className="mx-auto flex w-full max-w-6xl min-w-0 flex-col gap-6 p-4 sm:p-6">{children}</div>
+      <UpgradeDialogHost />
+    </div>
+  );
+}
+
+
+function FullShell({ children }: { children: ReactNode }) {
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
   const isHome = pathname === "/";
 
   const [drawerOpen, setDrawerOpen] = useState(false);

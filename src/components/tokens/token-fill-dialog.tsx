@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ShoppingBag, X } from "lucide-react";
 import {
   LS,
   SummaryCtx,
@@ -13,6 +13,7 @@ import {
   ImportModal,
   type SummaryPayload,
 } from "@/routes/manage.tokens";
+import { BuyTokenDialog } from "@/components/token-bank/buy-dialog";
 
 const LABEL: Record<string, string> = {
   brain: "Brain (Gemini)",
@@ -125,6 +126,7 @@ export function TokenFillDialog({ provider, onClose }: { provider: string; onClo
   const tab = TOKEN_TAB[provider] ?? provider;
   const [summary, setSummary] = useState<SummaryPayload | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
 
   if (typeof document === "undefined") return null;
 
@@ -143,14 +145,26 @@ export function TokenFillDialog({ provider, onClose }: { provider: string; onClo
               <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Isi Token</div>
               <div className="font-display text-lg text-foreground">{LABEL[tab] ?? tab}</div>
             </div>
-            <button
-              onClick={onClose}
-              className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-sidebar-accent/40"
-              aria-label="Tutup"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setBuyOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/50 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                title="Beli token"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+                Beli Token
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded-full border border-border p-1.5 text-muted-foreground hover:bg-sidebar-accent/40"
+                aria-label="Tutup"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+
 
           <Pane provider={tab} onOpenImport={() => setShowImport(true)} />
         </div>
@@ -158,6 +172,7 @@ export function TokenFillDialog({ provider, onClose }: { provider: string; onClo
 
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {summary && <SummaryDialog payload={summary} onClose={() => setSummary(null)} />}
+      {buyOpen && <BuyTokenDialog onClose={() => setBuyOpen(false)} />}
     </SummaryCtx.Provider>,
     document.body,
   );

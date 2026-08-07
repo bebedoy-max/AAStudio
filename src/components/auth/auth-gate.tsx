@@ -12,6 +12,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // callback menyelesaikan exchange lalu redirect sendiri.
   if (pathname.startsWith("/auth/")) return <>{children}</>;
 
+  // Mode publik: /motionmode bisa diakses siapa saja tanpa login.
+  if (pathname === "/motionmode") return <>{children}</>;
+
 
   if (loading) {
     return (

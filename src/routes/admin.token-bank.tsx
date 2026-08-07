@@ -736,8 +736,13 @@ const UNCHECKABLE_PROVIDERS: BankProvider[] = ["magnific", "shotstack", "creatom
 function formatIssue(provider: BankProvider, key: string): string | null {
   if (/\s/.test(key)) return "Format salah · mengandung spasi";
   if (key.length < 12) return "Format salah · terlalu pendek";
-  if (provider === "brain" && !/^AIza[\w-]{20,}$/.test(key) && !/^sk-[\w-]{20,}$/.test(key))
-    return "Format salah · bukan Gemini (AIza…) / OpenAI (sk-…)";
+  if (
+    provider === "brain" &&
+    !/^AIza[\w-]{20,}$/.test(key) &&
+    !/^AQ\.[\w-]{20,}$/.test(key) &&
+    !/^sk-[\w-]{20,}$/.test(key)
+  )
+    return "Format salah · bukan Gemini (AIza…/AQ.…) / OpenAI (sk-…)";
   if (provider === "eleven" && !/^[A-Za-z0-9_-]{20,}$/.test(key)) return "Format salah";
   return null;
 }
