@@ -280,8 +280,14 @@ export async function uploadToDrive(
   };
 }
 
-export async function downloadFromDrive(ctx: DriveCtx, driveFileId: string): Promise<Response> {
-  return driveFetch(ctx, `/drive/v3/files/${encodeURIComponent(driveFileId)}?alt=media`);
+export async function downloadFromDrive(
+  ctx: DriveCtx,
+  driveFileId: string,
+  range?: string | null,
+): Promise<Response> {
+  // Teruskan header Range supaya player video hanya menarik potongan yang dibutuhkan.
+  const init: RequestInit | undefined = range ? { headers: { Range: range } } : undefined;
+  return driveFetch(ctx, `/drive/v3/files/${encodeURIComponent(driveFileId)}?alt=media`, init);
 }
 
 /**

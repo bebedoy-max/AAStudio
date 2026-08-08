@@ -22,6 +22,8 @@ export type PreviewLinks = {
   directUrl: string | null;
   /** URL thumbnail (kalau provider menyediakan). */
   thumbnailUrl: string | null;
+  /** URL unduhan langsung (attachment) kalau provider menyediakan. */
+  downloadUrl?: string | null;
 };
 
 /** Kontrak minimum sebuah provider storage. */

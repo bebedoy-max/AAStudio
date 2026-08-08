@@ -45,9 +45,9 @@ export const DownloadService = {
   async directLinks(ctx: DriveCtx, objectId: string, mimeType: string): Promise<PreviewLinks> {
     return provider.getDirectLinks(ctx, objectId, mimeType);
   },
-  async stream(ctx: DriveCtx, objectId: string) {
-    logTransfer("download.streamed", { objectId });
-    return provider.getObjectStream(ctx, objectId);
+  async stream(ctx: DriveCtx, objectId: string, range?: string | null) {
+    logTransfer("download.streamed", { objectId, range: range ?? null });
+    return provider.getObjectStream(ctx, objectId, range);
   },
 };
 

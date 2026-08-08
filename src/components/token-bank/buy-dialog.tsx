@@ -29,6 +29,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ensureGopayAmount } from "@/lib/companion/gopay.functions";
 import { GopayQrisPanel } from "@/components/payments/gopay-qris-panel";
 import { syncTokensForUser } from "@/lib/tokens/sync";
+import { ensureGuestSession, isGuestEmail, readGuestCred } from "@/lib/auth/guest";
 
 function rupiah(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -67,6 +68,10 @@ export function decodeCartFromNote(note: string | null | undefined): CartItem[] 
 
 export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
+  // Pembeli bisa berupa user login atau akun tamu (aanon_xxxx) yang dibuat
+  // otomatis saat checkout dari halaman publik seperti /motionmode.
+  const [buyerId, setBuyerId] = useState<string | null>(null);
+  const [guestHandle, setGuestHandle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [prices, setPrices] = useState<Record<string, { price_idr: number; is_active: boolean }>>({});
   const [stock, setStock] = useState<Record<string, number>>({});
@@ -80,15 +85,15 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     (async () => {
       try {
         const [prSettled, stSettled] = await Promise.all([
-          listBankPrices().catch(() => [] as Awaited<ReturnType<typeof listBankPrices>>),
-          listBankStock().catch(() => ({}) as Record<string, number>),
+          listBankPrices(),
+          listBankStock(),
         ]);
         const priceMap: Record<string, { price_idr: number; is_active: boolean }> = {};
         for (const p of prSettled) priceMap[p.provider] = { price_idr: p.price_idr, is_active: p.is_active };
         setPrices(priceMap);
         setStock(stSettled);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Gagal memuat katalog");
+        toast.error(e instanceof Error ? e.message : "Gagal menyiapkan pembelian token");
       } finally {
         setLoading(false);
       }
@@ -136,7 +141,6 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   }
 
   async function createOrder() {
-    if (!user) return;
     if (cartItems.length === 0) return toast.error("Pilih minimal 1 token");
     for (const item of cartItems) {
       const s = stock[item.provider] ?? 0;
@@ -144,12 +148,21 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     }
     setSubmitting(true);
     try {
+      // Tanpa login → pakai/siapkan akun tamu supaya order punya pemilik dan
+      // token hasil pembelian tetap masuk ke Token Manager browser ini.
+      let uid = user?.id ?? null;
+      if (!uid) {
+        const guest = await ensureGuestSession();
+        uid = guest.userId;
+        setGuestHandle(guest.handle);
+      }
+      setBuyerId(uid);
       const primary = cartItems[0];
       const label = cartItems
         .map((c) => `${c.qty}× ${PROVIDER_LABELS[c.provider]}`)
         .join(", ");
       const row = {
-        user_id: user.id,
+        user_id: uid,
         route_key: `token_bank.cart`,
         price_idr: total,
         payment_method_id: null,
@@ -193,7 +206,8 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     const st = (data as { status?: OrderInfo["status"] } | null)?.status;
     if (st && st !== order.status) {
       setOrder({ ...order, status: st });
-      if (st === "approved" && user) await syncTokensForUser(user.id, { force: true });
+      const owner = buyerId ?? user?.id ?? null;
+      if (st === "approved" && owner) await syncTokensForUser(owner, { force: true });
     }
   }
 
@@ -223,6 +237,20 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
         <p className="mt-1 text-xs text-muted-foreground">
           Pilih beberapa provider sekaligus. Bayar sekali lewat QRIS — token dikirim otomatis.
         </p>
+
+        {(!user || isGuestEmail(user.email)) && (
+          <div className="mt-3 rounded-xl border border-amber-400/40 bg-amber-400/[0.07] px-3 py-2.5 text-[11px] leading-relaxed text-amber-200">
+            <span className="font-semibold">Mode tamu.</span> Kamu bisa beli token tanpa login —
+            token otomatis masuk ke Token Manager di browser ini dengan ID tamu{" "}
+            <span className="font-mono">
+              {guestHandle ?? (user?.email ? user.email.split("@")[0] : readGuestCred()?.handle) ?? "aanon_xxxxxxxx"}
+            </span>
+            . Disarankan mendaftar akun agar token tersimpan permanen, auto-sync ke cloud, dan tidak
+            hilang saat cache browser dibersihkan.
+          </div>
+        )}
+
+
 
         {loading ? (
           <div className="py-12 grid place-items-center">

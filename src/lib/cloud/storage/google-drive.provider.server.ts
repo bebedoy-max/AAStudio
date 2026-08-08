@@ -13,16 +13,23 @@ import type { DirectUploadTicket, PreviewLinks, StorageProvider, StoredObject } 
 /** Cache hasil verifikasi link publik (per proses) supaya tidak HEAD berulang. */
 const linkCache = new Map<string, PreviewLinks>();
 
+/** Link unduhan langsung Google (mendukung file besar, Range, dan bypass halaman konfirmasi). */
+function usercontentUrl(objectId: string): string {
+  return `https://drive.usercontent.google.com/download?id=${encodeURIComponent(objectId)}&export=download&confirm=t`;
+}
+
 function candidateLinks(objectId: string, mimeType: string): PreviewLinks {
   const isImage = mimeType.startsWith("image/");
-  // Hanya gambar yang punya direct link stabil (lh3). Untuk video/file lain,
-  // link "usercontent download" sering balas halaman konfirmasi/403 sehingga
-  // player kosong dan tombol download gagal — biarkan lewat stream server.
-  if (!isImage) return { directUrl: null, thumbnailUrl: null };
-  return {
-    directUrl: `https://lh3.googleusercontent.com/d/${objectId}`,
-    thumbnailUrl: `https://lh3.googleusercontent.com/d/${objectId}=w512`,
-  };
+  const download = usercontentUrl(objectId);
+  if (isImage) {
+    return {
+      directUrl: `https://lh3.googleusercontent.com/d/${objectId}`,
+      thumbnailUrl: `https://lh3.googleusercontent.com/d/${objectId}=w512`,
+      downloadUrl: download,
+    };
+  }
+  // Video/audio/dokumen: pakai endpoint usercontent (mendukung byte-range streaming).
+  return { directUrl: download, thumbnailUrl: null, downloadUrl: download };
 }
 
 async function urlIsReachable(url: string): Promise<boolean> {
@@ -33,6 +40,7 @@ async function urlIsReachable(url: string): Promise<boolean> {
     return false;
   }
 }
+
 
 export const googleDriveProvider: StorageProvider<DriveCtx> = {
   id: "google_drive",
@@ -61,7 +69,7 @@ export const googleDriveProvider: StorageProvider<DriveCtx> = {
     const cached = linkCache.get(objectId);
     if (cached) return cached;
 
-    const empty: PreviewLinks = { directUrl: null, thumbnailUrl: null };
+    const empty: PreviewLinks = { directUrl: null, thumbnailUrl: null, downloadUrl: null };
     const granted = await ensureAnyoneWithLink(ctx, objectId);
     if (!granted) {
       linkCache.set(objectId, empty);
@@ -74,9 +82,10 @@ export const googleDriveProvider: StorageProvider<DriveCtx> = {
     return result;
   },
 
-  async getObjectStream(ctx, objectId) {
-    return downloadFromDrive(ctx, objectId);
+  async getObjectStream(ctx, objectId, range) {
+    return downloadFromDrive(ctx, objectId, range);
   },
+
 
   async deleteObject(ctx, objectId) {
     await deleteFromDrive(ctx, objectId);

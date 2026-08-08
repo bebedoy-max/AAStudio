@@ -19,12 +19,13 @@ export const Route = createFileRoute("/api/public/cloud/file/$id")({
             const { logTransfer } = await import("@/lib/cloud/storage/log.server");
             const ctx = await ctxForRow(row);
             const links = await DownloadService.directLinks(ctx, row.drive_file_id, row.mime_type || "");
-            if (links.directUrl) {
+            const target = download ? (links.downloadUrl ?? links.directUrl) : links.directUrl;
+            if (target) {
               logTransfer(download ? "download.redirect" : "preview.redirect", { id: row.id, kind: row.kind });
               return new Response(null, {
                 status: 302,
                 headers: {
-                  Location: links.directUrl,
+                  Location: target,
                   "Cache-Control": "public, max-age=3600",
                   ETag: `"${row.id}"`,
                   "Access-Control-Allow-Origin": "*",
@@ -36,27 +37,33 @@ export const Route = createFileRoute("/api/public/cloud/file/$id")({
           }
         }
 
-        if (request.headers.get("if-none-match") === `"${row.id}"`) {
+        const range = request.headers.get("range");
+        if (!range && request.headers.get("if-none-match") === `"${row.id}"`) {
           return new Response(null, { status: 304, headers: { ETag: `"${row.id}"` } });
         }
 
-        const upstream = await streamCloudFile(row);
+        const upstream = await streamCloudFile(row, range);
         if (!upstream.ok || !upstream.body) {
           const detail = await upstream.text().catch(() => "");
           console.error("[cloud/file] drive fetch failed", upstream.status, detail.slice(0, 200));
           return new Response("Gagal membaca file dari cloud", { status: 502 });
         }
 
-        return new Response(upstream.body, {
-          status: 200,
-          headers: {
-            "Content-Type": row.mime_type || "application/octet-stream",
-            "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${row.name.replace(/"/g, "")}"`,
-            "Cache-Control": "public, max-age=86400, s-maxage=86400",
-            ETag: `"${row.id}"`,
-            "Access-Control-Allow-Origin": "*",
-          },
-        });
+        const headers: Record<string, string> = {
+          "Content-Type": row.mime_type || "application/octet-stream",
+          "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${row.name.replace(/"/g, "")}"`,
+          "Cache-Control": "public, max-age=86400, s-maxage=31536000, immutable",
+          ETag: `"${row.id}"`,
+          "Accept-Ranges": "bytes",
+          "Access-Control-Allow-Origin": "*",
+        };
+        const contentRange = upstream.headers.get("content-range");
+        if (contentRange) headers["Content-Range"] = contentRange;
+        const contentLength = upstream.headers.get("content-length");
+        if (contentLength) headers["Content-Length"] = contentLength;
+
+        return new Response(upstream.body, { status: upstream.status === 206 ? 206 : 200, headers });
+
       },
     },
   },

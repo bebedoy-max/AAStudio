@@ -338,10 +338,14 @@ export const restoreAssignedBankKeys = createServerFn({ method: "POST" })
   });
 
 export const listBankPrices = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const db = context.supabase as unknown as LooseClient;
-    const { data, error } = await db.from("token_bank_prices").select("*");
+  .handler(async () => {
+    // Katalog pembelian bersifat publik. Service role hanya digunakan di
+    // server untuk melewati RLS; respons dibatasi ke harga, status, provider.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as unknown as LooseClient;
+    const { data, error } = await db
+      .from("token_bank_prices")
+      .select("provider, price_idr, is_active, updated_at");
     if (error) throw new Error(error.message);
     return (data ?? []) as {
       provider: BankProvider;
@@ -351,37 +355,21 @@ export const listBankPrices = createServerFn({ method: "GET" })
     }[];
   });
 
-/** Authenticated: available-key counts per provider (needs service role to bypass RLS on token_bank_keys for non-admin users). */
+/** Public aggregate stock counts; key values are never returned. */
 export const listBankStock = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const db = context.supabase as unknown as LooseClient;
-    // Primary path: security-definer RPC (no service role needed).
-    const { data, error } = await db.rpc("token_bank_available_counts", {});
-    if (!error && Array.isArray(data)) {
-      const counts: Record<string, number> = {};
-      for (const r of data as { provider: string; available: number }[]) {
-        counts[r.provider] = Number(r.available) || 0;
-      }
-      return counts;
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as unknown as LooseClient;
+    const { data: rows, error } = await admin
+      .from("token_bank_keys")
+      .select("provider")
+      .eq("status", "available");
+    if (error) throw new Error(error.message);
+    const counts: Record<string, number> = {};
+    for (const r of (rows ?? []) as { provider: string }[]) {
+      counts[r.provider] = (counts[r.provider] ?? 0) + 1;
     }
-    // Fallback for admins if RPC not yet applied — needs service role.
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const admin = supabaseAdmin as unknown as LooseClient;
-      const { data: rows, error: e2 } = await admin
-        .from("token_bank_keys")
-        .select("provider, status");
-      if (e2) throw new Error(e2.message);
-      const counts: Record<string, number> = {};
-      for (const r of (rows ?? []) as { provider: string; status: string }[]) {
-        if (r.status === "available") counts[r.provider] = (counts[r.provider] ?? 0) + 1;
-      }
-      return counts;
-    } catch {
-      // Return empty rather than blocking the buy dialog entirely.
-      return {} as Record<string, number>;
-    }
+    return counts;
   });
 
 export const setBankPrice = createServerFn({ method: "POST" })

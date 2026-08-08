@@ -212,10 +212,11 @@ export async function ctxForRow(row: CloudFileRow) {
   return { mode: "global" as const, connectionKey: null };
 }
 
-export async function streamCloudFile(row: CloudFileRow): Promise<Response> {
+export async function streamCloudFile(row: CloudFileRow, range?: string | null): Promise<Response> {
   const ctx = await ctxForRow(row);
-  return downloadFromDrive(ctx, row.drive_file_id);
+  return downloadFromDrive(ctx, row.drive_file_id, range);
 }
+
 
 /** Ambil media dari URL provider lalu simpan ke cloud (dedupe by source_url). */
 export async function archiveRemoteUrlForUser(params: {
