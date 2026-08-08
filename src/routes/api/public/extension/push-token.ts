@@ -14,15 +14,25 @@ const PROVIDER_KEYS: Record<string, string> = {
   weavy: "aatools.weavy.tokens",
 };
 
-function cors(res: Response) {
+const ALLOWED_ORIGIN_RE =
+  /^https?:\/\/(localhost(:\d+)?|127\.0\.0\.1(:\d+)?|[\w-]+\.lovable\.app|[\w-]+\.lovable\.dev|aacreative\.vercel\.app)$/;
+
+function cors(res: Response, origin?: string | null) {
   const h = new Headers(res.headers);
-  h.set("Access-Control-Allow-Origin", "*");
+  // Ekstensi (background script) tidak tunduk CORS, jadi wildcard tidak perlu.
+  if (origin && ALLOWED_ORIGIN_RE.test(origin)) {
+    h.set("Access-Control-Allow-Origin", origin);
+    h.set("Vary", "Origin");
+  }
   h.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   h.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   return new Response(res.body, { status: res.status, headers: h });
 }
-const json = (data: unknown, status = 200) =>
-  cors(new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }));
+const json = (data: unknown, status = 200, origin?: string | null) =>
+  cors(
+    new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } }),
+    origin,
+  );
 
 const JWT_RE = /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/;
 
@@ -31,7 +41,7 @@ type KeyEntry = { id: string; key: string; balance: number | null; status: strin
 export const Route = createFileRoute("/api/public/extension/push-token")({
   server: {
     handlers: {
-      OPTIONS: async () => cors(new Response(null, { status: 204 })),
+      OPTIONS: async ({ request }) => cors(new Response(null, { status: 204 }), request.headers.get("origin")),
       POST: async ({ request }) => {
         const SUPABASE_URL = process.env.SUPABASE_URL;
         const ANON = process.env.SUPABASE_PUBLISHABLE_KEY;

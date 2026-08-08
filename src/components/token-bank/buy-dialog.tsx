@@ -81,8 +81,13 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
   const [gopayAmount, setGopayAmount] = useState<number | null>(null);
   const assignGopay = useServerFn(ensureGopayAmount);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
     (async () => {
+      setLoading(true);
+      setLoadError(null);
       try {
         const [prSettled, stSettled] = await Promise.all([
           listBankPrices(),
@@ -93,12 +98,15 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
         setPrices(priceMap);
         setStock(stSettled);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Gagal menyiapkan pembelian token");
+        const msg = e instanceof Error ? e.message : "Gagal menyiapkan pembelian token";
+        setLoadError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [reloadKey]);
+
 
   // Hanya token yang benar-benar dijual: aktif, ada harga, dan stok tersedia.
   const catalog = useMemo(() => {
@@ -263,10 +271,22 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
             onClose={onClose}
             onApproved={refreshStatus}
           />
+        ) : loadError ? (
+          <div className="mt-6 p-6 text-center rounded-2xl border border-rose-400/40 bg-rose-400/[0.06] text-sm text-rose-200">
+            <div className="font-semibold">Katalog token gagal dimuat.</div>
+            <div className="mt-1 text-[11px] font-mono break-words opacity-80">{loadError}</div>
+            <button
+              onClick={() => setReloadKey((k) => k + 1)}
+              className="mt-3 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs hover:bg-sidebar-accent/60"
+            >
+              Coba lagi
+            </button>
+          </div>
         ) : catalog.length === 0 ? (
           <div className="mt-6 p-6 text-center rounded-2xl border border-border bg-card/40 text-sm text-muted-foreground">
             Belum ada token yang dijual saat ini. Hubungi admin.
           </div>
+
         ) : (
           <>
             <div className="mt-4">

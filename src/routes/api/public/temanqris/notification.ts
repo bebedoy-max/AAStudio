@@ -74,8 +74,12 @@ export const Route = createFileRoute("/api/public/temanqris/notification")({
             return OK({ ok: true, note: "no config, ignored" });
           }
 
-          // Signature wajib kalau webhook secret dikonfigurasi admin.
-          if (loaded.cfg.webhookSecret) {
+          // Signature WAJIB. Tanpa webhook secret, webhook tidak boleh mengubah status.
+          if (!loaded.cfg.webhookSecret) {
+            console.warn("[temanqris-webhook] webhook secret belum diset, event diabaikan");
+            return OK({ ok: true, note: "webhook secret not configured, ignored" });
+          }
+          {
             const valid = verifyTemanQrisSignature({
               secret: loaded.cfg.webhookSecret,
               rawBody,

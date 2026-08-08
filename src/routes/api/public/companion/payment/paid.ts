@@ -9,13 +9,18 @@ export const Route = createFileRoute("/api/public/companion/payment/paid")({
     handlers: {
       OPTIONS: async () => preflight(),
       POST: async ({ request }) => {
-        const { authenticateDevice, findPurchaseByOrderId, expireStaleCompanionPurchases } =
-          await import("@/lib/companion/companion.server");
+        const {
+          authenticateDevice,
+          findPurchaseByOrderId,
+          expireStaleCompanionPurchases,
+          hasMatchedEventForPurchase,
+          expectedAmountsForPurchase,
+        } = await import("@/lib/companion/companion.server");
 
         const device = await authenticateDevice(request);
         if (!device) return jsonResponse({ ok: false, error: "unauthorized" }, 401);
 
-        let body: { order_id?: string; received_at?: string };
+        let body: { order_id?: string; received_at?: string; amount?: number };
         try {
           body = await request.json();
         } catch {
@@ -35,6 +40,22 @@ export const Route = createFileRoute("/api/public/companion/payment/paid")({
           if (pr.status === "approved") {
             return jsonResponse({ ok: true, status: "PAID", note: "already approved" });
           }
+
+          // Wajib ada bukti: perangkat ini sudah pernah mencocokkan notifikasi
+          // pembayaran untuk pesanan ini lewat /payment/verify.
+          const proven = await hasMatchedEventForPurchase(pr.id, device.device_id);
+          if (!proven) {
+            return jsonResponse({ ok: false, error: "payment not verified for this order" }, 409);
+          }
+
+          // Kalau nominal dikirim, harus persis sama dengan nominal sah pesanan.
+          if (body.amount !== undefined) {
+            const amount = Math.round(Number(body.amount));
+            if (!expectedAmountsForPurchase(pr).includes(amount)) {
+              return jsonResponse({ ok: false, error: "amount mismatch" }, 409);
+            }
+          }
+
 
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const admin = supabaseAdmin as unknown as { from: (t: string) => any };

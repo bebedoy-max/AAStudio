@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isSafePublicUrl, safeFetch } from "@/lib/security/ssrf";
 
 const ALLOWED_HOSTS = new Set([
   "api.weavy.ai",
@@ -26,27 +27,7 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 function isAllowedImageUrl(value: string) {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    const host = url.hostname.toLowerCase();
-    // Block localhost / private ranges to prevent SSRF; allow any other public host.
-    if (
-      host === "localhost" ||
-      host === "0.0.0.0" ||
-      host.endsWith(".localhost") ||
-      /^127\./.test(host) ||
-      /^10\./.test(host) ||
-      /^192\.168\./.test(host) ||
-      /^169\.254\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-    ) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  return isSafePublicUrl(value);
 }
 
 export const Route = createFileRoute("/api/public/proxy-image")({
@@ -68,7 +49,7 @@ export const Route = createFileRoute("/api/public/proxy-image")({
         if (inm) headers["If-None-Match"] = inm;
         if (ims) headers["If-Modified-Since"] = ims;
 
-        const upstream = await fetch(url, { headers });
+        const upstream = await safeFetch(url, { headers });
         if (upstream.status === 304) {
           return new Response(null, {
             status: 304,

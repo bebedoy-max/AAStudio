@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isSafePublicUrl, safeFetch } from "@/lib/security/ssrf";
 
 // Article/news/blog scraper. Ambil title, description, hero image, dan
 // body text bersih (limit ~6000 char) untuk dikirim ke naratif-brain.
@@ -116,7 +117,7 @@ export const Route = createFileRoute("/api/public/scrape-article")({
         let body: { url?: string } = {};
         try { body = await request.json(); } catch { /* */ }
         const target = (body.url || "").trim();
-        if (!target || !/^https?:\/\//i.test(target)) {
+        if (!target || !isSafePublicUrl(target)) {
           return new Response(JSON.stringify({ error: "URL tidak valid" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
@@ -134,7 +135,7 @@ export const Route = createFileRoute("/api/public/scrape-article")({
         let directOk = false;
         let directErr = "";
         try {
-          const res = await fetch(resolvedTarget, {
+          const res = await safeFetch(resolvedTarget, {
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

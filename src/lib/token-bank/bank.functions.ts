@@ -339,15 +339,9 @@ export const restoreAssignedBankKeys = createServerFn({ method: "POST" })
 
 export const listBankPrices = createServerFn({ method: "GET" })
   .handler(async () => {
-    // Katalog pembelian bersifat publik. Service role hanya digunakan di
-    // server untuk melewati RLS; respons dibatasi ke harga, status, provider.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as unknown as LooseClient;
-    const { data, error } = await db
-      .from("token_bank_prices")
-      .select("provider, price_idr, is_active, updated_at");
-    if (error) throw new Error(error.message);
-    return (data ?? []) as {
+    // Katalog pembelian bersifat publik (bisa diakses tamu tanpa login).
+    const { fetchBankPrices } = await import("./bank-public.server");
+    return (await fetchBankPrices()) as unknown as {
       provider: BankProvider;
       price_idr: number;
       is_active: boolean;
@@ -358,19 +352,10 @@ export const listBankPrices = createServerFn({ method: "GET" })
 /** Public aggregate stock counts; key values are never returned. */
 export const listBankStock = createServerFn({ method: "GET" })
   .handler(async () => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as unknown as LooseClient;
-    const { data: rows, error } = await admin
-      .from("token_bank_keys")
-      .select("provider")
-      .eq("status", "available");
-    if (error) throw new Error(error.message);
-    const counts: Record<string, number> = {};
-    for (const r of (rows ?? []) as { provider: string }[]) {
-      counts[r.provider] = (counts[r.provider] ?? 0) + 1;
-    }
-    return counts;
+    const { fetchBankStock } = await import("./bank-public.server");
+    return await fetchBankStock();
   });
+
 
 export const setBankPrice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

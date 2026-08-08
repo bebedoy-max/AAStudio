@@ -338,15 +338,55 @@ export async function matchPurchaseByAmount(amount: number): Promise<MatchResult
 }
 
 /** Cari pesanan dari order_id yang dikirim perangkat (id internal atau order TemanQRIS). */
-export async function findPurchaseByOrderId(orderId: string): Promise<{ id: string; status: string } | null> {
+export async function findPurchaseByOrderId(
+  orderId: string,
+): Promise<
+  | {
+      id: string;
+      status: string;
+      price_idr: number | null;
+      temanqris_total_amount: number | null;
+      gopay_expected_amount: number | null;
+    }
+  | null
+> {
   const db = await admin();
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
   const { data } = await db
     .from("purchase_requests")
-    .select("id, status")
+    .select("id, status, price_idr, temanqris_total_amount, gopay_expected_amount")
     .eq(isUuid ? "id" : "temanqris_order_id", orderId)
     .maybeSingle();
-  return (data as { id: string; status: string } | null) ?? null;
+  return (data as never) ?? null;
+}
+
+/**
+ * Bukti bahwa perangkat companion benar-benar melihat notifikasi pembayaran
+ * untuk pesanan ini (dibuat oleh endpoint /payment/verify). Tanpa ini,
+ * /payment/paid tidak boleh memenuhi pesanan apa pun.
+ */
+export async function hasMatchedEventForPurchase(
+  purchaseId: string,
+  deviceId: string,
+): Promise<boolean> {
+  const db = await admin();
+  const { data } = await db
+    .from("companion_events")
+    .select("id")
+    .eq("matched_purchase_id", purchaseId)
+    .eq("device_id", deviceId)
+    .eq("status", "matched")
+    .limit(1);
+  return Array.isArray(data) && data.length > 0;
+}
+
+/** Nominal yang sah untuk pesanan (dipakai verifikasi ulang di /payment/paid). */
+export function expectedAmountsForPurchase(pr: {
+  price_idr: number | null;
+  temanqris_total_amount: number | null;
+  gopay_expected_amount: number | null;
+}): number[] {
+  return expectedAmounts(pr as never);
 }
 
 /** Simpan log event; mengembalikan false kalau hash sudah pernah diproses. */

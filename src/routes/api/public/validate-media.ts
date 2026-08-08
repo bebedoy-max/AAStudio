@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { isSafePublicUrl, safeFetch } from "@/lib/security/ssrf";
 
 const MAX_SNIFF_BYTES = 4096;
 
@@ -59,19 +60,18 @@ export const Route = createFileRoute("/api/public/validate-media")({
       POST: async ({ request }) => {
         const body = await request.json().catch(() => null);
         const parsed = BodySchema.safeParse(body);
-        if (!parsed.success) {
+        if (!parsed.success || !isSafePublicUrl(parsed.data.url)) {
           return json({ ok: false, error: "Request validasi media tidak valid" }, { status: 400 });
         }
 
         try {
-          const response = await fetch(parsed.data.url, {
+          const response = await safeFetch(parsed.data.url, {
             method: "GET",
             headers: {
               Accept: parsed.data.kind === "image" ? "image/*,*/*;q=0.8" : "video/*,*/*;q=0.8",
               Range: `bytes=0-${MAX_SNIFF_BYTES - 1}`,
               "User-Agent": "Mozilla/5.0",
             },
-            redirect: "follow",
             signal: AbortSignal.timeout(20_000),
           });
 

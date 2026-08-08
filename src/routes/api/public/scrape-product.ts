@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isSafePublicUrl, safeFetch } from "@/lib/security/ssrf";
 
 // Simple product scraper for e-commerce URLs (Tokopedia, Shopee, Lazada, Blibli, generic OG).
 // Extracts title, description, and images from meta tags + JSON-LD.
@@ -114,7 +115,7 @@ export const Route = createFileRoute("/api/public/scrape-product")({
         let body: { url?: string } = {};
         try { body = await request.json(); } catch { /* */ }
         const target = (body.url || "").trim();
-        if (!target || !/^https?:\/\//i.test(target)) {
+        if (!target || !isSafePublicUrl(target)) {
           return new Response(JSON.stringify({ error: "URL tidak valid" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
         let html = "";
@@ -122,7 +123,7 @@ export const Route = createFileRoute("/api/public/scrape-product")({
         let directStatus = 0;
         let directErr = "";
         try {
-          const res = await fetch(target, {
+          const res = await safeFetch(target, {
             headers: {
               "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",

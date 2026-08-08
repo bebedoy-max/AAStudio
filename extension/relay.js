@@ -7,6 +7,8 @@ document.documentElement.setAttribute("data-aa-relay", "1");
 
 window.addEventListener("message", (ev) => {
   if (ev.source !== window) return;
+  // Hanya terima pesan dari origin halaman ini sendiri (blokir iframe/origin lain).
+  if (ev.origin !== window.location.origin) return;
   const msg = ev.data;
   if (!msg || msg.channel !== "aa-relay" || !msg.id) return;
 

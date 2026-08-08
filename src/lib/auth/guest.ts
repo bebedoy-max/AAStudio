@@ -18,7 +18,8 @@ function readCookie(name: string): string | null {
 function writeCookie(name: string, value: string) {
   if (typeof document === "undefined") return;
   const oneYear = 60 * 60 * 24 * 365;
-  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${oneYear}; SameSite=Lax`;
+  const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${oneYear}; SameSite=Lax${secure}`;
 }
 
 export function readGuestCred(): GuestCred | null {
