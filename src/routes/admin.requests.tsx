@@ -100,7 +100,15 @@ function Body() {
   async function load() {
     setLoading(true);
     const [{ data: reqs }, { data: profiles }] = await Promise.all([
-      supabase.from("purchase_requests").select("*").order("created_at", { ascending: false }),
+      // Egress: hanya kolom yang dipakai tabel ini. `temanqris_qr_image`
+      // (base64 QR, puluhan KB/baris) sengaja TIDAK diambil di sini.
+      supabase
+        .from("purchase_requests")
+        .select(
+          "id, user_id, route_key, price_idr, payment_method_name, proof_image_url, note, status, admin_note, reviewed_at, activated_until, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500),
       supabase.from("profiles").select("id, email, display_name"),
     ]);
     const byId: Record<string, { email: string | null; display_name: string | null }> = {};

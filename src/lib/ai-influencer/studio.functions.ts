@@ -96,7 +96,8 @@ export const listQueue = createServerFn({ method: "GET" })
       .select("*")
       .eq("character_id", data.characterId)
       .order("scheduled_for", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(500);
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
@@ -226,7 +227,8 @@ export const listPublisherAccounts = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("ai_influencer_publisher_accounts")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(200);
     if (error) throw new Error(error.message);
     return data ?? [];
   });

@@ -24,7 +24,8 @@ export async function listCharacters(): Promise<Character[]> {
   const { data, error } = await supabase
     .from("ai_characters")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(200);
   if (error) throw error;
   return data ?? [];
 }

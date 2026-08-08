@@ -110,6 +110,30 @@ export function PurchaseDetailDialog({
     };
   }, [liveStatus, purchase.id]);
 
+  // QR base64 tidak lagi ikut di list feed (hemat egress) — ambil hanya untuk
+  // pesanan yang dibuka dan masih pending.
+  const [qrImage, setQrImage] = useState<string | null>(purchase.temanqris_qr_image ?? null);
+  useEffect(() => {
+    if (qrImage) return;
+    if (liveStatus !== "pending") return;
+    if (purchase.payment_provider !== "temanqris" || !purchase.temanqris_order_id) return;
+    let alive = true;
+    void supabase
+      .from("purchase_requests")
+      .select("temanqris_qr_image")
+      .eq("id", purchase.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        const img = (data as { temanqris_qr_image?: string | null } | null)?.temanqris_qr_image ?? null;
+        if (alive) setQrImage(img);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchase.id, purchase.payment_provider, purchase.temanqris_order_id, liveStatus]);
+
+
 
 
 
@@ -204,7 +228,7 @@ export function PurchaseDetailDialog({
             <TemanQrisPanel
               purchaseRequestId={purchase.id}
               orderId={purchase.temanqris_order_id}
-              qrImage={purchase.temanqris_qr_image}
+              qrImage={qrImage}
               paymentUrl={purchase.temanqris_payment_url}
               amount={purchase.temanqris_total_amount ?? purchase.price_idr}
               expiresAt={purchase.temanqris_expires_at}

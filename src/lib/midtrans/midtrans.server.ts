@@ -5,7 +5,7 @@
 // `payment_gateways` (provider='midtrans', is_active=true) yang dikelola
 // admin lewat /admin/payments. Jika tidak ada baris aktif, fallback ke
 // environment variables MIDTRANS_SERVER_KEY & MIDTRANS_MODE.
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 type MidtransRuntimeConfig = {
   serverKey: string;
@@ -193,7 +193,9 @@ export async function verifyNotificationSignature(payload: {
   const expected = createHash("sha512")
     .update(payload.order_id + payload.status_code + payload.gross_amount + cfg.serverKey)
     .digest("hex");
-  return expected === payload.signature_key;
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(payload.signature_key, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**

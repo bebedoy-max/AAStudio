@@ -138,7 +138,11 @@ function AdminBody() {
   async function load() {
     setLoading(true);
     const [{ data: profiles }, { data: roles }, { data: perms }, statsRes] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+      // Egress: kolom eksplisit (hindari payload kolom yang tak dipakai UI).
+      supabase
+        .from("profiles")
+        .select("id, email, display_name, avatar_url, created_at, is_active")
+        .order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("route_permissions").select("user_id, route_key"),
       fetchStats().catch((e) => {

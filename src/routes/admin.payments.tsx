@@ -32,6 +32,12 @@ import { MENU_CATALOG } from "@/lib/menu-catalog";
 
 import { confirmDialog } from "@/components/ui-confirm";
 
+const ALLOWED_IMAGE_TYPES = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+} as const;
+
 export const Route = createFileRoute("/admin/payments")({
   head: () => ({
     meta: [
@@ -580,6 +586,7 @@ function MethodModal({
   function onImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    if (!(f.type in ALLOWED_IMAGE_TYPES)) return toast.error("Hanya PNG, JPEG, atau WebP");
     if (f.size > 3 * 1024 * 1024) return toast.error("Gambar maksimal 3MB");
     setImageFile(f);
     setImagePreview(URL.createObjectURL(f));
@@ -592,11 +599,15 @@ function MethodModal({
     try {
       let finalImagePath = imagePath;
       if (imageFile) {
-        const ext = imageFile.name.split(".").pop() || "png";
+        // Ekstensi & content-type di-allow-list, tidak diambil dari nama file
+        // yang dikontrol user (cegah upload .svg/.html berisi script).
+        const mime = imageFile.type as keyof typeof ALLOWED_IMAGE_TYPES;
+        const ext = ALLOWED_IMAGE_TYPES[mime];
+        if (!ext) throw new Error("Format gambar tidak diizinkan");
         const path = `${type}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from("payment-assets")
-          .upload(path, imageFile, { contentType: imageFile.type });
+          .upload(path, imageFile, { contentType: mime, upsert: false });
         if (upErr) throw upErr;
         finalImagePath = path;
       }

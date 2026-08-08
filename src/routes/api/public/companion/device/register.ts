@@ -74,11 +74,22 @@ export const Route = createFileRoute("/api/public/companion/device/register")({
         });
 
         try {
+        // Brute-force guard: registrasi perangkat dibatasi per-IP.
+        {
+          const { rateLimit, clientIp } = await import("@/lib/security/rate-limit.server");
+          const limited = rateLimit(`companion-register:${clientIp(request)}`, {
+            limit: 10,
+            windowMs: 10 * 60 * 1000,
+          });
+          if (!limited.allowed) {
+            return respond({ ok: false, error: "rate limited" }, 429);
+          }
+        }
+
         // .trim(): nilai env dari dashboard sering terbawa spasi/newline saat copy-paste.
         const enrollSecret = process.env["COMPANION_ENROLL_SECRET"]?.trim();
         log("SERVER_CONFIGURATION", {
           enrollmentSecretConfigured: Boolean(enrollSecret),
-          enrollmentSecretLength: enrollSecret?.length ?? 0,
         });
         if (!enrollSecret) {
           return respond({ ok: false, error: "server not configured" }, 503);
@@ -97,7 +108,7 @@ export const Route = createFileRoute("/api/public/companion/device/register")({
               device_id: body.device_id,
               device_name: body.device_name,
               android_version: body.android_version,
-              enroll_secret: `[REDACTED length=${body.enroll_secret?.length ?? 0}]`,
+              enroll_secret: "[REDACTED]",
             },
           });
         } catch (error) {
@@ -111,31 +122,12 @@ export const Route = createFileRoute("/api/public/companion/device/register")({
         const { safeEqual, registerDevice } = await import("@/lib/companion/companion.server");
         const received = (body.enroll_secret ?? "").trim();
         const matches = received.length > 0 && safeEqual(received, enrollSecret);
-        log("SECRET_VALIDATION", {
-          receivedLength: received.length,
-          expectedLength: enrollSecret.length,
-          matches,
-        });
+        log("SECRET_VALIDATION", { matches });
         if (!matches) {
-          // Diagnostik aman: hanya panjang & sidik jari pendek, bukan nilai rahasianya.
-          const { shortFingerprint } = await import("@/lib/companion/companion.server");
-          const reason = !received
-            ? "body.enroll_secret missing"
-            : received.length !== enrollSecret.length
-              ? "length mismatch"
-              : "value mismatch";
-          console.warn("[companion/register] unauthorized", {
-            envLoaded: true,
-            envLength: enrollSecret.length,
-            envTrimmedLength: enrollSecret.trim().length,
-            envFingerprint: await shortFingerprint(enrollSecret),
-            receivedLength: received.length,
-            receivedTrimmedLength: received.trim().length,
-            receivedFingerprint: await shortFingerprint(received),
-            trimmedMatch: received.trim() === enrollSecret.trim(),
-            reason,
-          });
-          return respond({ ok: false, error: "unauthorized", reason }, 401);
+          // Jangan bocorkan panjang/sidik jari secret ke log maupun ke klien:
+          // metadata itu mempersempit ruang brute-force. Cukup catat kegagalan.
+          console.warn("[companion/register] unauthorized", { requestId });
+          return respond({ ok: false, error: "unauthorized" }, 401);
         }
         const deviceId = (body.device_id ?? "").trim();
         log("DEVICE_VALIDATION", { deviceId, deviceIdLength: deviceId.length });
@@ -150,11 +142,7 @@ export const Route = createFileRoute("/api/public/companion/device/register")({
             deviceName: (body.device_name ?? "").slice(0, 120) || null,
             androidVersion: (body.android_version ?? "").slice(0, 40) || null,
           }, { requestId, build: REGISTER_DIAGNOSTIC_BUILD });
-          const { shortFingerprint } = await import("@/lib/companion/companion.server");
-          log("TOKEN_READY_FOR_RESPONSE", {
-            tokenLength: token.length,
-            tokenFingerprint: await shortFingerprint(token),
-          });
+          log("TOKEN_READY_FOR_RESPONSE", { issued: true });
           return respond({ ok: true, token });
         } catch (error) {
           console.error("[companion/register] register failed", {

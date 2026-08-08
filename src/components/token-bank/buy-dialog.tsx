@@ -215,7 +215,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
     if (st && st !== order.status) {
       setOrder({ ...order, status: st });
       const owner = buyerId ?? user?.id ?? null;
-      if (st === "approved" && owner) await syncTokensForUser(owner, { force: true });
+      if (st === "approved" && owner) await syncTokensForUser(owner, { force: true, immediate: true });
     }
   }
 

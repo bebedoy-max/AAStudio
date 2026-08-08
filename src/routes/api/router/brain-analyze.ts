@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { routeChat } from "./chat";
+import { isSafePublicUrl, safeFetch } from "@/lib/security/ssrf";
 
 // Real progress pipeline untuk analisa Brain.
 // - Streaming SSE (text/event-stream).
@@ -99,8 +100,9 @@ async function callJsonAI(
 }
 
 async function fetchTitle(url: string, signal: AbortSignal): Promise<string> {
+  if (!isSafePublicUrl(url)) return "";
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       signal,
       headers: {
         "User-Agent":
@@ -120,8 +122,9 @@ async function fetchTitle(url: string, signal: AbortSignal): Promise<string> {
 }
 
 async function fetchDesc(url: string, signal: AbortSignal): Promise<string> {
+  if (!isSafePublicUrl(url)) return "";
   try {
-    const res = await fetch(url, { signal });
+    const res = await safeFetch(url, { signal });
     if (!res.ok) return "";
     const html = (await res.text()).slice(0, 30000);
     const m =
@@ -162,10 +165,10 @@ async function scrapeTikTok(
 ): Promise<{ title: string; desc: string }> {
   const MOBILE_UA =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1";
+  if (!isSafePublicUrl(url)) return { title: "", desc: "" };
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       signal,
-      redirect: "follow",
       headers: {
         "User-Agent": MOBILE_UA,
         "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
@@ -218,7 +221,7 @@ async function scrapeTikTok(
     // ignore, try oembed
   }
   try {
-    const oe = await fetch(
+    const oe = await safeFetch(
       `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`,
       { signal, headers: { "User-Agent": MOBILE_UA } },
     );
@@ -247,7 +250,7 @@ export const Route = createFileRoute("/api/router/brain-analyze")({
         } catch {
           return new Response("Invalid JSON", { status: 400 });
         }
-        const socialLinks = (body.socialLinks ?? []).filter((s) => /^https?:\/\//.test(s));
+        const socialLinks = (body.socialLinks ?? []).filter((s) => /^https?:\/\//.test(s) && isSafePublicUrl(s));
         const references = body.references ?? [];
 
         const geminiKeys = (request.headers.get("x-user-gemini-keys") || "").trim();

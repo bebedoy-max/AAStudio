@@ -137,7 +137,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUserData = useCallback(async (uid: string) => {
     const nowIso = new Date().toISOString();
     const [{ data: p, error: profileError }, { data: r, error: rolesError }, { data: rp, error: permissionsError }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", uid).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("id, email, display_name, avatar_url, is_active, created_at, updated_at")
+        .eq("id", uid)
+        .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
       supabase
         .from("route_permissions")

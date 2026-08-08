@@ -434,9 +434,12 @@ function TokensPage() {
   useEffect(() => {
     if (loading || !user?.id) return;
     void syncTokensForUser(user.id, { force: true });
+    // Egress: token set only changes when the user (or a purchase) writes it,
+    // so re-pull every 5 minutes and on tab focus instead of every 20s.
     const refreshRemoteTokens = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void syncTokensForUser(user.id, { force: true });
-    }, 20_000);
+    }, 5 * 60_000);
     return () => window.clearInterval(refreshRemoteTokens);
   }, [loading, user?.id]);
 

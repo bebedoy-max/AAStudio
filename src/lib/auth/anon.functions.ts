@@ -5,6 +5,21 @@
 import { createServerFn } from "@tanstack/react-start";
 
 export const createGuestAccount = createServerFn({ method: "POST" }).handler(async () => {
+  // Endpoint ini publik dan memanggil auth.admin.createUser (service role),
+  // jadi dibatasi per-IP untuk mencegah pembuatan akun massal secara skrip.
+  const { getRequest } = await import("@tanstack/react-start/server");
+  const { rateLimit, clientIp } = await import("@/lib/security/rate-limit.server");
+  const req = getRequest();
+  if (req) {
+    const { allowed } = rateLimit(`guest:${clientIp(req)}`, {
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!allowed) {
+      throw new Error("Terlalu banyak pembuatan akun tamu dari jaringan ini. Coba lagi nanti.");
+    }
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const alphabet = "abcdefghijkmnpqrstuvwxyz23456789";
   const randomSuffix = (len: number) => {

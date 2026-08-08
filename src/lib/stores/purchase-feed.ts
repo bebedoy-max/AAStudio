@@ -58,7 +58,25 @@ function hidePendingExpired(row: PurchaseRow): boolean {
   return Number.isFinite(created) && Date.now() - created < PENDING_TTL_MS;
 }
 
-export function usePurchaseFeed(pollMs = 20_000): {
+// Egress: `temanqris_qr_image` is a base64 QR data-URL (tens of KB per row).
+// It is only ever rendered inside the purchase detail dialog, so it is NOT
+// fetched in this polled list — the dialog loads it lazily for one row.
+const FEED_COLUMNS =
+  "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, payment_provider, temanqris_order_id, temanqris_payment_url, temanqris_total_amount, temanqris_expires_at, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at";
+
+async function fetchFeed(userId: string): Promise<PurchaseView[]> {
+  const db = supabase as unknown as LooseClient;
+  const { data, error } = await db
+    .from("purchase_requests")
+    .select(FEED_COLUMNS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw error;
+  return ((data ?? []) as PurchaseRow[]).filter(hidePendingExpired).map(classify);
+}
+
+export function usePurchaseFeed(pollMs = 60_000): {
   items: PurchaseView[];
   loading: boolean;
   refresh: () => void;
@@ -73,21 +91,14 @@ export function usePurchaseFeed(pollMs = 20_000): {
       return;
     }
     let alive = true;
+    let lastLoadAt = 0;
     async function load() {
+      lastLoadAt = Date.now();
       setLoading(true);
       try {
-        const db = supabase as unknown as LooseClient;
-        const { data, error } = await db
-          .from("purchase_requests")
-          .select(
-            "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, payment_provider, temanqris_order_id, temanqris_qr_image, temanqris_payment_url, temanqris_total_amount, temanqris_expires_at, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
-          )
-          .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
-          .limit(20);
-        if (error) throw error;
+        const rows = await fetchFeed(user!.id);
         if (!alive) return;
-        setItems(((data ?? []) as PurchaseRow[]).filter(hidePendingExpired).map(classify));
+        setItems(rows);
       } catch (e) {
         console.warn("[purchase-feed]", e);
       } finally {
@@ -95,8 +106,16 @@ export function usePurchaseFeed(pollMs = 20_000): {
       }
     }
     load();
-    const t = setInterval(load, pollMs);
-    const onFocus = () => load();
+    // Only poll while the tab is visible — a hidden tab does not need updates.
+    const t = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void load();
+    }, pollMs);
+    // Refresh on focus, but coalesce rapid focus/blur cycles.
+    const onFocus = () => {
+      if (Date.now() - lastLoadAt < 10_000) return;
+      void load();
+    };
     window.addEventListener("focus", onFocus);
     return () => {
       alive = false;
@@ -106,21 +125,12 @@ export function usePurchaseFeed(pollMs = 20_000): {
   }, [user, pollMs]);
 
   const refresh = () => {
-    // Trigger a manual reload by nudging the interval — cheap and safe.
     if (!user) return;
-    const db = supabase as unknown as LooseClient;
-    void db
-      .from("purchase_requests")
-      .select(
-        "id, user_id, route_key, price_idr, payment_method_id, payment_method_name, payment_provider, temanqris_order_id, temanqris_qr_image, temanqris_payment_url, temanqris_total_amount, temanqris_expires_at, note, status, admin_note, reviewed_at, activated_until, created_at, updated_at",
-      )
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }: { data: unknown }) => {
-        setItems(((data ?? []) as PurchaseRow[]).filter(hidePendingExpired).map(classify));
-      });
+    void fetchFeed(user.id)
+      .then(setItems)
+      .catch((e) => console.warn("[purchase-feed]", e));
   };
+
 
   return { items, loading, refresh };
 }

@@ -84,10 +84,14 @@ function Body() {
   const [detail, setDetail] = useState<DetailKey | null>(null);
   const fetchStats = useServerFn(getAdminStats);
 
-  // Fast polling + realtime subscriptions so the dashboard reflects
-  // activity immediately (no 5-minute or 30-second wait).
+  // Realtime tetap memberi update instan; polling hanya jaring pengaman dan
+  // dihentikan saat tab tidak terlihat (hemat egress).
   useEffect(() => {
-    const iv = setInterval(() => setTick((t) => t + 1), 10_000);
+    const iv = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      setTick((t) => t + 1);
+    }, 30_000);
+
     let deb: ReturnType<typeof setTimeout> | null = null;
     const bump = () => {
       if (deb) clearTimeout(deb);

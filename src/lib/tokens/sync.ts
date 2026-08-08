@@ -164,14 +164,36 @@ export function clearLocalTokenCache() {
 /**
  * Pull encrypted tokens for the signed-in user and hydrate localStorage.
  * Called once per session after login. Idempotent per user.
+ *
+ * Egress guard: `force` pulls are throttled (default 60s) because focus /
+ * visibility / page timers used to re-download the whole encrypted token set
+ * on every tab switch. Pass `immediate: true` when the data is known to have
+ * just changed server-side (e.g. a purchase was approved).
  */
-export function syncTokensForUser(userId: string, options?: { force?: boolean }): Promise<void> {
+const FORCE_PULL_THROTTLE_MS = 60_000;
+let lastForcedPullAt = 0;
+
+export function syncTokensForUser(
+  userId: string,
+  options?: { force?: boolean; immediate?: boolean },
+): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
   const force = options?.force === true;
+  const immediate = options?.immediate === true;
   if (!force && lastPulledUserId === userId && pullPromise) return pullPromise;
   if (force && pullInFlightUserId === userId && pullPromise) return pullPromise;
+  if (
+    force &&
+    !immediate &&
+    lastPulledUserId === userId &&
+    Date.now() - lastForcedPullAt < FORCE_PULL_THROTTLE_MS
+  ) {
+    return Promise.resolve();
+  }
+  lastForcedPullAt = Date.now();
   lastPulledUserId = userId;
   pullInFlightUserId = userId;
+
   pullPromise = (async () => {
     try {
       const previousOwner = localStorage.getItem(OWNER_FLAG);

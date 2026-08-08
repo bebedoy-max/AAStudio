@@ -54,12 +54,16 @@ function titleFromUrl(v: string): string {
 // to the underlying publisher URL using Google's internal batchexecute RPC.
 async function resolveGoogleNewsUrl(wrapperUrl: string): Promise<string | null> {
   try {
-    const res = await fetch(wrapperUrl, {
+    // Wrapper HARUS berasal dari news.google.com — mencegah SSRF via redirect.
+    let host = "";
+    try { host = new URL(wrapperUrl).hostname.toLowerCase(); } catch { return null; }
+    if (host !== "news.google.com" && !host.endsWith(".news.google.com")) return null;
+    if (!isSafePublicUrl(wrapperUrl)) return null;
+    const res = await safeFetch(wrapperUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
-      redirect: "follow",
     });
     if (!res.ok) return null;
     const shell = await res.text();
