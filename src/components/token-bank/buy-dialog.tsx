@@ -425,9 +425,7 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
                 )}
               </div>
               {cartItems.length === 0 ? (
-                <div className="text-sm text-muted-foreground italic">
-                  Belum ada item. Set qty pada baris di atas.
-                </div>
+                <div className="py-2" aria-hidden="true" />
               ) : (
                 <>
                   <div className="flex flex-col gap-1 text-sm">

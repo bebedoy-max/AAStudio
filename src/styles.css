@@ -256,38 +256,21 @@ html, body { overflow-x: hidden; }
   pointer-events: none;
 }
 
-/* Tombol "Beli Token": glow emas berputar mengelilingi tombol supaya menonjol. */
-@keyframes gold-orbit-spin {
-  to { transform: rotate(1turn); }
+/* Tombol "Beli Token": glow emas berkedip pelan mengelilingi tombol supaya menonjol. */
+@keyframes gold-glow-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 10px 2px rgb(247 224 122 / 0.45),
+      0 0 20px 4px rgb(245 190 55 / 0.25);
+  }
+  50% {
+    box-shadow:
+      0 0 18px 5px rgb(247 224 122 / 0.80),
+      0 0 32px 9px rgb(245 190 55 / 0.42);
+  }
 }
 @utility btn-gold-glow {
   position: relative;
   isolation: isolate;
-}
-.btn-gold-glow::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: 9999px;
-  background: conic-gradient(
-    from 0deg,
-    rgba(247, 224, 122, 0) 0deg,
-    rgba(247, 224, 122, 0.15) 60deg,
-    #f7e07a 130deg,
-    #fff5c2 165deg,
-    #b8862f 210deg,
-    rgba(247, 224, 122, 0) 300deg
-  );
-  animation: gold-orbit-spin 2.6s linear infinite;
-  filter: blur(3px);
-  z-index: -1;
-  pointer-events: none;
-}
-.btn-gold-glow::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  box-shadow: 0 0 12px 2px rgb(247 224 122 / 0.35);
-  pointer-events: none;
+  animation: gold-glow-pulse 2.4s ease-in-out infinite;
 }

@@ -1192,9 +1192,9 @@ function ProductRowCard({
           )}
           {images.length > 0 ? (
             <div className="grid grid-cols-3 gap-1 mt-2">
-              {images.map((u, i) => (
+              {images.map((u) => (
                 <ProductRefImage
-                  key={i}
+                  key={u}
                   url={u}
                   selected={row.selectedImages.includes(u)}
                   onToggle={() => onToggleImage(u)}
@@ -1216,7 +1216,7 @@ function ProductRowCard({
   );
 }
 
-/** Thumbnail referensi produk: proxy dulu, fallback ke URL asli, lalu tandai gagal. */
+/** Thumbnail referensi produk: CDN langsung dulu agar hemat origin, proxy hanya saat diblokir. */
 function ProductRefImage({
   url,
   selected,
@@ -1227,8 +1227,13 @@ function ProductRefImage({
   onToggle: () => void;
 }) {
   const proxied = `/api/public/proxy-image?url=${encodeURIComponent(url)}`;
-  const [src, setSrc] = useState(proxied);
+  const [src, setSrc] = useState(url);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setSrc(url);
+    setFailed(false);
+  }, [url]);
 
   return (
     <button
@@ -1249,7 +1254,7 @@ function ProductRefImage({
           alt=""
           loading="lazy"
           onError={() => {
-            if (src === proxied) setSrc(url);
+            if (src === url) setSrc(proxied);
             else setFailed(true);
           }}
           className="h-full w-full object-cover"
