@@ -39,9 +39,24 @@ export const Route = createFileRoute("/api/public/proxy-image")({
 
         const authorization = request.headers.get("authorization");
         const headers: Record<string, string> = {
-            Accept: "*/*",
-            "User-Agent": "Mozilla/5.0",
+            Accept: "image/avif,image/webp,image/*,*/*;q=0.8",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
         };
+        // Sebagian CDN marketplace menolak request tanpa Referer (anti-hotlink).
+        try {
+          const host = new URL(url).hostname.toLowerCase();
+          const referer = /tokopedia/.test(host)
+            ? "https://www.tokopedia.com/"
+            : /susercontent|shopee/.test(host)
+              ? "https://shopee.co.id/"
+              : /slatic|lazada/.test(host)
+                ? "https://www.lazada.co.id/"
+                : /blibli/.test(host)
+                  ? "https://www.blibli.com/"
+                  : "";
+          if (referer) headers.Referer = referer;
+        } catch { /* ignore */ }
         if (authorization && new URL(url).hostname.endsWith(".weavy.ai")) headers.Authorization = authorization;
 
         const inm = request.headers.get("if-none-match");

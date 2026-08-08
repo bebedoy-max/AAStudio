@@ -255,6 +255,12 @@ export function BuyTokenDialog({ onClose }: { onClose: () => void }) {
             </span>
             . Disarankan mendaftar akun agar token tersimpan permanen, auto-sync ke cloud, dan tidak
             hilang saat cache browser dibersihkan.
+            <a
+              href="https://aacs.web.id"
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400/10 px-3 py-1.5 font-semibold text-amber-100 underline underline-offset-2 transition hover:bg-amber-400/20"
+            >
+              Login ke AACS.WEB.ID
+            </a>
           </div>
         )}
 

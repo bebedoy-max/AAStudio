@@ -4,6 +4,7 @@ import { useFilePicker, toFileList } from "@/components/cloud/file-picker";
 import { useEffect, useRef, useState } from "react";
 import { Rocket, Trash2, Plus, RefreshCw, X } from "lucide-react";
 import { logGenerate } from "@/lib/activity/log";
+import { GalleryVideo } from "@/components/generate/gallery-video";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import { Field, Select, Textarea, Input, Card, PrimaryButton, GhostButton, GalleryEmpty } from "@/components/dashboard/ui";
 import { useSticky } from "@/lib/stores/use-sticky";
@@ -341,7 +342,7 @@ function ImageToVideo() {
             {results.map((item) => (
               <div key={item.id} className="rounded-xl overflow-hidden border border-border bg-black/40">
                 <a href={item.url} target="_blank" rel="noreferrer" className="block">
-                  <video src={item.url} controls preload="metadata" playsInline crossOrigin="anonymous" className="w-full aspect-[9/16] object-cover" />
+                  <GalleryVideo src={item.url} className="w-full aspect-[9/16] object-cover bg-black" />
                 </a>
                 <div className="p-2 flex justify-between">
                   <a href={item.url} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline">▶ Open</a>

@@ -122,6 +122,9 @@ export const Route = createFileRoute("/api/public/scrape-product")({
         let directOk = false;
         let directStatus = 0;
         let directErr = "";
+        // Short-link (mis. tk.tokopedia.com/xxx) → simpan URL final hasil redirect
+        // supaya base URL & deteksi marketplace memakai halaman produk aslinya.
+        let finalUrl = target;
         try {
           const res = await safeFetch(target, {
             headers: {
@@ -132,6 +135,7 @@ export const Route = createFileRoute("/api/public/scrape-product")({
             redirect: "follow",
           });
           directStatus = res.status;
+          if (res.url) finalUrl = res.url;
           if (res.ok) {
             html = await res.text();
             directOk = html.length > 500 && !looksBlocked(html);
@@ -188,7 +192,7 @@ export const Route = createFileRoute("/api/public/scrape-product")({
           }), { status: 200, headers: { "Content-Type": "application/json" } });
         }
 
-        const baseUrl = target;
+        const baseUrl = finalUrl;
 
         const ogTitle = pickMeta(html, [
           /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i,
@@ -252,25 +256,54 @@ export const Route = createFileRoute("/api/public/scrape-product")({
         }
 
         const blockedHtmlTitle = /access\s*denied|forbidden|captcha|robot/i.test(ogTitle || acc.title || htmlTitle || "");
-        const finalTitle = decodeEntities((blockedHtmlTitle ? "" : (ogTitle || acc.title || htmlTitle)) || jinaTitle || titleFromUrl(target) || "");
+        const finalTitle = decodeEntities((blockedHtmlTitle ? "" : (ogTitle || acc.title || htmlTitle)) || jinaTitle || titleFromUrl(finalUrl) || "");
         const finalDesc = decodeEntities(ogDesc || acc.description || jinaDesc || jinaFirstText || "");
-        let finalImages = unique(imgs.flatMap(imageCandidates))
+        let candidates = unique(imgs.flatMap(imageCandidates))
           .filter((u) => !/\.svg(\?|$)/i.test(u))
           .filter((u) => !/logo|favicon|icon-|sprite|placeholder|avatar|profile-picture/i.test(u))
-          .slice(0, 20);
+          // Buang aset non-produk (banner kampanye, ilustrasi UI marketplace)
+          // supaya slot referensi tidak terisi gambar yang gagal / tidak relevan.
+          .filter((u) => !/\/(img\/content|assets?|static|banner|campaign|promo-banner|illustration)\//i.test(u))
+          .filter((u) => isSafePublicUrl(u))
+          .slice(0, 16);
 
         // Tokopedia: gambar pertama (og:image / hero) hampir selalu duplikat
         // dari gambar kedua di gallery produk. Buang gambar pertama supaya
         // user langsung dapat set gambar unik mulai dari slot berikutnya.
         try {
-          const host = new URL(target).hostname.toLowerCase();
-          if (/(^|\.)tokopedia\.com$/.test(host) && finalImages.length > 1) {
-            finalImages = finalImages.slice(1);
+          const host = new URL(finalUrl).hostname.toLowerCase();
+          if (/(^|\.)tokopedia\.com$/.test(host) && candidates.length > 1) {
+            candidates = candidates.slice(1);
           }
         } catch { /* ignore */ }
 
+        // Verifikasi murah: ambil 1 byte pertama (Range) untuk memastikan URL
+        // benar-benar gambar yang bisa dimuat. Dibatasi 12 probe & berhenti
+        // setelah 6 gambar valid supaya hemat kuota egress/serverless.
+        const verified: string[] = [];
+        const probes = candidates.slice(0, 12);
+        for (let i = 0; i < probes.length && verified.length < 6; i += 4) {
+          const batch = probes.slice(i, i + 4);
+          const results = await Promise.all(
+            batch.map(async (u) => {
+              try {
+                const r = await safeFetch(u, {
+                  headers: { Accept: "image/*", Range: "bytes=0-0", "User-Agent": "Mozilla/5.0" },
+                });
+                const ct = r.headers.get("content-type") || "";
+                return (r.ok || r.status === 206) && /^image\//i.test(ct) ? u : null;
+              } catch {
+                return null;
+              }
+            }),
+          );
+          for (const u of results) if (u && verified.length < 6) verified.push(u);
+        }
+        // Kalau semua probe gagal (CDN menolak HEAD/Range), pakai kandidat apa adanya.
+        const finalImages = verified.length > 0 ? verified : candidates.slice(0, 6);
+
         return new Response(JSON.stringify({
-          url: target,
+          url: finalUrl,
           title: finalTitle,
           description: finalDesc,
           images: finalImages,

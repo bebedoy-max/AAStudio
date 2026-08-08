@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   Loader2,
 } from "lucide-react";
+import { GalleryVideo } from "@/components/generate/gallery-video";
 import { DashboardShell, PageHero } from "@/components/dashboard/shell";
 import {
   Field,
@@ -779,7 +780,7 @@ export function MotionControl() {
                   .map((r) => (
                     <div key={r.id} className="rounded-xl overflow-hidden border border-border/60 bg-card/40 group">
                       <a href={r.url} target="_blank" rel="noreferrer" className="block relative">
-                        <video src={r.url} controls preload="metadata" playsInline crossOrigin="anonymous" className="w-full aspect-video bg-black" />
+                        <GalleryVideo src={r.url} className="w-full aspect-video bg-black" />
                       </a>
                       <div className="p-2 text-[11px] text-muted-foreground flex items-center justify-between gap-2">
                         <span className="truncate flex-1" title={r.prompt}>{r.prompt || <span className="italic">(no prompt)</span>}</span>

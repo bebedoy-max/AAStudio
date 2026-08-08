@@ -1192,35 +1192,14 @@ function ProductRowCard({
           )}
           {images.length > 0 ? (
             <div className="grid grid-cols-3 gap-1 mt-2">
-              {images.map((u, i) => {
-                const sel = row.selectedImages.includes(u);
-                const px = `/api/public/proxy-image?url=${encodeURIComponent(u)}`;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => onToggleImage(u)}
-                    className={
-                      "relative aspect-square overflow-hidden rounded-lg bg-black/40 transition border-2 " +
-                      (sel ? "border-primary" : "border-transparent hover:border-border")
-                    }
-                  >
-                    <img
-                      src={px}
-                      alt=""
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = u;
-                      }}
-                      className="h-full w-full object-cover"
-                    />
-                    {sel && (
-                      <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full grid place-items-center text-[8px] font-bold text-primary-foreground"
-                        style={{ background: "var(--gradient-neon)" }}>
-                        <CheckIcon className="h-2.5 w-2.5" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {images.map((u, i) => (
+                <ProductRefImage
+                  key={i}
+                  url={u}
+                  selected={row.selectedImages.includes(u)}
+                  onToggle={() => onToggleImage(u)}
+                />
+              ))}
             </div>
           ) : (
             <div className="text-[11px] text-muted-foreground mt-1.5">
@@ -1236,6 +1215,58 @@ function ProductRowCard({
     </div>
   );
 }
+
+/** Thumbnail referensi produk: proxy dulu, fallback ke URL asli, lalu tandai gagal. */
+function ProductRefImage({
+  url,
+  selected,
+  onToggle,
+}: {
+  url: string;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const proxied = `/api/public/proxy-image?url=${encodeURIComponent(url)}`;
+  const [src, setSrc] = useState(proxied);
+  const [failed, setFailed] = useState(false);
+
+  return (
+    <button
+      onClick={onToggle}
+      disabled={failed}
+      className={
+        "relative aspect-square overflow-hidden rounded-lg bg-black/40 transition border-2 " +
+        (selected ? "border-primary" : "border-transparent hover:border-border")
+      }
+    >
+      {failed ? (
+        <span className="absolute inset-0 grid place-items-center text-[9px] text-muted-foreground">
+          gagal muat
+        </span>
+      ) : (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={() => {
+            if (src === proxied) setSrc(url);
+            else setFailed(true);
+          }}
+          className="h-full w-full object-cover"
+        />
+      )}
+      {selected && !failed && (
+        <span
+          className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full grid place-items-center text-[8px] font-bold text-primary-foreground"
+          style={{ background: "var(--gradient-neon)" }}
+        >
+          <CheckIcon className="h-2.5 w-2.5" />
+        </span>
+      )}
+    </button>
+  );
+}
+
 
 function StatusBadge({ status, error }: { status: ProductRow["status"]; error: string }) {
   if (status === "ok")
